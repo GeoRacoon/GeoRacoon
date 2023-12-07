@@ -14,6 +14,8 @@
 _sigma = 1_
 ![France-CH border](./test_france_layers_filtered_10.0.png)
 _sigma = 10_
+![France-CH border](./test_france_layers_filtered_40.0.png)
+_sigma = 40_
 
 ## Entropy after diffusion
 
@@ -22,6 +24,8 @@ _sigma = 10_
 _sigma = 1_
 ![France-CH border](./test_france_layers_entropy_10.0.png)
 _sigma = 10_
+![France-CH border](./test_france_layers_entropy_40.0.png)
+_sigma = 40_
 
 In principle this approach can be adapted also for landscape blocks consisting of a block of pixels and thus an initial distributions with resulting entropy.
 Therefore, there are two way to include scale effects:
