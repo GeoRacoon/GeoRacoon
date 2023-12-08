@@ -41,12 +41,12 @@ _sigma = 40_
 <img 
    alt="Test area FR-CH border"
    src="./test_france.png" 
-   height="800"
+   height="600"
 />
 <img 
   alt="Test area FR-CH border - entropy"
   src="./test_france_layers_entropy_40.0.png" 
-  height="800"
+  height="600"
 />
 </p>
 
@@ -63,12 +63,12 @@ _sigma = 40_
 <img 
    alt="all france"
    src="./all_france.png" 
-   height="800"
+   height="600"
 />
 <img 
   alt="All france - entropy sigma 200"
   src="./all_france_layers_entropy_200.0.png" 
-  height="800"
+  height="600"
 />
 </p>
 
