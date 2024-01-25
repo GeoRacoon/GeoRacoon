@@ -1,0 +1,5 @@
+pydata-sphinx-theme==0.14.4
+sphinx-togglebutton==0.3.2
+sphinx_design==0.5.0
+sphinx-copybutton==0.5.2
+myst-parser==2.0.0
