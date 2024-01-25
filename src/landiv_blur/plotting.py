@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from rasterio.plot import show
 
-from .loading import load_block
+from .io import load_block
 from .processing import (
     get_layer_data,
     get_entropy
@@ -26,10 +26,12 @@ COLORS = [
 ]
 DPI = 200
 
-def _get_class_colormap(colors = COLORS):
+
+def _get_class_colormap(colors=COLORS):
     """Create a custom colormap of the 8 classes we use.
     """
     return ListedColormap(colors)
+
 
 def show_block(source, start, size, output):
     """Show only a specific block in a tif with all layers
@@ -43,7 +45,8 @@ def show_block(source, start, size, output):
     size: tuple
       width and height of the block to extract
     """
-    data, transform = load_block(source, start, size)
+    block = load_block(source, start, size)
+    data, transform = block['data'], block['transform']
 
     cmap = _get_class_colormap()
 
@@ -53,7 +56,8 @@ def show_block(source, start, size, output):
 def plot_block(source, start, size, ax):
     """Plot the landtypes data and save it to a file.
     """
-    data, transform = load_block(source, start, size)
+    block = load_block(source, start, size)
+    data, transform = block['data'], block['transform']
     cmap = _get_class_colormap()
     # pass affine transform corresponding to the window
     to_display = show(data,
@@ -65,7 +69,7 @@ def plot_block(source, start, size, ax):
 
 def plot_landtypes(source, start, size, output):
     """Plot the landtypes data and save it to a file.
-    
+
     Parameters
     ----------
     source: str
@@ -77,7 +81,7 @@ def plot_landtypes(source, start, size, output):
     output: str
       Where to store the image
     """
-    fig, ax = plt.subplots(figsize = (16, 16))
+    fig, ax = plt.subplots(figsize=(16, 16))
     im = plot_block(source, start, size, ax)
     fig.colorbar(im, ax=ax)
     fig.savefig(output, dpi=DPI)
@@ -86,11 +90,11 @@ def plot_landtypes(source, start, size, output):
 def show_layer(data, layer, transform, ax):
     """
     """
-    colors=[COLORS[0], COLORS[layer-1]]
+    colors = [COLORS[0], COLORS[layer-1]]
     if len(np.unique(data)) == 2:
-        cmap=_get_class_colormap(colors=colors)
+        cmap = _get_class_colormap(colors=colors)
     else:
-        cmap=LinearSegmentedColormap.from_list("Custom", colors, N=20)
+        cmap = LinearSegmentedColormap.from_list("Custom", colors, N=20)
     return show(
         data,
         ax=ax,
@@ -101,7 +105,7 @@ def show_layer(data, layer, transform, ax):
 
 def plot_layers(source, start, size, output, img_filter=None, params=None):
     """Plot each layer in isolation
-    
+
     Parameters
     ----------
     source: str
@@ -113,7 +117,8 @@ def plot_layers(source, start, size, output, img_filter=None, params=None):
     output: str
       Where to store the image
     """
-    data, transform = load_block(source, start, size)
+    block = load_block(source, start, size)
+    data, transform = block['data'], block['transform']
 
     fig, axs = plt.subplots(2, 4, figsize=(128, 64))
 
@@ -126,9 +131,10 @@ def plot_layers(source, start, size, output, img_filter=None, params=None):
             show_layer(_data, layer, transform, axs[row, col])
     fig.savefig(output, dpi=DPI)
 
+
 def plot_entropy(source, start, size, output, img_filter=None, params=None):
     """Plot the entropy in each pixel after layer diffusion
-    
+
     Parameters
     ----------
     source: str
@@ -140,12 +146,14 @@ def plot_entropy(source, start, size, output, img_filter=None, params=None):
     output: str
       Where to store the image
     """
-    data, transform = load_block(source, start, size)
+    block = load_block(source, start, size)
+    data, transform = block['data'], block['transform']
     entropy_layer = get_entropy(data, layers=range(8))
 
-    fig, ax = plt.subplots(figsize = (16, 16))
+    fig, ax = plt.subplots(figsize=(16, 16))
 
-    cmap = LinearSegmentedColormap.from_list("Custom", ['black', 'white'], N=20)
+    cmap = LinearSegmentedColormap.from_list(
+        "Custom", ['black', 'white'], N=20)
     # pass affine transform corresponding to the window
     to_display = show(entropy_layer,
                       ax=ax,

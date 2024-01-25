@@ -1,3 +1,6 @@
+"""
+This module defines a command line interface.
+"""
 import os
 from skimage.filters import gaussian
 from .plotting import (
