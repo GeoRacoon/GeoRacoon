@@ -1,0 +1,75 @@
+import rasterio
+from rasterio.enums import ColorInterp
+from rasterio.windows import Window
+
+
+def load_block(source, start, size):
+    """Get a block from a *.tif file along with the transform
+
+    Parameters
+    ----------
+    source: str
+      The path to the tif file to load
+    start: tuple
+      horizontal and vertical starting coordinate
+    size: tuple
+      width and height of the block to extract
+
+    Return
+    ------
+    dict:
+       data: holding a numpy array with the actual data
+       transform: an ???.Affine object that encodes the transformation used
+       orig_meta: The meta information of the original .tif file
+       orig_profile: The profile information of the original .tif file
+    """
+    with rasterio.open(source) as img:
+        riow = Window(*start, *size)
+        # Lookup table for the color space in the source file
+        colorspace = dict(zip(img.colorinterp, img.indexes))
+
+        if len(colorspace.keys()) == 3:
+            # Read the image in the proper order so the numpy array is RGB
+            rgb_idxs = [
+                colorspace[ci]
+                for ci in (ColorInterp.red,
+                           ColorInterp.green,
+                           ColorInterp.blue)
+            ]
+        else:
+            rgb_idxs = 1
+        return {
+            'data': img.read(rgb_idxs, window=riow),
+            'transform': img.window_transform(riow),
+            'orig_profile': img.profile.copy()
+        }
+
+
+def export_to_tif(data, transform, destination, orig_profile, **pparams):
+    """Export a numpy array to a tif file.
+
+    Parameters
+    ----------
+    data: np.array
+        The map to export
+    transform: ???.Affine
+        encoding the transformation used
+    destination: str
+        location to export save the .tif file
+    orig_profile: dict
+        the profile of the original map
+        (see https://rasterio.readthedocs.io/en/stable/topics/profiles.html)
+    **pparams:
+        further parameter to be added to the profile
+    """
+    profile = orig_profile.copy()
+    # update for the correct dimensions
+    profile['height'] = data.shape[1]
+    profile['width'] = data.shape[0]
+    profile['transform'] = transform  # TODO: this has likely not changed
+    # set the dtype explicitly of get it from the data
+    profile['dtype'] = pparams.pop('dtype', str(data.dtype))
+    profile.update(pparams)
+    # write it:
+    with rasterio.open(destination, "w", **profile) as dest:
+        dest.write(data, indexes=1)
