@@ -1,3 +1,7 @@
+# ignore api folder for docs
+docs/api/
+public/
+
 # do not track the data folder
 data/
 
