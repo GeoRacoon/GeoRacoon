@@ -1,3 +1,5 @@
+from . import array_processing as ap
+
 from .io import (
     load_block,
 )

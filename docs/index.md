@@ -26,6 +26,9 @@ Package to compute diversity measures in land cover type maps
 
 # LanDiv Blur
 
+```{include} ../README.md
+:start-line: 1
+:end-before: <!--- quickstart --->
 
 ```{toctree}
 :maxdepth: 2
