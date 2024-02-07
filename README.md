@@ -11,7 +11,7 @@ _If you follow the installation instructions below you will attempt to install_
 _rasterio from the Python Package Index in which chase the libgdal library_
 _will be shipped along._
 _However, if you encounter any issues with the installaiton of rasterio, head_
-_over to the [rasterio installation insructions)[https://rasterio.readthedocs.io/en/stable/installation.html) for more details._
+_over to the [rasterio installation insructions](https://rasterio.readthedocs.io/en/stable/installation.html) for more details._
 
 
 To install `landiv_blur`:
@@ -29,6 +29,8 @@ There is also a command line executable (_under construction_) that can
 directly process `.tif` files.
 After installation, type `landiv --help` in your terminal for further details
 on how to use it.
+
+<!--- quickstart --->
 
 ## Previews
 
