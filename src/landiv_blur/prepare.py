@@ -2,7 +2,6 @@
 Submodule providing the necessary functions to setup an efficient processing
 of a land-cover type map.
 """
-import numpy as np
 
 
 def overhead_fraction(nbr_blocks, border, size):
@@ -35,14 +34,54 @@ def overhead_fraction(nbr_blocks, border, size):
     overhead_area = h_overhead + v_overhead + corners
     return overhead_area / total_area
 
+def update_views(data, views, blocks):
+    """Update the data array with a sequence of views.
 
-def get_blocks(nbr_blocks, border, size):
-    """Returns a set blocks on which the filter can be applied independently.
+    Note that the updates are applied in order of the provided list from first
+    to last.
 
     Parameters
     ----------
-    nbr_blocks: scalar
-      The number of block along one axis
+    data:
+      The map from which we want to get views from
+    views:
+      a list of tuples (x, y, width, height) defining each view for where the
+      data array should be updated.
+
+    """
+    for view, block in zip(views, blocks):
+        update_view(data, view, block)
+
+    return None
+
+def update_view(data, view, block):
+    """Update a view from the data array with a block
+
+    ..Note::
+       `block.shape must be equal to height and width of `view`, so
+       `block.shape == (view[2], view[3])`
+
+    Parameters
+    ----------
+    data:
+      The map from which we want to get views from
+    view:
+      tuple (x, y, width, height) defining the view of the data array to update
+    block:
+      np.array with the updated values.
+
+    """
+    data[slice(view[0], view[0] + view[2]),
+         slice(view[1], view[1] + view[3])] = block
+
+
+def create_views(nbr_views, border, size):
+    """Returns a set of views on which the filter can be applied independently
+
+    Parameters
+    ----------
+    nbr_views: scalar
+      The number of view along one axis
     border: int
       The border size in number of pixels
     size: tuple
@@ -51,30 +90,87 @@ def get_blocks(nbr_blocks, border, size):
     Return
     ------
 
-    list:
-      A list of tuples (x, y, width, height) defining each block on which to
-      apply a filter
+    tuple:
+      The first element is a list of tuples (x, y, width, height) defining each
+      view on which to apply a filter.
+      The second element is a list of tuples (x, y, width, height) defining for
+      each view the usable region.
+      A region is usable if it does not contain any artificial border effects
+      that were introduced from splitting up a bigger view into smaller chunks
     """
     for i, s in enumerate(size):
-        assert int(s / nbr_blocks) == s / nbr_blocks, \
-               f"{size[i]=} needs to be a multiple of {nbr_blocks=}"
-    block_sizes = list(map(lambda x: int(x / nbr_blocks), size))
+        view_size = int(s / nbr_views)
+        print(f"{view_size=}")
+        assert view_size == s / nbr_views, \
+               f"{size[i]=} needs to be a multiple of {nbr_views=}"
+        assert border <= view_size, \
+               f"{border=} cannot be bigger the {view_size=}"
+    view_sizes = list(map(lambda x: int(x / nbr_views), size))
     vstarts = []
     hstarts = []
     heights = []
     widths = []
-    for i in range(nbr_blocks):
-        if 0 < i < nbr_blocks - 1:
+    inner_vs = []
+    inner_hs = []
+    inner_h = []
+    inner_w = []
+    for i in range(nbr_views):
+        if 0 < i < nbr_views - 1:
             vpadding = 2 * border
         else:
             vpadding = border
-        for j in range(nbr_blocks):
-            if 0 < j < nbr_blocks - 1:
+        for j in range(nbr_views):
+            if 0 < j < nbr_views - 1:
                 hpadding = 2 * border
             else:
                 hpadding = border
-            vstarts.append(max(0, i * block_sizes[0] - border))
-            hstarts.append(max(0, j * block_sizes[1] - border))
-            heights.append(block_sizes[0] + vpadding)
-            widths.append(block_sizes[1] + hpadding)
-    return list(zip(vstarts, hstarts, heights, widths))
+            vstarts.append(max(0, i * view_sizes[0] - border))
+            hstarts.append(max(0, j * view_sizes[1] - border))
+            heights.append(view_sizes[0] + vpadding)
+            widths.append(view_sizes[1] + hpadding)
+            # the useable inner view 
+            inner_vs.append(max(0, i * view_sizes[0]))
+            inner_hs.append(max(0, j * view_sizes[1]))
+            inner_h.append(view_sizes[0])
+            inner_w.append(view_sizes[1])
+    return (
+        list(zip(vstarts, hstarts, heights, widths)),
+        list(zip(inner_vs, inner_hs, inner_w, inner_w))
+    )
+
+def get_view(data, view):
+    """Return a view of the data array
+
+    Parameters
+    ----------
+    data:
+      np.array to return the view from
+    view:
+      tuple (x, y, width, height) defining the view
+
+    """
+    return data[slice(view[0], view[0] + view[2]),
+                slice(view[1], view[1] + view[3])]
+
+def relative_view(view, inner_view):
+    return (inner_view[0] - view[0],
+            inner_view[1] - view[1], 
+            inner_view[2],
+            inner_view[3])
+
+
+def recombine_blocks(blocks, output):
+    """Write a sequence of blocks onto an output array
+
+    Parameters
+    ----------
+    blocks:
+      iterable of blocks each being a tuple `(data, view)`
+      where data is an np.array with the data to use in the update
+      and view a tuple with
+      (vertical start, horiz start, height, widht) of the view
+      to update
+    """
+    for data, view in blocks:
+        update_view(output, view, block=data)
+    return output
