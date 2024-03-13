@@ -1,5 +1,4 @@
 import numpy as np
-
 from landiv_blur import processing as lbproc
 
 
