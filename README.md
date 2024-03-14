@@ -32,6 +32,48 @@ on how to use it.
 
 <!--- quickstart --->
 
+### Running with OnDemand on cluster.s3it.uzh.ch
+
+In order to apply the filters to sizeable maps we are in need of adequate
+resources that are provided, for example, by the SLURM cluster maintained by
+s3it.uzh.ch.
+Luckily, s3it provides the OnDemand framework, which allows to run a jupyter
+lab on resources provided through SLURM.
+The advantage of such approach lies in the abstraction layer that allows to
+distribute the workload much like one would parallelize on a single multi-core
+server.
+
+Setting up a jupyter lab for our analysis requires some preparatory steps:
+
+1. Login to cluster.s3it.uzh.ch with `ssh -l shortname cluster.s3it.uzh.ch`
+1. Create ssh key-pair with `ssh-keygen`. Make sure to **set a password
+   protection** for the key.
+1. Add the just generate public key (the \<something\>.pub) to your ssh keys
+   on https://git.math.uzh.ch/-/profile/keys
+1. Clone the landiv project into your home folder on the cluster
+1. Build and install our custom kernel (called `landiv` kernel ) by running:
+   ```
+   chmod +x landiv_kernel.sh
+   bash ./landiv_kernel.sh
+   ```
+
+1. Got to apps.s3it.uzh.ch and select `Jupyter Server` from the drop-down
+   menu `Interactive Apps`
+1. Reserve the required amount of CPU's and RAM (a good ratio is 1/4)
+1. Leave GPU to None as we are not using them in this project
+1. Select a runtime that is longer than the complete processing time
+   (to determine).
+
+   _Note:_ You can always delete the interactive session, which will also free
+   up the reserved resources.
+1. Hit `Launch` and wait for the jupyter server to start and the click on the
+   'Connect to Jupyter` button
+1. Under 'Notebook' there will be a python symbol with the name `landiv`, click
+   on it to start a notebook with our custom kernel.
+1. Now you can start using the landiv package and all of its dependencies.
+   
+
+
 ## Previews
 
 ![France-CH border](./test_france.png)
