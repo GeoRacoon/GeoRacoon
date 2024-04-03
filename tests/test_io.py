@@ -33,13 +33,15 @@ def test_import_export(datafiles):
     ch_map_tif = list(datafiles.iterdir())[0]
     block = lbio.load_block(ch_map_tif, start=start, size=size)
     entropy_layer = lbproc.get_entropy(block['data'], range(8),
+                                       normed=True,
                                        img_filter=gaussian)
     outfile = datafiles / 'out.tif'
     lbio.export_to_tif(
-        entropy_layer,
-        block['transform'],
         destination=str(outfile),
+        data=entropy_layer,
         orig_profile=block['orig_profile'],
+        # we need the transform from the window from block 1
+        transform=block['transform']
     )
     block_2 = lbio.load_block(outfile, start=(0, 0), size=size)
     # NOTE: if the arrays contain np.nan then np.all will always be False

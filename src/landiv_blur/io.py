@@ -24,6 +24,9 @@ def load_block(source, start, size):
        orig_profile: The profile information of the original .tif file
     """
     with rasterio.open(source) as img:
+        # TODO: rasterio Window allows using slices. In doing so we could
+        #       harmonize what we call blocks and views and just work with
+        #       slices.
         riow = Window(*start, *size)
         # Lookup table for the color space in the source file
         colorspace = dict(zip(img.colorinterp, img.indexes))
@@ -45,17 +48,21 @@ def load_block(source, start, size):
         }
 
 
-def export_to_tif(data, transform, destination, orig_profile, **pparams):
-    """Export a numpy array to a tif file.
+def export_to_tif(destination, data, orig_profile, start=(0, 0),  **pparams):
+    """Export a np.array to tif, only updating a window if data is smaller
+
+    .. note::
+      This function will overwrite the dtype of the destination tif with the
+      value provided in pparams or the data type of `data`.
 
     Parameters
     ----------
-    data: np.array
-        The map to export
-    transform: ???.Affine
-        encoding the transformation used
     destination: str
         location to export save the .tif file
+    data: np.array
+        The map to export
+    start: tuple
+      horizontal and vertical starting coordinate
     orig_profile: dict
         the profile of the original map
         (see https://rasterio.readthedocs.io/en/stable/topics/profiles.html)
@@ -63,13 +70,15 @@ def export_to_tif(data, transform, destination, orig_profile, **pparams):
         further parameter to be added to the profile
     """
     profile = orig_profile.copy()
-    # update for the correct dimensions
-    profile['height'] = data.shape[1]
-    profile['width'] = data.shape[0]
-    profile['transform'] = transform  # TODO: this has likely not changed
+    # Note: we no longer update the size automatically as for Windows this is
+    # not correct, pass height and width explicitly to update via pparams
+    # # update for the correct dimensions
+    # profile['height'] = data.shape[1]
+    # profile['width'] = data.shape[0]
     # set the dtype explicitly of get it from the data
     profile['dtype'] = pparams.pop('dtype', str(data.dtype))
     profile.update(pparams)
     # write it:
+    size = data.shape[::-1]  # since positions are inverted in numpy
     with rasterio.open(destination, "w", **profile) as dest:
-        dest.write(data, indexes=1)
+        dest.write(data, window=Window(*start, *size), indexes=1)

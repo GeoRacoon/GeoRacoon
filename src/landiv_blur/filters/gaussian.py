@@ -28,7 +28,7 @@ def get_kernel_diameter(sigma, **params):
         msize += 1
     diameter = msize
     while diameter == msize:
-        msize = int(round(1.1 * msize))
+        msize += int(max(1, round(0.1 * msize)))
         tmap = np.zeros((msize, msize))
         half = int(0.5 * (msize - 1))
         tmap[half, half] = 1

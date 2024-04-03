@@ -132,7 +132,38 @@ def plot_layers(source, start, size, output, img_filter=None, params=None):
     fig.savefig(output, dpi=DPI)
 
 
-def plot_entropy(source, start, size, output, img_filter=None, params=None):
+def plot_entropy(source, start, size, output):
+    """Plot the entropy in each pixel from a tif file
+
+    Parameters
+    ----------
+    source: str
+      The path to the tif file to load
+    start: tuple
+      horizontal and vertical starting coordinate
+    size: tuple
+      width and height of the block to extract
+    """
+    block = load_block(source, start, size)
+    data, transform = block['data'], block['transform']
+    entropy_layer = data
+    print(np.unique(entropy_layer))
+    fig, ax = plt.subplots(figsize=(16, 16))
+
+    cmap = LinearSegmentedColormap.from_list(
+        "Custom", ['black', 'white'], N=20)
+    # pass affine transform corresponding to the window
+    to_display = show(entropy_layer,
+                      ax=ax,
+                      transform=transform,
+                      cmap=cmap)
+    im = to_display.get_images()[0]
+    fig.colorbar(im, ax=ax)
+    fig.savefig(output, dpi=DPI)
+
+
+def plot_entropy_full(source, start, size, output, img_filter=None,
+                      params=None):
     """Plot the entropy in each pixel after layer diffusion
 
     Parameters
@@ -148,7 +179,7 @@ def plot_entropy(source, start, size, output, img_filter=None, params=None):
     """
     block = load_block(source, start, size)
     data, transform = block['data'], block['transform']
-    entropy_layer = get_entropy(data, layers=range(8))
+    entropy_layer = get_entropy(data, layers=range(8), normed=True)
 
     fig, ax = plt.subplots(figsize=(16, 16))
 

@@ -6,7 +6,7 @@ from skimage.filters import gaussian
 from .plotting import (
     plot_landtypes,
     plot_layers,
-    plot_entropy
+    plot_entropy_full
 )
 
 
@@ -56,7 +56,8 @@ def main_cli():
     if args.do == 'show':
         fname, fextension = os.path.splitext(args.output)
         if args.type == 'entropy':
-            plot_entropy(
+
+            plot_entropy_full(
                 args.source,
                 (args.hstart, args.vstart),
                 (args.size, args.size),
