@@ -145,7 +145,7 @@ def combine_blocks(output_params: dict, q):
     return timer
 
 
-def _get_blur_params(diameter, sigma, truncate):
+def get_blur_params(diameter, sigma, truncate):
     """
     .. note::
         The default of truncate is 3
@@ -196,13 +196,13 @@ def get_lct_heterogeneity(source: str, output: str, scale: float, layers: list,
     print("The chosen source tif has a dimension of:"
           f"\n\t{width=}\n\t{height=}")
 
-
     # get the diffusion kernel size in pixels
     psigma = blur_params['sigma'] / scale  # get sigma in pixels
     pdiameter = blur_params['diameter'] / scale  # get sigma in pixels
+    truncate = blur_params['truncate']
     # get the distance from center to border of the Gaussian kernel
     ksize = lbf_gauss.get_kernel_size(sigma=psigma,
-                                      truncate=blur_params['truncate'])
+                                      truncate=truncate)
     print("Chosen parameters in distance units and corresponting pixels):\n"
           f"\t- sigma: {blur_params['sigma']} => {psigma} pixels\n"
           f"\t- diameter: {blur_params['diameter']} => {pdiameter} pixels\n"
@@ -312,6 +312,6 @@ if __name__ == "__main__":
         source=source,
         scale=scale,
         layers=layers,
-        blur_params=_get_blur_params(diameter, sigma, truncate),
+        blur_params=get_blur_params(diameter, sigma, truncate),
         output=output
     )
