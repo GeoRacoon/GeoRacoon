@@ -13,7 +13,7 @@ mamba install --name landiv pip -qy
 # Make sure ~/.local/bin is picked up
 export PATH="$HOME/.local/bin:$PATH"
 # install landiv in developer mode
-mamba run pip install -e . -qy
+mamba run pip install -e .
 
 # Install the tools to add a custom kernel
 mamba install --name landiv ipykernel -qy
