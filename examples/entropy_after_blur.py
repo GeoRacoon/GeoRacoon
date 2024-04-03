@@ -37,6 +37,7 @@ entropy_layer = entropy(combined, axis=2)
 entropy_layer_fast = lbproc.get_entropy(
     rand_map,
     layers=[2, 3],
+    normed=True,
     img_filter=gaussian,
     sigma=1
 )

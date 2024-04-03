@@ -80,10 +80,10 @@ def create_views(nbr_views, border, size):
 
     Parameters
     ----------
-    nbr_views: scalar
-      The number of view along one axis
-    border: int
-      The border size in number of pixels
+    nbr_views: tuple of scalars
+      The number of view along each axis
+    border: tuple of int
+      The border size in number of pixels along each axis
     size: tuple
       The total size of the map in number of pixels (width, height)
 
@@ -98,14 +98,17 @@ def create_views(nbr_views, border, size):
       A region is usable if it does not contain any artificial border effects
       that were introduced from splitting up a bigger view into smaller chunks
     """
+    assert all(len(x) == 2 for x in (nbr_views, border, size)), \
+           f"{len(nbr_views)=},{len(border)=},{len(size)=} all need to be of "\
+           "length 2 (vertical, horizontal)"
     for i, s in enumerate(size):
-        view_size = int(s / nbr_views)
-        print(f"{view_size=}")
-        assert view_size == s / nbr_views, \
-               f"{size[i]=} needs to be a multiple of {nbr_views=}"
-        assert border <= view_size, \
-               f"{border=} cannot be bigger the {view_size=}"
-    view_sizes = list(map(lambda x: int(x / nbr_views), size))
+        view_size = int(s / nbr_views[i])
+        assert view_size == s / nbr_views[i], \
+               f"{size[i]=} needs to be a multiple of {nbr_views[i]=}"
+        assert border[i] <= view_size, \
+               f"{border[i]=} cannot be bigger the {view_size=}"
+    view_sizes = list(map(lambda i: int(size[i] / nbr_views[i]),
+                          range(len(size))))
     vstarts = []
     hstarts = []
     heights = []
@@ -114,29 +117,30 @@ def create_views(nbr_views, border, size):
     inner_hs = []
     inner_h = []
     inner_w = []
-    for i in range(nbr_views):
-        if 0 < i < nbr_views - 1:
-            vpadding = 2 * border
+    for i in range(nbr_views[0]):  # vertically
+        if 0 < i < nbr_views[0] - 1:
+            vpadding = 2 * border[0]
         else:
-            vpadding = border
-        for j in range(nbr_views):
-            if 0 < j < nbr_views - 1:
-                hpadding = 2 * border
+            vpadding = border[0]
+        for j in range(nbr_views[1]):  # horizontally
+            if 0 < j < nbr_views[1] - 1:
+                hpadding = 2 * border[1]
             else:
-                hpadding = border
-            vstarts.append(max(0, i * view_sizes[0] - border))
-            hstarts.append(max(0, j * view_sizes[1] - border))
+                hpadding = border[1]
+            vstarts.append(max(0, i * view_sizes[0] - border[0]))
+            hstarts.append(max(0, j * view_sizes[1] - border[1]))
             heights.append(view_sizes[0] + vpadding)
             widths.append(view_sizes[1] + hpadding)
-            # the useable inner view 
+            # the useable inner view
             inner_vs.append(max(0, i * view_sizes[0]))
             inner_hs.append(max(0, j * view_sizes[1]))
             inner_h.append(view_sizes[0])
             inner_w.append(view_sizes[1])
     return (
         list(zip(vstarts, hstarts, heights, widths)),
-        list(zip(inner_vs, inner_hs, inner_w, inner_w))
+        list(zip(inner_vs, inner_hs, inner_h, inner_w))
     )
+
 
 def get_view(data, view):
     """Return a view of the data array

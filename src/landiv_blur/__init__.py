@@ -10,5 +10,6 @@ from .processing import (
 from .plotting import (
     plot_landtypes,
     plot_layers,
-    plot_entropy
+    plot_entropy,
+    plot_entropy_full
 )

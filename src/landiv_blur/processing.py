@@ -31,7 +31,8 @@ def get_layer_data(data, layer, img_filter, params=None):
     return _data
 
 
-def get_entropy(data, layers=range(8), img_filter=None, **params):
+def get_entropy(data, layers=range(8), normed=False, img_filter=None,
+                **params):
     """Compute the Shannon entropy per cell
 
     Parameters
@@ -54,4 +55,6 @@ def get_entropy(data, layers=range(8), img_filter=None, **params):
     # calculate the entropy
     stacked_layers = np.stack(all_layers, axis=2)
     entropy_layer = entropy(stacked_layers, axis=2)
+    if normed:
+        entropy_layer = entropy_layer / np.nanmax(entropy_layer)
     return entropy_layer
