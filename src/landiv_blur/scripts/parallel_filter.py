@@ -24,11 +24,13 @@ Note
 import numpy as np
 import multiprocessing as mproc
 import rasterio as rio
-from rasterio.windows import Window
 
 from copy import copy
 from time import perf_counter
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from skimage.util import img_as_ubyte
+from rasterio.windows import Window
+
 
 from landiv_blur import io as lbio
 from landiv_blur import prepare as lbprep
@@ -87,14 +89,10 @@ def block_heterogeneity(params, q):
                                            img_filter=lbf_gauss.gaussian,
                                            sigma=params.pop('sigma'),
                                            truncate=params.pop('truncate'))
-        print('max vals')
-        print(f"{np.nanmax(entropy_layer)}")
         usable_block = np.copy(
             lbprep.get_view(entropy_layer,
                             lbprep.relative_view(view, inner_view))
         )
-        # check if any value is bigger than 1:
-        print(f"{np.nanmax(usable_block)}")
         # # write out result to partial file
         # output = dict(
         #     blurred_block=Path('tif with blurred block'),
@@ -120,8 +118,11 @@ def combine_blocks(output_params: dict, q):
     with TimedTask() as timer:
         output_file = output_params.pop('output')
         profile = output_params.pop('profile')
+        as_ubyte = output_params.pop('as_ubyte', False)
         # TODO: we might need to adapt dtypes! (dtype=rasterio.ubyte...)
         profile['dtype'] = rio.float64
+        if as_ubyte:
+            profile['dtype'] = rio.ubyte
         with rio.open(output_file, 'w', **profile) as dst:
             while True:
                 # load the q
@@ -131,6 +132,14 @@ def combine_blocks(output_params: dict, q):
                     if signal == "kill":
                         break
                 data = output.pop('data')
+                if as_ubyte:
+                    # convert to ubyte
+                    # TODO: This is an ugly hack to globally normalize
+                    max_entropy = 2  # np.nanmax(data)
+                    #       and to put in range [-1, 1] before conversion
+                    data = 2 * data / max_entropy - 1
+                    data = img_as_ubyte(data)
+                    print(data)
                 inner_view = output.pop('inner_view')
                 # load block tif
                 # get the relevant block (i.e. remove borders)
@@ -170,7 +179,7 @@ def get_blur_params(diameter, sigma, truncate):
 
 
 def get_lct_heterogeneity(source: str, output: str, scale: float, layers: list,
-                          blur_params: dict):
+                          blur_params: dict, **params):
     """Compute the entropy-based heterogeneity from a map of land cover types.
 
     Parameters
@@ -208,11 +217,12 @@ def get_lct_heterogeneity(source: str, output: str, scale: float, layers: list,
           f"\t- diameter: {blur_params['diameter']} => {pdiameter} pixels\n"
           f"\t- truncate: {blur_params['truncate']} (in sigmas)")
     # the border size of a block should be at least as large as the kernel size
-    border = (ksize+5, ksize+5)
-    print(f"The resulting border size is {border=} pixels")
     # TODO: this should be a computed term, rather than simply set
     # set the block size in pixels
     bsize = (500, 500)
+    print(f"The block size without border is {bsize=} pixels")
+    border = (ksize+5, ksize+5)
+    print(f"The resulting border size is {border=} pixels")
     # TODO: we truncate the map size here to a multiple of the block sizes
     _width = width - width % bsize[0]
     _height = height - height % bsize[1]
@@ -223,7 +233,8 @@ def get_lct_heterogeneity(source: str, output: str, scale: float, layers: list,
     # now let's prepare the output parameters:
     output_params = dict(
         output=output,
-        profile=profile
+        profile=profile,
+        as_ubyte=params.pop('as_ubyte', False)  # allow conversion to ubyte
     )
     nbr_views = (int(_width / bsize[0]), int(_height / bsize[1]))
     # compute the set of views
@@ -269,6 +280,7 @@ def get_lct_heterogeneity(source: str, output: str, scale: float, layers: list,
     pool.join()
     total_duration = combiner.get().get_duration()
     print(f"{total_duration=}")
+    print(f"maximal duration of single job: {max(job_timers)=}")
 
 
 if __name__ == "__main__":
@@ -293,9 +305,9 @@ if __name__ == "__main__":
                     'units of `sigma`')
     ap.add_argument("--output", default='./heterogeneity.tif', type=str,
                     help='Path of the output file (will be overwritten)')
-    ap.add_argument("--tmp", default='./tmp/', type=str,
-                    help='Folder to store interim data. Its content '
-                    'will be overwritten and removed')
+    ap.add_argument("--ubyte", default=False, type=bool,
+                    help='Set if the resulting heterogeneity map should be in '
+                         'ubyte (i.e. 0-255 or as float)')
     # TODO: allow to select the layers (comma separated list)
     layers = list(range(8))
 
@@ -307,11 +319,13 @@ if __name__ == "__main__":
     diameter = inargs.pop('diameter')
     sigma = inargs.pop('sigma')
     truncate = inargs.pop('truncate')
+    ubyte = inargs.pop('ubyte')
 
     get_lct_heterogeneity(
         source=source,
         scale=scale,
         layers=layers,
         blur_params=get_blur_params(diameter, sigma, truncate),
-        output=output
+        output=output,
+        as_ubyte=ubyte,
     )
