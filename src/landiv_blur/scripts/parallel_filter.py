@@ -257,7 +257,8 @@ def get_lct_heterogeneity(source: str, output: str, scale: float, layers: list,
     manager = mproc.Manager()
     q = manager.Queue()
     # get number of cpu's
-    nbr_cpus = 5  # mproc.cpu_count()
+    nbr_cpus = mproc.cpu_count()
+    print(f"using {nbr_cpus=}")
     pool = mproc.Pool(nbr_cpus)
 
     # start the writer task
