@@ -13,3 +13,4 @@ from .plotting import (
     plot_entropy,
     plot_entropy_full
 )
+from .scripts.parallel_filter import get_lct_heterogeneity
