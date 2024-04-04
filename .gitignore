@@ -137,3 +137,6 @@ dmypy.json
 
 # vim
 *.swp
+
+# any slurm output file
+*.out
