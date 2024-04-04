@@ -243,13 +243,13 @@ def get_lct_heterogeneity(source: str, output: str, scale: float, layers: list,
                                              size=(_width, _height))
     block_params = []
     for view, inner_view in zip(views, inner_views):
-        params = dict(source=source,
+        bparams = dict(source=source,
                       layers=layers,
                       view=view,
                       inner_view=inner_view,
                       sigma=psigma,
                       truncate=truncate)
-        block_params.append(params)
+        block_params.append(bparams)
 
     # ###
     # prepare multiprocessing
@@ -257,7 +257,7 @@ def get_lct_heterogeneity(source: str, output: str, scale: float, layers: list,
     manager = mproc.Manager()
     q = manager.Queue()
     # get number of cpu's
-    nbr_cpus = mproc.cpu_count()
+    nbr_cpus = params.pop('nbrcpu', mproc.cpu_count())
     print(f"using {nbr_cpus=}")
     pool = mproc.Pool(nbr_cpus)
 
@@ -309,6 +309,8 @@ if __name__ == "__main__":
     ap.add_argument("--ubyte", default=False, type=bool,
                     help='Set if the resulting heterogeneity map should be in '
                          'ubyte (i.e. 0-255 or as float)')
+    ap.add_argument("--nbrcpu", default=2, type=int,
+                    help='Set the number of cpus the script considers')
     # TODO: allow to select the layers (comma separated list)
     layers = list(range(8))
 
@@ -321,6 +323,7 @@ if __name__ == "__main__":
     sigma = inargs.pop('sigma')
     truncate = inargs.pop('truncate')
     ubyte = inargs.pop('ubyte')
+    nbrcpu = inargs.pop('nbrcpu')
 
     get_lct_heterogeneity(
         source=source,
@@ -329,4 +332,5 @@ if __name__ == "__main__":
         blur_params=get_blur_params(diameter, sigma, truncate),
         output=output,
         as_ubyte=ubyte,
+        nbrcpu=nbrcpu,
     )
