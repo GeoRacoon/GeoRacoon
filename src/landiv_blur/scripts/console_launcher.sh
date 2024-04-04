@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH -c 64
-#SBATCH --time=1:00:0
+#SBATCH --time=3:00:0
 #SBATCH --mem=64000M
 
 module load mamba

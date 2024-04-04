@@ -219,7 +219,7 @@ def get_lct_heterogeneity(source: str, output: str, scale: float, layers: list,
     # the border size of a block should be at least as large as the kernel size
     # TODO: this should be a computed term, rather than simply set
     # set the block size in pixels
-    bsize = (500, 500)
+    bsize = (1000, 1000)
     print(f"The block size without border is {bsize=} pixels")
     border = (ksize+5, ksize+5)
     print(f"The resulting border size is {border=} pixels")
