@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH -c 64
-#SBATCH --time=5:00:0
-#SBATCH --mem=128000M
+#SBATCH --time=4:00:0
+#SBATCH --mem=100000M
 
 module load mamba
 source activate landiv
