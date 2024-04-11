@@ -271,6 +271,8 @@ def get_lct_heterogeneity(source: str, output: str, scale: float, layers: list,
     # collect results
     job_timers = []
     for job in all_jobs:
+        # await for the jobs to return (i.e. complete) by calling .get
+        # get the duration from the timer object that is returned by .get()
         job_timers.append(job.get().get_duration())
 
     # once we have all the blocks, add a last element to the queue to stop
