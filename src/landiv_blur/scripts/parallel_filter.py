@@ -190,8 +190,8 @@ def get_lct_heterogeneity(source: str, output: str, scale: float, block_size: in
         Path to where the heterogeneity tif should be saved
     scale : float
         Size of a single pixel in the same units as `diameter` and `sigma`
-    block_size: int
-        Size in # pixel of the square that a single job should process
+    block_size: tuple of int
+        Size (width, height) in # pixel of the block that a single job should process
     blur_params : dict
         Parameters for the Gaussian blur. It must contain at least either
         `diameter` or `sigma` in a in meters or any other measure of distance.
@@ -221,7 +221,7 @@ def get_lct_heterogeneity(source: str, output: str, scale: float, block_size: in
     # the border size of a block should be at least as large as the kernel size
     # TODO: this should be a computed term, rather than simply set
     # set the block size in pixels
-    bsize = (block_size, block_size)
+    bsize = block_size
     print(f"The block size without border is {bsize=} pixels")
     border = (ksize+5, ksize+5)
     print(f"The resulting border size is {border=} pixels")
@@ -315,8 +315,11 @@ if __name__ == "__main__":
                          'ubyte (i.e. 0-255 or as float)')
     ap.add_argument("--nbrcpu", default=2, type=int,
                     help='Set the number of cpus the script considers')
-    ap.add_argument("--blocksize", default=1000, type=int,
-                    help='The size of the block (i.e. square) in pixels to be '
+    ap.add_argument("--bwidth", default=1000, type=int,
+                    help='The width of a block in pixels to be '
+                    'processed in a single job')
+    ap.add_argument("--bheight", default=1000, type=int,
+                    help='The height of a block in pixels to be '
                     'processed in a single job')
 
     # TODO: allow to select the layers (comma separated list)
@@ -332,12 +335,13 @@ if __name__ == "__main__":
     truncate = inargs.pop('truncate')
     ubyte = inargs.pop('ubyte')
     nbrcpu = inargs.pop('nbrcpu')
-    bsize = inargs.pop('blocksize')
+    bwidth = inargs.pop('bwidth')
+    bheight = inargs.pop('bheight')
 
     get_lct_heterogeneity(
         source=source,
         scale=scale,
-        block_size=bsize,
+        block_size=(bwidth, bheight),
         layers=layers,
         blur_params=get_blur_params(diameter, sigma, truncate),
         output=output,
