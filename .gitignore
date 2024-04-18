@@ -140,3 +140,6 @@ dmypy.json
 
 # any slurm output file
 *.out
+
+# generally exclude results
+results/
