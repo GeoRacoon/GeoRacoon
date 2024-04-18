@@ -144,14 +144,13 @@ def plot_entropy(source, start, size, output):
     size: tuple
       width and height of the block to extract
     """
-    block = load_block(source, start, size)
+    block = load_block(source=source, start=start, size=size)
     data, transform = block['data'], block['transform']
     entropy_layer = data
-    print(np.unique(entropy_layer))
     fig, ax = plt.subplots(figsize=(16, 16))
 
     cmap = LinearSegmentedColormap.from_list(
-        "Custom", ['black', 'white'], N=20)
+        "Custom", ['black', 'white'], N=40)
     # pass affine transform corresponding to the window
     to_display = show(entropy_layer,
                       ax=ax,
