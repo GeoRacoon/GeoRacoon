@@ -2,6 +2,7 @@
 Submodule providing the necessary functions to setup an efficient processing
 of a land-cover type map.
 """
+import math
 
 
 def overhead_fraction(nbr_blocks, border, size):
@@ -34,6 +35,7 @@ def overhead_fraction(nbr_blocks, border, size):
     overhead_area = h_overhead + v_overhead + corners
     return overhead_area / total_area
 
+
 def update_views(data, views, blocks):
     """Update the data array with a sequence of views.
 
@@ -54,6 +56,7 @@ def update_views(data, views, blocks):
 
     return None
 
+
 def update_view(data, view, block):
     """Update a view from the data array with a block
 
@@ -71,19 +74,21 @@ def update_view(data, view, block):
       np.array with the updated values.
 
     """
-    data[slice(view[0], view[0] + view[2]),
-         slice(view[1], view[1] + view[3])] = block
+    # data[slice(view[0], view[0] + view[2]),
+    #      slice(view[1], view[1] + view[3])] = block
+    data[slice(view[1], view[1] + view[3]),
+         slice(view[0], view[0] + view[2])] = block
 
 
-def create_views(nbr_views, border, size):
+def create_views(view_size, border, size):
     """Returns a set of views on which the filter can be applied independently
 
     Parameters
     ----------
-    nbr_views: tuple of scalars
-      The number of view along each axis
+    view_size: tuple of int
+      The size (width, height) in pixels of a single view (excluding borders)
     border: tuple of int
-      The border size in number of pixels along each axis
+      The border size (width, height) in number of pixels along each axis
     size: tuple
       The total size of the map in number of pixels (width, height)
 
@@ -98,53 +103,126 @@ def create_views(nbr_views, border, size):
       A region is usable if it does not contain any artificial border effects
       that were introduced from splitting up a bigger view into smaller chunks
     """
-    assert all(len(x) == 2 for x in (nbr_views, border, size)), \
-           f"{len(nbr_views)=},{len(border)=},{len(size)=} all need to be of "\
+    assert all(len(x) == 2 for x in (view_size, border, size)), \
+           f"{len(view_size)=},{len(border)=},{len(size)=} all need to be of "\
            "length 2 (vertical, horizontal)"
+    # subtract the outer border
+    leftovers = list(map(lambda x: x[0] % x[1], zip(size, view_size)))
+    # number of full block along each axis that do not cover the leftovers
+    nbr_views = list(map(lambda x: math.floor((x[1] - x[2]) / x[0]),
+                         zip(view_size, size, leftovers)))
+    print(f"{view_size=}\n{border=}\n{size=}\n{nbr_views=}\n{leftovers=}")
+    for i, nbrv in enumerate(nbr_views):
+        nbr_views[i] = math.floor(nbrv)
+
     for i, s in enumerate(size):
-        view_size = int(s / nbr_views[i])
-        assert view_size == s / nbr_views[i], \
-               f"{size[i]=} needs to be a multiple of {nbr_views[i]=}"
-        assert border[i] <= view_size, \
+        assert border[i] <= view_size[i], \
                f"{border[i]=} cannot be bigger the {view_size=}"
-    view_sizes = list(map(lambda i: int(size[i] / nbr_views[i]),
-                          range(len(size))))
-    vstarts = []
-    hstarts = []
+
+    xstarts = []
+    ystarts = []
     heights = []
     widths = []
-    inner_vs = []
-    inner_hs = []
+    inner_xs = []
+    inner_ys = []
     inner_h = []
     inner_w = []
-    for i in range(nbr_views[0]):  # vertically
+    for i in range(nbr_views[0]):  # horizontally
         if 0 < i < nbr_views[0] - 1:
-            vpadding = 2 * border[0]
+            hpadding = 2 * border[0]
+        elif nbr_views[0] == 1:
+            hpadding = 0
         else:
-            vpadding = border[0]
-        for j in range(nbr_views[1]):  # horizontally
+            hpadding = border[0]
+        for j in range(nbr_views[1]):  # vertically
             if 0 < j < nbr_views[1] - 1:
-                hpadding = 2 * border[1]
+                vpadding = 2 * border[1]
+            elif nbr_views[1] == 1:
+                vpadding = 0
             else:
-                hpadding = border[1]
-            vstarts.append(max(0, i * view_sizes[0] - border[0]))
-            hstarts.append(max(0, j * view_sizes[1] - border[1]))
-            heights.append(view_sizes[0] + vpadding)
-            widths.append(view_sizes[1] + hpadding)
+                vpadding = border[1]
+            xstarts.append(max(0, i * view_size[0] - border[0]))
+            widths.append(view_size[0] + hpadding)
+            ystarts.append(max(0, j * view_size[1] - border[1]))
+            heights.append(view_size[1] + vpadding)
             # the useable inner view
-            inner_vs.append(max(0, i * view_sizes[0]))
-            inner_hs.append(max(0, j * view_sizes[1]))
-            inner_h.append(view_sizes[0])
-            inner_w.append(view_sizes[1])
+            inner_xs.append(max(0, i * view_size[0]))
+            inner_ys.append(max(0, j * view_size[1]))
+            inner_w.append(view_size[0])
+            inner_h.append(view_size[1])
+            # prepare for horiz. leftover pixels
+            if i == nbr_views[0] - 1 and leftovers[0]:
+                inner_w[-1] = leftovers[0]
+                widths[-1] = leftovers[0] + 2 * border[0]
+            # prepare for vertical. leftover pixels
+            if j == nbr_views[1] - 1 and leftovers[1]:
+                inner_h[-1] = leftovers[1]
+                heights[-1] = leftovers[1] + 2 * border[1]
+    if leftovers[0]:
+        # add the last column of leftovers
+        for j in range(nbr_views[1]):  # vertically since column
+            _width = border[0]
+            _iwidth = border[0]
+            if 0 < j < nbr_views[1] - 1:
+                vpadding = 2 * border[1]
+            else:
+                vpadding = border[1]
+            xstarts.append(size[0] - (view_size[0] + _width))
+            ystarts.append(max(0, j * view_size[1] - border[1]))
+            widths.append(view_size[0] + _width)
+            heights.append(view_size[1] + vpadding)
+            # the useable inner view
+            inner_xs.append(size[0] - (view_size[0] + _iwidth))
+            inner_ys.append(max(0, j * view_size[1]))
+            inner_w.append(view_size[0] + _iwidth)
+            inner_h.append(view_size[1])
+            if j == nbr_views[1] - 1 and leftovers[1]:
+                inner_h[-1] = leftovers[1]
+                heights[-1] = leftovers[1] + 2 * border[1]
+        print(f'columns: {inner_xs, inner_ys}')
+    if leftovers[1]:
+        # add the last row of leftovers
+        for i in range(nbr_views[0]):  # horizontally since row
+            _height = border[1]
+            _iheight = border[1]
+            if 0 < i < nbr_views[0] - 1:
+                hpadding = 2 * border[0]
+            else:
+                hpadding = border[0]
+            xstarts.append(max(0, i * view_size[0] - border[0]))
+            ystarts.append(size[1] - (view_size[1] + _height))
+            widths.append(view_size[0] + hpadding)
+            heights.append(view_size[1] + _height)
+            # the useable inner view
+            inner_xs.append(max(0, i * view_size[0]))
+            inner_ys.append(size[1] - (view_size[1] + _iheight))
+            inner_w.append(view_size[0])
+            inner_h.append(view_size[1] + _iheight)
+            if i == nbr_views[0] - 1 and leftovers[0]:
+                inner_w[-1] = leftovers[0]
+                widths[-1] = leftovers[0] + 2 * border[0]
+        print(f'rows: {inner_xs, inner_ys}')
+    if all(leftovers):
+        # add the outer corner block
+        xstarts.append(size[0] - (view_size[0] + border[0]))
+        ystarts.append(size[1] - (view_size[1] + border[1]))
+        widths.append(view_size[0] + border[0])
+        heights.append(view_size[1] + border[1])
+        inner_xs.append(size[0] - (view_size[0]))
+        inner_ys.append(size[1] - (view_size[1]))
+        inner_w.append(view_size[0])
+        inner_h.append(view_size[1])
+        print(f'last: {inner_xs, inner_ys}')
     return (
-        list(zip(vstarts, hstarts, heights, widths)),
-        list(zip(inner_vs, inner_hs, inner_h, inner_w))
+        list(zip(xstarts, ystarts, widths, heights)),
+        list(zip(inner_xs, inner_ys, inner_w, inner_h))
     )
 
 
 def get_view(data, view):
     """Return a view of the data array
 
+    Note: data.shape == height, width!
     Parameters
     ----------
     data:
@@ -153,12 +231,15 @@ def get_view(data, view):
       tuple (x, y, width, height) defining the view
 
     """
-    return data[slice(view[0], view[0] + view[2]),
-                slice(view[1], view[1] + view[3])]
+    # return data[slice(view[0], view[0] + view[2]),
+    #             slice(view[1], view[1] + view[3])]
+    return data[slice(view[1], view[1] + view[3]),
+                slice(view[0], view[0] + view[2])]
+
 
 def relative_view(view, inner_view):
     return (inner_view[0] - view[0],
-            inner_view[1] - view[1], 
+            inner_view[1] - view[1],
             inner_view[2],
             inner_view[3])
 

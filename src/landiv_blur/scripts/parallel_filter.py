@@ -36,6 +36,7 @@ from landiv_blur import io as lbio
 from landiv_blur import prepare as lbprep
 from landiv_blur import processing as lbproc
 from landiv_blur.filters import gaussian as lbf_gauss
+from landiv_blur.plotting import plot_entropy
 
 
 class TimedTask:
@@ -109,6 +110,7 @@ def block_heterogeneity(params, q):
         q.put(output)
         # TODO: check if the pool is empty (i.e. this is the last task) and
         # write signal = 'kill' into the output
+        # print(f"Processed block\n\t{view=}")
     return timer
 
 
@@ -119,10 +121,11 @@ def combine_blocks(output_params: dict, q):
         output_file = output_params.pop('output')
         profile = output_params.pop('profile')
         as_ubyte = output_params.pop('as_ubyte', False)
-        # TODO: we might need to adapt dtypes! (dtype=rasterio.ubyte...)
+        # # TODO: we might need to adapt dtypes! (dtype=rasterio.ubyte...)
         profile['dtype'] = rio.float64
         if as_ubyte:
             profile['dtype'] = rio.ubyte
+        print(profile)
         with rio.open(output_file, 'w', **profile) as dst:
             while True:
                 # load the q
@@ -130,8 +133,13 @@ def combine_blocks(output_params: dict, q):
                 signal = output.get('signal', None)
                 if signal:
                     if signal == "kill":
+                        print(f"\n\nClosing: {output_file}\n\n")
                         break
                 data = output.pop('data')
+                inner_view = copy(output.pop('inner_view'))
+                # load block tif
+                # get the relevant block (i.e. remove borders)
+                # write to output file
                 if as_ubyte:
                     # convert to ubyte
                     # TODO: This is an ugly hack to globally normalize
@@ -139,18 +147,19 @@ def combine_blocks(output_params: dict, q):
                     #       and to put in range [-1, 1] before conversion
                     data = 2 * data / max_entropy - 1
                     data = img_as_ubyte(data)
-                    print(data)
-                inner_view = output.pop('inner_view')
-                # load block tif
-                # get the relevant block (i.e. remove borders)
-                # write to output file
-                start = (inner_view[0], inner_view[1])
-                size = (inner_view[2], inner_view[3])
-                dst.write(data, window=Window(*start, *size), indexes=1)
+                w = Window(inner_view[0],
+                           inner_view[1],
+                           inner_view[2],
+                           inner_view[3])
+                dst.write(data,
+                          window=w, indexes=1)
                 # lbio.export_to_tif(destination=output_file, data=data,
                 #                    start=start, orig_profile=profile)
                 # delete partial block tif
                 timer.new_lab()
+    plot_entropy(output_file, start=(0, 0),
+                 size=(profile['width'], profile['height']),
+                 output=f"{output_file}.preview.png")
     return timer
 
 
@@ -178,8 +187,9 @@ def get_blur_params(diameter, sigma, truncate):
     return dict(diameter=diameter, sigma=sigma, truncate=truncate)
 
 
-def get_lct_heterogeneity(source: str, output: str, scale: float, block_size: int,
-                          layers: list, blur_params: dict, **params):
+def get_lct_heterogeneity(source: str, output: str, scale: float,
+                          block_size: int, layers: list, blur_params: dict,
+                          **params):
     """Compute the entropy-based heterogeneity from a map of land cover types.
 
     Parameters
@@ -191,7 +201,7 @@ def get_lct_heterogeneity(source: str, output: str, scale: float, block_size: in
     scale : float
         Size of a single pixel in the same units as `diameter` and `sigma`
     block_size: tuple of int
-        Size (width, height) in # pixel of the block that a single job should process
+        Size (width, height) in #pixel of the block that a single job processes
     blur_params : dict
         Parameters for the Gaussian blur. It must contain at least either
         `diameter` or `sigma` in a in meters or any other measure of distance.
@@ -221,16 +231,10 @@ def get_lct_heterogeneity(source: str, output: str, scale: float, block_size: in
     # the border size of a block should be at least as large as the kernel size
     # TODO: this should be a computed term, rather than simply set
     # set the block size in pixels
-    bsize = block_size
-    print(f"The block size without border is {bsize=} pixels")
-    border = (ksize+5, ksize+5)
+    view_size = block_size
+    print(f"The block size without border is {view_size=} pixels")
+    border = (ksize, ksize)
     print(f"The resulting border size is {border=} pixels")
-    # TODO: we truncate the map size here to a multiple of the block sizes
-    _width = width - width % bsize[0]
-    _height = height - height % bsize[1]
-    # the resulting tif should have these dimensions, thus:
-    profile['width'] = _width
-    profile['height'] = _height
 
     # now let's prepare the output parameters:
     output_params = dict(
@@ -238,19 +242,18 @@ def get_lct_heterogeneity(source: str, output: str, scale: float, block_size: in
         profile=profile,
         as_ubyte=params.pop('as_ubyte', False)  # allow conversion to ubyte
     )
-    nbr_views = (int(_width / bsize[0]), int(_height / bsize[1]))
-    # compute the set of views
-    views, inner_views = lbprep.create_views(nbr_views=nbr_views,
+    views, inner_views = lbprep.create_views(view_size=view_size,
                                              border=border,
-                                             size=(_width, _height))
+                                             size=(width, height))
     block_params = []
     for view, inner_view in zip(views, inner_views):
+        print(f"{inner_view=}")
         bparams = dict(source=source,
-                      layers=layers,
-                      view=view,
-                      inner_view=inner_view,
-                      sigma=psigma,
-                      truncate=truncate)
+                       layers=layers,
+                       view=view,
+                       inner_view=inner_view,
+                       sigma=psigma,
+                       truncate=truncate)
         block_params.append(bparams)
 
     # ###
