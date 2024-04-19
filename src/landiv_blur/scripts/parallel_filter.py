@@ -156,6 +156,7 @@ def combine_blocks(output_params: dict, q):
                 # lbio.export_to_tif(destination=output_file, data=data,
                 #                    start=start, orig_profile=profile)
                 # delete partial block tif
+                print(f"Wrote out block {inner_view=}")
                 timer.new_lab()
     plot_entropy(output_file, start=(0, 0),
                  size=(profile['width'], profile['height']),
@@ -326,7 +327,7 @@ if __name__ == "__main__":
                     'processed in a single job')
 
     # TODO: allow to select the layers (comma separated list)
-    layers = list(range(8))
+    layers = list(range(11))
 
     inargs = vars(ap.parse_args())
     print(inargs)
