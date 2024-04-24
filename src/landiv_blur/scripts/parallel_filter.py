@@ -21,6 +21,8 @@ Note
     If `truncate` is not provided, then the default value of `3` is used.
 
 """
+import os
+
 import numpy as np
 import multiprocessing as mproc
 import rasterio as rio
@@ -64,13 +66,23 @@ class TimedTask:
             self.labs.append(self.now - self.start)
 
 
-def block_heterogeneity(params, q):
+def block_heterogeneity(params, entropy_q, blur_q):
     """Block entropy-based landscape type heterogeneity measure
+
+    Parameters
+    ----------
+    params: dict
+      Key value pairs holding all relevant data for the single worker
+    entropy_q: multiprocessing.Queue
+      The queue to push the entropy maps through
+    blur_q: multiprocessing.Queue
+      The queue to push the multi-band blurred land-cover types maps through
     """
     with TimedTask() as timer:
         view = params.pop('view')
-        as_ubyte = params.pop('as_ubyte', False)
-        if as_ubyte:
+        entropy_as_ubyte = params.pop('entropy_as_ubyte', False)
+        blur_as_int = params.pop('blur_as_int', False)
+        if entropy_as_ubyte:
             normed = True
             dtype = np.uint8
         else:
@@ -89,20 +101,35 @@ def block_heterogeneity(params, q):
         # transform = result.pop('transform')
         # orig_profile = result.pop('orig_profile')
         # perform blur
-        entropy_layer = lbproc.get_entropy(data=data,
-                                           layers=copy(params.pop('layers')),
-                                           # since the max is per block
-                                           normed=normed,
-                                           dtype=dtype,
-                                           img_filter=lbf_gauss.gaussian,
-                                           sigma=params.pop('sigma'),
-                                           truncate=params.pop('truncate'))
+        layers = copy(params.pop('layers'))
+        blur_layers = lbproc.get_filtered_layers(
+            data=data,
+            layers=layers,
+            img_filter=lbf_gauss.gaussian,
+            sigma=params.pop('sigma'),
+            truncate=params.pop('truncate')
+        )
+        if blur_as_int:
+            # TODO: adapt rescaling according to #41
+            _maxint = np.iinfo(np.uint64).max
+            for k, data in blur_layers.items():
+                blur_layers[k] = blur_layers[k] * _maxint
+        # prepare parameter to send to blur writer
+        blur_output = dict(layer_data=blur_layers,
+                           inner_view=inner_view,)
+        blur_q.put(blur_output)
+        # calculate entropy
+        entropy_layer = lbproc.compute_entropy(
+            filtered_data_layers=blur_layers,
+            normed=normed,
+            dtype=dtype,
+        )
         usable_block = np.copy(
             lbprep.get_view(entropy_layer,
                             lbprep.relative_view(view, inner_view))
         )
         # # write out result to partial file
-        # output = dict(
+        # entropy_output = dict(
         #     blurred_block=Path('tif with blurred block'),
         #     metadata=dict(
         #         view=(),  # (x, y, h, w)
@@ -112,20 +139,96 @@ def block_heterogeneity(params, q):
         # )
         # TODO: this will pickle the data, it might be better to temporally
         #       store it (see above)
-        output = dict(data=usable_block,
-                      inner_view=inner_view)
-        q.put(output)
+        entropy_output = dict(data=usable_block,
+                              inner_view=inner_view)
+        entropy_q.put(entropy_output)
         # TODO: check if the pool is empty (i.e. this is the last task) and
         # write signal = 'kill' into the output
-        # print(f"Processed block\n\t{view=}")
+        print(f"Processed block\n\t{view=}")
     return timer
 
 
-def combine_blocks(output_params: dict, q):
-    """Listen to queue (q) and write computed block to single file
+def output_filename(base_name: str, out_type: str, blur_params: dict):
+    """Construct the filename for the specific output type.
+
+    Parameters
+    ----------
+    base_name: str
+      The basic output name in the form <name>.tif
+    out_type: str
+      The type of output that will be saved.
+      This should be either 'blur' or 'entropy' but any string is accepted
+    blur_params: dict
+      Output of `get_blur_params`, so 'sigma', 'truncate' and 'diameter'
+      are expected keys.
+
+    Returns
+    str:
+      The resulting filename of the form
+      '<name>_<out_type>_sig_<{sigma}>_diam_<{diameter}>_trunc_<{truncate}>.tif'
+    """
+    _base_name, _ext = os.path.splitext(base_name)
+    sig = blur_params['sigma']
+    diam = blur_params['diameter']
+    trunc = blur_params['truncate']
+    _blur_string = f"sig_{sig}_diam_{diam}_trunc_{trunc}"
+    return f"{_base_name}_{out_type}_{_blur_string}{_ext}"
+
+
+def combine_blurred_land_cover_types(output_params: dict, blur_q):
+    """Listen to queue (blur_q) and write blurred blocks to a single file
     """
     with TimedTask() as timer:
-        output_file = output_params.pop('output')
+        output = output_params.pop('output')
+        blur_params = output_params.pop('blur_params')
+        as_int = output_params.pop('as_int', False)
+        output_file = output_filename(base_name=output,
+                                      out_type='lct_blurred',
+                                      blur_params=blur_params)
+        print(f"{output_file=}")
+        print(f"{as_int=}")
+        profile = output_params.pop('profile')
+        profile['dtype'] = rio.float64
+        if as_int:
+            profile['dtype'] = rio.uint16
+        # TODO: This should not be hard-coded but determined when probing the
+        #       source data for the number of distinct land-cover types.
+        profile['count'] = 12
+        with rio.open(output_file, 'w', **profile) as dst:
+            while True:
+                output = blur_q.get()
+                signal = output.get('signal', None)
+                if signal:
+                    if signal == "kill":
+                        print(f"\n\nClosing: {output_file}\n\n")
+                        break
+                layer_data = output.pop('layer_data')
+                inner_view = copy(output.pop('inner_view'))
+                # load block tif
+                # get the relevant block (i.e. remove borders)
+                # write to output file
+                w = Window(inner_view[0],
+                           inner_view[1],
+                           inner_view[2],
+                           inner_view[3])
+                for band, data in layer_data.items():
+                    dst.write(data,
+                              window=w, indexes=band+1)
+                print(f"Wrote out bands for blurred block {inner_view=}")
+                timer.new_lab()
+    return timer
+
+
+def combine_entropy_blocks(output_params: dict, entropy_q):
+    """Listen to queue (entropy_q) and write computed block to single file
+    """
+    with TimedTask() as timer:
+        output = output_params.pop('output')
+        blur_params = output_params.pop('blur_params')
+        output_file = output_filename(base_name=output,
+                                      out_type='entropy',
+                                      blur_params=blur_params)
+        print(f"{output_file=}")
         as_ubyte = output_params.pop('as_ubyte')
         profile = output_params.pop('profile')
         profile['dtype'] = rio.float64
@@ -133,8 +236,8 @@ def combine_blocks(output_params: dict, q):
             profile['dtype'] = rio.ubyte
         with rio.open(output_file, 'w', **profile) as dst:
             while True:
-                # load the q
-                output = q.get()
+                # load the entropy_q
+                output = entropy_q.get()
                 signal = output.get('signal', None)
                 if signal:
                     if signal == "kill":
@@ -154,7 +257,7 @@ def combine_blocks(output_params: dict, q):
                 # lbio.export_to_tif(destination=output_file, data=data,
                 #                    start=start, orig_profile=profile)
                 # delete partial block tif
-                print(f"Wrote out block {inner_view=}")
+                print(f"Wrote out entropy block {inner_view=}")
                 timer.new_lab()
     plot_entropy(output_file, start=(0, 0),
                  size=(profile['width'], profile['height']),
@@ -240,13 +343,21 @@ def get_lct_heterogeneity(source: str, output: str, scale: float,
     border = (ksize, ksize)
     print(f"The resulting border size is {border=} pixels")
     # Should the entropy be normalized and returned as ubyte?
-    as_ubyte = params.pop('as_ubyte', False)
+    entropy_as_ubyte = params.pop('entropy_as_ubyte', False)
+    blur_as_int = params.pop('blur_as_int', False)
 
     # now let's prepare the output parameters:
-    output_params = dict(
+    blur_output_params = dict(
+        blur_params=blur_params,
         output=output,
         profile=profile,
-        as_ubyte=as_ubyte,
+        as_int=blur_as_int,
+    )
+    entropy_output_params = dict(
+        blur_params=blur_params,
+        output=output,
+        profile=profile,
+        as_ubyte=entropy_as_ubyte,
     )
     views, inner_views = lbprep.create_views(view_size=view_size,
                                              border=border,
@@ -258,7 +369,8 @@ def get_lct_heterogeneity(source: str, output: str, scale: float,
                        view=view,
                        inner_view=inner_view,
                        sigma=psigma,
-                       as_ubyte=as_ubyte,
+                       entropy_as_ubyte=entropy_as_ubyte,
+                       blur_as_int=blur_as_int,
                        truncate=truncate)
         block_params.append(bparams)
 
@@ -266,19 +378,25 @@ def get_lct_heterogeneity(source: str, output: str, scale: float,
     # prepare multiprocessing
     # ###
     manager = mproc.Manager()
-    q = manager.Queue()
+    entropy_q = manager.Queue()
+    blur_q = manager.Queue()
     # get number of cpu's
     nbr_cpus = params.pop('nbrcpu', mproc.cpu_count())
     print(f"using {nbr_cpus=}")
     pool = mproc.Pool(nbr_cpus)
 
-    # start the writer task
-    combiner = pool.apply_async(combine_blocks, (output_params, q, ))
+    # start the blurred layer writer task
+    blur_combiner = pool.apply_async(combine_blurred_land_cover_types,
+                                     (blur_output_params, blur_q, ))
+    # start the entropy writer task
+    entropy_combiner = pool.apply_async(combine_entropy_blocks,
+                                        (entropy_output_params, entropy_q, ))
 
     # start the block processing
     all_jobs = []
     for bparams in block_params:
-        all_jobs.append(pool.apply_async(block_heterogeneity, (bparams, q)))
+        all_jobs.append(pool.apply_async(block_heterogeneity,
+                                         (bparams, entropy_q, blur_q)))
     # collect results
     job_timers = []
     for job in all_jobs:
@@ -288,11 +406,13 @@ def get_lct_heterogeneity(source: str, output: str, scale: float,
 
     # once we have all the blocks, add a last element to the queue to stop
     # the combination process
-    q.put(dict(signal='kill'))
+    entropy_q.put(dict(signal='kill'))
+    blur_q.put(dict(signal='kill'))
     pool.close()
-    # wait for the combiner task to finish
+    # wait for the *_combiner tasks to finish
     pool.join()
-    total_duration = combiner.get().get_duration()
+    total_duration = max(entropy_combiner.get().get_duration(),
+                         blur_combiner.get().get_duration())
     print(f"{total_duration=}")
     print(f"maximal duration of single job: {max(job_timers)=}")
 
@@ -319,9 +439,12 @@ if __name__ == "__main__":
                     'units of `sigma`')
     ap.add_argument("--output", default='./heterogeneity.tif', type=str,
                     help='Path of the output file (will be overwritten)')
-    ap.add_argument("--ubyte", default=False, type=bool,
+    ap.add_argument("--entropy_ubyte", default=False, type=bool,
                     help='Set if the resulting heterogeneity map should be in '
                          'ubyte (i.e. 0-255 or as float)')
+    ap.add_argument("--blur_int", default=False, type=bool,
+                    help='Set if the resulting heterogeneity map should be in '
+                         'uint16 (i.e. 0-65535 or as float)')
     ap.add_argument("--nbrcpu", default=2, type=int,
                     help='Set the number of cpus the script considers')
     ap.add_argument("--bwidth", default=1000, type=int,
@@ -332,7 +455,7 @@ if __name__ == "__main__":
                     'processed in a single job')
 
     # TODO: allow to select the layers (comma separated list)
-    layers = None
+    layers = list(range(11))
 
     inargs = vars(ap.parse_args())
     print(inargs)
@@ -342,7 +465,8 @@ if __name__ == "__main__":
     diameter = inargs.pop('diameter')
     sigma = inargs.pop('sigma')
     truncate = inargs.pop('truncate')
-    ubyte = inargs.pop('ubyte')
+    entropy_ubyte = inargs.pop('entropy_ubyte')
+    blur_int = inargs.pop('blur_int')
     nbrcpu = inargs.pop('nbrcpu')
     bwidth = inargs.pop('bwidth')
     bheight = inargs.pop('bheight')
@@ -354,6 +478,7 @@ if __name__ == "__main__":
         layers=layers,
         blur_params=get_blur_params(diameter, sigma, truncate),
         output=output,
-        as_ubyte=ubyte,
+        entropy_as_ubyte=entropy_ubyte,
+        blur_as_int=blur_int,
         nbrcpu=nbrcpu,
     )

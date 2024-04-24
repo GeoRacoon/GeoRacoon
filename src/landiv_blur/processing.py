@@ -55,6 +55,54 @@ def get_layer_data(data, layer, img_filter, params=None):
     return _data
 
 
+def get_filtered_layers(data, layers=None, img_filter=None, **params):
+    """Apply an image filter to all layers in `data` and return each layer
+
+    Parameters
+    ----------
+    data: np.array
+      A land-cover type matrix or any other matrix with integers
+    layers: iterable or None
+      A list or other iterable with the land-cover types to include.
+      If not provided then all land-cover types are included
+    img_filter: callable
+      a filter function that can be applied to the data. See e.g.
+      skimage.filter.gaussian
+    params:
+      Parameter to pass to the filter callable
+
+    Returns
+    -------
+    dict:
+      For each layer (key) the filtered data
+    """
+    if layers is None:
+        layers = get_lct(data)
+    all_layers = dict()
+    for layer in layers:
+        _data = get_layer_data(data=data, layer=layer,
+                               img_filter=img_filter,
+                               params=params)
+        all_layers[layer] = _data
+    return all_layers
+
+
+def compute_entropy(filtered_data_layers: dict, normed, dtype):
+    """
+    """
+    all_layers = list(filtered_data_layers.values())
+    # calculate the entropy
+    stacked_layers = np.stack(all_layers, axis=2)
+    entropy_layer = entropy(stacked_layers, axis=2)
+    if normed:
+        max_entropy = get_max_entropy(len(all_layers))
+        entropy_layer = entropy_layer / max_entropy
+        if dtype:
+            _limit_value = np.iinfo(dtype).max
+            entropy_layer = (entropy_layer * _limit_value).astype(dtype)
+    return entropy_layer
+
+
 def get_entropy(data, layers=None, normed=False, img_filter=None,
                 dtype=None, **params):
     """Compute the Shannon entropy per cell
@@ -83,20 +131,7 @@ def get_entropy(data, layers=None, normed=False, img_filter=None,
     params:
       Parameter to pass to the filter callable
     """
-    if layers is None:
-        layers = get_lct(data)
-    all_layers = list()
-    for layer in layers:
-        _data = get_layer_data(data, layer, img_filter, params)
-        all_layers.append(_data)
-
-    # calculate the entropy
-    stacked_layers = np.stack(all_layers, axis=2)
-    entropy_layer = entropy(stacked_layers, axis=2)
-    if normed:
-        max_entropy = get_max_entropy(len(layers))
-        entropy_layer = entropy_layer / max_entropy
-        if dtype:
-            _limit_value = np.iinfo(dtype).max
-            entropy_layer = (entropy_layer * _limit_value).astype(dtype)
-    return entropy_layer
+    filtered_layers = get_filtered_layers(data=data, layers=layers,
+                                          img_filter=img_filter, **params)
+    return compute_entropy(filtered_data_layers=filtered_layers, normed=normed,
+                           dtype=dtype)
