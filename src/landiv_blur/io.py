@@ -3,7 +3,19 @@ from rasterio.enums import ColorInterp
 from rasterio.windows import Window
 
 
-def load_block(source, start, size):
+def load_map(source, indexes=None):
+    """Load a map from a tif
+
+    Return
+    ------
+    dict:
+       Returns the callback of
+       `load_block(source=source, start=None, size=None, indexes=indexes)`
+    """
+    return load_block(source=source, start=None, size=None, indexes=indexes)
+
+
+def load_block(source, start=None, size=None, indexes=None):
     """Get a block from a *.tif file along with the transform
 
     Parameters
@@ -12,8 +24,14 @@ def load_block(source, start, size):
       The path to the tif file to load
     start: tuple
       horizontal and vertical starting coordinate
+
+      If not provided (or set to `None`) then the coordinate (0,0) is used
     size: tuple
       width and height of the block to extract
+
+      If not provided the entire map is loaded.
+    indexes: list of int, int or None
+      If a list is provided a 3D array is returned, if not a 2D array.
 
     Return
     ------
@@ -27,7 +45,6 @@ def load_block(source, start, size):
         # TODO: rasterio Window allows using slices. In doing so we could
         #       harmonize what we call blocks and views and just work with
         #       slices.
-        riow = Window(*start, *size)
         # Lookup table for the color space in the source file
         colorspace = dict(zip(img.colorinterp, img.indexes))
 
@@ -41,9 +58,17 @@ def load_block(source, start, size):
             ]
         else:
             rgb_idxs = 1
+        if any((start, size)):
+            assert all((start, size)), \
+                   f"{start=} and {size=} both need to be set or both None"
+            riow = Window(*start, *size)
+            transform = img.window_transform(riow)
+        else:
+            riow = None
+            transform = img.profile.copy()
         return {
             'data': img.read(rgb_idxs, window=riow),
-            'transform': img.window_transform(riow),
+            'transform': transform,
             'orig_profile': img.profile.copy()
         }
 

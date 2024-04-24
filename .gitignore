@@ -143,3 +143,6 @@ dmypy.json
 
 # generally exclude results
 results/
+*.png
+*.pdf
+*.tif
