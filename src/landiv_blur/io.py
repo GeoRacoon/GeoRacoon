@@ -33,6 +33,9 @@ def load_block(source, start=None, size=None, indexes=None):
     indexes: list of int, int or None
       If a list is provided a 3D array is returned, if not a 2D array.
 
+      ..note::
+        The index of the first band is 1 not 0!
+
     Return
     ------
     dict:
@@ -56,6 +59,8 @@ def load_block(source, start=None, size=None, indexes=None):
                            ColorInterp.green,
                            ColorInterp.blue)
             ]
+        elif indexes:
+            rgb_idxs = indexes
         else:
             rgb_idxs = 1
         if any((start, size)):

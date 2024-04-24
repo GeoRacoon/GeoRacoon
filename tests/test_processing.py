@@ -4,6 +4,7 @@ from scipy.stats import entropy
 
 from landiv_blur import io as lbio
 from landiv_blur import processing as lbproc
+from landiv_blur.filters import gaussian as lbf_gauss
 
 from .config import ALL_MAPS
 
@@ -52,6 +53,28 @@ def test_nbr_lct(datafiles):
     unique_values = np.unique(lctypes)
     unique_values.sort()
     np.testing.assert_array_equal(lctypes, unique_values)
+
+
+@ALL_MAPS
+def test_single_layer_filter(datafiles):
+    """Make sure the detection of land-cover types works as expected
+    """
+    ch_map_tif = list(datafiles.iterdir())[0]
+    ch_data = lbio.load_map(ch_map_tif)['data']
+    lctypes = lbproc.get_lct(ch_data)
+    lctypes = np.unique(lctypes)
+    lctypes.sort()  # those are our layers
+    diameter = 1000  # 1km
+    truncate = 3  # after 3 sigma
+    real_sigma = 0.5 * diameter / truncate
+    scale = 100  # meter per pixel
+    sigma = real_sigma / scale  # in pixel
+    lct_blurred = lbproc.get_filtered_layers(ch_data, layers=lctypes,
+                                             img_filter=gaussian,
+                                             sigma=sigma,
+                                             truncate=truncate)
+    for lct, data in lct_blurred.items():
+        assert np.nanmax(data) >= 0.1
 
 
 @ALL_MAPS
