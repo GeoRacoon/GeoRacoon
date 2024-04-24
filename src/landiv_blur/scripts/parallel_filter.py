@@ -28,7 +28,6 @@ import rasterio as rio
 from copy import copy
 from time import perf_counter
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-from skimage.util import img_as_ubyte
 from rasterio.windows import Window
 
 
@@ -70,6 +69,13 @@ def block_heterogeneity(params, q):
     """
     with TimedTask() as timer:
         view = params.pop('view')
+        as_ubyte = params.pop('as_ubyte', False)
+        if as_ubyte:
+            normed = True
+            dtype = np.uint8
+        else:
+            normed = False
+            dtype = None
         inner_view = params.pop('inner_view')
         # read out block from original file
         start = (view[0], view[1])
@@ -86,7 +92,8 @@ def block_heterogeneity(params, q):
         entropy_layer = lbproc.get_entropy(data=data,
                                            layers=copy(params.pop('layers')),
                                            # since the max is per block
-                                           normed=False,
+                                           normed=normed,
+                                           dtype=dtype,
                                            img_filter=lbf_gauss.gaussian,
                                            sigma=params.pop('sigma'),
                                            truncate=params.pop('truncate'))
@@ -119,13 +126,11 @@ def combine_blocks(output_params: dict, q):
     """
     with TimedTask() as timer:
         output_file = output_params.pop('output')
+        as_ubyte = output_params.pop('as_ubyte')
         profile = output_params.pop('profile')
-        as_ubyte = output_params.pop('as_ubyte', False)
-        # # TODO: we might need to adapt dtypes! (dtype=rasterio.ubyte...)
         profile['dtype'] = rio.float64
         if as_ubyte:
             profile['dtype'] = rio.ubyte
-        print(profile)
         with rio.open(output_file, 'w', **profile) as dst:
             while True:
                 # load the q
@@ -140,13 +145,6 @@ def combine_blocks(output_params: dict, q):
                 # load block tif
                 # get the relevant block (i.e. remove borders)
                 # write to output file
-                if as_ubyte:
-                    # convert to ubyte
-                    # TODO: This is an ugly hack to globally normalize
-                    max_entropy = 2  # np.nanmax(data)
-                    #       and to put in range [-1, 1] before conversion
-                    data = 2 * data / max_entropy - 1
-                    data = img_as_ubyte(data)
                 w = Window(inner_view[0],
                            inner_view[1],
                            inner_view[2],
@@ -189,7 +187,9 @@ def get_blur_params(diameter, sigma, truncate):
 
 
 def get_lct_heterogeneity(source: str, output: str, scale: float,
-                          block_size: int, layers: list, blur_params: dict,
+                          block_size: int,
+                          blur_params: dict,
+                          layers: list = None,
                           **params):
     """Compute the entropy-based heterogeneity from a map of land cover types.
 
@@ -201,6 +201,9 @@ def get_lct_heterogeneity(source: str, output: str, scale: float,
         Path to where the heterogeneity tif should be saved
     scale : float
         Size of a single pixel in the same units as `diameter` and `sigma`
+    layers: list
+        Specify which of the land-cover types to use as layers.
+        If not provided then all the land-cover types are used.
     block_size: tuple of int
         Size (width, height) in #pixel of the block that a single job processes
     blur_params : dict
@@ -236,24 +239,26 @@ def get_lct_heterogeneity(source: str, output: str, scale: float,
     print(f"The block size without border is {view_size=} pixels")
     border = (ksize, ksize)
     print(f"The resulting border size is {border=} pixels")
+    # Should the entropy be normalized and returned as ubyte?
+    as_ubyte = params.pop('as_ubyte', False)
 
     # now let's prepare the output parameters:
     output_params = dict(
         output=output,
         profile=profile,
-        as_ubyte=params.pop('as_ubyte', False)  # allow conversion to ubyte
+        as_ubyte=as_ubyte,
     )
     views, inner_views = lbprep.create_views(view_size=view_size,
                                              border=border,
                                              size=(width, height))
     block_params = []
     for view, inner_view in zip(views, inner_views):
-        print(f"{inner_view=}")
         bparams = dict(source=source,
                        layers=layers,
                        view=view,
                        inner_view=inner_view,
                        sigma=psigma,
+                       as_ubyte=as_ubyte,
                        truncate=truncate)
         block_params.append(bparams)
 
@@ -327,7 +332,7 @@ if __name__ == "__main__":
                     'processed in a single job')
 
     # TODO: allow to select the layers (comma separated list)
-    layers = list(range(11))
+    layers = None
 
     inargs = vars(ap.parse_args())
     print(inargs)

@@ -104,7 +104,7 @@ def show_layer(data, layer, transform, ax):
 
 
 def plot_layers(source, start, size, output, img_filter=None, params=None):
-    """Plot each layer in isolation
+    """Plot 8 layers in isolation
 
     Parameters
     ----------
@@ -161,8 +161,8 @@ def plot_entropy(source, start, size, output):
     fig.savefig(output, dpi=DPI)
 
 
-def plot_entropy_full(source, start, size, output, img_filter=None,
-                      params=None):
+def plot_entropy_full(source, start, size, output, layers=None,
+                      img_filter=None, params=None):
     """Plot the entropy in each pixel after layer diffusion
 
     Parameters
@@ -175,10 +175,14 @@ def plot_entropy_full(source, start, size, output, img_filter=None,
       width and height of the block to extract
     output: str
       Where to store the image
+    layers: iterable or None
+      A list or other iterable with the land-cover types to include.
+      If not provided then all land-cover types are included
     """
     block = load_block(source, start, size)
     data, transform = block['data'], block['transform']
-    entropy_layer = get_entropy(data, layers=range(8), normed=True)
+    entropy_layer = get_entropy(data, layers=layers, normed=True,
+                                dtype=np.uint8)
 
     fig, ax = plt.subplots(figsize=(16, 16))
 
