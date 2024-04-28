@@ -1,11 +1,48 @@
+from __future__ import annotations
+
 import numpy as np
 from scipy.stats import entropy
 
 
-def filter_for_layer(data, layer: int, is_value=1, not_value=0):
+def filter_for_layer(data, layer: int | list[int], output_dtype=np.uint8):
     """Filter for only the particular layer
+
+
+    Parameters
+    ----------
+    data: np.array
+      Matrix of type `int` indicating the per-pixel land-cover type
+    layer:
+      The specific land-cover type (or land-cover types) to select
+    output_dtype:
+      The data-type of the output matrix
+
+      ..note::
+        The output matrix will contain the maximal value possible for this data
+        in pixels of the layer to select for and the minimal value in pixels
+        associated to other layers.
+
+    Returns
+    -------
+    np.array:
+      Matrix of type `output_dtype` in the same shape of `data`
     """
-    return np.where(data == layer, is_value, not_value)
+    try:
+        _is = output_dtype(np.iinfo(output_dtype).max)
+        _is_not = output_dtype(np.iinfo(output_dtype).min)
+    except ValueError:
+        try:
+            _is = output_dtype(np.finfo(output_dtype).max)
+            _is_not = output_dtype(np.finfo(output_dtype).min)
+        except ValueError:
+            raise ValueError(f"{output_dtype=} is not a valid dtype of "
+                             "`output_data`")
+    # NOTE: we might want to scale to [0, 1] if the output_dtype is float
+    if isinstance(layer, int):
+        _selected = [layer,]
+    else:
+        _selected = layer
+    return np.where(np.isin(data, _selected), _is, _is_not)
 
 
 def apply_filter(data, img_filter, **params):
@@ -45,10 +82,11 @@ def get_lct(data, ):
     return lctypes
 
 
-def get_layer_data(data, layer, img_filter, params=None):
+def get_layer_data(data, layer, img_filter=None, params=None,
+                   output_dtype=np.uint8):
     """Return the data of a single layer after filtering
     """
-    _data = filter_for_layer(data, layer)
+    _data = filter_for_layer(data, layer, output_dtype=output_dtype)
     params = params or dict()
     if img_filter:
         _data = apply_filter(_data, img_filter, **params)
@@ -97,8 +135,16 @@ def compute_entropy(filtered_data_layers: dict, normed, dtype):
     if normed:
         max_entropy = get_max_entropy(len(all_layers))
         entropy_layer = entropy_layer / max_entropy
+        print(f"{np.nanmax(entropy_layer)=}")
         if dtype:
-            _limit_value = np.iinfo(dtype).max
+
+            try:
+                _limit_value = dtype(np.iinfo(dtype).max)
+            except ValueError:
+                try:
+                    _limit_value = dtype(np.finfo(dtype).max)
+                except ValueError:
+                    raise ValueError(f"{dtype=} is not a valid dtype")
             entropy_layer = (entropy_layer * _limit_value).astype(dtype)
     return entropy_layer
 
