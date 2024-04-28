@@ -15,12 +15,14 @@ def test_filter_for_layer():
     # Create a random matrix with integers in [1, 8]
     rand_map = np.random.randint(8, size=(100, 200)) + 1
     layer = 4  # the layer we want to get
-    is_v, not_v = 1, 0  # set the values for a map and a miss
+    dtype = np.float16  # special case, normal would be np.uint8
+    # set the values for a map and a miss
+    is_v = np.finfo(dtype).max
+    not_v = np.finfo(dtype).min
     target_layer = lbproc.filter_for_layer(
         data=rand_map,
         layer=layer,
-        is_value=is_v,
-        not_value=not_v
+        output_dtype=dtype
     )
     # make sure only the maps and misses are present
     assert set(np.unique(target_layer)) == {is_v, not_v}

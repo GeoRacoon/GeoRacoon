@@ -3,22 +3,31 @@
 Note
 ----
 
-    When used as a script, you must either provide a value for the `diameter`,
-    or for the `sigma` parameter.
-    We truncate the Gaussian kernel after a certain distance from the center.
-    The `diameter` is given by twice this truncation distance.
-    In practical terms, the truncation distance, `truncate` must be expressed
-    in units of the scale parameter, `sigma`, of the Gaussian kernel, therefore
-    we have the relation:
+    - When used as a script, you must either provide a value for the
+      `diameter`, or for the `sigma` parameter.
+      We truncate the Gaussian kernel after a certain distance from the center.
+      The `diameter` is given by twice this truncation distance.
+      In practical terms, the truncation distance, `truncate` must be expressed
+      in units of the scale parameter, `sigma`, of the Gaussian kernel,
+      therefore we have the relation:
 
-        diameter = 2 * truncate * sigma
+          diameter = 2 * truncate * sigma
 
-    As a consequence, two out of the three parameters, (`sigma`, `truncate`,
-    `diameter`), need to be provided.
-    If all 3 are provided, then `diameter` and `sigma` take precedence, meaning
-    that the value provided for `truncate` is overwritten by
-    `0.5 * \frac{diameter}{sigma}`
-    If `truncate` is not provided, then the default value of `3` is used.
+      As a consequence, two out of the three parameters, (`sigma`, `truncate`,
+      `diameter`), need to be provided.
+      If all 3 are provided, then `diameter` and `sigma` take precedence,
+      meaning that the value provided for `truncate` is overwritten by
+      `0.5 * \frac{diameter}{sigma}`
+      If `truncate` is not provided, then the default value of `3` is used.
+
+    - The entropy calculation is based on maps with data type float64 that
+      resulted from applying a Gaussian smoothing filter. However, all the
+      output maps produced by this script (i.e. the smoothened land-cover type
+      maps, as well as, the entropy map are converted and then stored as uint8
+      maps. The smoothened land-cover type maps contain, by construction only
+      values in the range of [0, 1] and the entropy map is normed by the
+      maximal possible entropy value (i.e. each land-cover type being equally
+      present in a pixel) before rescaled to the uint8-range.
 
 """
 import os
@@ -110,8 +119,7 @@ def block_heterogeneity(params, entropy_q, blur_q):
             truncate=params.pop('truncate')
         )
         if blur_as_int:
-            # TODO: adapt rescaling according to #41
-            _maxint = np.iinfo(np.uint64).max
+            _maxint = np.iinfo(np.uint8).max
             for k, data in blur_layers.items():
                 blur_layers[k] = blur_layers[k] * _maxint
         # prepare parameter to send to blur writer
@@ -190,7 +198,7 @@ def combine_blurred_land_cover_types(output_params: dict, blur_q):
         profile = output_params.pop('profile')
         profile['dtype'] = rio.float64
         if as_int:
-            profile['dtype'] = rio.uint16
+            profile['dtype'] = rio.uint8
         # TODO: This should not be hard-coded but determined when probing the
         #       source data for the number of distinct land-cover types.
         profile['count'] = 12
@@ -233,7 +241,7 @@ def combine_entropy_blocks(output_params: dict, entropy_q):
         profile = output_params.pop('profile')
         profile['dtype'] = rio.float64
         if as_ubyte:
-            profile['dtype'] = rio.ubyte
+            profile['dtype'] = rio.uint8
         with rio.open(output_file, 'w', **profile) as dst:
             while True:
                 # load the entropy_q
@@ -444,7 +452,7 @@ if __name__ == "__main__":
                          'ubyte (i.e. 0-255 or as float)')
     ap.add_argument("--blur_int", default=False, type=bool,
                     help='Set if the resulting heterogeneity map should be in '
-                         'uint16 (i.e. 0-65535 or as float)')
+                         'uint8 (i.e. 0-255 or as float)')
     ap.add_argument("--nbrcpu", default=2, type=int,
                     help='Set the number of cpus the script considers')
     ap.add_argument("--bwidth", default=1000, type=int,
