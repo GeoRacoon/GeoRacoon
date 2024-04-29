@@ -2,7 +2,6 @@ import os
 from rasterio.enums import Resampling
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
-from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
 from landiv_blur import io as lbio
 from landiv_blur import prepare as lbprep
@@ -12,7 +11,7 @@ utm_zone = 'utm32U'
 # we are going to re-scale the maps by changing the resolution by this factor:
 scaling = 0.5
 # the land-cover types to plot
-lc_types = [1, 2, 8] # , 10]
+lc_types = [1, 2, 8]  # , 10]
 
 
 # this is going to be our figure
@@ -65,10 +64,10 @@ for i, lct in enumerate(lc_types):
     utm_map = lbio.load_block(source_file,
                               indexes=lct+1,
                               )
-                              #scaling=scaling)
+                              # scaling=scaling)
     # encoded the layers starting from 0
     lbplot.show_layer(utm_map['data'], layer=lct,
-            transform=utm_map['transform'],
+                      transform=utm_map['transform'],
                       ax=ax)
 
 # now we get the entropy map and plot it
@@ -85,5 +84,5 @@ ax, plot_params = lbplot.plot_entropy(source=source_file, size=None,
 # adding the colormap
 # fig.colorbar(plot_params[0], ax=ax)
 # finally we save it
-fig.savefig('utm_32u.pdf')
-#fig.savefig('single_lct.pdf', dpi=lbplot.DPI)
+fig.savefig(os.path.join(results_path, 'utm_32u.pdf'))
+# fig.savefig('single_lct.pdf', dpi=lbplot.DPI)
