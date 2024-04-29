@@ -1,6 +1,9 @@
 import rasterio
+from math import floor
+
 from rasterio.enums import ColorInterp
 from rasterio.windows import Window
+from rasterio.enums import Resampling
 
 
 def load_map(source, indexes=None):
@@ -15,7 +18,8 @@ def load_map(source, indexes=None):
     return load_block(source=source, start=None, size=None, indexes=indexes)
 
 
-def load_block(source, start=None, size=None, indexes=None):
+def load_block(source, start=None, size=None, indexes=None, scaling=None,
+               **params):
     """Get a block from a *.tif file along with the transform
 
     Parameters
@@ -35,6 +39,14 @@ def load_block(source, start=None, size=None, indexes=None):
 
       ..note::
         The index of the first band is 1 not 0!
+
+    scaling: float | None
+      Factor to rescale the number of pixels. A value >1 will upscale.
+
+      ..note::
+        If scaling is provided, the keyword argument `scaling_method` should
+        also be given and identify a method from `rasterio.enums.Resampling`
+        to apply for the scaling
 
     Return
     ------
@@ -68,11 +80,40 @@ def load_block(source, start=None, size=None, indexes=None):
                    f"{start=} and {size=} both need to be set or both None"
             riow = Window(*start, *size)
             transform = img.window_transform(riow)
+            width = size[0]
+            height = size[1]
         else:
+            width = img.width
+            height = img.height
             riow = None
-            transform = img.profile.copy()
+            transform = img.transform
+
+        # perform a re-scaling in needed
+        if scaling:
+            out_shape = (
+                img.count,
+                floor(img.height * scaling),
+                floor(img.width * scaling)
+            )
+            print(out_shape)
+            print(width)
+            resampling = params.get('scaling_method', Resampling.bilinear)
+        else:
+            out_shape = None
+            resampling = Resampling.nearest
+        # read out the desired part
+        data = img.read(rgb_idxs,
+                        window=riow,
+                        out_shape=out_shape,
+                        resampling=resampling)
+        if scaling:
+            # scale image transform
+            transform = transform * transform.scale(
+                (width / data.shape[-1]),
+                (height / data.shape[-2])
+            )
         return {
-            'data': img.read(rgb_idxs, window=riow),
+            'data': data,
             'transform': transform,
             'orig_profile': img.profile.copy()
         }
