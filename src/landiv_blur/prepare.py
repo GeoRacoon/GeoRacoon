@@ -259,3 +259,27 @@ def recombine_blocks(blocks, output):
     for data, view in blocks:
         update_view(output, view, block=data)
     return output
+
+
+def get_blur_params(diameter=None, sigma=None, truncate=None):
+    """
+    .. note::
+        The default of truncate is 3
+
+    """
+    # use default value of 3 for truncate
+    truncate = truncate or 3
+    if diameter:
+        if sigma:
+            truncate = 0.5 * diameter / sigma
+        else:
+            if truncate:
+                sigma = 0.5 * diameter / truncate
+    else:
+        if sigma:
+            diameter = 2 * sigma * truncate
+        else:
+            # TODO: this test should be done when parsing the input arguments
+            raise TypeError("Either the `diameter` or the `sigma` parameter "
+                            " need to be provided.")
+    return dict(diameter=diameter, sigma=sigma, truncate=truncate)

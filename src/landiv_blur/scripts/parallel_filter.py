@@ -273,30 +273,6 @@ def combine_entropy_blocks(output_params: dict, entropy_q):
     return timer
 
 
-def get_blur_params(diameter, sigma, truncate):
-    """
-    .. note::
-        The default of truncate is 3
-
-    """
-    # use default value of 3 for truncate
-    truncate = truncate or 3
-    if diameter:
-        if sigma:
-            truncate = 0.5 * diameter / sigma
-        else:
-            if truncate:
-                sigma = 0.5 * diameter / truncate
-    else:
-        if sigma:
-            diameter = 2 * sigma * truncate
-        else:
-            # TODO: this test should be done when parsing the input arguments
-            raise TypeError("Either the `diameter` or the `sigma` parameter "
-                            " need to be provided.")
-    return dict(diameter=diameter, sigma=sigma, truncate=truncate)
-
-
 def get_lct_heterogeneity(source: str, output: str, scale: float,
                           block_size: int,
                           blur_params: dict,
@@ -484,7 +460,7 @@ if __name__ == "__main__":
         scale=scale,
         block_size=(bwidth, bheight),
         layers=layers,
-        blur_params=get_blur_params(diameter, sigma, truncate),
+        blur_params=lbprep.get_blur_params(diameter, sigma, truncate),
         output=output,
         entropy_as_ubyte=entropy_ubyte,
         blur_as_int=blur_int,
