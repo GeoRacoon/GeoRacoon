@@ -46,7 +46,7 @@ _axs = lbplot.plot_layers(source_file, None, None, scaling=scaling,
 # now we load the blurred layers
 result_map = 'lct_heterogeneity_{utm_zone}_{res_type}_sig_{sigma}_diam_{diameter}_trunc_{truncate}.tif'
 results_path = '../results/'
-diameter = 1000.
+diameter = 30000.
 truncate = 3.
 scaling_method = Resampling.nearest
 blur_params = lbprep.get_blur_params(diameter=diameter, truncate=truncate)
@@ -71,6 +71,11 @@ for i, lct in enumerate(lc_types):
                       ax=ax)
 
 # now we get the entropy map and plot it
+# TODO: for illustration purposes we show the entropy map for a smaller kernel
+#       for larger kernels (constant block size) there is still an issue in the
+#       recombination procedures
+diameter = 1000.
+blur_params = lbprep.get_blur_params(diameter=diameter, truncate=truncate)
 entropy_map = result_map.format(utm_zone=utm_zone.lower(),
                                 res_type='entropy',
                                 **blur_params)

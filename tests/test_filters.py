@@ -16,9 +16,10 @@ def test_kernel_scaling():
         default_size = get_ks(sigma=default_sigma)
         expected_ks = []
         kernels = []
-        for scale in [0.5, 1, 1.5, 2, 4]:
+        for scale in [0.5, 1, 1.5, 2, 10, 100]:
             sigma = scale * default_sigma
             kernels.append(get_ks(sigma))
+            print(f"{sigma=} - kernel size {kernels[-1]}")
             expected_ks.append(default_size*scale)
         assert kernels == expected_ks, 'Gaussian kernel size does not scale' \
                'linearly with sigma!'
