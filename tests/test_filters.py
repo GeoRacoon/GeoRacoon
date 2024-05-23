@@ -60,7 +60,7 @@ def test_signal_preservation():
     square[246:257, 246:257] = 1
     signal = square.sum()
     # convert it to the expected format
-    data = lbproc.filter_for_layer(data=square, layer=1, output_dtype=np.uint8)
+    data = lbproc.filter_for_layer(data=square, layer=1, as_dtype=np.uint8)
     sigma = 3
     truncate = 3
     for _filter, _get_kd, _get_ks in zip(_filters,

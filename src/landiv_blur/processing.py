@@ -1,10 +1,30 @@
 from __future__ import annotations
 
+from copy import copy
+
 import numpy as np
 from scipy.stats import entropy
 
+from .io import load_block
+from .prepare import get_view, relative_view
 
-def filter_for_layer(data, layer: int | list[int], output_dtype=np.uint8):
+
+def dtype_range(dtype):
+    """Get the range of the specified dtype
+    """
+    try:
+        _max = dtype(np.iinfo(dtype).max)
+        _min = dtype(np.iinfo(dtype).min)
+    except ValueError:
+        try:
+            _max = dtype(np.finfo(dtype).max)
+            _min = dtype(np.finfo(dtype).min)
+        except ValueError:
+            raise ValueError(f"{dtype=} is not a valid dtype of "
+                             "`output_data`")
+    return _max, _min
+
+def filter_for_layer(data, layer: int | list[int], as_dtype=np.uint8):
     """Filter for only the particular layer
 
 
@@ -14,7 +34,7 @@ def filter_for_layer(data, layer: int | list[int], output_dtype=np.uint8):
       Matrix of type `int` indicating the per-pixel land-cover type
     layer:
       The specific land-cover type (or land-cover types) to select
-    output_dtype:
+    as_dtype:
       The data-type of the output matrix
 
       ..note::
@@ -25,19 +45,11 @@ def filter_for_layer(data, layer: int | list[int], output_dtype=np.uint8):
     Returns
     -------
     np.array:
-      Matrix of type `output_dtype` in the same shape of `data`
+      Matrix of type `as_dtype` in the same shape of `data`
     """
-    try:
-        _is = output_dtype(np.iinfo(output_dtype).max)
-        _is_not = output_dtype(np.iinfo(output_dtype).min)
-    except ValueError:
-        try:
-            _is = output_dtype(np.finfo(output_dtype).max)
-            _is_not = output_dtype(np.finfo(output_dtype).min)
-        except ValueError:
-            raise ValueError(f"{output_dtype=} is not a valid dtype of "
-                             "`output_data`")
-    # NOTE: we might want to scale to [0, 1] if the output_dtype is float
+    _is, _is_not = dtype_range(as_dtype)
+
+    # NOTE: we might want to scale to [0, 1] if the as_dtype is float
     if isinstance(layer, int):
         _selected = [layer,]
     else:
@@ -79,17 +91,24 @@ def get_lct(data, ):
     """
     lctypes = np.unique(data)
     lctypes.sort()
-    return lctypes
+    return list(map(int, lctypes))
 
+def convert_to_type():
+    pass
 
 def get_layer_data(data, layer, img_filter=None, params=None,
-                   output_dtype=np.uint8):
+                   as_dtype=np.uint8, output_dtype=None):
     """Return the data of a single layer after filtering
     """
-    _data = filter_for_layer(data, layer, output_dtype=output_dtype)
+    _data = filter_for_layer(data, layer, as_dtype=as_dtype)
     params = params or dict()
     if img_filter:
         _data = apply_filter(_data, img_filter, **params)
+        # convert to the desired otput type
+        if output_dtype:
+            n_max, _ = dtype_range(output_dtype)
+            _data = _data * n_max
+            _data = _data.astype(output_dtype, copy=False)
     return _data
 
 
@@ -181,3 +200,91 @@ def get_entropy(data, layers=None, normed=False, img_filter=None,
                                           img_filter=img_filter, **params)
     return compute_entropy(filtered_data_layers=filtered_layers, normed=normed,
                            dtype=dtype)
+
+def view_blurred(source,
+                 view,
+                 inner_view,
+                 layers: list,
+                 img_filter,
+                 filter_params: dict = dict(),
+                 blur_as_int: bool = False):
+    """Return blurred layers of a view
+
+    Parameters
+    ----------
+    """
+    # view = params.pop('view')
+    # inner_view = params.pop('inner_view')
+    # blur_as_int = params.pop('blur_as_int', False)
+    # layers = copy(params.pop('layers'))
+    # read out block from original file
+    start = (view[0], view[1])
+    size = (view[2], view[3])
+    result = load_block(
+        source,
+        start=start,
+        size=size
+    )
+    data = result.pop('data')
+    # transform = result.pop('transform')
+    # orig_profile = result.pop('orig_profile')
+    # perform blur
+    blur_layers = get_filtered_layers(
+        data=data,
+        layers=layers,
+        img_filter=img_filter,
+        **filter_params
+    )
+    if blur_as_int:
+        _maxint, _ = dtype_range(np.uint8)
+        for k, data in blur_layers.items():
+            blur_layers[k] = blur_layers[k] * _maxint
+            blur_layers[k] = blur_layers[k].astype(np.uint8, copy=False)
+    return dict(data=blur_layers, view=inner_view)
+
+def  view_entropy(blur_layers, view, inner_view, entropy_as_ubyte: bool = False):
+    """Return entropy-based landscape type heterogeneity measure for a view
+    """
+    if entropy_as_ubyte:
+        normed = True
+        dtype = np.uint8
+    else:
+        normed = False
+        dtype = None
+    # calculate entropy
+    entropy_layer = compute_entropy(
+        filtered_data_layers=blur_layers,
+        normed=normed,
+        dtype=dtype,
+    )
+    usable_block = np.copy(
+        get_view(entropy_layer,
+                        relative_view(view, inner_view))
+    )
+    return dict(data=usable_block, view=inner_view)
+
+
+def get_entropy_view(source,
+                     view,
+                     inner_view,
+                     layers: list,
+                     img_filter,
+                     filter_params,
+                     entropy_as_ubyte: bool = False,
+                     blur_as_int: bool = False):
+    """
+    """
+    blur_layers, _inner_view = view_blurred(
+        source=source,
+        view=view,
+        inner_view=inner_view,
+        layers=layers,
+        img_filter=img_filter,
+        filter_params=filter_params,
+        blur_as_int=blur_as_int
+    )
+    assert _inner_view == inner_view
+    return view_entropy(blur_layers=blur_layers,
+                        view=view,
+                        inner_view=inner_view,
+                        entropy_as_ubyte=entropy_as_ubyte)
