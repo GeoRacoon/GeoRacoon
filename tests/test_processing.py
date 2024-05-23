@@ -22,7 +22,7 @@ def test_filter_for_layer():
     target_layer = lbproc.filter_for_layer(
         data=rand_map,
         layer=layer,
-        output_dtype=dtype
+        as_dtype=dtype
     )
     # make sure only the maps and misses are present
     assert set(np.unique(target_layer)) == {is_v, not_v}
