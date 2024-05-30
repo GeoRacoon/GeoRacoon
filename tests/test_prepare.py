@@ -14,7 +14,7 @@ def test_view_definition():
     """
     size = (9, 12)
     border = (1, 2)
-    view_size = [3, 4]
+    view_size = (3, 4)
     # in a matrix of 9x9 with 3 views and a border size of 1 we expect a.o.:
     expected_views = [
         # in the reference corner:
@@ -52,7 +52,7 @@ def test_recombination():
     hpos = np.random.randint(0, high=mapshape[1], size=4)
     point_map[vpos, hpos] = 1
     nbr_views = (20, 10)  # determine how many blocks along each axis
-    view_size = list(map(lambda x: int(x[0]/x[1]), zip(mapshape, nbr_views)))
+    view_size = tuple(map(lambda x: int(x[0]/x[1]), zip(mapshape, nbr_views)))
     # get the required border size (i.e. filter kernel size)
     ksize = lbgauss.get_kernel_size(sigma)
     border = (ksize, ksize)
@@ -123,9 +123,9 @@ def test_visualize_recombination_coverage():
     boxes = [Rectangle(xy=(0, 0), width=mapshape[0], height=mapshape[1])]
     inner_boxes = []
     for i, view in enumerate(views):
-        boxes.append(Rectangle(xy=(views[i][0:2]),
-                               width=views[i][2],
-                               height=views[i][3]))
+        boxes.append(Rectangle(xy=(view[0:2]),
+                               width=view[2],
+                               height=view[3]))
         inner_boxes.append(Rectangle(xy=(inner_views[i][0:2]),
                                      width=inner_views[i][2],
                                      height=inner_views[i][3]))
@@ -144,7 +144,7 @@ def test_visualize_recombination_coverage():
     ax.set_xlim(-1, mapshape[0]+1)
     ax.set_ylim(mapshape[1]+1, -1)
     ax.set_aspect('equal', adjustable='box')
-    # TODO: visually compare image
+    # # TODO: visually compare image
     # plt.show()
     # fig.savefig('testw.pdf')
 

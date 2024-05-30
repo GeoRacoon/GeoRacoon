@@ -12,19 +12,25 @@ from landiv_blur import processing as lbproc
 
 
 # We start with creating a random land-cover type "map":
-rand_map = np.random.randint(8, size=(100, 200)) + 1
+rand_data = np.random.randint(8, size=(100, 200)) + 1
 
 ###
 # Step-by-step guide
 ###
 # Next we construct a map for a single land-cover type from the map
-mono_lctype_map = lbproc.filter_for_layer(rand_map, layer=3)
+mono_lctype_map = lbproc.select_layer(rand_data, layer=3)
 # Now we can apply a filter on the resulting map:
 blurred = lbproc.apply_filter(mono_lctype_map, gaussian, sigma=1)
+# convert it back to uint8
+n_max, _ = lbproc.dtype_range(np.uint8)
+blurred = blurred * n_max
+blurred = blurred.astype(np.uint8, copy=False)
 
 # Let's to the same thing for another land-cover type:
-mono_lctype_map_2 = lbproc.filter_for_layer(rand_map, layer=2)
-blurred_2 = lbproc.apply_filter(mono_lctype_map, gaussian, sigma=1)
+mono_lctype_map_2 = lbproc.select_layer(rand_data, layer=2)
+blurred_2 = lbproc.apply_filter(mono_lctype_map_2, gaussian, sigma=1)
+blurred_2 = blurred_2 * n_max
+blurred_2 = blurred_2.astype(np.uint8, copy=False)
 
 # Now we combine them and compute the per pixel Shannon entropy
 combined = np.stack([blurred, blurred_2], axis=2)
@@ -35,12 +41,15 @@ entropy_layer = entropy(combined, axis=2)
 ###
 # We can do the same thing with a single command:
 entropy_layer_fast = lbproc.get_entropy(
-    rand_map,
+    rand_data,
     layers=[2, 3],
-    normed=True,
+    normed=False,
     img_filter=gaussian,
-    sigma=1
+    filter_params=dict(
+        sigma=1
+    )
 )
 
-# to make sure that both approaches are equal:
-print(np.all(entropy_layer_fast == entropy_layer_fast))
+# to make sure hat both approaches are equal:
+print('Differences:')
+print(np.unique(entropy_layer_fast - entropy_layer))

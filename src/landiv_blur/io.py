@@ -65,16 +65,16 @@ def load_block(source, start=None, size=None, indexes=None, scaling=None,
 
         if len(colorspace.keys()) == 3:
             # Read the image in the proper order so the numpy array is RGB
-            rgb_idxs = [
+            idxs = [
                 colorspace[ci]
                 for ci in (ColorInterp.red,
                            ColorInterp.green,
                            ColorInterp.blue)
             ]
-        elif indexes:
-            rgb_idxs = indexes
+        elif indexes is not None:
+            idxs = indexes
         else:
-            rgb_idxs = 1
+            idxs = img.indexes
         if any((start, size)):
             assert all((start, size)), \
                    f"{start=} and {size=} both need to be set or both None"
@@ -102,7 +102,7 @@ def load_block(source, start=None, size=None, indexes=None, scaling=None,
             out_shape = None
             resampling = Resampling.nearest
         # read out the desired part
-        data = img.read(rgb_idxs,
+        data = img.read(idxs,
                         window=riow,
                         out_shape=out_shape,
                         resampling=resampling)

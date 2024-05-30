@@ -127,14 +127,13 @@ def block_heterogeneity(params, entropy_q, blur_q):
             params
         )
         blur_layers = blurred_view['data']
-        inner_view = blurred_view['view']
-        entropy_layer, inner_view = runner_call(
+        view = blurred_view['view']
+        entropy_layer = runner_call(
             entropy_q,
             view_entropy,
             dict(
-                view=view,
                 blur_layers=blur_layers,
-                inner_view=inner_view,
+                view=view,
                 entropy_as_ubyte=entropy_as_ubyte
             )
         )

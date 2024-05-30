@@ -1,3 +1,7 @@
+import pytest
+
+from itertools import product
+
 import numpy as np
 
 from landiv_blur import io as lbio
@@ -5,7 +9,7 @@ from landiv_blur import processing as lbproc
 from landiv_blur.filters import _filters
 from landiv_blur.filters import _get_kernel_diam
 from landiv_blur.filters import _get_kernel_size
-from landiv_blur.filters.gaussian import gaussian
+from landiv_blur.filters.gaussian import gaussian, compatible_border_size
 
 from .config import ALL_MAPS
 
@@ -45,7 +49,7 @@ def test_filter_signal_preservation(datafiles):
                                            output_dtype=dtype)
         filtered_data = lbproc.get_layer_data(ch_data, layer=layer,
                                               img_filter=gaussian,
-                                              params=params)
+                                              filter_params=params)
         signal = (layer_data.astype(float)/dmax).sum()
         diff = abs(signal - filtered_data.astype(float).sum())
         assert diff/signal <= 0.001
@@ -60,7 +64,7 @@ def test_signal_preservation():
     square[246:257, 246:257] = 1
     signal = square.sum()
     # convert it to the expected format
-    data = lbproc.filter_for_layer(data=square, layer=1, as_dtype=np.uint8)
+    data = lbproc.select_layer(data=square, layer=1, as_dtype=np.uint8)
     sigma = 3
     truncate = 3
     for _filter, _get_kd, _get_ks in zip(_filters,
@@ -72,3 +76,26 @@ def test_signal_preservation():
         print(f"kernel size {ks=}")
         gsquare = _filter(data, sigma=sigma, truncate=truncate)
         assert round(signal, 2) == round(gsquare.sum(), 2)
+
+def test_border_checking():
+    """Make sure that we identify border sizes that truncate a kernel.
+    """
+    square = np.zeros((501, 501), dtype=int)
+    center = 250
+    square[center, center] = 1
+    sigmas = [1, 3, 5, 10]
+    truncates = [1,2,3,4,5]
+    borders = [1, 5, 10, 20, 50]
+    for sigma, t, b in product(sigmas, truncates, borders):
+        border = (b, b)
+        blurred = gaussian(square, sigma=sigma, truncate=t)
+        if blurred[center + b + 1, center] == 0:
+            # if the pixel outside the border is 0 we are good
+            bs = compatible_border_size(sigma=sigma, border=border, truncate=t)
+        else:
+            # otherwise, the compatible_border_size should complain
+            with pytest.raises(AssertionError):
+                bs = compatible_border_size(sigma=sigma, border=border,
+                                            truncate=t)
+                assert blurred[center + bs[1] + 1, center] == 0
+
