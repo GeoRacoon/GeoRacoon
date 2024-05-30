@@ -9,7 +9,7 @@ from landiv_blur.filters import gaussian as lbf_gauss
 from .config import ALL_MAPS
 
 
-def test_filter_for_layer():
+def test_select_layer():
     """Filter an matrix of integers for a specific value
     """
     # Create a random matrix with integers in [1, 8]
@@ -19,7 +19,7 @@ def test_filter_for_layer():
     # set the values for a map and a miss
     is_v = np.finfo(dtype).max
     not_v = np.finfo(dtype).min
-    target_layer = lbproc.filter_for_layer(
+    target_layer = lbproc.select_layer(
         data=rand_map,
         layer=layer,
         as_dtype=dtype
@@ -73,9 +73,11 @@ def test_single_layer_filter(datafiles):
     sigma = real_sigma / scale  # in pixel
     lct_blurred = lbproc.get_filtered_layers(ch_data, layers=lctypes,
                                              img_filter=gaussian,
-                                             sigma=sigma,
-                                             truncate=truncate)
-    for lct, data in lct_blurred.items():
+                                             filter_params=dict(
+                                                 sigma=sigma,
+                                                 truncate=truncate
+                                             ))
+    for _, data in lct_blurred.items():
         assert np.nanmax(data) >= 0.1
 
 
@@ -95,7 +97,7 @@ def test_entropy_normalization_conversion(datafiles):
                                               img_filter=gaussian)
     rescaled_entropy_layer = lbproc.get_entropy(data, lctypes,
                                                 normed=True,
-                                                dtype=np.uint8,
+                                                output_dtype=np.uint8,
                                                 img_filter=gaussian)
     max_entropy = lbproc.get_max_entropy(len(lctypes))
     assert np.nanmax(entropy_layer) <= max_entropy, \

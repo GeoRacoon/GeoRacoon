@@ -7,7 +7,8 @@ from rasterio.plot import show
 from .io import load_block
 from .processing import (
     get_layer_data,
-    get_entropy
+    get_entropy,
+    get_lct
 )
 
 OUT = 'black'
@@ -182,7 +183,8 @@ def plot_layers(source, start, size, img_filter=None, params=None,
                     continue
             else:
                 layer = _layer
-            _data = get_layer_data(data, layer, img_filter, params)
+            _data = get_layer_data(data, layer, img_filter,
+                                   filter_params=params)
             show_layer(_data, layer, transform, _get_axis(row,  col))
     plt.subplots_adjust(wspace=0.1, hspace=0.1)
     output = fig_params.get('output', None)
@@ -246,7 +248,8 @@ def plot_entropy_full(source, start, size, output, img_filter=None,
     """
     block = load_block(source, start, size)
     data, transform = block['data'], block['transform']
-    entropy_layer = get_entropy(data, layers=range(8), normed=True)
+    lcts = get_lct(data)
+    entropy_layer = get_entropy(data, layers=lcts, normed=True)
 
     fig, ax = plt.subplots(figsize=(16, 16))
 

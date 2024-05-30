@@ -21,7 +21,7 @@ def test_import_export(datafiles):
     start = (1020, 1020)
     size = (700, 700)
     ch_map_tif = list(datafiles.iterdir())[0]
-    block = lbio.load_block(ch_map_tif, start=start, size=size)
+    block = lbio.load_block(ch_map_tif, start=start, size=size, indexes=1)
     entropy_layer = lbproc.get_entropy(block['data'], range(8),
                                        normed=True,
                                        img_filter=gaussian)

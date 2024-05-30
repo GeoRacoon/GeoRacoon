@@ -45,8 +45,6 @@ from landiv_blur.parallel import (
     combine_entropy_blocks,
     block_heterogeneity
 )
-
-
 def get_lct_heterogeneity(source: str, output_file: str, scale: float,
                           block_size: tuple[int, int],
                           blur_params: dict,
@@ -75,10 +73,11 @@ def get_lct_heterogeneity(source: str, output_file: str, scale: float,
     # prepare the input for the blocks
     # ###
     # read the metadata from source tif
-    dataset = rio.open(source)
-    width = dataset.width
-    height = dataset.height
-    profile = copy(dataset.profile)
+    with rio.open(source) as dataset:
+        dataset = rio.open(source)
+        width = dataset.width
+        height = dataset.height
+        profile = copy(dataset.profile)
     print("The chosen source tif has a dimension of:"
           f"\n\t{width=}\n\t{height=}")
 
@@ -98,7 +97,7 @@ def get_lct_heterogeneity(source: str, output_file: str, scale: float,
     # set the block size in pixels
     view_size = block_size
     print(f"The block size without border is {view_size=} pixels")
-    border = (ksize, ksize)
+    border = lbf_gauss.compatible_border_size(sigma=psigma, truncate=truncate)
     print(f"The resulting border size is {border=} pixels")
     # Should the entropy be normalized and returned as ubyte?
     entropy_as_ubyte = params.pop('entropy_as_ubyte', False)
