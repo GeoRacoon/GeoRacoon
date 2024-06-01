@@ -228,12 +228,12 @@ if __name__ == "__main__":
     ap.add_argument("--bheight", default=1000, type=int,
                     help='The height of a block in pixels to be '
                     'processed in a single job')
-
-    # TODO: allow to select the layers (comma separated list)
-    layers = list(range(11))
+    ap.add_argument("--nbrlct", default=12, type=int,
+                    help='Set the number of land-cover types to consider')
 
     inargs = vars(ap.parse_args())
     print(inargs)
+
     source = inargs.pop('source')
     output_file = inargs.pop('output')
     scale = inargs.pop('scale')
@@ -245,6 +245,9 @@ if __name__ == "__main__":
     nbrcpu = inargs.pop('nbrcpu')
     bwidth = inargs.pop('bwidth')
     bheight = inargs.pop('bheight')
+    nbr_lct = inargs.pop('nbrlct')
+    # construct the list of land-cover types to use
+    layers=list(range(nbr_lct))
 
     get_lct_heterogeneity(
         source=source,

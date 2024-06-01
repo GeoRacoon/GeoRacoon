@@ -1,4 +1,5 @@
 import numpy as np
+import rasterio as rio
 
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
@@ -149,16 +150,56 @@ def test_visualize_recombination_coverage():
     # fig.savefig('testw.pdf')
 
 
+
 @ALL_MAPS
-def test_recombination_with_border(datafiles):
-    """Assert that a map with a shape that is not a multiple of the block
-    dimensions is combined correctly
+def test_lct_coverage(datafiles):
+    """Check if all cells have a land-cover type
     """
-    ch_map_tif = list(datafiles.iterdir())[0]
-    # set block size so to not fill up the map completely with blocks
-    mapshape = (300, 350)
-    sigma = 1.5
-    ksize = lbgauss.get_kernel_size(sigma)
-    border = (ksize, ksize)
-    nbr_views = (20, 10)  # determine how many blocks along each axis
-    views, inner_views = lbprep.create_views(nbr_views, border, size=mapshape)
+    from skimage.filters import gaussian
+    # test_tif = 'data/reclass_GLC_FCS30_2015_utm32U.tif'
+    test_tif = list(datafiles.iterdir())[0]
+    sigma = 0.5
+    truncate = 3
+    with rio.open(test_tif) as src:
+        profile = src.profile
+        width = src.width
+        height = src.height
+        data = src.read(indexes=1)
+    haslct = np.zeros((height, width), dtype=np.bool_)
+    lcts = lbproc.get_lct(data)
+    print(f"{profile=}")
+    print(f"{width=}")
+    print(f"{height=}")
+    print(f"{data.shape=}")
+    print(f"{haslct.shape=}")
+    print(f"{lcts=}")
+    blurred_layers = lbproc.get_filtered_layers(data, layers=lcts,
+                               img_filter=gaussian,
+                               filter_params=dict(
+                                   sigma=sigma,
+                                   truncate=truncate
+                               ),
+                               output_dtype=np.uint8
+                               )
+    entropy_data = lbproc.compute_entropy(blurred_layers, normed=True,
+                                         output_dtype=np.uint8)
+    for lct in lcts:
+        print(f"{lct=}")
+        lct_data = lbproc.get_layer_data(data, layer=lct,
+                                         img_filter=gaussian,
+                                         filter_params=dict(
+                                             sigma=sigma,
+                                             truncate=truncate
+                                         ),
+                                         output_dtype=np.uint8)
+        print(f"\t{lct_data.dtype=}")
+        print(f"\t{lct_data.shape=}")
+        print(f"\t{np.unique(lct_data)=}")
+        haslct = np.where(lct_data != 0, 1, haslct)
+        vals, counts = np.unique(haslct, return_counts=True)
+        print(f"\t{vals=}")
+        print(f"\t{counts=}")
+    # now make sure that we do not have any unassigned cells
+    vals, counts = np.unique(haslct, return_counts=True)
+    assert len(vals) == 1, f"We have cells without lct: {vals=}, {counts=}"
+
