@@ -25,25 +25,30 @@ To install `landiv_blur`:
 
 Head over to the [examples/](examples/) folder for some usage examples.
 
-There is also a command line executable (_under construction_) that can
-directly process `.tif` files.
+Installed along with the `landiv_blur` package is also a command line executable
+`landiv` that can be used to process `.tif` files in a parallelized manner.
 After installation, type `landiv --help` in your terminal for further details
 on how to use it.
 
 <!--- quickstart --->
 
-### Running with OnDemand on cluster.s3it.uzh.ch
+### Running on a SLURM cluster (like cluster.s3it.uzh.ch)
 
 In order to apply the filters to sizeable maps we are in need of adequate
 resources that are provided, for example, by the SLURM cluster maintained by
 s3it.uzh.ch.
-Luckily, s3it provides the OnDemand framework, which allows to run a jupyter
-lab on resources provided through SLURM.
-The advantage of such approach lies in the abstraction layer that allows to
-distribute the workload much like one would parallelize on a single multi-core
-server.
 
-Setting up a jupyter lab for our analysis requires some preparatory steps:
+The approach we chose here is as follows:
+
+- We submit a single job to the cluster that requires multiple CPU's and enough RAM to process a map in parallel.
+- `landiv` then takes care of splitting up the map into multiple blocks (or `views`) and uses python's
+  `multiprocessing` library to efficiently make use of the reserved CPUs. `landiv` also handles the recombination
+  of the resulting blocks back into a single file.
+
+This approach distributes the workload much like one would parallelize on a single multi-core
+server and can, in fact, be used in an identical approach on a laptop or workstation.
+
+#### Setup environment on the cluster
 
 1. Login to cluster.s3it.uzh.ch with `ssh -l shortname cluster.s3it.uzh.ch`
 1. Create ssh key-pair with `ssh-keygen`. Make sure to **set a password
@@ -51,38 +56,82 @@ Setting up a jupyter lab for our analysis requires some preparatory steps:
 1. Add the just generate public key (the \<something\>.pub) to your ssh keys
    on https://git.math.uzh.ch/-/profile/keys
 1. Clone the landiv project into your home folder on the cluster
-1. Build and install our custom kernel (called `landiv` kernel ) by running:
+1. Build and configure the python environment to use the `landiv_blur` package
+   and the `landiv` command in particular:
    ```
-   chmod +x landiv_kernel.sh
-   bash ./landiv_kernel.sh
+   chmod +x landiv_env_setup.sh
+   bash ./landiv_env_setup.sh
    ```
 
-1. Got to apps.s3it.uzh.ch and select `Jupyter Server` from the drop-down
-   menu `Interactive Apps`
-1. Reserve the required amount of CPU's and RAM (a good ratio is 1/4)
-1. Leave GPU to None as we are not using them in this project
-1. Select a runtime that is longer than the complete processing time
-   (to determine).
+#### Data and storage of output files
 
-   _Note:_ You can always delete the interactive session, which will also free
-   up the reserved resources.
-1. Hit `Launch` and wait for the jupyter server to start and the click on the
-   'Connect to Jupyter` button
-1. Under 'Notebook' there will be a python symbol with the name `landiv`, click
-   on it to start a notebook with our custom kernel.
-1. Now you can start using the landiv package and all of its dependencies.
+We have to deal with two constraints on the cluster:
+
+- storage capacity
+- accessibility
+
+Given that we deal with several GBs of data, produce even more as output
+files and we are at least two to use the cluster, the best option seems to use
+the groups share under `/shares/niklaus.ieu.uzh`.
+
+How exactly we want to structure the data and output files there remains to be decided.
+For now the land-cover type maps are located under `/shares/niklaus.ieu.uzh/first_approach/Europe/landcover`
+and the output files are put under `/shares/niklaus.ieu.uzh/first_approach/Europe/output`, if we use
+the [example script](examples/console_launcher.sh).
+
+
+#### Launching jobs on the cluster
+1. Create a launcher script that reserves the desired resources and calls `landiv`.
+   _Have a look at [examples/console_launcher.sh](examples/console_launcher.sh) if you
+   are uncertain how such a script should look like._
+
+   The recommended configuration (which is also used in the mentioned example
+   script) is as follows:
+
+   - 32 CPUs
+   - 120GB RAM
+   - Max duration: 4 Hours
+   - Block size 4000x4000 pixels
+
+   _For further information see issue #27_
+1. Launch your script (here we assume it's called `console_launcher.sh`) with
+
+   ```
+   sbatch console_launcher.sh
+   ```
+1. Now you can monitor the progress.
    
+   In the folder you launched the previous command a file called `slurm-<job_id>.out` will be created
+   that will gather all the output of the `landiv` script.
+
+   Here are a few options to monitor your job:
+
+   - Run `squeue --me` to see the status of your job.
+   - Run `tail -f slurm-<job_id>.out` to have a live view of the output that the job is generating
+   - Run `sacct -j <job_id>` to see an overview of the consumed resources, job state, etc.
+     
+     For a better formatting of the output, I recommend configuring the `sacct` command with:
+
+     ```
+     export SACCT_FORMAT="JobID%20,JobName,Elapsed,CPUTime,State,MaxRSS,AllocTRES%32,ExitCode,User,Partition,NodeList"
+     ```
+   Once the jobs are terminated you will find the resulting maps in the location you specified in the `--output`
+   parameter of the `landiv` command.
 
 
-## Previews
+---
+---
+
+
+## Exemplary output
 
 ![France-CH border](./results/test_france.png)
 
-## Individual layers
+### Individual layers
 
 ![France-CH border](./results/test_france_layers.png)
 
-### Individual layers with Gaussian filter
+#### Individual layers with Gaussian filter
 
 ![France-CH border](./results/test_france_layers_filtered_1.0.png)
 _sigma = 1_
@@ -91,7 +140,7 @@ _sigma = 10_
 ![France-CH border](./results/test_france_layers_filtered_40.0.png)
 _sigma = 40_
 
-## Entropy after diffusion
+### Entropy after diffusion
 
 ![France-CH border](./results/test_france.png)
 ![France-CH border](./results/test_france_layers_entropy_1.0.png)
@@ -129,7 +178,7 @@ _sigma = 40_
 ---
 ---
 
-# Bigger map
+### Bigger map
 
 <br>
 
