@@ -38,6 +38,7 @@ from copy import copy
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 
 
+from landiv_blur import helper as lbhelp
 from landiv_blur import prepare as lbprep
 from landiv_blur.filters import gaussian as lbf_gauss
 from landiv_blur.parallel import (
@@ -103,7 +104,7 @@ def get_lct_heterogeneity(source: str, output_file: str, scale: float,
     entropy_as_ubyte = params.pop('entropy_as_ubyte', False)
     blur_as_int = params.pop('blur_as_int', False)
     # set the filename of the output file
-    blur_output_file = lbprep.output_filename(
+    blur_output_file = lbhelp.output_filename(
         base_name=output_file,
         out_type='blurred',
         blur_params=blur_params
@@ -116,7 +117,7 @@ def get_lct_heterogeneity(source: str, output_file: str, scale: float,
         as_int=blur_as_int,
         output_file=blur_output_file,
     )
-    entropy_output_file = lbprep.output_filename(
+    entropy_output_file = lbhelp.output_filename(
         base_name=output_file,
         out_type='entropy',
         blur_params=blur_params

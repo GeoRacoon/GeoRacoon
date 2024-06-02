@@ -141,7 +141,8 @@ dmypy.json
 # any slurm output file
 *.out
 
-# generally exclude results
+# generally exclude results and input data
+data/
 results/
 *.png
 *.pdf
