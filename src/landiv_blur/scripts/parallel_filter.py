@@ -1,4 +1,3 @@
-from __future__ import annotations
 """Script to calculate an entropy based land cover type heterogeneity.
 
 Note
@@ -31,11 +30,12 @@ Note
       present in a pixel) before rescaled to the uint8-range.
 
 """
+from __future__ import annotations
 import multiprocessing as mproc
 import rasterio as rio
 
 from copy import copy
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
 
 
 from landiv_blur import prepare as lbprep
@@ -192,12 +192,11 @@ def get_lct_heterogeneity(source: str, output_file: str, scale: float,
     print(f"maximal duration of single job: {max(job_timers)=}")
 
 
-if __name__ == "__main__":
-    ap = ArgumentParser(prog='lct-heterogeneity',
+def main():
+    ap = ArgumentParser(prog='landiv',
                         usage=__doc__,
-                        description=__doc__,
-                        add_help=False,
-                        formatter_class=ArgumentDefaultsHelpFormatter)
+                        add_help=True,
+                        formatter_class=RawDescriptionHelpFormatter)
 
     ap.add_argument("--source", type=str,
                     help='Path to the land cover type tif file')
@@ -260,3 +259,7 @@ if __name__ == "__main__":
         blur_as_int=blur_int,
         nbrcpu=nbrcpu,
     )
+
+
+if __name__ == "__main__":
+    main()
