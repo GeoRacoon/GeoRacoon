@@ -5,7 +5,6 @@ of a land-cover type map.
 import os
 import math
 
-
 def overhead_fraction(nbr_blocks, border, size):
     """Compute the fraction of area that is processed multiple times.
 
@@ -167,7 +166,6 @@ def create_views(view_size:tuple[int, int], border:tuple[int, int],
         # add the last column of leftovers
         for j in range(nbr_views[1]):  # vertically since column
             _width = border[0]
-            _iwidth = border[0]
             if 0 < j < nbr_views[1] - 1:
                 vpadding = 2 * border[1]
             else:
@@ -190,7 +188,6 @@ def create_views(view_size:tuple[int, int], border:tuple[int, int],
         # add the last row of leftovers
         for i in range(nbr_views[0]):  # horizontally since row
             _height = border[1]
-            _iheight = border[1]
             if 0 < i < nbr_views[0] - 1:
                 hpadding = 2 * border[0]
             else:
@@ -291,33 +288,3 @@ def get_blur_params(diameter=None, sigma=None, truncate=None):
             raise TypeError("Either the `diameter` or the `sigma` parameter "
                             " need to be provided.")
     return dict(diameter=diameter, sigma=sigma, truncate=truncate)
-
-
-def output_filename(base_name: str, out_type: str, blur_params: dict):
-    """Construct the filename for the specific output type.
-
-    Parameters
-    ----------
-    base_name: str
-      The basic output name in the form <name>.tif
-    out_type: str
-      The type of output that will be saved.
-      This should be either 'blur' or 'entropy' but any string is accepted
-    blur_params: dict
-      Output of `get_blur_params`, so 'sigma', 'truncate' and 'diameter'
-      are expected keys.
-
-    Returns
-    str:
-      The resulting filename of the form
-      '<name>_<out_type>_sig_<{sigma}>_diam_<{diameter}>_trunc_<{truncate}>.tif'
-    """
-    _base_name, _ext = os.path.splitext(base_name)
-    # sig = blur_params['sigma']
-    # diam = blur_params['diameter']
-    # trunc = blur_params['truncate']
-    _blur_string = ""
-    for name, value in blur_params.items():
-        _blur_string += f"_{name}_{value}"
-    # _blur_string = f"sig_{sig}_diam_{diam}_trunc_{trunc}"
-    return f"{_base_name}_{out_type}{_blur_string}{_ext}"

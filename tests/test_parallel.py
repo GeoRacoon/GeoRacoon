@@ -8,6 +8,7 @@ import rasterio as rio
 
 from rasterio.plot import show as rioshow
 
+from landiv_blur import helper as lbhelp
 from landiv_blur import io as lbio
 from landiv_blur import processing as lbproc
 from landiv_blur import prepare as lbprep
@@ -66,7 +67,7 @@ def test_blur_recombination(datafiles):
                                              )
         # use multiprocessing and blur block by block
         # first set the parameters for the recombintion task
-        blur_output_file = lbprep.output_filename(
+        blur_output_file = lbhelp.output_filename(
             base_name=blur_partial,
             out_type=f"blur_lct_{layer}",
             blur_params=blur_params
@@ -190,7 +191,7 @@ def test_entropy_recombination(datafiles):
                                       output_dtype=np.uint8)
     # use multiprocessing and blur block by block
     # first set the parameters for the recombintion task
-    entropy_output_file = lbprep.output_filename(
+    entropy_output_file = lbhelp.output_filename(
         base_name=blur_partial,
         out_type=f"entropy_lct",
         blur_params=blur_params
