@@ -5,6 +5,19 @@ import os
 import rasterio as rio
 
 
+def check_crs_raster(source, reference, verbose=False):
+    """Compare coordinate reference systems of two raster datasets"""
+    with rasterio.open(source) as src:
+        src_crs = str(src.crs)
+    with rasterio.open(reference) as ref:
+        ref_crs = str(ref.crs)
+
+    if src_crs == ref_crs:
+        if verbose:
+            print(f"Coordinate systems are the same: {src_crs} --> {dst_crs}")
+        return True
+
+
 def check_crs(*sources):
     """Assert that all the sources have the same projection (incl linear units)
     """
@@ -35,6 +48,11 @@ def get_scale_factor(source, target):
     # calculate the sale factor along each dimension and return it
     return tuple(tres/sres for sres, tres in zip(source_res, target_res))
 
+
+def outfile_suffix(filename, suffix):
+    """Insert suffix into filename and hand back basename_suffix.extension"""
+    base, ext = os.path.splitext(filename)
+    return f"{base}_{suffix}{ext}"
 
 def output_filename(base_name: str, out_type: str, blur_params: dict):
     """Construct the filename for the specific output type.
