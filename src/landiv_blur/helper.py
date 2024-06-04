@@ -7,9 +7,9 @@ import rasterio as rio
 
 def check_crs_raster(source, reference, verbose=False):
     """Compare coordinate reference systems of two raster datasets"""
-    with rasterio.open(source) as src:
+    with rio.open(source) as src:
         src_crs = str(src.crs)
-    with rasterio.open(reference) as ref:
+    with rio.open(reference) as ref:
         ref_crs = str(ref.crs)
 
     if src_crs == ref_crs:
