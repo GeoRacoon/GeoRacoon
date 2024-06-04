@@ -7,11 +7,17 @@ import rasterio as rio
 from rasterio.enums import ColorInterp
 from rasterio.windows import Window
 from rasterio.enums import Resampling
+from rasterio.mask import mask
+from rasterio.warp import calculate_default_transform, reproject, Resampling, transform_bounds
 
-from rasterio.warp import calculate_default_transform, reproject, Resampling
+from shapely.geometry import box
+from osgeo import gdal, ogr
+import geopandas as gpd
 
 from .helper import (
     check_crs,
+    check_crs_raster,
+    outfile_suffix,
     get_scale_factor,
 )
 
@@ -220,7 +226,7 @@ def resample_to(source, reference, output=None, **params):
         dst.write(data)
 
 
-def project_to(source, reference, output=None):
+def project_to(source, reference, output=None, nodata=None):
     """Re-projects the source map into the coordinate system of a reference map
 
     Parameters
@@ -231,10 +237,12 @@ def project_to(source, reference, output=None):
       The path to the tif file with the projection to apply
     output: str (optional)
       The path to write the re-projected map to.
+    nodata: float, int (optional)
+      The nodata value to set for the output (e.g. np.nan or integer)
 
-      ..note::
-        If not provided, the output file will take the name of the input file
-        and add the CRS of the new projection at the end of the name.
+    ..note::
+       If not provided, the output file will take the name of the input file
+       and add the CRS of the new projection at the end of the name.
 
     Return
     ------
@@ -262,6 +270,8 @@ def project_to(source, reference, output=None):
           'width': width,
           'height': height
         })
+        if nodata is not None:
+            kwargs['nodata'] = nodata
 
         if output is None:
             _base_name, _ext = os.path.splitext(source)
@@ -278,3 +288,223 @@ def project_to(source, reference, output=None):
                     resampling=Resampling.nearest
                 )
         return output
+
+
+def clip_to_bounds(source, reference, output=None):
+    """Clip raster to bounding box of reference raster
+
+    Parameters
+    ----------
+    source: str
+      The path to the tif file you want to clip
+    reference: str
+      The path to the tif file with the extent to use as clipping bounding box
+    output: str (optional)
+      The path to write the bounding box clipped map to
+
+    Return
+    ------
+    str:
+      The name of the file that holds clipped map
+    """
+
+    if not check_crs_raster(source, reference):
+        raise ValueError("Cannot clip by BBOX - projections are not the same.")
+
+    if output is None:
+        output = outfile_suffix(source, "bounds")
+
+    with rasterio.open(reference) as ref:
+        bounds = ref.bounds
+        bbox_geom = box(*bounds)
+
+    with rasterio.open(source) as src:
+        out_image, out_transform = mask(src, [bbox_geom], crop=True)
+
+        out_meta = src.meta.copy()
+        out_meta.update({
+            "height": out_image.shape[1],
+            "width": out_image.shape[2],
+            "transform": out_transform
+        })
+
+    with rasterio.open(output, 'w', **out_meta) as dst:
+        dst.write(out_image)
+    return output
+
+
+def coregister_raster(source, reference, output=None):
+    """Aling raster to have identical resoltuion.
+    Resoltuion will be calculated automatically from bounds and height/width of reference layer
+
+    Parameters
+    ----------
+    source: str
+      The path to the tif file you want to coregister
+    reference: str
+      The path to the tif file with the pixel registration to use as reference for coregistration
+    output: str (optional)
+      The path to write the coregistered map to
+
+    Return
+    ------
+    str:
+      The name of the file that holds coregistered map
+    """
+
+    if not check_crs_raster(source, reference):
+        raise ValueError("Cannot co-register sources - projections are not the same.")
+
+    if output is None:
+        output = outfile_suffix(source, "coreg")
+
+    with rasterio.open(source) as src:
+        src_transform = src.transform
+        src_nodata = src.nodata
+
+        with rasterio.open(reference) as reference:
+            dst_crs = reference.crs
+
+            dst_transform, dst_width, dst_height = calculate_default_transform(
+                                                                                src.crs,
+                                                                                dst_crs,
+                                                                                reference.width,
+                                                                                reference.height,
+                                                                                *reference.bounds)
+
+        dst_kwargs = src.meta.copy()
+        dst_kwargs.update({"crs": dst_crs,
+                           "transform": dst_transform,
+                           "width": dst_width,
+                           "height": dst_height,
+                           "nodata": src_nodata})
+
+        with rasterio.open(output, "w", **dst_kwargs) as dst:
+            for i in range(1, src.count + 1):
+                reproject(
+                    source=rasterio.band(src, i),
+                    destination=rasterio.band(dst, i),
+                    src_transform=src_transform,
+                    src_crs=src.crs,
+                    dst_transform=dst_transform,
+                    dst_crs=dst_crs,
+                    resampling=Resampling.nearest)
+    return output
+
+
+def buffer_geometries_metric(geom_geoseries, buffer_meter, source_crs):
+    """ Applies a buffer to the geometries in GeoSeries given.
+
+    ..Note: This function reprojects the GeoSeries to the respective UTM zone in order to use metric buffer and best
+    distance calculations. Further empty geometries are dropped before handing back the results.
+
+    Parameters
+    ----------
+    geom_geoseries: GeoPandas GeoSeries
+      The geoseries holding the polygons to perform the buffer on
+    buffer_meter: float, int
+      The buffer in meters to apply to the ecoregion polygon before clipping.
+      Needs to be negative for reducing the polygon e.g. -1000
+    source_crs:
+      The coordinate system of the inptu GeoSeries (taken from GeoDataframe before by user) to project to after buffer.
+
+    Return
+    ------
+    GeoSeries object:
+      The buffered GeoSeries object
+    """
+    geom_utm = geom_geoseries.to_crs(geom_geoseries.estimate_utm_crs())
+    geom_buff = geom_utm.buffer(buffer_meter,
+                                resolution=10, cap_style='round', join_style='round')
+    geom_buff = geom_buff[geom_buff.area > 0]
+    return geom_buff.to_crs(source_crs)
+
+
+def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_meter=None):
+    """Clip raster file to ecoregion boundary (vector-data) for given ecoregion number
+
+    Parameters
+    ----------
+    source: str
+      The path to the tif file you want to clip
+    shapefile: str
+      The path to the shapefile (.shp) with the ecoregion polygons for clipping
+    ecoregion_number: int
+      The number of the respective ecoregion to clip the source to
+    output: str (optional)
+      The path to write the clipped map to
+    buffer_meter: float, int
+      The buffer in meters to apply to the ecoregion polygon before clipping.
+      Needs to be negative for reducing the polygon e.g. -1000
+
+    Return
+    ------
+    str:
+      The name of the file that holds ecoregion clipped map
+    """
+
+    if output is None:
+        output = outfile_suffix(source, "eco-clip")
+
+    with rasterio.open(source) as src:
+        bounds = src.bounds
+        bbox_geom = box(*bounds)
+
+    gdf = gpd.read_file(shapefile, bbox=bbox_geom)
+    gdf = gdf.loc[gdf.ecoregion == ecoregion_number]
+    geometry = gdf["geometry"]
+
+    # Buffer
+    # Note: before buffering cut shapefiler bigger than the raster to expanded smaler chunk to avoid long processing.
+    # Therfore the bbox of the raster plus the buffer distance (absolute) is used to avoid losing any areas later.
+    if buffer_meter is not None:
+        exp_bbox_geom = buffer_geometries_metric(gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[bbox_geom]),
+                                                 buffer_meter=abs(buffer_meter),
+                                                 source_crs=gdf.crs)
+        exp_geometry = gpd.clip(geometry, exp_bbox_geom)
+
+        geometry = buffer_geometries_metric(exp_geometry,
+                                            buffer_meter=buffer_meter,
+                                            source_crs=gdf.crs)
+
+    # Clip to bbox
+    geometry_clip = gpd.clip(geometry, bbox_geom)
+
+    # Write to temporary geojson
+    geojson_name = "tmp_processing_ecoregion.geojson"
+    geometry_clip.to_file(geojson_name, driver='GeoJSON')
+
+    # Clip actual file
+    gdal.Warp(output, source,
+              cutlineDSName=geojson_name,
+              cutlineLayer="tmp_processing_ecoregion",
+              cropToCutline=False,  # if True, this extent the raster to the larger shapefile area outside the
+              copyMetadata=True)
+
+    if os.path.exists(geojson_name):
+        os.remove(geojson_name)
+
+    return output
+
+
+def compress_tif(source, output=None):
+    """Compress tif file with LZW compression
+
+    Parameters
+    ----------
+    source: str
+      The path to the tif file you want to compress
+    Return
+    ------
+    str:
+      The name of the compressed file
+    """
+
+    if output is None:
+        output = outfile_suffix(source, "compress")
+
+    translateoptions = gdal.TranslateOptions(creationOptions=['COMPRESS=LZW'])
+    gdal.Translate(output, source, options=translateoptions)
+
+    return output
+
