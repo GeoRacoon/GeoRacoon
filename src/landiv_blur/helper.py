@@ -2,6 +2,7 @@
 with rasterio
 """
 import os
+import numpy as np
 import rasterio as rio
 
 
@@ -14,7 +15,7 @@ def check_crs_raster(source, reference, verbose=False):
 
     if src_crs == ref_crs:
         if verbose:
-            print(f"Coordinate systems are the same: {src_crs} --> {dst_crs}")
+            print(f"Coordinate systems are the same: {src_crs} --> {ref_crs}")
         return True
 
 
@@ -49,6 +50,48 @@ def get_scale_factor(source, target):
     return tuple(tres/sres for sres, tres in zip(source_res, target_res))
 
 
+def nodata_mask_band(source, nodata=None):
+    """Update exiting raster with an added nodata mask band (alpha band)
+    0=nodata, 255=valid_data
+    Note: it is only possible to set one mask band for all value bands.
+    Consequently, if a tif with band_count > 1 is given. Pixels will be masked
+    which show the given nodata value in any of the provided bands.
+
+    Parameters
+    ----------
+    source: str
+      The path to the tif file you want to create alpha band for
+    nodata: float or int (optional)
+      The nodata value to use for the mask (e.g. np.nan or integer)
+      if not provided - the nodata value from the source metadata is taken
+
+    Return
+    ------
+    None
+    """
+    with rio.Env(GDAL_TIFF_INTERNAL_MASK=True):
+        with rio.open(source, mode='r+') as src:
+
+            if nodata is None:
+                nodata = src.nodata
+                if nodata is None:
+                    raise ValueError(f"Neither nodata value provided nor inherent in raster metadata")
+            if src.count > 1:
+                print(f"WARNING: You are creating a mask for multiple bands (n={src.count} (bitwise And condition)")
+
+            for ji, window in src.block_windows(1):
+                for i in range(1, src.count + 1):
+                    band = src.read(i, window=window)
+                    if np.isnan(nodata):
+                        msk_band = np.where(np.isnan(band), 0, 255).astype(np.uint8)
+                    else:
+                        msk_band = np.where(band == nodata, 0, 255).astype(np.uint8)
+                    if i == 1:
+                        msk = msk_band
+                    msk = np.bitwise_and(msk, msk_band)
+                src.write_mask(msk, window=window)
+
+
 def outfile_suffix(filename, suffix):
     """Insert suffix into filename and hand back basename_suffix.extension"""
     base, ext = os.path.splitext(filename)
@@ -69,6 +112,7 @@ def output_filename(base_name: str, out_type: str, blur_params: dict):
       are expected keys.
 
     Returns
+    ------
     str:
       The resulting filename of the form
       '<name>_<out_type>_sig_<{sigma}>_diam_<{diameter}>_trunc_<{truncate}>.tif'
