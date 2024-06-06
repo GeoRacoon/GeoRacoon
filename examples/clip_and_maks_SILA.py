@@ -2,6 +2,7 @@ import os
 import numpy as np
 
 from landiv_blur import io as lbio
+from landiv_blur.helper import nodata_mask_band
 
 # We want to clip one map with the bounding box of a reference map.
 data_path = '../data'
@@ -46,7 +47,13 @@ lbio.compress_tif(source=img_ecoclip,
                   output=final_output)
 print("Final output created")
 
+nodata_mask_band(source=img_ecoclip, nodata=np.nan)
+print("Mask created output created")
+
 # Remove temporary processing files
-# for file_name in os.listdir(data_path):
-#     if file_name.startswith("tmp_"):
-#         os.remove(os.path.join(tmp_folder, file_name))
+for file_name in os.listdir(data_path):
+    if file_name.startswith("tmp_"):
+        os.remove(os.path.join(data_path, file_name))
+
+
+
