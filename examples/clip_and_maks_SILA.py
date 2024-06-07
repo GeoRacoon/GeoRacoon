@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import rasterio
 
 from landiv_blur import io as lbio
 from landiv_blur.helper import nodata_mask_band
@@ -45,15 +46,14 @@ print("Clipped to Ecoregion")
 # Compress final output
 lbio.compress_tif(source=img_ecoclip,
                   output=final_output)
-print("Final output created")
+print("Compressed file")
 
-nodata_mask_band(source=img_ecoclip, nodata=np.nan)
+# Make internal no-data mask
+nodata_mask_band(source=final_output,
+                 nodata=np.nan)
 print("Mask created output created")
 
 # Remove temporary processing files
 for file_name in os.listdir(data_path):
     if file_name.startswith("tmp_"):
         os.remove(os.path.join(data_path, file_name))
-
-
-
