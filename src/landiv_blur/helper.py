@@ -80,14 +80,13 @@ def nodata_mask_band(source, nodata=None):
                 print(f"WARNING: You are creating a mask for multiple bands (n={src.count} (bitwise And condition)")
 
             for ji, window in src.block_windows(1):
+                msk = np.full((window.height, window.width), 255, dtype=np.uint8)
                 for i in range(1, src.count + 1):
                     band = src.read(i, window=window)
                     if np.isnan(nodata):
                         msk_band = np.where(np.isnan(band), 0, 255).astype(np.uint8)
                     else:
                         msk_band = np.where(band == nodata, 0, 255).astype(np.uint8)
-                    if i == 1:
-                        msk = msk_band
                     msk = np.bitwise_and(msk, msk_band)
                 src.write_mask(msk, window=window)
 
