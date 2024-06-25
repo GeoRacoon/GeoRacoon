@@ -10,7 +10,7 @@ from rasterio.enums import Resampling
 from rasterio.mask import mask
 from rasterio.warp import calculate_default_transform, reproject, Resampling, transform_bounds
 
-from shapely.geometry import box
+from shapely.geometry import box as shbox
 from osgeo import gdal, ogr
 import geopandas as gpd
 
@@ -316,7 +316,7 @@ def clip_to_bounds(source, reference, output=None):
 
     with rasterio.open(reference) as ref:
         bounds = ref.bounds
-        bbox_geom = box(*bounds)
+        bbox_geom = shbox(*bounds)
 
     with rasterio.open(source) as src:
         out_image, out_transform = mask(src, [bbox_geom], crop=True)
@@ -448,7 +448,7 @@ def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_m
 
     with rasterio.open(source) as src:
         bounds = src.bounds
-        bbox_geom = box(*bounds)
+        bbox_geom = shbox(*bounds)
 
     gdf = gpd.read_file(shapefile, bbox=bbox_geom)
     gdf = gdf.loc[gdf.ecoregion == ecoregion_number]

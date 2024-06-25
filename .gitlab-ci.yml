@@ -12,6 +12,8 @@ cache:
   paths:
     - .cache/pip
     - .venv
+    # for gdal:
+    - /usr/include/gdal
 
 workflow:
   rules:
@@ -28,6 +30,9 @@ setting_up_env:
   stage: .pre
   tags:
     - docker
+  # for gdal
+  before_script:
+    - apt update && apt install -y build-essential libgdal-dev
   script:
     - 'python --version ; pip --version'  # For debugging
     - 'pip install pip --upgrade'
@@ -39,6 +44,9 @@ build-package:
   stage: build
   tags:
     - docker
+  # for gdal
+  before_script:
+    - apt update && apt install -y build-essential libgdal-dev
   script:
     - 'pip install build'  # todo fix the version!
     - "python3 -m build"
@@ -52,6 +60,9 @@ first-test:
   tags:
     - docker
   needs: ["build-package",]
+  # for gdal
+  before_script:
+    - apt update && apt install -y build-essential libgdal-dev
   script:
     - 'source ./.venv/bin/activate'
     - 'pip install -r requirements.txt'
@@ -67,6 +78,9 @@ pages:
   needs: 
     - "first-test"
     - "build-package"
+  # for gdal
+  before_script:
+    - apt update && apt install -y build-essential libgdal-dev
   script:
     - 'source ./.venv/bin/activate'
     - 'pip install -r docs/requirements.txt'
