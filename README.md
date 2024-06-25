@@ -13,6 +13,10 @@ _will be shipped along._
 _However, if you encounter any issues with the installaiton of rasterio, head_
 _over to the [rasterio installation insructions](https://rasterio.readthedocs.io/en/stable/installation.html) for more details._
 
+_We also use the python package `gdal` which depends on `libgdal` that has been installed (see comment above)._
+_It is important to install matching version, so first check with `gdalinfo --version` what version of `libgdal`_
+_you have installed and then install the corresponding python package with `pip install gdal==x.x.x`._
+
 
 To install `landiv_blur`:
 
