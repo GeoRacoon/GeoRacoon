@@ -19,26 +19,66 @@ def check_crs_raster(source, reference, verbose=False):
         return True
 
 
-def check_crs(*sources):
-    """Assert that all the sources have the same projection (incl linear units)
+def check_units(*sources):
+    """Assert that all sources have the same units
     """
-    crss = []
     units = []
     for source in sources:
         with rio.open(source) as src:
-            crss.append(str(src.profile['crs']))
             units.append(src.profile['crs'].linear_units.lower())
-            if len(set(crss)) != 1:
-                raise TypeError(f"{source=} has crs {crss[-1]}, which is "
-                                f"different from the other(s) ({crss[0]})")
             if len(set(units)) != 1:
                 raise TypeError(f"{source=} has linear units {units[-1]}, "
                                 "which is different from the other(s) "
                                 f"({units[0]})")
+    return units
+
+
+def check_crs(*sources):
+    """Assert that all the sources have the same projection (i.e. same crs)
+    """
+    crss = []
+    for source in sources:
+        with rio.open(source) as src:
+            crss.append(str(src.profile['crs']))
+            if len(set(crss)) != 1:
+                raise TypeError(f"{source=} has crs {crss[-1]}, which is "
+                                f"different from the other(s) ({crss[0]})")
+    return crss
+
+
+def check_resolution(*sources):
+    """Assert that all the sources have the same resolution
+    """
+    ress = []
+    for source in sources:
+        with rio.open(source) as src:
+            # NOTE: we round 8th digit after the comma here
+            ress.append(tuple(map(lambda x: round(x, 8), src.res)))
+            if len(set(ress)) != 1:
+                raise TypeError(f"{source=} has resolution {ress[-1]}, which "
+                                f"is different from the other(s) ({ress[0]})")
+    return ress
+
+
+def check_compatibility(*sources):
+    """Assert that all the sources are compatible with each other.
+
+    The checks include:
+
+        - crs
+        - units
+        - resolution
+
+    """
+    units = check_units(*sources)
+    crss = check_crs(*sources)
+    ress = check_resolution(*sources)
+    print(f"{crss=}, {units=}, {ress=}")
+    return crss, units, ress
 
 
 def get_scale_factor(source, target):
-    """Get scaling factors (width & height) to match source to target
+    """Get scaling factors (width & height) to match target to source
     """
     # Make sure both have the same projection and linear units
     check_crs(source, target)
@@ -47,7 +87,7 @@ def get_scale_factor(source, target):
     with rio.open(target) as trg:
         target_res = trg.res
     # calculate the sale factor along each dimension and return it
-    return tuple(tres/sres for sres, tres in zip(source_res, target_res))
+    return tuple(sres / tres for sres, tres in zip(source_res, target_res))
 
 
 def nodata_mask_band(source, nodata=None):
@@ -125,3 +165,10 @@ def output_filename(base_name: str, out_type: str, blur_params: dict):
         _blur_string += f"_{name}_{value}"
     # _blur_string = f"sig_{sig}_diam_{diam}_trunc_{trunc}"
     return f"{_base_name}_{out_type}{_blur_string}{_ext}"
+
+
+def usable_pixels_info(all_pixels, data_pixels):
+    """Prints the fraction of usable pixels
+    """
+    print(f"Of {all_pixels=} there are {data_pixels=}, i.e."
+          f"{100 * data_pixels/all_pixels}% are usable")

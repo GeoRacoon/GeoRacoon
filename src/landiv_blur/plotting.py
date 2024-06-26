@@ -37,7 +37,7 @@ def _get_class_colormap(colors=COLORS):
     return ListedColormap(colors)
 
 
-def show_block(source, start, size, output):
+def show_block(source, output, start=None, size=None):
     """Show only a specific block in a tif with all layers
 
     Parameters
@@ -54,7 +54,8 @@ def show_block(source, start, size, output):
 
     cmap = _get_class_colormap()
 
-    plot_landtypes(data, transform, output, cmap)
+    # plot_landtypes(data, transform, output, cmap)
+    plot_landtypes(data, source, size, output)
 
 
 def plot_block(source, start, size, ax, scaling=None,
@@ -65,7 +66,7 @@ def plot_block(source, start, size, ax, scaling=None,
                        scaling=scaling, **scaling_params)
     data, transform = block['data'], block['transform']
     cmap = fig_params.get('cmap', _get_class_colormap())
-    
+
     # pass affine transform corresponding to the window
     to_display = show(data,
                       ax=ax,
@@ -74,7 +75,7 @@ def plot_block(source, start, size, ax, scaling=None,
     return to_display.get_images()[0]
 
 
-def plot_landtypes(source, start, size, output):
+def plot_landtypes(source, output, start=None, size=None):
     """Plot the landtypes data and save it to a file.
 
     Parameters

@@ -15,7 +15,6 @@ from osgeo import gdal, ogr
 import geopandas as gpd
 
 from .helper import (
-    check_crs,
     check_crs_raster,
     outfile_suffix,
     get_scale_factor,
@@ -168,62 +167,6 @@ def export_to_tif(destination, data, orig_profile, start=(0, 0),  **pparams):
     size = data.shape[::-1]  # since positions are inverted in numpy
     with rasterio.open(destination, "w", **profile) as dest:
         dest.write(data, window=Window(*start, *size), indexes=1)
-
-
-
-def resample_to(source, reference, output=None, **params):
-    """Re-sample the source map so to match the resolution of the reference map
-
-    Parameters
-    ----------
-    source: str
-      The path to the tif file you want to re-sample
-    reference: str
-      The path to the tif file with the desired resolution
-    output: str (optional)
-      The path to write the re-projected map to.
-
-      ..note::
-        If not provided, the output file will take the name of the input file
-        and get a _<linear units>_<width>.<height> attached.
-
-    Return
-    ------
-    str:
-      The name of the file that hold the re-projected map
-    """
-    resampling = params.get('scaling_method', Resampling.bilinear)
-    # here it is also checked that the units match:
-    scale_factor = get_scale_factor(source=source, target=reference)
-    with rio.open(source) as src:
-        profile = src.profile.copy()
-        src_unit = src.profile['crs'].linear_units.lower()
-        data = src.read(
-            out_shape=(
-                src.count,
-                floor(src.height * scale_factor[0]),
-                floor(src.widht * scale_factor[1])
-            ),
-            resampling=resampling
-        )
-        transform = src.transform * src.transform.scale(
-            scale_factor[0],
-            scale_factor[1]
-        )
-        height = data.shape[0]
-        width = data.shape[1]
-        profile.update(
-            dict(height=height,
-                 width=width,
-                 transform=transform)
-        )
-    if output is None:
-        _name, _ext = os.path.splitext(source)
-        output_file = f"{_name}_{src_unit}_{width}.{height}{_ext}"
-    else:
-        output_file = output
-    with rio.open(output_file, "w", **profile) as dst:
-        dst.write(data)
 
 
 def project_to(source, reference, output=None, nodata=None):

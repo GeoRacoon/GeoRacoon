@@ -27,6 +27,9 @@ Issues = "https://git.math.uzh.ch/landiv/landiv/-/issues"
 landiv = "landiv_blur.scripts.parallel_filter:main"
 # landiv_old = "landiv_blur.scripts.entropoint_deprecated:main_cli"
 
+[tool.setuptools]
+include-package-data = false
+
 [tool.setuptools_scm]
 
 [build-system]

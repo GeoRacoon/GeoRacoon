@@ -8,5 +8,8 @@ FIXTURE_DIR = os.path.abspath(os.path.join(
 ))
 
 ALL_MAPS = pytest.mark.datafiles(
-    os.path.join(FIXTURE_DIR, 'ch.tif'),
+    os.path.join(FIXTURE_DIR, 'testing', 'landcover',
+                 'Switzerland_CLC_2012_reclass8.tif'),
+    os.path.join(FIXTURE_DIR, 'testing', 'ndvi',
+                 'Switzerland_NDVI_binning_2015.tif'),
 )
