@@ -2,7 +2,7 @@ import numpy as np
 import rasterio as rio
 from rasterio.windows import from_bounds
 
-from .prepare import check_crs
+from .prepare import check_compatibility
 from .io import load_block
 
 
@@ -13,7 +13,7 @@ def read_clip(source, clipping):
       This method will be moved to the io submodule
     """
     # make sure we use the same projection
-    check_crs(source, clipping)
+    check_compatibility(source, clipping)
     with rio.open(clipping) as ref:
         bounds = ref.bounds
     with rio.open(source) as src:

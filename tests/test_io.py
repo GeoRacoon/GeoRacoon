@@ -1,16 +1,17 @@
 import pytest
-import rasterio
+import rasterio as rio
 import numpy as np
 from skimage.filters import gaussian
 
 from .config import ALL_MAPS
+from landiv_blur.helper import check_compatibility
 from landiv_blur import io as lbio
 from landiv_blur import processing as lbproc
 
 
 def test_load_block():
     """This is just a smoketest"""
-    with pytest.raises(rasterio.RasterioIOError):
+    with pytest.raises(rio.RasterioIOError):
         lbio.load_block('non-existing', start=(0, 0), size=(10, 10))
 
 
@@ -39,8 +40,29 @@ def test_import_export(datafiles):
                   nan=-1) == np.nan_to_num(block_2['data'], nan=-1))
     assert block['transform'] == block_2['transform']
 
-# def test_resampling():
-#     """Make sure our resampling method works as expected.
-#     """
-#     # TODO: this needs to be implemented!
-#     assert True
+
+@ALL_MAPS
+def test_resampling(datafiles):
+    """Make sure our re-sampling method works as expected.
+    """
+    test_data = list(datafiles.iterdir())
+    landcover_map = test_data[0]
+    ndvi_map = test_data[1]
+    # make sure the compatibility check fails
+    with pytest.raises(TypeError):
+        check_compatibility(ndvi_map, landcover_map)
+    # re-sample the landcover_map to match the resolution of the ndvi_map
+    lbio.coregister_raster(landcover_map, ndvi_map, output=str(landcover_map))
+    # now check that the shape of the data actually matches
+    with rio.open(ndvi_map, 'r') as src:
+        # get the shape and the projection
+        ndvi_profile = src.profile.copy()
+        ndvi_data = src.read(indexes=1)
+    with rio.open(landcover_map, 'r') as src:
+        # get the shape and the projection
+        lc_profile = src.profile.copy()
+        lc_data = src.read(indexes=1)
+    # assert ndvi_profile == lc_profile
+    assert ndvi_data.shape == lc_data.shape
+    # finally, check again
+    check_compatibility(ndvi_map, landcover_map)

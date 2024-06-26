@@ -26,7 +26,8 @@ def dtype_range(dtype):
     return _max, _min
 
 
-def select_layer(data, layer: int | list[int], as_dtype:type=np.uint8):
+def select_layer(data, layer: int | list[int],
+                 as_dtype: type = np.uint8, limits: tuple | None = None):
     """Filter for only the particular layer
 
 
@@ -44,12 +45,20 @@ def select_layer(data, layer: int | list[int], as_dtype:type=np.uint8):
         in pixels of the layer to select for and the minimal value in pixels
         associated to other layers.
 
+    limits:
+        Optonal custom limits to use. If provided `limits` must contain two
+        values (is, isnot) that will be used to indicate if a pixel is of that
+        land-cover type or not.
+
     Returns
     -------
     np.array:
       Matrix of type `as_dtype` in the same shape of `data`
     """
-    _is, _is_not = dtype_range(as_dtype)
+    if limits:
+        _is, _is_not = limits
+    else:
+        _is, _is_not = dtype_range(as_dtype)
 
     # NOTE: we might want to scale to [0, 1] if the as_dtype is float
     if isinstance(layer, int):
@@ -121,10 +130,10 @@ def get_layer_data(data, layer:int | list[int], img_filter=None,
       Parameter to pass to the filter callable
     output_dtype:
       Set the data-type of the resulting image
-      
+
       ..Note::
         This can be particularly usefull if you apply an image filter.
-        
+
         For example, a Gaussian filter returns a map of type `np.float64` with
         values in $[0, 1]$.
         With `outptu_dtype=np.uint8` these values are mapped to the range [0, 255]
@@ -203,7 +212,7 @@ def compute_entropy(filtered_data_layers: dict, normed:bool=True,
       Determines if the values in the provided arrays should be normed or not.
     output_dtype:
       Set the data-type of the resulting image
-      
+
       ..Note::
         This argument is ignored if `normed=False`.
 
@@ -261,7 +270,7 @@ def get_entropy(data, layers=None, normed=False, img_filter=None,
     """
     filter_params = filter_params or dict()
     blur_layers = get_filtered_layers(data=data, layers=layers,
-                                      img_filter=img_filter, 
+                                      img_filter=img_filter,
                                       filter_params=filter_params)
     entropy_params = entropy_params or dict()
     return compute_entropy(filtered_data_layers=blur_layers, normed=normed,

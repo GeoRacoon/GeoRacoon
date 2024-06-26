@@ -1,0 +1,4 @@
+exclude data/**
+exclude tests/**
+exclude results/**
+exclude docs/**
