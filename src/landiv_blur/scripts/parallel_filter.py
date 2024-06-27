@@ -33,6 +33,7 @@ Note
 from __future__ import annotations
 import multiprocessing as mproc
 import rasterio as rio
+import os
 
 from copy import copy
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
@@ -46,6 +47,8 @@ from landiv_blur.parallel import (
     combine_entropy_blocks,
     block_heterogeneity
 )
+from landiv_blur.io import compress_tif
+
 def get_lct_heterogeneity(source: str, output_file: str, scale: float,
                           block_size: tuple[int, int],
                           blur_params: dict,
@@ -187,6 +190,17 @@ def get_lct_heterogeneity(source: str, output_file: str, scale: float,
     pool.close()
     # wait for the *_combiner tasks to finish
     pool.join()
+
+    # lzw-compress final output
+    compress = params.pop('compress', False)
+    if compress:
+        compress_tif(blur_output_file)
+        compress_tif(entropy_output_file)
+        # delete uncompressed files
+        os.remove(blur_output_file)
+        os.remove(entropy_output_file)
+        print("Files compressed successfully")
+
     total_duration = max(entropy_combiner.get().get_duration(),
                          blur_combiner.get().get_duration())
     print(f"{total_duration=}")
@@ -230,6 +244,8 @@ def main():
                     'processed in a single job')
     ap.add_argument("--nbrlct", default=12, type=int,
                     help='Set the number of land-cover types to consider')
+    ap.add_argument("--compress", default=False, type=bool,
+                    help='LZW compress output files inplace')
 
     inargs = vars(ap.parse_args())
     print(inargs)
@@ -246,6 +262,7 @@ def main():
     bwidth = inargs.pop('bwidth')
     bheight = inargs.pop('bheight')
     nbr_lct = inargs.pop('nbrlct')
+    compr = inargs.pop('compress')
     # construct the list of land-cover types to use
     layers=list(range(nbr_lct))
 
@@ -259,6 +276,7 @@ def main():
         entropy_as_ubyte=entropy_ubyte,
         blur_as_int=blur_int,
         nbrcpu=nbrcpu,
+        compress=compr
     )
 
 

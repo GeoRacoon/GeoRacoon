@@ -162,7 +162,7 @@ def output_filename(base_name: str, out_type: str, blur_params: dict):
     # trunc = blur_params['truncate']
     _blur_string = ""
     for name, value in blur_params.items():
-        _blur_string += f"_{name}_{value}"
+        _blur_string += f"_{name}_{round(value)}"
     # _blur_string = f"sig_{sig}_diam_{diam}_trunc_{trunc}"
     return f"{_base_name}_{out_type}{_blur_string}{_ext}"
 
