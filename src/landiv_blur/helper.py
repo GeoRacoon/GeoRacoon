@@ -170,5 +170,5 @@ def output_filename(base_name: str, out_type: str, blur_params: dict):
 def usable_pixels_info(all_pixels, data_pixels):
     """Prints the fraction of usable pixels
     """
-    print(f"Of {all_pixels=} there are {data_pixels=}, i.e."
-          f"{100 * data_pixels/all_pixels}% are usable")
+    print(f"Of {all_pixels=} there are {data_pixels=}, i.e. "
+          f"{round(100 * data_pixels/all_pixels, 2)}% are usable")

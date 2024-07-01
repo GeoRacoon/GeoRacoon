@@ -12,8 +12,7 @@ from __future__ import annotations
 
 import numpy as np
 import rasterio as rio
-
-from scipy import sparse as ssp
+from sklearn.linear_model import LinearRegression
 
 from .helper import (check_compatibility,
                      usable_pixels_info,
@@ -24,7 +23,7 @@ from .processing import select_layer
 def prepare_predictors(
         response: str, *predictors: tuple[str, int,
                                           tuple[int] | None],
-        view: tuple[int, int, int, int] | None = None, with_intercept=True,
+        view: tuple[int, int, int, int] | None = None, include_intercept=True,
         **params):
     """Generates and returns the parameters for a multiple linear regression
 
@@ -81,7 +80,7 @@ def prepare_predictors(
     view:
       An optional tuple (x, y, width, height) defining the view to consider.
       If not provided then the entire response map is used.
-    with_intercept:
+    include_intercept:
       Determine if the predictor matrix should also contain an extra column of
       1s at the end, which is needed if also the intercepts should be fitted.
 
@@ -95,10 +94,12 @@ def prepare_predictors(
     # first make sure all used tif files are compatible (i.e. check crs and
     # units)
     check_compatibility(response, *(pred[0] for pred in predictors))
+    print("\n")
     print(get_scale_factor(response, predictors[0][0]))
     # read out the response
     # Q: Should we rely on rasterio directly or use our own interface, i.e.
     #    io.load_block?
+    print(f"{response=}\n")
     with rio.open(response, 'r') as src:
         # get the shape and the projection
         src_profile = src.profile.copy()
@@ -106,19 +107,21 @@ def prepare_predictors(
         mask = src.read_masks(1)
         # NOTE: for now we assume the response has just one band
         response_data = src.read(indexes=1)
+        print(f"{np.unique(response_data)=}\n")
         response_dtype = src.dtypes[0]
     src_width = src_profile["width"]
     src_height = src_profile["height"]
-    nodata = src_profile["nodata"]
-    src_type = src_profile["dtype"]
     # determine the number of rows (height*widht - # of masked pixels)
     # we want a numpy boolean mask
+    print(f"{np.unique(mask)=}\n")
     npmask = np.where(mask == 255, True, False)
+    print(f"{np.unique(response_data[npmask])=}\n")
     vals, counts = np.unique(npmask, return_counts=True)
-    data_pixels = counts[vals]  # vals: [True, False] or inv. in any case ok
+    # vals: [True, False] or inv. in any case ok
+    data_pixels = int(counts[vals][0])
     all_pixels = src_width * src_height
-    print(f"{response=}")
     usable_pixels_info(all_pixels, data_pixels)
+    # scale it down to 100x100m (from 30x30)
     no_data_pixels = all_pixels - data_pixels
 
     # for each entry in predictors
@@ -131,17 +134,16 @@ def prepare_predictors(
         else:
             extract_values = None
         with rio.open(pred_file_path, 'r') as psrc:
-            psrc_profile = psrc.profile.copy()
             _mask = psrc.read_masks(band)
         _npmask = np.where(_mask == 255, True, False)
         vals, counts = np.unique(_npmask, return_counts=True)
-        data_pixels = counts[vals]
+        data_pixels = int(counts[vals][0])
         print(f"{pred_file_path}")
         usable_pixels_info(all_pixels, data_pixels)
         np.logical_and(aggregated_mask, _npmask, out=aggregated_mask)
     vals, counts = np.unique(aggregated_mask, return_counts=True)
-    data_pixels = counts[vals]
-    print("Final mask:")
+    data_pixels = int(counts[vals][0])
+    print("\nFinal mask:\n")
     usable_pixels_info(all_pixels, data_pixels)
 
     no_data_pixels = all_pixels - data_pixels
@@ -154,7 +156,7 @@ def prepare_predictors(
             nbr_cols += len(pred[2])
         else:
             nbr_cols += 1
-    if with_intercept:
+    if include_intercept:
         nbr_cols += 1
 
     # create emtpy predictor array
@@ -169,7 +171,6 @@ def prepare_predictors(
         else:
             extract_values = None
         with rio.open(pred_file_path, 'r') as psrc:
-            psrc_profile = psrc.profile.copy()
             pred_data = psrc.read(indexes=band)
         if extract_values:
             for value in extract_values:
@@ -184,10 +185,80 @@ def prepare_predictors(
     for i, data in enumerate(pred_datas):
         # reshape to (-1,1)
         # hstack to predictor array
-        X[:,i] = data[aggregated_mask].reshape(1, -1)
+        X[:, i] = data[aggregated_mask].reshape(1, -1)
     # attach intercept column (of 1s) if chosen
-    if with_intercept:
-        X[:,-1] = 1.0
+    if include_intercept:
+        X[:, -1] = 1.0
     # return predictor matrix and the response vector
     y = response_data[aggregated_mask]
+    print(f"{y=}")
+    print(f"{np.unique(y)=}")
     return X, y
+
+
+def get_optimal_weights(X, y):
+    """Compute the optimal weight of a multiple linear regression.
+
+    The multiple linear regression is defined by the equation:
+
+        $$\vec{y} = X\vec{\beta} + \vec{\epsilon}$$
+
+    Where $\vec{beta}$ holds the weigts of the different predictors,
+    $\vec{\epsilon}$ is a random variable and $X$ a matrix with each line
+    corresponding to an observation (or a pixel in the case of a raster map).
+    Each column of $X$ stacks the values of one predictors.
+
+    The optimal solution for $\beta$ is given by
+    $(X^T \dot X)^{-1} \dot X^T \dot \vec{y}$ which we can simply compute with
+    numpy.
+
+    ..Note::
+
+        - It is not guaranteed that $X^T \dot X$ has an inverse.
+        - We could also use SVD decompositin of X. An illustrative example
+          can be found here: https://sthalles.github.io/svd-for-regression/
+    """
+    return (np.linalg.inv(X.T @ X) @ X.T) @ y
+
+
+def get_approx_weights(X, y, fit_intercept=False):
+    """Numerical optimization to determine weights in a mlt. lin. regression.
+
+    The multiple linear regression is defined by the equation:
+
+        $$\vec{y} = X\vec{\beta} + \vec{\epsilon}$$
+
+    Where $\vec{beta}$ holds the weigts of the different predictors,
+    $\vec{\epsilon}$ is a random variable and $X$ a matrix with each line
+    corresponding to an observation (or a pixel in the case of a raster map).
+    Each column of $X$ stacks the values of one predictors.
+
+    The approxymation is perforemd with scikit-learn's linear regression
+    estimator:
+        https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html
+
+    Parameters
+    ----------
+    X: np.array
+        MxN 2D array where each of the M columns holds the N sample data for
+        a specify predictor.
+    y: np.array
+        Nx1 response values
+    fit_intercept: bool
+        Determines if the intercept should be fitted explicitely, or if the
+        data is expected to be centered.
+
+        ..Note::
+            If X was created with the `prepare_predicotrs` function with
+            'include_intercept=True` then `fit_intercept` sould be set to
+            `False`.
+
+    Returns
+    -------
+    sklearn.linear_model.LinearRegression:
+        Fitted linear regression model
+    """
+    regression = LinearRegression(fit_intercept=fit_intercept)
+    regression.fit(X, y)
+    return regression
+
