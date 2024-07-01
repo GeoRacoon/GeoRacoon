@@ -305,15 +305,15 @@ def coregister_raster(source, reference, output=None):
         src_transform = src.transform
         src_nodata = src.nodata
 
-        with rasterio.open(reference) as reference:
-            dst_crs = reference.crs
+        with rasterio.open(reference) as refsrc:
+            dst_crs = refsrc.crs
 
             dst_transform, dst_width, dst_height = calculate_default_transform(
                                                                                 src.crs,
                                                                                 dst_crs,
-                                                                                reference.width,
-                                                                                reference.height,
-                                                                                *reference.bounds)
+                                                                                refsrc.width,
+                                                                                refsrc.height,
+                                                                                *refsrc.bounds)
 
         dst_kwargs = src.meta.copy()
         dst_kwargs.update({"crs": dst_crs,
