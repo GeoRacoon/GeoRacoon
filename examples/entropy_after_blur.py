@@ -8,6 +8,7 @@ import numpy as np
 from skimage.filters import gaussian
 from scipy.stats import entropy
 
+from landiv_blur import helper as lbhelp
 from landiv_blur import processing as lbproc
 
 
@@ -22,7 +23,7 @@ mono_lctype_map = lbproc.select_layer(rand_data, layer=3)
 # Now we can apply a filter on the resulting map:
 blurred = lbproc.apply_filter(mono_lctype_map, gaussian, sigma=1)
 # convert it back to uint8
-n_max, _ = lbproc.dtype_range(np.uint8)
+n_max, _ = lbhelp.dtype_range(np.uint8)
 blurred = blurred * n_max
 blurred = blurred.astype(np.uint8, copy=False)
 

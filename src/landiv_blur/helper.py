@@ -1,10 +1,31 @@
 """This module defines functions that might be helpful when working
 with rasterio
 """
+from __future__ import annotations
+
 import os
 import numpy as np
 import rasterio as rio
 
+from rasterio.windows import Window
+
+
+def view_to_window(view: None | tuple[int, int, int, int]):
+    """Conerts a view into a rasterio Window
+
+    Parameters
+    ----------
+    view:
+      tuple (x, y, width, height) defining the view of the data array to update
+    """
+    if view is not None:
+        window =  Window(view[0],
+                         view[1],
+                         view[2],
+                         view[3])
+    else:
+        window = None
+    return window
 
 def check_crs_raster(source, reference, verbose=False):
     """Compare coordinate reference systems of two raster datasets"""
@@ -172,3 +193,26 @@ def usable_pixels_info(all_pixels, data_pixels):
     """
     print(f"Of {all_pixels=} there are {data_pixels=}, i.e. "
           f"{round(100 * data_pixels/all_pixels, 2)}% are usable")
+
+
+def usable_pixels_count(selector):
+    """Count the number of usable pixels determined by the selector"""
+    vals, counts = np.unique(selector, return_counts=True)
+    # vals: [True, False] or inv. in any case ok
+    return int(counts[vals][0])
+
+
+
+def dtype_range(dtype):
+    """Get the range of the specified dtype
+    """
+    try:
+        _max = dtype(np.iinfo(dtype).max)
+        _min = dtype(np.iinfo(dtype).min)
+    except ValueError:
+        try:
+            _max = dtype(np.finfo(dtype).max)
+            _min = dtype(np.finfo(dtype).min)
+        except ValueError:
+            raise ValueError(f"{dtype=} has no min-/maximal values.")
+    return _max, _min

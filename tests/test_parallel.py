@@ -12,6 +12,7 @@ from landiv_blur import helper as lbhelp
 from landiv_blur import io as lbio
 from landiv_blur import processing as lbproc
 from landiv_blur import prepare as lbprep
+from landiv_blur import inference as lbinf
 from landiv_blur.filters import gaussian as lbf_gauss
 
 from landiv_blur import parallel as lbpara
@@ -36,7 +37,6 @@ def test_blur_recombination(datafiles):
     min_border = lbf_gauss.compatible_border_size(sigma=blur_params['sigma'],
                                               truncate=truncate)
     border = (100, 100)
-    print(f"{border=}, {min_border=}")
     # load the data
     ch_map_tif = list(datafiles.iterdir())[0]
     ch_map = lbio.load_map(ch_map_tif, indexes=1)
@@ -49,7 +49,6 @@ def test_blur_recombination(datafiles):
     profile['dtype'] = rio.uint8
     # get the layers
     layers = lbproc.get_lct(ch_data)
-    print(f"{layers=}")
     # we partially evaluate the guassian filter to make sure it gets
     # identical parameter everywhere
     # we do not need to pass the diameter to the filter function
@@ -58,7 +57,6 @@ def test_blur_recombination(datafiles):
     # we perform the test for each layer
     for layer in layers:
         index = layer + 1
-        print(f"\t{layer=}")
         # perform the blur in a single run
         blurred_data = lbproc.get_layer_data(ch_data,
                                              layer=layer,
@@ -96,7 +94,6 @@ def test_blur_recombination(datafiles):
         blur_q = manager.Queue()
         # get number of cpu's
         nbr_cpus = mproc.cpu_count() - 1
-        print(f"using {nbr_cpus=}")
         pool = mproc.Pool(nbr_cpus)
         # start the blurred layer writer task
         blur_combiner = pool.apply_async(
@@ -130,13 +127,6 @@ def test_blur_recombination(datafiles):
         # now we can read out the tif with the blurred layer anc compare
         blurred_layer_map = lbio.load_map(blur_output_file, indexes=index)
         blurred_layer_data = blurred_layer_map['data']
-        print(f"{blurred_layer_data.shape=}")
-
-        print(f"{blurred_data.shape=}")
-        print(f"{blurred_data.dtype=}")
-        print(f"{blurred_layer_data.shape=}")
-        print(f"{blurred_layer_data.dtype=}")
-        print(f"{blurred_layer_data.shape=}")
                 
         # plt.imshow(blurred_data)
         # plt.savefig(f'{datafiles}/{layer}_single.png')
@@ -144,7 +134,6 @@ def test_blur_recombination(datafiles):
         # plt.savefig(f'{datafiles}/{layer}_recombined.png')
         # plt.imshow(blurred_layer_data - blurred_data)
         # plt.savefig(f'{datafiles}/{layer}_diff.png')
-        print(f"{datafiles=}")
         np.testing.assert_array_equal(
            blurred_data,
            blurred_layer_data,
@@ -167,7 +156,6 @@ def test_entropy_recombination(datafiles):
     min_border = lbf_gauss.compatible_border_size(sigma=blur_params['sigma'],
                                               truncate=truncate)
     border = (50, 50)
-    print(f"{border=}, {min_border=}")
     # load the data
     ch_map_tif = list(datafiles.iterdir())[0]
     ch_map = lbio.load_map(ch_map_tif, indexes=1)
@@ -180,7 +168,6 @@ def test_entropy_recombination(datafiles):
     profile['dtype'] = np.uint8
     # get the layers
     layers = lbproc.get_lct(ch_data)
-    print(f"{layers=}")
     # we partially evaluate the guassian filter to make sure it gets
     # identical parameter everywhere
     # we do not need to pass the diameter to the filter function
@@ -254,10 +241,6 @@ def test_entropy_recombination(datafiles):
     # now we can read out the tif with the blurred layer anc compare
     entropy_recomb_map = lbio.load_map(entropy_output_file, indexes=1)
     entropy_recomb_data = entropy_recomb_map['data']
-    print(f"{entropy_data.shape=}")
-    print(f"{entropy_recomb_data.shape=}")
-    print(f"{entropy_data.dtype=}")
-    print(f"{entropy_recomb_data.dtype=}")
             
     # plt.imshow(entropy_data)
     # plt.savefig(f'{datafiles}/entropy_single.png')
@@ -265,9 +248,151 @@ def test_entropy_recombination(datafiles):
     # plt.savefig(f'{datafiles}/entropy_recombined.png')
     # plt.imshow(entropy_recomb_data - entropy_data)
     # plt.savefig(f'{datafiles}/entropy_diff.png')
-    print(f"{datafiles=}")
     np.testing.assert_array_equal(
         entropy_data,
         entropy_recomb_data,
         f'The recombined entropy map is different!'
     )
+
+
+@ALL_MAPS
+def test_parallel_transposed_prod(datafiles):
+    """Calculate the transposed product of a predictor matrix
+    """
+    test_data = list(datafiles.iterdir())
+    landcover_map = test_data[0]
+    ndvi_map = test_data[1]
+    # scale it down to 100x100m (from 30x30)
+    lbio.coregister_raster(ndvi_map, landcover_map, output=str(ndvi_map))
+    # create a mask for ndvi_map masking the nan's
+    with rio.open(ndvi_map, 'r+') as src:
+        data = src.read(indexes=1)
+        mask = np.where(np.isnan(data), 0, 255)
+        src.write_mask(mask)
+    # create the predicotrs 
+    response = ndvi_map
+    predictors = ((landcover_map, 1, (1, 2, 3, 4, 5), True),)
+    # first compute the full matrix and calculate XT X
+    X, _ = lbinf.prepare_predictors(response,
+                                    *predictors,
+                                    include_intercept=False,
+                                    verbose=True,
+                                    )
+    transprod_full = X.T @ X
+    # now compute it in parallel
+    # get the size of the response
+    with rio.open(response, 'r') as src:
+        src_widht = src.width
+        src_height = src.height
+
+    # get the aggregated selector
+    selector = lbinf.prepare_selector(response,
+                                      *predictors,
+                                      verbose=True)
+
+    # create a list of views and put it into runner_params
+    size = (src_widht, src_height)
+    view_size = (500, 400)
+    border = (0, 0)
+    #  _ is for the inner_views which we do not need
+    views, _ = lbprep.create_views(view_size=view_size,
+                                                border=border,
+                                                size=size)
+    part_params = []
+    for view in views:
+        pparams = dict(predictors=predictors,
+                       view=view,
+                       selector=selector)
+        part_params.append(pparams)
+    # create the arguments for the aggregation script
+    # start the processes 
+    manager = mproc.Manager()
+    output_q = manager.Queue()
+    nbr_cpus = mproc.cpu_count() - 1
+    print(f"using {nbr_cpus=}")
+    pool = mproc.Pool(nbr_cpus)
+    # start the aggregation step
+    matrix_aggregator = pool.apply_async(
+        lbpara.combine_matrices,
+        (output_q, )
+    )
+    all_jobs = []
+    for pparams in part_params:
+        all_jobs.append(pool.apply_async(
+            lbpara.partial_transposed_product,
+            (pparams, output_q)
+        ))
+    # now lets wait for all of these jobs to finish
+    job_timers = []
+    for job in all_jobs:
+        # await for the jobs to return (i.e. complete) by calling .get
+        # get the duration from the timer object that is returned by .get()
+        job_timers.append(job.get())
+    # send the final kill job to the queue
+    output_q.put(dict(signal='kill'))
+    # wait for the recombination job to terminate
+    recombined_tpX, _ = matrix_aggregator.get()
+    print(f"\n{transprod_full=}\n{recombined_tpX=}\n")
+    np.testing.assert_array_equal(transprod_full, recombined_tpX)
+    # finally in condensed form
+    recombtpX = lbpara.get_XT_X(response,
+                    *predictors,
+                    include_intercept=False,
+                    verbose=True,
+                    view_size=view_size,
+                    )
+    np.testing.assert_array_equal(transprod_full, recombtpX)
+
+
+@ALL_MAPS
+def test_parallel_optimal_weights(datafiles):
+    """Calculate the transposed product of a predictor matrix
+    """
+    as_dtype = np.float64
+    include_intercept = False
+    verbose = True
+    test_data = list(datafiles.iterdir())
+    landcover_map = test_data[0]
+    ndvi_map = test_data[1]
+    # scale it down to 100x100m (from 30x30)
+    lbio.coregister_raster(ndvi_map, landcover_map, output=str(ndvi_map))
+    # create a mask for ndvi_map masking the nan's
+    with rio.open(ndvi_map, 'r+') as src:
+        data = src.read(indexes=1)
+        mask = np.where(np.isnan(data), 0, 255)
+        src.write_mask(mask)
+    # create the predicotrs 
+    response = ndvi_map
+    predictors = ((landcover_map, 1, (1, 2, 3, 4, 5), True),)
+    selector = lbinf.prepare_selector(response,
+                                      *predictors)
+    view_size = (500, 400)
+    tpX = lbpara.get_XT_X(response,
+                          *predictors,
+                          include_intercept=include_intercept,
+                          verbose=verbose,
+                          view_size=view_size,
+                          )
+    Y = np.linalg.inv(tpX)
+    print(f"{tpX=}\n{Y=}")
+    print("#####\n#####\n#####")
+    betas = lbpara.get_optimal_betas(*predictors,
+                                     Y=Y,
+                                     response=response,
+                                     selector=selector,
+                                     include_intercept=include_intercept,
+                                     verbose=verbose,
+                                     as_dtype=as_dtype,
+                                     view_size=view_size,
+                                     )
+    # compute the betas by loading the entire map
+    X, y = lbinf.prepare_predictors(response,
+                                    *predictors,
+                                    include_intercept=include_intercept,
+                                    verbose=verbose,
+                                    )
+    # round both the the 6th digit
+    b = np.round(lbinf.get_optimal_weights(X, y), 6)
+    betas = np.round(betas, 6)
+    print(f"{b=}\n{betas=}")
+    np.testing.assert_array_equal(betas, b)

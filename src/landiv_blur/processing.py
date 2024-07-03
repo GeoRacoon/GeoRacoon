@@ -6,24 +6,9 @@ from copy import copy
 import numpy as np
 from scipy.stats import entropy
 
+from .helper import dtype_range
 from .io import load_block
 from .prepare import get_view, relative_view
-
-
-def dtype_range(dtype):
-    """Get the range of the specified dtype
-    """
-    try:
-        _max = dtype(np.iinfo(dtype).max)
-        _min = dtype(np.iinfo(dtype).min)
-    except ValueError:
-        try:
-            _max = dtype(np.finfo(dtype).max)
-            _min = dtype(np.finfo(dtype).min)
-        except ValueError:
-            raise ValueError(f"{dtype=} is not a valid dtype of "
-                             "`output_data`")
-    return _max, _min
 
 
 def select_layer(data, layer: int | list[int],
