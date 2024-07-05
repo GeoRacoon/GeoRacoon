@@ -196,6 +196,7 @@ def get_XT_X(response: str,
                                 int,
                                 tuple[int, ...] | None,
                                 bool | None],
+             selector,
              include_intercept=True,
              verbose: bool = False,
              **mpc_params
@@ -210,11 +211,6 @@ def get_XT_X(response: str,
     with rio.open(response, 'r') as src:
         src_widht = src.width
         src_height = src.height
-
-    # get the aggregated selector
-    selector = prepare_selector(response,
-                                *predictors,
-                                verbose=verbose)
     # create a list of views and put it into runner_params
     size = (src_widht, src_height)
     border = (0, 0)

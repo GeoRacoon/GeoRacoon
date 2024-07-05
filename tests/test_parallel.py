@@ -259,6 +259,7 @@ def test_entropy_recombination(datafiles):
 def test_parallel_transposed_prod(datafiles):
     """Calculate the transposed product of a predictor matrix
     """
+    verbose = True
     test_data = list(datafiles.iterdir())
     landcover_map = test_data[0]
     ndvi_map = test_data[1]
@@ -276,7 +277,7 @@ def test_parallel_transposed_prod(datafiles):
     X, _ = lbinf.prepare_predictors(response,
                                     *predictors,
                                     include_intercept=False,
-                                    verbose=True,
+                                    verbose=verbose,
                                     )
     transprod_full = X.T @ X
     # now compute it in parallel
@@ -288,7 +289,7 @@ def test_parallel_transposed_prod(datafiles):
     # get the aggregated selector
     selector = lbinf.prepare_selector(response,
                                       *predictors,
-                                      verbose=True)
+                                      verbose=verbose)
 
     # create a list of views and put it into runner_params
     size = (src_widht, src_height)
@@ -335,12 +336,16 @@ def test_parallel_transposed_prod(datafiles):
     print(f"\n{transprod_full=}\n{recombined_tpX=}\n")
     np.testing.assert_array_equal(transprod_full, recombined_tpX)
     # finally in condensed form
+    # get the aggregated selector (again)
+    selector = lbinf.prepare_selector(response,
+                                      *predictors,
+                                      verbose=verbose)
     recombtpX = lbpara.get_XT_X(response,
-                    *predictors,
-                    include_intercept=False,
-                    verbose=True,
-                    view_size=view_size,
-                    )
+                                *predictors,
+                                selector=selector,
+                                include_intercept=False,
+                                verbose=verbose,
+                                view_size=view_size,)
     np.testing.assert_array_equal(transprod_full, recombtpX)
 
 
@@ -369,6 +374,7 @@ def test_parallel_optimal_weights(datafiles):
     view_size = (500, 400)
     tpX = lbpara.get_XT_X(response,
                           *predictors,
+                          selector=selector,
                           include_intercept=include_intercept,
                           verbose=verbose,
                           view_size=view_size,
