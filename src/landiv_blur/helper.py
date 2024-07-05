@@ -199,8 +199,10 @@ def usable_pixels_count(selector):
     """Count the number of usable pixels determined by the selector"""
     vals, counts = np.unique(selector, return_counts=True)
     # vals: [True, False] or inv. in any case ok
-    return int(counts[vals][0])
-
+    try:
+        return int(counts[vals][0])
+    except IndexError:
+        return 0
 
 
 def dtype_range(dtype):
