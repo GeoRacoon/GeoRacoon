@@ -116,7 +116,7 @@ def get_lct_heterogeneity(source: str, output_file: str, scale: float,
     # now let's prepare the output parameters:
     blur_output_params = dict(
         profile=profile,
-        count=12,  # this should be deteced not set manually
+        count=len(layers),
         as_int=blur_as_int,
         output_file=blur_output_file,
     )

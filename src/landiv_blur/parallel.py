@@ -51,9 +51,10 @@ def combine_blurred_land_cover_types(output_params: dict, blur_q):
                 # get the relevant block (i.e. remove borders)
                 # write to output file
                 w = view_to_window(inner_view)
-                for band, data in layer_data.items():
+                for idx, (band, data) in enumerate(layer_data.items(), start=1):
                     dst.write(data,
-                              window=w, indexes=band+1)
+                              window=w, indexes=idx)
+                    dst.set_band_description(idx, f'LC_{band}')
                 print(f"Wrote out bands for blurred block {inner_view=}")
                 timer.new_lab()
     return timer
