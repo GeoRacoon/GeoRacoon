@@ -22,20 +22,21 @@ from .config import ALL_MAPS
 
 from matplotlib import pyplot as plt
 
+
 @ALL_MAPS
 def test_blur_recombination(datafiles):
     """Assert recombined blur of a layer is identical to processing entire map
     """
     blur_full = str(datafiles / 'blur_full.tif')
     blur_partial = str(datafiles / 'blur_partial.tif')
-    diameter = 1000 # this is in meter
+    diameter = 1000  # this is in meter
     scale = 100  # meter per pixel
-    _diameter = diameter/scale
+    _diameter = diameter / scale
     truncate = 3  # property of the gaussian filter
     view_size = (500, 400)
     blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
     min_border = lbf_gauss.compatible_border_size(sigma=blur_params['sigma'],
-                                              truncate=truncate)
+                                                  truncate=truncate)
     border = (100, 100)
     # load the data
     ch_map_tif = list(datafiles.iterdir())[0]
@@ -55,8 +56,11 @@ def test_blur_recombination(datafiles):
     _ = blur_params.pop('diameter')
     img_filter = partial(lbf_gauss.gaussian, **blur_params)
     # we perform the test for each layer
+    print("LAYERS", layers)
     for layer in layers:
-        index = layer + 1
+        # Index needs to be fixed as code does not write layer to equivalent index
+        # This was changed to allow for (1) seleciton of non-sequential lists, (2) lc maps with values [0, 255]
+        index = 1
         # perform the blur in a single run
         blurred_data = lbproc.get_layer_data(ch_data,
                                              layer=layer,
@@ -73,8 +77,7 @@ def test_blur_recombination(datafiles):
         blur_output_params = dict(
             profile=profile,
             as_int=True,
-            output_file=blur_output_file,
-            count=len(layers)
+            output_file=blur_output_file
         )
         # now the parameter for the per block blur tasks
         views, inner_views = lbprep.create_views(view_size=view_size,
@@ -83,12 +86,12 @@ def test_blur_recombination(datafiles):
         block_params = []
         for view, inner_view in zip(views, inner_views):
             bparams = dict(source=ch_map_tif,
-                        layers=[layer],
-                        view=view,
-                        inner_view=inner_view,
-                        img_filter=img_filter,
-                        # entropy_as_ubyte=True,
-                        blur_as_int=True,)
+                           layers=[layer],
+                           view=view,
+                           inner_view=inner_view,
+                           img_filter=img_filter,
+                           # entropy_as_ubyte=True,
+                           blur_as_int=True, )
             block_params.append(bparams)
         manager = mproc.Manager()
         blur_q = manager.Queue()
@@ -98,7 +101,7 @@ def test_blur_recombination(datafiles):
         # start the blurred layer writer task
         blur_combiner = pool.apply_async(
             lbpara.combine_blurred_land_cover_types,
-            (blur_output_params, blur_q, )
+            (blur_output_params, blur_q,)
         )
         # start the block processing
         all_jobs = []
@@ -124,10 +127,10 @@ def test_blur_recombination(datafiles):
         pool.join()
         print(f"job took {duration} seconds")
 
-        # now we can read out the tif with the blurred layer anc compare
+        # now we can read out the tif with the blurred layer and compare
         blurred_layer_map = lbio.load_map(blur_output_file, indexes=index)
         blurred_layer_data = blurred_layer_map['data']
-                
+
         # plt.imshow(blurred_data)
         # plt.savefig(f'{datafiles}/{layer}_single.png')
         # plt.imshow(blurred_layer_data)
@@ -135,9 +138,9 @@ def test_blur_recombination(datafiles):
         # plt.imshow(blurred_layer_data - blurred_data)
         # plt.savefig(f'{datafiles}/{layer}_diff.png')
         np.testing.assert_array_equal(
-           blurred_data,
-           blurred_layer_data,
-           f'For {layer=} the recombined blurred map is different!'
+            blurred_data,
+            blurred_layer_data,
+            f'For {layer=} the recombined blurred map is different!'
         )
 
 
@@ -147,14 +150,14 @@ def test_entropy_recombination(datafiles):
     """
     blur_full = str(datafiles / 'blur_full.tif')
     blur_partial = str(datafiles / 'blur_partial.tif')
-    diameter = 1000 # this is in meter
+    diameter = 1000  # this is in meter
     scale = 100  # meter per pixel
-    _diameter = diameter/scale
+    _diameter = diameter / scale
     truncate = 3  # property of the gaussian filter
     view_size = (500, 400)
     blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
     min_border = lbf_gauss.compatible_border_size(sigma=blur_params['sigma'],
-                                              truncate=truncate)
+                                                  truncate=truncate)
     border = (50, 50)
     # load the data
     ch_map_tif = list(datafiles.iterdir())[0]
@@ -191,17 +194,17 @@ def test_entropy_recombination(datafiles):
     )
     # now the parameter for the per block blur tasks
     views, inner_views = lbprep.create_views(view_size=view_size,
-                                                border=border,
-                                                size=(width, height))
+                                             border=border,
+                                             size=(width, height))
     block_params = []
     for view, inner_view in zip(views, inner_views):
         bparams = dict(source=ch_map_tif,
-                    layers=layers,
-                    view=view,
-                    inner_view=inner_view,
-                    img_filter=img_filter,
-                    entropy_as_ubyte=True,
-                    blur_as_int=True,)
+                       layers=layers,
+                       view=view,
+                       inner_view=inner_view,
+                       img_filter=img_filter,
+                       entropy_as_ubyte=True,
+                       blur_as_int=True, )
         block_params.append(bparams)
     manager = mproc.Manager()
     entropy_q = manager.Queue()
@@ -212,7 +215,7 @@ def test_entropy_recombination(datafiles):
     # start the blurred layer writer task
     blur_combiner = pool.apply_async(
         lbpara.combine_entropy_blocks,
-        (entropy_output_params, entropy_q, )
+        (entropy_output_params, entropy_q,)
     )
     # start the block processing
     all_jobs = []
@@ -220,8 +223,8 @@ def test_entropy_recombination(datafiles):
         all_jobs.append(pool.apply_async(
             lbpara.runner_call,
             (entropy_q,
-                lbproc.get_entropy_view,
-                bparams)
+             lbproc.get_entropy_view,
+             bparams)
         ))
     # now lets wait for all of these jobs to finish
     job_timers = []
@@ -241,7 +244,7 @@ def test_entropy_recombination(datafiles):
     # now we can read out the tif with the blurred layer anc compare
     entropy_recomb_map = lbio.load_map(entropy_output_file, indexes=1)
     entropy_recomb_data = entropy_recomb_map['data']
-            
+
     # plt.imshow(entropy_data)
     # plt.savefig(f'{datafiles}/entropy_single.png')
     # plt.imshow(entropy_recomb_data)
@@ -297,8 +300,8 @@ def test_parallel_transposed_prod(datafiles):
     border = (0, 0)
     #  _ is for the inner_views which we do not need
     views, _ = lbprep.create_views(view_size=view_size,
-                                                border=border,
-                                                size=size)
+                                   border=border,
+                                   size=size)
     part_params = []
     for view in views:
         pparams = dict(predictors=predictors,
@@ -315,7 +318,7 @@ def test_parallel_transposed_prod(datafiles):
     # start the aggregation step
     matrix_aggregator = pool.apply_async(
         lbpara.combine_matrices,
-        (output_q, )
+        (output_q,)
     )
     all_jobs = []
     for pparams in part_params:
@@ -345,7 +348,7 @@ def test_parallel_transposed_prod(datafiles):
                                 selector=selector,
                                 include_intercept=False,
                                 verbose=verbose,
-                                view_size=view_size,)
+                                view_size=view_size, )
     np.testing.assert_array_equal(transprod_full, recombtpX)
 
 
