@@ -16,15 +16,13 @@ import rasterio as rio
 from rasterio.windows import Window
 from sklearn.linear_model import LinearRegression
 
+from .exceptions import InferenceError
 from .helper import (check_compatibility,
                      usable_pixels_info,
                      usable_pixels_count,
                      view_to_window,)
 from .processing import select_layer
 
-
-class InferenceError(Exception):
-    pass
 
 def to_numpy_selector(rasterio_mask):
     """Converts rasterio mask (e.g. `read_masks(band)`) into a `numpy.bool_'

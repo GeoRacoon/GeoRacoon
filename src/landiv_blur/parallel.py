@@ -21,7 +21,7 @@ from .inference import (
         transposed_product,
         get_optimal_weights_source,
     )
-
+from .io import set_tags
 
 
 def combine_blurred_land_cover_types(output_params: dict, blur_q):
@@ -52,9 +52,9 @@ def combine_blurred_land_cover_types(output_params: dict, blur_q):
                 # write to output file
                 w = view_to_window(inner_view)
                 for idx, (band, data) in enumerate(layer_data.items(), start=1):
-                    dst.write(data,
-                              window=w, indexes=idx)
+                    dst.write(data, window=w, indexes=idx)
                     dst.set_band_description(idx, f'LC_{band}')
+                    set_tags(dst, bidx=idx, category=band)
                 print(f"Wrote out bands for blurred block {inner_view=}")
                 timer.new_lab()
     return timer
@@ -134,6 +134,8 @@ def combine_entropy_blocks(output_params: dict, entropy_q):
                 w = view_to_window(inner_view)
                 dst.write(data,
                           window=w, indexes=1)
+                dst.set_band_description(1, f'Entropy')
+                set_tags(dst, bidx=1, category="entropy")
                 # lbio.export_to_tif(destination=output_file, data=data,
                 #                    start=start, orig_profile=profile)
                 # delete partial block tif
