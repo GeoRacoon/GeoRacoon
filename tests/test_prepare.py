@@ -166,32 +166,35 @@ def test_lct_coverage(datafiles):
         height = src.height
         data = src.read(indexes=1)
     haslct = np.zeros((height, width), dtype=np.bool_)
-    lcts = lbproc.get_lct(data)
+    lcts = lbproc.get_categories(data)
     print(f"{profile=}")
     print(f"{width=}")
     print(f"{height=}")
     print(f"{data.shape=}")
     print(f"{haslct.shape=}")
     print(f"{lcts=}")
-    blurred_layers = lbproc.get_filtered_layers(data, layers=lcts,
-                               img_filter=gaussian,
-                               filter_params=dict(
-                                   sigma=sigma,
-                                   truncate=truncate
-                               ),
-                               output_dtype=np.uint8
-                               )
-    entropy_data = lbproc.compute_entropy(blurred_layers, normed=True,
-                                         output_dtype=np.uint8)
+    blurred_categories = lbproc.get_filtered_categories(data, categories=lcts,
+                                                        img_filter=gaussian,
+                                                        filter_params=dict(
+                                                            sigma=sigma,
+                                                            truncate=truncate
+                                                        ),
+                                                        output_dtype=np.uint8
+                                                        )
+    entropy_data = lbproc.compute_entropy(
+        data_arrays=tuple(blurred_categories.values()),
+        normed=True,
+        output_dtype=np.uint8
+    )
     for lct in lcts:
         print(f"{lct=}")
-        lct_data = lbproc.get_layer_data(data, layer=lct,
-                                         img_filter=gaussian,
-                                         filter_params=dict(
-                                             sigma=sigma,
-                                             truncate=truncate
-                                         ),
-                                         output_dtype=np.uint8)
+        lct_data = lbproc.get_category_data(data, category=lct,
+                                            img_filter=gaussian,
+                                            filter_params=dict(
+                                                sigma=sigma,
+                                                truncate=truncate
+                                            ),
+                                            output_dtype=np.uint8)
         print(f"\t{lct_data.dtype=}")
         print(f"\t{lct_data.shape=}")
         print(f"\t{np.unique(lct_data)=}")

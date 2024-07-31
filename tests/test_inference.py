@@ -216,7 +216,7 @@ def test_transposed_prod_blurred_example_data(datafiles):
                                       *predictors,
                                       verbose=verbose)
     riow = lbhelp.view_to_window(view)
-    X = lbinf.init_X(*predictors,
+    X = lbinf.init_X(predictors,
                      selector=selector,
                      window=riow,
                      include_intercept=include_intercept)
@@ -236,9 +236,9 @@ def test_transposed_prod_blurred_example_data(datafiles):
             for value in extract_values:
                 pred_datas.append(
                     lbproc.apply_filter(
-                        lbproc.select_layer(pred_data, layer=value,
-                                            as_dtype=as_dtype,
-                                            limits=(1.0, 0.0)),
+                        lbproc.select_category(pred_data, category=value,
+                                               as_dtype=as_dtype,
+                                               limits=(1.0, 0.0)),
                         img_filter=gaussian,
                         sigma=sigma,
                     )

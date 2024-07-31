@@ -35,22 +35,22 @@ def test_filter_signal_preservation(datafiles):
     """
     ch_map_tif = list(datafiles.iterdir())[0]
     ch_data = lbio.load_map(ch_map_tif)['data']
-    lctypes = lbproc.get_lct(ch_data)
+    lctypes = lbproc.get_categories(ch_data)
     sigma = 10
     truncate = 3
     params = dict(
         sigma=sigma,
         truncate=truncate
     )
-    for layer in lctypes:
+    for cat in lctypes:
         dtype = np.uint8
         dmax = np.iinfo(dtype).max
-        layer_data = lbproc.get_layer_data(ch_data, layer=layer,
-                                           output_dtype=dtype)
-        filtered_data = lbproc.get_layer_data(ch_data, layer=layer,
-                                              img_filter=gaussian,
-                                              filter_params=params)
-        signal = (layer_data.astype(float)/dmax).sum()
+        category_data = lbproc.get_category_data(ch_data, category=cat,
+                                              output_dtype=dtype)
+        filtered_data = lbproc.get_category_data(ch_data, category=cat,
+                                                 img_filter=gaussian,
+                                                 filter_params=params)
+        signal = (category_data.astype(float)/dmax).sum()
         diff = abs(signal - filtered_data.astype(float).sum())
         assert diff/signal <= 0.001
 
@@ -64,7 +64,7 @@ def test_signal_preservation():
     square[246:257, 246:257] = 1
     signal = square.sum()
     # convert it to the expected format
-    data = lbproc.select_layer(data=square, layer=1, as_dtype=np.uint8)
+    data = lbproc.select_category(data=square, category=1, as_dtype=np.uint8)
     sigma = 3
     truncate = 3
     for _filter, _get_kd, _get_ks in zip(_filters,

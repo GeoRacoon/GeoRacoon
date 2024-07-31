@@ -162,8 +162,8 @@ def nodata_mask_band(source, nodata=None):
       The nodata value to use for the mask (e.g. np.nan or integer)
       if not provided - the nodata value from the source metadata is taken
 
-    Return
-    ------
+    Returns
+    -------
     None
     """
     with rio.Env(GDAL_TIFF_INTERNAL_MASK=True):

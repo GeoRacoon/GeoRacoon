@@ -59,8 +59,8 @@ def compatible_border_size(sigma:float|int, border:tuple[int, int]|None=None,
     border: tuple of int
       The border size (width, height) in number of pixels along each axis
 
-    Return
-    ------
+    Returns
+    -------
     tuple:
       The border (width, height) compatible with the specified parameters.
       If a border was provided already, it is returned again, if no border

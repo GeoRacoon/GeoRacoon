@@ -33,6 +33,7 @@ Note
 from __future__ import annotations
 import multiprocessing as mproc
 import rasterio as rio
+import numpy as np
 import os
 
 from copy import copy
@@ -43,16 +44,20 @@ from landiv_blur import helper as lbhelp
 from landiv_blur import prepare as lbprep
 from landiv_blur.filters import gaussian as lbf_gauss
 from landiv_blur.parallel import (
-    combine_blurred_land_cover_types,
+    combine_blurred_categories,
     combine_entropy_blocks,
     block_heterogeneity
 )
 from landiv_blur.io import compress_tif
 
-def get_lct_heterogeneity(source: str, output_file: str, scale: float,
+def get_lct_heterogeneity(source: str,
+                          output_file: str,
+                          scale: float,
                           block_size: tuple[int, int],
                           blur_params: dict,
-                          layers: list | None = None,
+                          categories: list | None = None,
+                          blur_as_int: bool = True,
+                          entropy_as_ubyte: bool = True,
                           **params):
     """Compute the entropy-based heterogeneity from a map of land cover types.
 
@@ -64,14 +69,19 @@ def get_lct_heterogeneity(source: str, output_file: str, scale: float,
         Path to where the heterogeneity tif should be saved
     scale : float
         Size of a single pixel in the same units as `diameter` and `sigma`
-    layers: list
-        Specify which of the land-cover types to use as layers.
+    categories: list
+        Specify which of the land-cover types to use as categories.
         If not provided then all the land-cover types are used.
     block_size: tuple of int
         Size (width, height) in #pixel of the block that a single job processes
     blur_params : dict
         Parameters for the Gaussian blur. It must contain at least either
         `diameter` or `sigma` in a in meters or any other measure of distance.
+    blur_as_int:
+        If the blurred category arrays should be converted to `np.uint8` before
+        computing the entropy.
+    entropy_as_ubyte:
+        Should the entropy be normalized and returned as ubyte?
     """
     # ###
     # prepare the input for the blocks
@@ -103,21 +113,28 @@ def get_lct_heterogeneity(source: str, output_file: str, scale: float,
     print(f"The block size without border is {view_size=} pixels")
     border = lbf_gauss.compatible_border_size(sigma=psigma, truncate=truncate)
     print(f"The resulting border size is {border=} pixels")
-    # Should the entropy be normalized and returned as ubyte?
-    entropy_as_ubyte = params.pop('entropy_as_ubyte', False)
-    blur_as_int = params.pop('blur_as_int', False)
+    # TODO:
+    # check and replace/remove blur_as_int
     # set the filename of the output file
     blur_output_file = lbhelp.output_filename(
         base_name=output_file,
         out_type='blurred',
         blur_params=blur_params
     )
+    if blur_as_int:
+        blur_output_dtype = np.uint8
+    else:
+        blur_output_dtype = rio.float64
 
     # now let's prepare the output parameters:
+    if categories is None:
+        count = None
+    else:
+        count = len(categories)
     blur_output_params = dict(
         profile=profile,
-        count=len(layers),
-        as_int=blur_as_int,
+        count=count,
+        output_dtype=blur_output_dtype,
         output_file=blur_output_file,
     )
     entropy_output_file = lbhelp.output_filename(
@@ -125,10 +142,15 @@ def get_lct_heterogeneity(source: str, output_file: str, scale: float,
         out_type='entropy',
         blur_params=blur_params
     )
+
+    if entropy_as_ubyte:
+        entropy_output_dtype = np.uint8
+    else:
+        entropy_output_dtype = rio.float64
     entropy_output_params = dict(
         blur_params=blur_params,
         profile=profile,
-        as_ubyte=entropy_as_ubyte,
+        output_dtype=entropy_output_dtype,
         output_file=entropy_output_file,
     )
     views, inner_views = lbprep.create_views(view_size=view_size,
@@ -143,7 +165,7 @@ def get_lct_heterogeneity(source: str, output_file: str, scale: float,
     )
     for view, inner_view in zip(views, inner_views):
         bparams = dict(source=source,
-                       layers=layers,
+                       categories=categories,
                        view=view,
                        inner_view=inner_view,
                        img_filter=lbf_gauss.gaussian,
@@ -164,8 +186,8 @@ def get_lct_heterogeneity(source: str, output_file: str, scale: float,
     pool = mproc.Pool(nbr_cpus)
 
 
-    # start the blurred layer writer task
-    blur_combiner = pool.apply_async(combine_blurred_land_cover_types,
+    # start the blurred category writer task
+    blur_combiner = pool.apply_async(combine_blurred_categories,
                                      (blur_output_params, blur_q, ))
     # start the entropy writer task
     entropy_combiner = pool.apply_async(combine_entropy_blocks,
@@ -264,13 +286,13 @@ def main():
     nbr_lct = inargs.pop('nbrlct')
     compr = inargs.pop('compress')
     # construct the list of land-cover types to use
-    layers=list(range(nbr_lct))
+    categories=list(range(nbr_lct))
 
     get_lct_heterogeneity(
         source=source,
         scale=scale,
         block_size=(bwidth, bheight),
-        layers=layers,
+        categories=categories,
         blur_params=lbprep.get_blur_params(diameter, sigma, truncate),
         output_file=output_file,
         entropy_as_ubyte=entropy_ubyte,

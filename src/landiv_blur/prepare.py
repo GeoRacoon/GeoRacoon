@@ -1,11 +1,16 @@
 """
-Submodule providing the necessary functions to setup an efficient processing
-of a land-cover type map.
+Submodule providing the necessary functions to allow an efficient processing
+of a categorical maps, like land-cover types or similar.
 """
-import os
+from __future__ import annotations
+
+from numpy.typing import ArrayLike, NDArray
+
 import math
 
-def overhead_fraction(nbr_blocks, border, size):
+def overhead_fraction(nbr_blocks:int,
+                      border:int,
+                      size:tuple[int,int])->float:
     """Compute the fraction of area that is processed multiple times.
 
     This function reports the relation between pixels that are processed
@@ -36,7 +41,9 @@ def overhead_fraction(nbr_blocks, border, size):
     return overhead_area / total_area
 
 
-def update_views(data, views, blocks):
+def update_views(data:NDArray,
+                 views:list[tuple[int,int,int,int]],
+                 blocks:list[ArrayLike])->None:
     """Update the data array with a sequence of views.
 
     Note that the updates are applied in order of the provided list from first
@@ -57,7 +64,9 @@ def update_views(data, views, blocks):
     return None
 
 
-def update_view(data, view, block):
+def update_view(data:NDArray,
+                view:tuple[int,int,int,int],
+                block:ArrayLike)->None:
     """Update a view from the data array with a block
 
     ..Note::
@@ -67,7 +76,7 @@ def update_view(data, view, block):
     Parameters
     ----------
     data:
-      The map from which we want to get views from
+      The array that we want to update
     view:
       tuple (x, y, width, height) defining the view of the data array to update
     block:
@@ -80,17 +89,18 @@ def update_view(data, view, block):
          slice(view[0], view[0] + view[2])] = block
 
 
-def create_views(view_size:tuple[int, int], border:tuple[int, int],
+def create_views(view_size:tuple[int, int],
+                 border:tuple[int, int],
                  size:tuple[int, int])->tuple[list, ...]:
     """Returns a set of views on which the filter can be applied independently
 
     Parameters
     ----------
-    view_size: tuple of int
+    view_size:
       The size (width, height) in pixels of a single view (excluding borders)
-    border: tuple of int
+    border:
       The border size (width, height) in number of pixels along each axis
-    size: tuple
+    size:
       The total size of the map in number of pixels (width, height)
 
     Return
@@ -224,10 +234,12 @@ def create_views(view_size:tuple[int, int], border:tuple[int, int],
     )
 
 
-def get_view(data, view):
+def get_view(data:NDArray, view:tuple[int,int,int,int])->NDArray:
     """Return a view of the data array
 
-    Note: data.shape == height, width!
+    ..Note::
+      data.shape == height, width!
+
     Parameters
     ----------
     data:
@@ -242,14 +254,25 @@ def get_view(data, view):
                 slice(view[0], view[0] + view[2])]
 
 
-def relative_view(view, inner_view):
+def relative_view(view:tuple[int,int,int,int],
+                  inner_view:tuple[int,int,int,int])->tuple[int,int,int,int]:
+    """Return the `inner_view` relative to `view`
+
+    Parameters
+    ----------
+    view:
+      (x, y, width, height) defining a view
+    inner_view:
+      (x, y, width, height) defining a view 
+    """
     return (inner_view[0] - view[0],
             inner_view[1] - view[1],
             inner_view[2],
             inner_view[3])
 
 
-def recombine_blocks(blocks:tuple, output):
+def recombine_blocks(blocks:list[tuple[ArrayLike, tuple[int,int,int,int]]],
+                     output:NDArray)->NDArray:
     """Write a sequence of blocks onto an output array
 
     Parameters
@@ -258,8 +281,17 @@ def recombine_blocks(blocks:tuple, output):
       iterable of blocks each being a tuple `(data, view)`
       where data is an np.array with the data to use in the update
       and view a tuple with
-      (vertical start, horiz start, height, widht) of the view
+      (vertical start, horiz start, height, width) of the view
       to update
+    output:
+      numpy array in which the block will be updated
+
+    Returns
+    -------
+    ArrayLike
+
+      The array provided in `output` with the updated blocks
+
     """
     for data, view in blocks:
         update_view(output, view, block=data)
@@ -286,5 +318,6 @@ def get_blur_params(diameter=None, sigma=None, truncate=None):
         else:
             # TODO: this test should be done when parsing the input arguments
             raise TypeError("Either the `diameter` or the `sigma` parameter "
-                            " need to be provided.")
+                            " need to be provided. We got:\n"
+                            f"- {diameter=}\n- {sigma=}")
     return dict(diameter=diameter, sigma=sigma, truncate=truncate)

@@ -1,4 +1,5 @@
-import math
+from __future__ import annotations
+
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
@@ -6,11 +7,12 @@ from rasterio.plot import show
 
 from .io import load_block
 from .processing import (
-    get_layer_data,
+    get_category_data,
     get_entropy,
-    get_lct
+    get_categories
 )
 
+# TODO: The user should be ablre to provide a category: color mapping
 OUT = 'black'
 FOREST = 'darkgreen'
 WATER = 'blue'
@@ -37,8 +39,8 @@ def _get_class_colormap(colors=COLORS):
     return ListedColormap(colors)
 
 
-def show_block(source, output, start=None, size=None):
-    """Show only a specific block in a tif with all layers
+def show_block(source:str, output, start=None, size=None):
+    """Show only a specific block in a tif with all categories
 
     Parameters
     ----------
@@ -50,17 +52,15 @@ def show_block(source, output, start=None, size=None):
       width and height of the block to extract
     """
     block = load_block(source, start, size)
-    data, transform = block['data'], block['transform']
-
-    cmap = _get_class_colormap()
-
-    # plot_landtypes(data, transform, output, cmap)
-    plot_landtypes(data, source, size, output)
+    data = block['data']
+    # cmap = _get_class_colormap()
+    # plot_categories(data, transform, output, cmap)
+    plot_categories(data, source, size, output)
 
 
-def plot_block(source, start, size, ax, scaling=None,
+def plot_block(source:str, start, size, ax, scaling=None,
                scaling_params=dict(), fig_params=dict()):
-    """Plot the landtypes data and save it to a file.
+    """Plot categorical data and save it to a file.
     """
     block = load_block(source=source, start=start, size=size,
                        scaling=scaling, **scaling_params)
@@ -75,8 +75,8 @@ def plot_block(source, start, size, ax, scaling=None,
     return to_display.get_images()[0]
 
 
-def plot_landtypes(source, output, start=None, size=None):
-    """Plot the landtypes data and save it to a file.
+def plot_categories(source, output, start=None, size=None):
+    """Plot categorical data and save it to a file.
 
     Parameters
     ----------
@@ -95,10 +95,10 @@ def plot_landtypes(source, output, start=None, size=None):
     fig.savefig(output, dpi=DPI)
 
 
-def show_layer(data, layer, transform, ax):
-    """Handles the coloring of the layer and calls rio.show
+def show_category(data, category, transform, ax):
+    """Handles the coloring of a category and calls rio.show
     """
-    colors = [OUT, COLORS[layer-1]]
+    colors = [OUT, COLORS[category-1]]
     if len(np.unique(data)) == 2:
         cmap = _get_class_colormap(colors=colors)
     else:
@@ -111,10 +111,10 @@ def show_layer(data, layer, transform, ax):
     )
 
 
-def plot_layers(source, start, size, img_filter=None, params=None,
-                scaling=None, layers=None,
-                fig_params=dict(), scaling_params=dict()):
-    """Plot each layer in isolation
+def figure_categories(source, start, size, img_filter=None, params=None,
+                      scaling=None, categories:list|None=None,
+                      fig_params=dict(), scaling_params=dict()):
+    """Plot each category on a separate axes
 
     Parameters
     ----------
@@ -161,13 +161,13 @@ def plot_layers(source, start, size, img_filter=None, params=None,
         def _get_axis(row, col):
             return axs[row, col]
 
-    if not layers:
-        # TODO: use get_lct to get the number of layers
+    if not categories:
+        # TODO: use get_categories to get the number of categories
         rows = range(2)
         cols = range(4)
-    if len(layers) <= row_limit:
+    if categories is not None and len(categories) <= row_limit:
         rows = range(1)
-        cols = range(len(layers))
+        cols = range(len(categories))
     else:
         # TODO: this is just hard-coded structure
         rows = range(3)
@@ -175,18 +175,19 @@ def plot_layers(source, start, size, img_filter=None, params=None,
     for row in rows:
         for col in cols:
             print((col, row))
-            _layer = col + row * row_limit
-            if layers:
+            _category = col + row * row_limit
+            if categories:
                 try:
-                    layer = layers[_layer]
+                    category = categories[_category]
                 except IndexError:
-                    # we plotted all layers
+                    # we plotted all categories
                     continue
             else:
-                layer = _layer
-            _data = get_layer_data(data, layer, img_filter,
-                                   filter_params=params)
-            show_layer(_data, layer, transform, _get_axis(row,  col))
+                category = _category
+            _data = get_category_data(data, category=category,
+                                      img_filter=img_filter,
+                                      filter_params=params)
+            show_category(_data, category, transform, _get_axis(row,  col))
     plt.subplots_adjust(wspace=0.1, hspace=0.1)
     output = fig_params.get('output', None)
     if output:
@@ -194,7 +195,8 @@ def plot_layers(source, start, size, img_filter=None, params=None,
     return axs
 
 
-def plot_entropy(source, start, size, output=None, scaling=None,
+def plot_entropy(source:str, start:tuple[int,int], size:tuple[int,int],
+                 output:str, scaling=None,
                  fig_params=dict(), scale_params=dict()):
     """Plot the entropy in each pixel from a tif file
 
@@ -210,7 +212,7 @@ def plot_entropy(source, start, size, output=None, scaling=None,
     block = load_block(source=source, start=start, size=size,
                        scaling=scaling, **scale_params)
     data, transform = block['data'], block['transform']
-    entropy_layer = data
+    entropy_array = data
     ax = fig_params.get('ax', None)
     fig = fig_params.get('fig', None)
     do_print = False
@@ -221,7 +223,7 @@ def plot_entropy(source, start, size, output=None, scaling=None,
     cmap = LinearSegmentedColormap.from_list(
         "Custom", ['black', 'white'], N=40)
     # pass affine transform corresponding to the window
-    to_display = show(entropy_layer,
+    to_display = show(entropy_array,
                       ax=ax,
                       transform=transform,
                       cmap=cmap)
@@ -233,8 +235,10 @@ def plot_entropy(source, start, size, output=None, scaling=None,
 
 
 def plot_entropy_full(source, start, size, output, img_filter=None,
-                      params=None):
-    """Plot the entropy in each pixel after layer diffusion
+                      filter_params:dict|None=None,
+                      entropy_params:dict|None=None
+                      ):
+    """Plot the entropy in each pixel after category diffusion
 
     Parameters
     ----------
@@ -249,15 +253,18 @@ def plot_entropy_full(source, start, size, output, img_filter=None,
     """
     block = load_block(source, start, size)
     data, transform = block['data'], block['transform']
-    lcts = get_lct(data)
-    entropy_layer = get_entropy(data, layers=lcts, normed=True)
+    cats = get_categories(data)
+    entropy_array = get_entropy(data, categories=cats,
+                                filter_params=filter_params,
+                                entropy_params=entropy_params,
+                                normed=True)
 
     fig, ax = plt.subplots(figsize=(16, 16))
 
     cmap = LinearSegmentedColormap.from_list(
         "Custom", ['black', 'white'], N=20)
     # pass affine transform corresponding to the window
-    to_display = show(entropy_layer,
+    to_display = show(entropy_array,
                       ax=ax,
                       transform=transform,
                       cmap=cmap)

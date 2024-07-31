@@ -50,7 +50,7 @@ source_file = os.path.join(data_path, orig_fname.format(utm_zone=utm_zone))
 orig_map = lbio.load_block(source=source_file)
 lc_types = np.unique(orig_map['data'])
 print(f"Land-cover types found: {lc_types=}")
-# - select for specific layer
+# - select for specific category
 # - count the # pixels
 # ##
 # check if pickle exists
