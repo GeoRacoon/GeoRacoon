@@ -1,31 +1,31 @@
 from skimage.filters import gaussian
 from landiv_blur import (
-    plot_landtypes,
-    plot_layers,
+    plot_categories,
+    figure_categories,
     plot_entropy_full
 )
 
 def main(args):
     """Generate all plots
     """
-    plot_landtypes(
+    plot_categories(
         args.source,
         (args.hstart, args.vstart),
         (args.size, args.size),
         output=f"{ args.output }.{ args.format }",
     )
-    plot_layers(
+    figure_categories(
         args.source,
         (args.hstart, args.vstart),
         (args.size, args.size),
-        output=f"{ args.output }_layers.{ args.format }",
+        output=f"{ args.output }_categories.{ args.format }",
     )
     # now with filter
-    plot_layers(
+    figure_categories(
         args.source,
         (args.hstart, args.vstart),
         (args.size, args.size),
-        output=f"{ args.output }_layers_filtered_{args.sigma}.{ args.format }",
+        output=f"{ args.output }_categories_filtered_{args.sigma}.{ args.format }",
         img_filter=gaussian,
         params=dict(sigma=args.sigma,)
     )
@@ -33,9 +33,9 @@ def main(args):
         args.source,
         (args.hstart, args.vstart),
         (args.size, args.size),
-        output=f"{ args.output }_layers_entropy_{args.sigma}.{ args.format }",
+        output=f"{ args.output }_categories_entropy_{args.sigma}.{ args.format }",
         img_filter=gaussian,
-        params=dict(sigma=args.sigma,)
+        filter_params=dict(sigma=args.sigma,)
     )
 
 if __name__ == "__main__":

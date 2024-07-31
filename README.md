@@ -131,11 +131,11 @@ the [example script](examples/console_launcher.sh).
 
 ![France-CH border](./results/test_france.png)
 
-### Individual layers
+### Individual categories
 
 ![France-CH border](./results/test_france_layers.png)
 
-#### Individual layers with Gaussian filter
+#### Individual categories with Gaussian filter
 
 ![France-CH border](./results/test_france_layers_filtered_1.0.png)
 _sigma = 1_

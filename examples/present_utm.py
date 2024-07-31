@@ -29,21 +29,20 @@ ax = fig.add_subplot(gs[1:5, :2])
 lbplot.plot_block(source=source_file, start=None, size=None, ax=ax,
                   scaling=scaling)
 
-# first we get the individual layers from the source file
-# for the layers we increase visibility:
-s_method_layer = Resampling.nearest
+# first we get the individual category from the source file
+# for the categories we increase visibility:
+s_method_category = Resampling.nearest
 
-# to plot the layers individually we have a little helper function
-_axs = lbplot.plot_layers(source_file, None, None, scaling=scaling,
-                          scaling_params=dict(scaling_method=s_method_layer),
-                          # see #31 for the layer combination
-                          layers=lc_types,
-                          fig_params=dict(fig=fig, gs=gs,
-                                          gsr=0, gsc=2, rl=1,
-                                          rstep=2, cstep=2))
-                          # layers=[[1, 4], 2, [8, 9], 10], axs=axs)
+# to plot the categories individually we have a little helper function
+_axs = lbplot.figure_categories(source_file, None, None, scaling=scaling,
+                                scaling_params=dict(scaling_method=s_method_category),
+                                # see #31 for the category combination
+                                categories=lc_types,
+                                fig_params=dict(fig=fig, gs=gs,
+                                                gsr=0, gsc=2, rl=1,
+                                                rstep=2, cstep=2))
 
-# now we load the blurred layers
+# now we load the blurred categories
 result_map = 'lct_heterogeneity_{utm_zone}_{res_type}_sig_{sigma}_diam_{diameter}_trunc_{truncate}.tif'
 results_path = '../results/'
 diameter = 30000.
@@ -65,8 +64,8 @@ for i, lct in enumerate(lc_types):
                               indexes=lct+1,
                               )
                               # scaling=scaling)
-    # encoded the layers starting from 0
-    lbplot.show_layer(utm_map['data'], layer=lct,
+    # encoded the categories starting from 0
+    lbplot.show_category(utm_map['data'], category=lct,
                       transform=utm_map['transform'],
                       ax=ax)
 

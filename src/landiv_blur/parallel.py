@@ -1,15 +1,19 @@
+from __future__ import annotations
 """
 This module contains various helper functions to parallelize the application
 of filters on a tif
 
 """
-from __future__ import annotations
+from typing import Any
+from collections.abc import Callable
 
 from copy import copy
 
 import numpy as np
 import rasterio as rio
-import multiprocessing as mproc
+
+from multiprocessing import Pool, Queue, Manager, cpu_count
+from numpy.typing import NDArray
 
 from .helper import (view_to_window,)
 from .timing import TimedTask
@@ -17,25 +21,22 @@ from .plotting import plot_entropy
 from .processing import view_blurred, view_entropy
 from .prepare import create_views
 from .inference import (
-        prepare_selector,
         transposed_product,
         get_optimal_weights_source,
     )
 from .io import set_tags
 
-
-def combine_blurred_land_cover_types(output_params: dict, blur_q):
+# TODO: this needs adaptation once !36 is merged (using tags instead of indexes)
+def combine_blurred_categories(output_params: dict, blur_q:Queue):
     """Listen to queue (blur_q) and write blurred blocks to a single file
     """
     with TimedTask() as timer:
-        as_int = output_params.pop('as_int', False)
+        output_dtype = output_params.pop('output_dtype')
         output_file = output_params.pop('output_file')
         print(f"{output_file=}")
-        print(f"{as_int=}")
+        print(f"{output_dtype=}")
         profile = output_params.pop('profile')
-        profile['dtype'] = rio.float64
-        if as_int:
-            profile['dtype'] = rio.uint8
+        profile['dtype'] = output_dtype
         profile['count'] = output_params.get('count', profile['count'])
         with rio.open(output_file, 'w', **profile) as dst:
             while True:
@@ -45,13 +46,14 @@ def combine_blurred_land_cover_types(output_params: dict, blur_q):
                     if signal == "kill":
                         print(f"\n\nClosing: {output_file}\n\n")
                         break
-                layer_data = output.pop('data')
+                categories_data = output.pop('data')
                 inner_view = copy(output.pop('view'))
                 # load block tif
                 # get the relevant block (i.e. remove borders)
                 # write to output file
                 w = view_to_window(inner_view)
-                for idx, (band, data) in enumerate(layer_data.items(), start=1):
+                for idx, (band, data) in enumerate(categories_data.items(),
+                                                   start=1):
                     dst.write(data, window=w, indexes=idx)
                     dst.set_band_description(idx, f'LC_{band}')
                     set_tags(dst, bidx=idx, category=band)
@@ -60,7 +62,7 @@ def combine_blurred_land_cover_types(output_params: dict, blur_q):
     return timer
 
 
-def combine_matrices(output_q):
+def combine_matrices(output_q:Queue):
     """Adding up matrices that hold partial sums
     """
     out_matrix = None
@@ -81,7 +83,7 @@ def combine_matrices(output_q):
     return out_matrix, (timer,) 
 
 
-def partial_transposed_product(params, output_q):
+def partial_transposed_product(params:dict, output_q:Queue):
     """Run .inference.transposed_product in parallel
     """
     def _wrap(tpX):
@@ -93,7 +95,7 @@ def partial_transposed_product(params, output_q):
         wrapper=_wrap
         )
 
-def partial_optimal_betas(params, output_q):
+def partial_optimal_betas(params:dict, output_q:Queue):
     """Runs .inference.get_optimal_weights_source in parallel
     """
     def _wrap(betas):
@@ -106,17 +108,17 @@ def partial_optimal_betas(params, output_q):
     )
 
 
-def combine_entropy_blocks(output_params: dict, entropy_q):
+# TODO: make single function for this and combine_blurred_categories
+def combine_entropy_blocks(output_params: dict, entropy_q:Queue):
     """Listen to queue (entropy_q) and write computed block to single file
     """
     with TimedTask() as timer:
+        output_dtype = output_params.pop('output_dtype')
         output_file = output_params.pop('output_file')
         print(f"{output_file=}")
-        as_ubyte = output_params.pop('as_ubyte')
+        print(f"{output_dtype=}")
         profile = output_params.pop('profile')
-        profile['dtype'] = rio.float64
-        if as_ubyte:
-            profile['dtype'] = rio.uint8
+        profile['dtype'] = output_dtype
         with rio.open(output_file, 'w', **profile) as dst:
             while True:
                 # load the entropy_q
@@ -146,7 +148,11 @@ def combine_entropy_blocks(output_params: dict, entropy_q):
                  output=f"{output_file}.preview.pdf")
     return timer
 
-def runner_call(queue, callback, params, wrapper=None):
+
+def runner_call(queue: Queue[Any],
+                callback:Callable,
+                params:dict,
+                wrapper:Callable|None=None):
     """Put the results of callback using parameter into the queue
 
     If provided `wrapper(callback(**params))` is put into the queue.
@@ -159,13 +165,36 @@ def runner_call(queue, callback, params, wrapper=None):
         queue.put(output)
     return output
 
-def block_heterogeneity(params, entropy_q, blur_q):
-    """Block entropy-based landscape type heterogeneity measure
+
+def block_heterogeneity(params:dict, entropy_q:Queue, blur_q:Queue)->TimedTask:
+    """Per block (i.e. view) heterogeneity measure based on entropy
 
     Parameters
     ----------
     params: dict
-      Key value pairs holding all relevant data for the single worker
+      Key value pairs holding all relevant data for a single worker
+      The data must include:
+
+      view: tuple
+        (x, y, width, height) defining the outer border of the view or block
+        to process
+      inner_view: tuple
+        (x, y, width, height) defining the usable part of the block, i.e.
+        without the borders
+      blur_as_int: bool
+        If the blurred category arrays should be converted to `np.uint8` before
+        computing the entropy.
+      img_filter: Callable
+        A filter function that can be applied to the data. See e.g.
+        skimage.filter.gaussian
+      filter_params:
+        Parameter to pass to the filter callable, `img_filter`
+      
+      Optionally the following parameters can be set:
+
+      entropy_as_ubyte: bool, Default=False
+        Should the entropy be normalized and returned as ubyte?
+
     entropy_q: multiprocessing.Queue
       The queue to push the entropy maps through
     blur_q: multiprocessing.Queue
@@ -174,48 +203,89 @@ def block_heterogeneity(params, entropy_q, blur_q):
     with TimedTask() as timer:
         # this is only needed for the entropy part below
         view = params.get('view')
-        entropy_as_ubyte = params.pop('entropy_as_ubyte', False)
+        blur_as_int = params.pop('blur_as_int')
+        blur_params = dict(
+            view=view,
+            inner_view=params.get('inner_view'),
+            img_filter=params.get('img_filter'),
+            filter_params=params.get('filter_params'),
+            output_dtype=np.uint8 if blur_as_int else np.float64,
+        )
         blurred_view = runner_call(
             blur_q,
             view_blurred,
-            params
+            blur_params
         )
-        blur_layers = blurred_view['data']
+        blured_data = blurred_view['data']
         view = blurred_view['view']
-        entropy_layer = runner_call(
+        entropy_as_ubyte = params.pop('entropy_as_ubyte', False)
+        entropy_params = dict(
+            category_arrays=blured_data,
+            view=view,
+            output_dtype=np.uint8 if entropy_as_ubyte else None,
+        )
+        # This would return the entropy data
+        _ = runner_call(
             entropy_q,
             view_entropy,
-            dict(
-                blur_layers=blur_layers,
-                view=view,
-                entropy_as_ubyte=entropy_as_ubyte
-            )
+            entropy_params
         )
     return timer
 
 
+# TODO: mpc_params should become first class parameter if mandatory
 def get_XT_X(response: str,
              *predictors: tuple[str,
                                 int,
                                 tuple[int, ...] | None,
                                 bool | None],
-             selector,
-             include_intercept=True,
-             verbose: bool = False,
+             selector:NDArray,
+             include_intercept:bool=True,
+             verbose:bool=False,
              **mpc_params
              )->np.ndarray:
     """Calculate X.T @ X in parallel directly from view of the predictor data
 
     ..Note::
-      The response is only used to generate a mask for unused/unusable pixels.
+      `response` is only used to get the correct dimension of the data
+
+    Parameters
+    ----------
+    response:
+      Path to a tif file that contains the reponse data. The file is only used
+      to get the dimensions.
+    *predictors:
+      A collection with arbitrary many predictors to use.
+      See inference.prepare_predictors for further details on how to specify
+      predicotrs.
+    selector:
+        a `np.bool_` array to select usable cells in a numpy 2D array
+    include_intercept: _optional_
+      Determine if the predictor matrix should also contain an extra column of
+      1's at the end, which is needed if also the intercepts should be fitted.
+    verbose: _optional_
+      If the method should print runtime info
+    **mpc_arams:
+      Parametrization of the multiporcessing approach.
+      Needed are:
+
+      view_size:
+        The size (width, height) in pixels of a single view (excluding borders)
+      
+      Optional:
+
+      nbr_cpus: int
+        The number of cpu's to use. If not set then then the available number
+        of threads -1 are used.
+
     """
     view_size = mpc_params.get('view_size')
-    nbr_cpus = mpc_params.get('nbr_cpus', mproc.cpu_count() - 1)
+    nbr_cpus = mpc_params.get('nbr_cpus', cpu_count() - 1)
     with rio.open(response, 'r') as src:
-        src_widht = src.width
+        src_width = src.width
         src_height = src.height
     # create a list of views and put it into runner_params
-    size = (src_widht, src_height)
+    size = (src_width, src_height)
     border = (0, 0)
     #  _ is for the inner_views which we do not need
     views, _ = create_views(view_size=view_size,
@@ -230,11 +300,11 @@ def get_XT_X(response: str,
         part_params.append(pparams)
     # create the arguments for the aggregation script
     # start the processes 
-    manager = mproc.Manager()
+    manager = Manager()
     output_q = manager.Queue()
     if verbose:
         print(f"using {nbr_cpus=}")
-    pool = mproc.Pool(nbr_cpus)
+    pool = Pool(nbr_cpus)
     # start the aggregation step
     matrix_aggregator = pool.apply_async(
         combine_matrices,
@@ -274,11 +344,11 @@ def get_optimal_betas(*predictors: tuple[str,
     """
     """
     view_size = mpc_params.get('view_size')
-    nbr_cpus = mpc_params.get('nbr_cpus', mproc.cpu_count() - 1)
+    nbr_cpus = mpc_params.get('nbr_cpus', cpu_count() - 1)
     with rio.open(response, 'r') as src:
-        src_widht = src.width
+        src_width = src.width
         src_height = src.height
-    size = (src_widht, src_height)
+    size = (src_width, src_height)
     border = (0, 0)
     #  _ is for the inner_views which we do not need
     views, _ = create_views(view_size=view_size,
@@ -298,11 +368,11 @@ def get_optimal_betas(*predictors: tuple[str,
         part_params.append(pparams)
     # create the arguments for the aggregation script
     # start the processes 
-    manager = mproc.Manager()
+    manager = Manager()
     output_q = manager.Queue()
     if verbose:
         print(f"using {nbr_cpus=}")
-    pool = mproc.Pool(nbr_cpus)
+    pool = Pool(nbr_cpus)
     # start the aggregation step
     matrix_aggregator = pool.apply_async(
         combine_matrices,

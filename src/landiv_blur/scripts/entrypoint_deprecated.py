@@ -4,8 +4,8 @@ This module defines a command line interface.
 import os
 from skimage.filters import gaussian
 from .plotting import (
-    plot_landtypes,
-    plot_layers,
+    plot_categories,
+    figure_categories,
     plot_entropy_full
 )
 
@@ -45,7 +45,7 @@ def main_cli():
                         default="entropy",
                         help="What type of action to do."
                              "\n Options are:\n"
-                             "- entropy: perform Gaussian blur on each layer"
+                             "- entropy: perform Gaussian blur on each category"
                              " then compute the per cell entropy")
     parser.add_argument("--sigma",
                         type=float,
@@ -61,29 +61,29 @@ def main_cli():
                 args.source,
                 (args.hstart, args.vstart),
                 (args.size, args.size),
-                output=f"{ fname }_layers_entropy_{args.sigma}{ fextension }",
+                output=f"{ fname }_category_entropy_{args.sigma}{ fextension }",
                 img_filter=gaussian,
-                params=dict(sigma=args.sigma,)
+                filter_params=dict(sigma=args.sigma,)
             )
         else:
-            plot_landtypes(
+            plot_categories(
                 args.source,
                 (args.hstart, args.vstart),
                 (args.size, args.size),
                 output=f"{ fname }{ fextension }",
             )
-            plot_layers(
+            figure_categories(
                 args.source,
                 (args.hstart, args.vstart),
                 (args.size, args.size),
-                output=f"{ fname }_layers{ fextension }",
+                output=f"{ fname }_category{ fextension }",
             )
             # now with filter
-            plot_layers(
+            figure_categories(
                 args.source,
                 (args.hstart, args.vstart),
                 (args.size, args.size),
-                output=f"{ fname }_layers_filtered_{args.sigma}{ fextension }",
+                output=f"{ fname }_categories_filtered_{args.sigma}{ fextension }",
                 img_filter=gaussian,
                 params=dict(sigma=args.sigma,)
             )

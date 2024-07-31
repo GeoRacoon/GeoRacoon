@@ -5,11 +5,11 @@ from .io import (
 )
 from .processing import (
     get_entropy,
-    get_layer_data,
+    get_category_data,
 )
 from .plotting import (
-    plot_landtypes,
-    plot_layers,
+    plot_categories,
+    figure_categories,
     plot_entropy,
     plot_entropy_full
 )

@@ -11,7 +11,12 @@ from rasterio.enums import ColorInterp
 from rasterio.windows import Window
 from rasterio.enums import Resampling
 from rasterio.mask import mask
-from rasterio.warp import calculate_default_transform, reproject, Resampling, transform_bounds
+from rasterio.warp import (
+    calculate_default_transform,
+    reproject,
+    Resampling,
+    transform_bounds
+)
 
 from shapely.geometry import box as shbox
 from osgeo import gdal, ogr
@@ -246,11 +251,12 @@ def get_bands(source:str, ns=NS, **tags)->list[tuple[str,int]]:
             matches.append((source, bidx))
     return matches
 
-def load_map(source, indexes=None):
+
+def load_map(source, indexes=None)->dict:
     """Load a map from a tif
 
-    Return
-    ------
+    Returns
+    -------
     dict:
        Returns the callback of
        `load_block(source=source, start=None, size=None, indexes=indexes)`
@@ -259,7 +265,7 @@ def load_map(source, indexes=None):
 
 
 def load_block(source, start=None, size=None, indexes=None, scaling=None,
-               **params):
+               **params)->dict:
     """Get a block from a *.tif file along with the transform
 
     Parameters
@@ -288,8 +294,8 @@ def load_block(source, start=None, size=None, indexes=None, scaling=None,
         also be given and identify a method from `rasterio.enums.Resampling`
         to apply for the scaling
 
-    Return
-    ------
+    Returns
+    -------
     dict:
        data: holding a numpy array with the actual data
        transform: an ???.Affine object that encodes the transformation used
@@ -364,7 +370,7 @@ def export_to_tif(destination, data, orig_profile, start=(0, 0),  **pparams):
 
     .. note::
       This function will overwrite the dtype of the destination tif with the
-      value provided in pparams or the data type of `data`.
+      value provided in `pparams` or the data type of `data`.
 
     Parameters
     ----------
@@ -395,7 +401,7 @@ def export_to_tif(destination, data, orig_profile, start=(0, 0),  **pparams):
         dest.write(data, window=Window(*start, *size), indexes=1)
 
 
-def project_to(source, reference, output=None, nodata=None):
+def project_to(source, reference, output=None, nodata=None)->str | None:
     """Re-projects the source map into the coordinate system of a reference map
 
     Parameters
@@ -407,14 +413,14 @@ def project_to(source, reference, output=None, nodata=None):
     output: str (optional)
       The path to write the re-projected map to.
     nodata: float, int (optional)
-      The nodata value to set for the output (e.g. np.nan or integer)
+      The `nodata` value to set for the output (e.g. np.nan or integer)
 
     ..note::
        If not provided, the output file will take the name of the input file
        and add the CRS of the new projection at the end of the name.
 
-    Return
-    ------
+    Returns
+    -------
     str:
       The name of the file that hold the re-projected map
     """
@@ -426,11 +432,13 @@ def project_to(source, reference, output=None, nodata=None):
             print(f"There is nothing to project! {src_crs=} to {dst_crs=}")
             return None
 
-        transform, width, height = calculate_default_transform(src.crs,
-                                                               dst_crs,
-                                                               src.width,
-                                                               src.height,
-                                                               *src.bounds)
+        (transform, width, height) = calculate_default_transform(
+            src.crs,
+            dst_crs,
+            src.width,
+            src.height,
+            *src.bounds
+        )
         kwargs = src.meta.copy()
         # prepare the resulting profile
         kwargs.update({
@@ -471,8 +479,8 @@ def clip_to_bounds(source, reference, output=None):
     output: str (optional)
       The path to write the bounding box clipped map to
 
-    Return
-    ------
+    Returns
+    -------
     str:
       The name of the file that holds clipped map
     """
@@ -503,22 +511,23 @@ def clip_to_bounds(source, reference, output=None):
 
 
 def coregister_raster(source, reference, output=None):
-    """Aling raster to have identical resoltuion.
-    Resoltuion will be calculated automatically from bounds and height/width of reference layer
+    """Align raster to have identical resolution.
+
+    Resolution will be calculated automatically from bounds and height/width of reference raster.
 
     Parameters
     ----------
     source: str
-      The path to the tif file you want to coregister
+      The path to the tif file you want to co-register
     reference: str
-      The path to the tif file with the pixel registration to use as reference for coregistration
+      The path to the tif file with the pixel registration to use as reference for co-registration
     output: str (optional)
-      The path to write the coregistered map to
+      The path to write the co-registered map to
 
-    Return
-    ------
+    Returns
+    -------
     str:
-      The name of the file that holds coregistered map
+      The name of the file that holds co-registered map
     """
 
     if not check_crs_raster(source, reference):
@@ -534,12 +543,11 @@ def coregister_raster(source, reference, output=None):
         with rasterio.open(reference) as refsrc:
             dst_crs = refsrc.crs
 
-            dst_transform, dst_width, dst_height = calculate_default_transform(
-                                                                                src.crs,
-                                                                                dst_crs,
-                                                                                refsrc.width,
-                                                                                refsrc.height,
-                                                                                *refsrc.bounds)
+            dst_transform, dst_width, dst_height = calculate_default_transform(src.crs,
+                                                                               dst_crs,
+                                                                               refsrc.width,
+                                                                               refsrc.height,
+                                                                               *refsrc.bounds)
 
         dst_kwargs = src.meta.copy()
         dst_kwargs.update({"crs": dst_crs,
@@ -564,7 +572,7 @@ def coregister_raster(source, reference, output=None):
 def buffer_geometries_metric(geom_geoseries, buffer_meter, source_crs):
     """ Applies a buffer to the geometries in GeoSeries given.
 
-    ..Note: This function reprojects the GeoSeries to the respective UTM zone in order to use metric buffer and best
+    ..Note: This function re-projects the GeoSeries to the respective UTM zone in order to use metric buffer and best
     distance calculations. Further empty geometries are dropped before handing back the results.
 
     Parameters
@@ -577,8 +585,8 @@ def buffer_geometries_metric(geom_geoseries, buffer_meter, source_crs):
     source_crs:
       The coordinate system of the inptu GeoSeries (taken from GeoDataframe before by user) to project to after buffer.
 
-    Return
-    ------
+    Returns
+    -------
     GeoSeries object:
       The buffered GeoSeries object
     """
@@ -590,26 +598,26 @@ def buffer_geometries_metric(geom_geoseries, buffer_meter, source_crs):
 
 
 def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_meter=None):
-    """Clip raster file to ecoregion boundary (vector-data) for given ecoregion number
+    """Clip raster file to eco-region boundary (vector-data) for given eco-region number
 
     Parameters
     ----------
     source: str
       The path to the tif file you want to clip
     shapefile: str
-      The path to the shapefile (.shp) with the ecoregion polygons for clipping
+      The path to the shapefile (.shp) with the eco-region polygons for clipping
     ecoregion_number: int
-      The number of the respective ecoregion to clip the source to
+      The number of the respective eco-region to clip the source to
     output: str (optional)
       The path to write the clipped map to
     buffer_meter: float, int
-      The buffer in meters to apply to the ecoregion polygon before clipping.
+      The buffer in meters to apply to the eco-region polygon before clipping.
       Needs to be negative for reducing the polygon e.g. -1000
 
-    Return
-    ------
+    Returns
+    -------
     str:
-      The name of the file that holds ecoregion clipped map
+      The name of the file that holds eco-region clipped map
     """
 
     if output is None:
@@ -663,8 +671,9 @@ def compress_tif(source, output=None):
     ----------
     source: str
       The path to the tif file you want to compress
-    Return
-    ------
+
+    Returns
+    -------
     str:
       The name of the compressed file
     """
