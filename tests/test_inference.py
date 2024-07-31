@@ -8,6 +8,7 @@ from skimage.filters import gaussian
 
 from pydataset import data as pydata
 
+from landiv_blur import exceptions as lbexcept
 from landiv_blur import helper as lbhelp
 from landiv_blur import io as lbio
 from landiv_blur import processing as lbproc
@@ -94,14 +95,14 @@ def test_invalid_predictors_selection(datafiles):
         src.write_mask(mask)
 
     # inexistant categorie
-    with pytest.raises(lbinf.InferenceError):
+    with pytest.raises(lbexcept.InferenceError):
         X, y = lbinf.prepare_predictors(ndvi_map,
                                         (landcover_map, 1, (22, 2, 3, 4, 5), False),
                                         include_intercept=True,
                                         verbose=True,
                                         )
     # using bot exclusive classes and an intercept fit
-    with pytest.raises(lbinf.InferenceError):
+    with pytest.raises(lbexcept.InferenceError):
         X, y = lbinf.prepare_predictors(ndvi_map,
                                         (landcover_map, 1, (1, 2, 3, 4, 5), True),
                                         include_intercept=True,

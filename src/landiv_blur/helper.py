@@ -4,11 +4,47 @@ with rasterio
 from __future__ import annotations
 
 import os
+import json
+
 import numpy as np
 import rasterio as rio
 
 from rasterio.windows import Window
 
+from typing import Any
+
+def serialize(tags:dict[str,Any])->dict[str,str]:
+    """Convert the values of a dict to into JSON
+    """
+    return {tag: json.dumps(obj=value) 
+            for tag, value in tags.items()}
+
+def deserialize(tags:dict[str,str])->dict[str,Any]:
+    """Reads python objects from JSON-encoded values of a dict
+    """
+    return {tag: json.loads(s=value) 
+            for tag, value in tags.items()}
+
+def sanitize(tags:dict[str,Any])->Any:
+    """Serializes then deserializes values of a dict
+    """
+    return deserialize(serialize(tags))
+
+def match_all(targets:dict, tags:dict)->bool:
+    """Check if all tags in targets are present in tags
+    """
+    match = True
+    for t, v in targets.items():
+        if not match:
+            break  # stop if the last was no match
+        if t in tags:  # if tag is present check for value match
+            if tags[t] == v:
+                match = True
+            else:  # if a value is different it is no match
+                match = False
+        else:  # if a tag is absent it is no match
+            match = False
+    return match
 
 def view_to_window(view: None | tuple[int, int, int, int]):
     """Conerts a view into a rasterio Window

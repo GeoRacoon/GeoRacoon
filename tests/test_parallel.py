@@ -127,6 +127,13 @@ def test_blur_recombination(datafiles):
         pool.join()
         print(f"job took {duration} seconds")
 
+        # check if tags were set correctly
+        with rio.open(blur_output_file) as src:
+            tags = lbio.get_tags(src, bidx=index)
+            bidx = lbio.get_bidx(src, category=layer)
+            np.testing.assert_equal(tags['category'], layer)
+            np.testing.assert_equal(bidx, index)
+
         # now we can read out the tif with the blurred layer and compare
         blurred_layer_map = lbio.load_map(blur_output_file, indexes=index)
         blurred_layer_data = blurred_layer_map['data']
@@ -240,6 +247,13 @@ def test_entropy_recombination(datafiles):
     pool.close()
     pool.join()
     print(f"job took {duration} seconds")
+
+    # check if tags were set correctly
+    with rio.open(entropy_output_file) as src:
+        tags = lbio.get_tags(src, bidx=1)
+        bidx = lbio.get_bidx(src, category="entropy")
+        np.testing.assert_equal(tags['category'], "entropy")
+        np.testing.assert_equal(bidx, 1)
 
     # now we can read out the tif with the blurred layer anc compare
     entropy_recomb_map = lbio.load_map(entropy_output_file, indexes=1)

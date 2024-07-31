@@ -1,6 +1,9 @@
-import os
+from __future__ import annotations
 
+import os
+import glob
 import rasterio
+
 from math import floor
 
 import rasterio as rio
@@ -14,11 +17,234 @@ from shapely.geometry import box as shbox
 from osgeo import gdal, ogr
 import geopandas as gpd
 
+from .exceptions import (
+    BandSelectionNoMatchError,
+    BandSelectionAmbiguousError
+)
 from .helper import (
     check_crs_raster,
     outfile_suffix,
+    serialize,
+    deserialize,
+    sanitize,
+    match_all,
     get_scale_factor,
 )
+
+# this is our namespace for tags
+NS = 'LANDIV'
+
+def set_tags(src, bidx=None, ns=NS, **tags):
+    """Update tags for a dataset or a single band of a dataset.
+
+    Since metadata in a tif file is stored as a string the value of each tag is
+    serialized and converted to a string with `helper.serialize`.
+
+    ..Example::
+
+      Setting the tags
+
+      - 'category': 1
+      - foo: 'bar'
+
+      on band with index 2 in some opened tif file (`src`) is done with:
+
+      ```python
+      set_tags(src=src, bidx=2, category=1, foo='bar')
+      ```
+
+    ..Note::
+      A tag name must satisfy the python variable naming convention and
+      must be different from `src`, `bidx` and `ns` as these are reserved
+      for the arguments of this function.
+
+    ..Note::
+      Existing tags are either kept or updated
+
+    Parameters
+    ----------
+    src:
+      `tif` file openend with `rasterio.open` in write mode (i.e. "w" or "r+")
+    bidx:
+      Index of the band to set tags for (starting from 1 as is the convention
+      in rasterio). If set to `None` then the tags are set for the entire
+      dataset.
+    ns:
+      The namespace to set the tags in.
+      
+      ..Note::
+        It is dicouraged to change this value from the default as all tagging
+        related methods of this package use the same default namespace.
+    **tags:
+      Arbitrary number of keyword arguments that will be set as tags.
+      The value provided is converted to a stirng with `helper.serialize`
+      before the tag is written to the file.
+    """
+    if bidx is None:
+        bidx = 0
+    # serialize the tag values:
+    serialized_tags = serialize(tags)
+    src.update_tags(ns=ns, bidx=bidx, **serialized_tags)
+
+def get_tags(src, bidx=None, ns=NS):
+    """Get all the tags and deserialize the values
+
+    Parameters
+    ----------
+    src:
+      `tif` file openend with `rasterio.open`
+    bidx:
+      Index of the band to get tags from (starting from 1 as is the convention
+      in rasterio). If set to `None` then the tags for the entire dataset are
+      returned.
+    ns:
+      The namespace to get the tags from.
+      
+      ..Note::
+        It is dicouraged to change this value from the default as all tagging
+        related methods of this package use the same default namespace.
+    """
+    if bidx is None:
+        bidx = 0
+    return deserialize(src.tags(bidx=bidx, ns=ns))
+
+def _find_bidxs(src, ns=NS, **tags):
+    """Find all bands in src for which all tags match
+
+    Parameters
+    ----------
+    src:
+      `tif` file openend with `rasterio.open`
+    ns:
+      The namespace to set the tags in.
+
+      ..Note::
+        It is dicouraged to change this value from the default as all tagging
+        related methods of this package use the same default namespace.
+    **tags:
+      Arbitrary number of keyword arguments that will be compared to the tags
+      of the bands in the dataset.
+    """
+    matching_bidxs = []
+    for bidx in src.indexes:
+        b_tags = get_tags(src=src, bidx=bidx, ns=ns)
+        if match_all(targets=tags, tags=b_tags):
+            matching_bidxs.append(bidx)
+    return matching_bidxs
+
+
+def get_bidx(src, ns=NS, **tags)->None|int:
+    """Get the index of the band with matching tags
+
+    You can specify an arbitrary number of tags by passing keyword arguments
+    to this selector.
+    Make sure that the provided tags identify one and only one specific band.
+
+    ..Example::
+
+      Get the band with the tags
+
+      - 'category': 1
+      - foo: 'bar'
+
+      ```python
+      bidx = get_bidx(src=src, category=1, foo='bar')
+      ```
+
+    ..Note::
+      If multiple bands match the provided tags a
+      `BandSelectionAmbiguousError` is raised.
+      If you want to get all bands that match the criterion use the
+      `get_bands` method instead.
+
+      If no band with matching tags if sound a
+      `BandSelectionNoMatchError` is raised.
+
+    ..Note::
+      The values of the provided tags are first serialized and then
+      deserialized again with `helper.serialize`, resp. `helper.deserialize`,
+      before comparing to the tags from the provided file.
+
+      The reason for this procedure is the fact that the values of tags are
+      converted to and stored as strings in the tif metadata.
+      Serializing the values with `helper.serialize` allows us to know how arbitrary
+      python objects are converted.
+      As a consequence, we serialize/deserialize the values of the provided
+      tags to bring them into the form they will we when loading them from
+      the tif.
+
+    Parameters
+    ----------
+    src:
+      `tif` file openend with `rasterio.open`
+    ns:
+      The namespace to set the tags in.
+
+      ..Note::
+        It is dicouraged to change this value from the default as all tagging
+        related methods of this package use the same default namespace.
+    **tags:
+      Arbitrary number of keyword arguments that will be compared to the tags
+      of the bands in the dataset.
+    """
+    # serialize/deserialize tags
+    _tags = sanitize(tags) 
+    matching_bidxs = _find_bidxs(src=src, ns=ns, **_tags)
+    matches = len(matching_bidxs)
+    if matches > 1:
+        raise BandSelectionAmbiguousError(
+            f"The selection\n\t{_tags}\nleads to multiple matches:\n\t{matching_bidxs}"
+        )
+    elif matches == 0:
+        raise BandSelectionNoMatchError(
+            f"No band matches the tags: {_tags}"
+        )
+    return matching_bidxs[0]
+
+def get_bands(source:str, ns=NS, **tags)->list[tuple[str,int]]:
+    """Find all bands that match specific tags
+
+    This method check the metadata (including those of bands)
+    in one or several tif files and returns the file paths, as well as,
+    the band indexes for all bands with matching tags.
+
+    Whenever a band has tags that match, the name of the tif file,
+    as well as, the band index are added to the list of returned
+    matches.
+
+    If the tags are found in the metadata of a dataset the path
+    to the file and a band index of None are added to the list of
+    returned matches (this different form the rasterio convention to
+    that uses bidx=0 for "all bands" - I find that confusing).
+
+    Parameters
+    ----------
+    source:
+      A string that is fed to `glob.glob` leading to (potentially) multiple
+      source files that will be checked
+    ns:
+      The namespace to search the tags in.
+
+      ..Note::
+        It is dicouraged to change this value from the default as all tagging
+        related methods of this package use the same default namespace.
+
+    **tags:
+      Arbitrary number of keyword arguments that will be compared to the tags
+      of each tif file
+    """
+    _tags = sanitize(tags)
+    _sources = glob.glob(source)
+    matches = []
+    for source in _sources:
+        with rasterio.open(source, "r") as src:
+            ds_tags = get_tags(src=src, bidx=None, ns=ns)
+            bidxs = _find_bidxs(src=src, ns=ns, **_tags)
+            if match_all(targets=_tags, tags=ds_tags):
+                bidxs.append(None)  # use bidx None to indicate tags of the file
+        for bidx in bidxs:
+            matches.append((source, bidx))
+    return matches
 
 def load_map(source, indexes=None):
     """Load a map from a tif
