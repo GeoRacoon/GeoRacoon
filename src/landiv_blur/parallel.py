@@ -175,6 +175,8 @@ def block_heterogeneity(params:dict, entropy_q:Queue, blur_q:Queue)->TimedTask:
       Key value pairs holding all relevant data for a single worker
       The data must include:
 
+      source: str
+        Path to the tif file to use
       view: tuple
         (x, y, width, height) defining the outer border of the view or block
         to process
@@ -205,8 +207,10 @@ def block_heterogeneity(params:dict, entropy_q:Queue, blur_q:Queue)->TimedTask:
         view = params.get('view')
         blur_as_int = params.pop('blur_as_int')
         blur_params = dict(
+            source=params.get('source'),
             view=view,
             inner_view=params.get('inner_view'),
+            categories=params.get('categories'),
             img_filter=params.get('img_filter'),
             filter_params=params.get('filter_params'),
             output_dtype=np.uint8 if blur_as_int else np.float64,
