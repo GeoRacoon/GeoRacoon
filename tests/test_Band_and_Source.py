@@ -62,3 +62,21 @@ def test_Band_tagging(datafiles):
     # get another band
     b2 = mysrc.extract_band(2)
     # TODO: make sure we cannot select multiple bands with a tag
+
+    # -----------------------------------
+    # compress source
+    test_file_compressed = datafiles / 'test_compressed.tif'
+    mysrc.compress(output=test_file_compressed)
+    # updated source path to new file
+    assert test_file_compressed == mysrc.path
+    # make sure file is compressed
+    with rio.open(test_file_compressed) as src:
+        prof = src.profile
+        assert prof['compress'] == 'lzw'
+    # make sure all tags were transferrred
+    com_b1 = mysrc.extract_band(1)
+    assert 'extra_tag' in com_b1.tags
+    assert com_b1.tags['extra_tag'] == 4.4
+    assert 'new_tag' in com_b1.tags
+    assert com_b1.tags['new_tag'] == 'some_value'
+    assert com_b1.get_bidx(match='category') == com_b1.bidx

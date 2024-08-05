@@ -207,17 +207,8 @@ class Source:
 
     def compress(self, output=None):
         uncompressed = self.path
-        # TODO: keep the source's own tag
-        # keep the band tags
-        bands = []
-        for bidx in self.band_indexes:
-            bands.append(self.extract_band(bidx=bidx))
         # create a compressed file
         self.path = Path(compress_tif(str(self.path), output=output))
-        # TODO: export the source's own tag
-        # export the band tags
-        for band in bands:
-            band.export_tags()
         # remove uncompressed file:
         if uncompressed != self.path:
             os.remove(uncompressed)
