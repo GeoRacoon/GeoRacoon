@@ -650,6 +650,17 @@ def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_m
     # Clip to bbox
     geometry_clip = gpd.clip(geometry, bbox_geom, keep_geom_type=True)
 
+    # Make sure there are no Multilinestrings
+    geom_types = [t for t in geometry_clip.geom_type.unique()]
+    if len(geom_types) != 1:
+        if ['MultiPolygon', 'Polygon'] == geom_types:
+            geometry_clip = geometry_clip.explode(ignore_index=True)
+            print(geometry_clip.geom_type.unique())
+            if 'MultiPolygon' == geometry_clip.geom_type.unique():
+                raise ValueError("Issue in transforming MultiPolygons to Polygons using geopandas.explode")
+        else:
+            raise ValueError(f'Unvalid geometry types in clipping json {geom_types}')
+
     # Write to temporary geojson
     geojson_name = "tmp_processing_ecoregion.geojson"
     geometry_clip.to_file(geojson_name, driver='GeoJSON')
