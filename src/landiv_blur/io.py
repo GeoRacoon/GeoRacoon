@@ -680,11 +680,20 @@ def compress_tif(source, output=None):
     str:
       The name of the compressed file
     """
-
     if output is None:
         output = outfile_suffix(source, "compress")
 
-    translateoptions = gdal.TranslateOptions(creationOptions=['COMPRESS=LZW'])
-    gdal.Translate(output, source, options=translateoptions)
+    with rasterio.Env():
+        with rasterio.open(source) as src:
+            profile = src.profile
+            profile.update(compress="lzw")
 
+            with rasterio.open(output, 'w', **profile) as dst:
+                for i in range(1, src.count + 1):
+                    array = src.read(i)
+                    dst.write(array, i)
+                    tags = get_tags(src, bidx=i)
+                    set_tags(dst, bidx=i, **tags)
+                    band_names = src.descriptions[(i - 1)]
+                    dst.set_band_description(i, band_names)
     return output

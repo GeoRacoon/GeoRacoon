@@ -215,3 +215,35 @@ def test_tag_matching(datafiles):
     assert (str(outfile1), 3) in some_value
     assert (str(outfile2), 1) in some_value
     assert (str(outfile2), 3) in some_value
+
+
+@ALL_MAPS
+def test_tif_compression(datafiles):
+    """Test whether compression produces correct ouput and transfers tags
+    """
+    test_data = list(datafiles.iterdir())
+
+    for file in test_data:
+        file_tagged = lbio.outfile_suffix(file, "tagged")
+        # create file copy with tags
+        target = {}
+        with rio.open(file) as src:
+            profile = src.profile
+            with rio.open(file_tagged, 'w', **profile) as dst:
+                for bidx in range(1, src.count + 1):
+                    dst.write(src.read(bidx), bidx)
+                    lbio.set_tags(dst, bidx, category=np.random.randint(low=0, high=255))
+                    target[bidx] = lbio.get_tags(src=dst, bidx=bidx)
+
+        # compress file and check if tags match
+        file_compress = lbio.compress_tif(file_tagged)
+        test = {}
+        with rio.open(file_compress) as src:
+            for bidx in range(1, src.count + 1):
+                tags = lbio.get_tags(src=src, bidx=bidx)
+                test[bidx] = tags
+
+        assert len(target) == len(test)
+        assert target == test
+
+
