@@ -4,6 +4,7 @@ import os
 import glob
 import rasterio
 
+
 from math import floor
 
 import rasterio as rio
@@ -24,7 +25,9 @@ import geopandas as gpd
 
 from .exceptions import (
     BandSelectionNoMatchError,
-    BandSelectionAmbiguousError
+    BandSelectionAmbiguousError,
+    SourceNotSavedError,
+    UnknownExtensionError,
 )
 from .helper import (
     check_crs_raster,
@@ -91,7 +94,7 @@ def set_tags(src, bidx=None, ns=NS, **tags):
     serialized_tags = serialize(tags)
     src.update_tags(ns=ns, bidx=bidx, **serialized_tags)
 
-def get_tags(src, bidx=None, ns=NS):
+def get_tags(src, bidx=None, ns=NS)->dict:
     """Get all the tags and deserialize the values
 
     Parameters
@@ -113,7 +116,7 @@ def get_tags(src, bidx=None, ns=NS):
         bidx = 0
     return deserialize(src.tags(bidx=bidx, ns=ns))
 
-def _find_bidxs(src, ns=NS, **tags):
+def find_bidxs(src, ns=NS, **tags):
     """Find all bands in src for which all tags match
 
     Parameters
@@ -130,13 +133,13 @@ def _find_bidxs(src, ns=NS, **tags):
       Arbitrary number of keyword arguments that will be compared to the tags
       of the bands in the dataset.
     """
+    _tags = sanitize(tags) 
     matching_bidxs = []
     for bidx in src.indexes:
         b_tags = get_tags(src=src, bidx=bidx, ns=ns)
-        if match_all(targets=tags, tags=b_tags):
+        if match_all(targets=_tags, tags=b_tags):
             matching_bidxs.append(bidx)
     return matching_bidxs
-
 
 def get_bidx(src, ns=NS, **tags)->None|int:
     """Get the index of the band with matching tags
@@ -194,7 +197,7 @@ def get_bidx(src, ns=NS, **tags)->None|int:
     """
     # serialize/deserialize tags
     _tags = sanitize(tags) 
-    matching_bidxs = _find_bidxs(src=src, ns=ns, **_tags)
+    matching_bidxs = find_bidxs(src=src, ns=ns, **_tags)
     matches = len(matching_bidxs)
     if matches > 1:
         raise BandSelectionAmbiguousError(
@@ -244,7 +247,7 @@ def get_bands(source:str, ns=NS, **tags)->list[tuple[str,int]]:
     for source in _sources:
         with rasterio.open(source, "r") as src:
             ds_tags = get_tags(src=src, bidx=None, ns=ns)
-            bidxs = _find_bidxs(src=src, ns=ns, **_tags)
+            bidxs = find_bidxs(src=src, ns=ns, **_tags)
             if match_all(targets=_tags, tags=ds_tags):
                 bidxs.append(None)  # use bidx None to indicate tags of the file
         for bidx in bidxs:
@@ -685,4 +688,3 @@ def compress_tif(source, output=None):
     gdal.Translate(output, source, options=translateoptions)
 
     return output
-

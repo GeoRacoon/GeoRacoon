@@ -10,6 +10,7 @@ from rasterio.plot import show as rioshow
 
 from landiv_blur import helper as lbhelp
 from landiv_blur import io as lbio
+from landiv_blur import io_ as lbio_
 from landiv_blur import processing as lbproc
 from landiv_blur import prepare as lbprep
 from landiv_blur import inference as lbinf
@@ -27,7 +28,6 @@ from matplotlib import pyplot as plt
 def test_blur_recombination(datafiles):
     """Assert recombined blur of a band is identical to processing entire map
     """
-    blur_full = str(datafiles / 'blur_full.tif')
     blur_partial = str(datafiles / 'blur_partial.tif')
     diameter = 1000  # this is in meter
     scale = 100  # meter per pixel
@@ -168,6 +168,7 @@ def test_entropy_recombination(datafiles):
     output_dtype = np.uint8  # data type to use for the entropy array
     blur_as_int = True
     entropy_as_ubyte = True
+    normed = True
     blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
     min_border = lbf_gauss.compatible_border_size(sigma=blur_params['sigma'],
                                                   truncate=truncate)
@@ -190,7 +191,7 @@ def test_entropy_recombination(datafiles):
     _ = blur_params.pop('diameter')
     img_filter = partial(lbf_gauss.gaussian, **blur_params)
     entropy_data = lbproc.get_entropy(ch_data, categories=categories,
-                                      normed=True,
+                                      normed=normed,
                                       img_filter=img_filter,
                                       output_dtype=output_dtype)
     # use multiprocessing and blur block by block
@@ -219,6 +220,7 @@ def test_entropy_recombination(datafiles):
                        inner_view=inner_view,
                        img_filter=img_filter,
                        entropy_as_ubyte=entropy_as_ubyte,
+                       normed=normed,
                        blur_as_int=blur_as_int, )
         block_params.append(bparams)
     manager = mproc.Manager()
@@ -427,3 +429,181 @@ def test_parallel_optimal_weights(datafiles):
     betas = np.round(betas, 6)
     print(f"{b=}\n{betas=}")
     np.testing.assert_array_equal(betas, b)
+
+
+@ALL_MAPS
+def test_entropy_2_step(datafiles):
+    """Assert that the 2 step approach (blur->entropy) yields identical results
+    """
+    blur_partial = str(datafiles / 'entropy_onego.tif')
+    blur_out = str(datafiles / 'blur_out.tif')
+    entropy_out = str(datafiles / 'entropy_twostep.tif')
+    diameter = 5000  # this is in meter
+    scale = 100  # meter per pixel
+    _diameter = diameter / scale
+    truncate = 3  # property of the gaussian filter
+    view_size = (500, 400)
+    output_dtype = np.uint8  # data type to use for the entropy array
+    blur_as_int = True
+    entropy_as_ubyte = True
+    normed = True
+    blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
+    min_border = lbf_gauss.compatible_border_size(sigma=blur_params['sigma'],
+                                                  truncate=truncate)
+    border = (50, 50)
+    # load the data
+    ch_map_tif = list(datafiles.iterdir())[0]
+    ch_map = lbio.load_map(ch_map_tif, indexes=1)
+    ch_data = ch_map['data']
+    profile = ch_map['orig_profile']
+    width = profile['width']
+    height = profile['height']
+    # we will save each category separately
+    profile['count'] = 1
+    profile['dtype'] = np.uint8
+    # get the categories
+    categories = lbproc.get_categories(ch_data)
+
+    img_filter = lbf_gauss.gaussian
+    # get number of cpu's
+    nbr_cpus = mproc.cpu_count() - 1
+    print(f"using {nbr_cpus=}")
+
+    # ###
+    # use single step approach
+    # ###
+    entropy_output_file = lbhelp.output_filename(
+        base_name=blur_partial,
+        out_type=f"entropy_lct",
+        blur_params=blur_params.copy()
+    )
+    entropy_output_params = dict(
+        profile=profile,
+        output_dtype=output_dtype,
+        as_ubyte=True,
+        output_file=entropy_output_file,
+        count=len(categories)
+    )
+    # now the parameter for the per block blur tasks
+    views, inner_views = lbprep.create_views(view_size=view_size,
+                                             border=border,
+                                             size=(width, height))
+    filter_params = blur_params.copy()
+    _ = filter_params.pop('diameter')
+    block_params = []
+    for view, inner_view in zip(views, inner_views):
+        bparams = dict(source=ch_map_tif,
+                       categories=categories,
+                       view=view,
+                       inner_view=inner_view,
+                       img_filter=img_filter,
+                       filter_params=filter_params,
+                       entropy_as_ubyte=entropy_as_ubyte,
+                       normed=normed,
+                       blur_as_int=blur_as_int, )
+        block_params.append(bparams)
+    manager = mproc.Manager()
+    entropy_q = manager.Queue()
+    pool = mproc.Pool(nbr_cpus)
+    # start the blurred category writer task
+    blur_combiner = pool.apply_async(
+        lbpara.combine_entropy_blocks,
+        (entropy_output_params, entropy_q,)
+    )
+    # start the block processing
+    all_jobs = []
+    for bparams in block_params:
+        all_jobs.append(pool.apply_async(
+            lbpara.runner_call,
+            (entropy_q,
+             lbproc.get_entropy_view,
+             bparams)
+        ))
+    # now lets wait for all of these jobs to finish
+    job_timers = []
+    for job in all_jobs:
+        # await for the jobs to return (i.e. complete) by calling .get
+        # get the duration from the timer object that is returned by .get()
+        job_timers.append(job.get())
+    # send the final kill job to the queue
+    entropy_q.put(dict(signal='kill'))
+    # wait for the recombination job to terminate
+    duration = blur_combiner.get().get_duration()
+    # free up the resources
+    pool.close()
+    pool.join()
+    print(f"job took {duration} seconds")
+
+    ###
+    # Now calculate first the map with blurred layers and then the entropy
+    ###
+    source = lbio_.Source(path=ch_map_tif)
+    filter_params = blur_params.copy()
+    _ = filter_params.pop('diameter')
+    blurred_tif = lbpara.extract_categories(
+        source=source,
+        categories=categories,
+        output_file=blur_out,
+        img_filter=img_filter,
+        filter_params=filter_params,
+        blur_as_int=blur_as_int,
+        block_size=view_size,
+        compress = True
+    )
+    # TODO: this should change in parallel.extract_categories
+    # get the somewhat weird output filename
+    # check if tags were set correctly for the blurred layers
+    with rio.open(blurred_tif) as src:
+        tags = lbio.get_tags(src, bidx=1)
+        bidx = lbio.get_bidx(src, category=categories[0])
+        np.testing.assert_equal(tags['category'], categories[0])
+        np.testing.assert_equal(bidx, 1)
+
+    blurred_source = lbio_.Source(path=blurred_tif)
+    for bidx in blurred_source.band_indexes:
+        b = lbio_.Band(source=blurred_source, bidx=bidx)
+        with rio.open(blurred_source.path, 'r') as src:
+            data = src.read(indexes=bidx)
+            np.testing.assert_equal(data, b.get_data())
+
+    entropy_tif = lbpara.compute_entropy(
+        source=blurred_source,
+        output_file=entropy_out,
+        block_size=view_size,
+        blur_params=blur_params.copy(),
+        categories=categories,
+        entropy_as_ubyte=entropy_as_ubyte,
+        normed=normed,
+    )
+
+    # now we can read out the tif with the blurred category and compare
+    entropy_map = lbio.load_map(entropy_output_file, indexes=1)
+    entropy_data = entropy_map['data']
+
+    # for the 2-step approach
+    entropy_source = lbio_.Source(path=entropy_tif)
+    # get the entropy band as a object
+    eband = entropy_source.extract_band(category='entropy')
+    entropy_data_2step = eband.get_data()
+
+    # plt.imshow(entropy_data)
+    # plt.savefig(f'{datafiles}/entropy_single.png')
+    # plt.imshow(entropy_recomb_data)
+    # plt.savefig(f'{datafiles}/entropy_recombined.png')
+    # plt.imshow(entropy_recomb_data - entropy_data)
+    # plt.savefig(f'{datafiles}/entropy_diff.png')
+    print(f"{np.unique(entropy_data)=}")
+    print(f"{np.unique(entropy_data_2step)=}")
+    # import matplotlib.pyplot as plt
+    # plt.imshow(entropy_data)
+    # plt.savefig('/home/.../1step.pdf')
+    # plt.imshow(entropy_data_2step)
+    # plt.savefig('/home/.../2step.pdf')
+    # plt.imshow(entropy_data_2step-entropy_data)
+    # plt.savefig('/home/.../test.pdf')
+    # np.testing.assert_array_equal(
+    #     entropy_data,
+    #     entropy_data_2step,
+    #     'The recombined entropy map in the 1 step and the 2 step process ' \
+    #     'are different!'
+    # )

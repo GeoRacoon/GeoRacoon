@@ -82,6 +82,7 @@ def get_max_entropy(nbr:int):
     return entropy(np.ones(nbr))
 
 
+# TODO: this needs an inplementation in `.parallel`
 def get_categories(data:ArrayLike, )->list[int]:
     """Return the list of categories present in the data.
 
@@ -387,7 +388,7 @@ def view_blurred(source:str,
     return dict(data=blurred_categories, view=inner_view)
 
 
-# TODO: get rid of view_entropy and use compute_entropy directly
+# TODO: pass a file selector in order to read out the data
 def  view_entropy(category_arrays:dict[int, ArrayLike],
                   view:tuple[int,int,int,int],
                   normed:bool = True,
@@ -426,7 +427,8 @@ def get_entropy_view(source,
                      img_filter,
                      filter_params:dict=dict(),
                      entropy_as_ubyte: bool = False,
-                     blur_as_int: bool = False):
+                     blur_as_int: bool = False,
+                     normed:bool=True):
     """Returns the entropy for some categories over a view from a tif file
 
     ..Warning::
@@ -454,6 +456,7 @@ def get_entropy_view(source,
 
     entropy_view = view_entropy(category_arrays=blurred_data['data'],
                                 view=blurred_data['view'],
-                                output_dtype=entropy_output_dtype,)
+                                output_dtype=entropy_output_dtype,
+                                normed=normed)
     entropy_view['view'] = blurred_data['view']
     return entropy_view

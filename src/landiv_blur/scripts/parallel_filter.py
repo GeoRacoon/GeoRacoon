@@ -95,6 +95,7 @@ def get_lct_heterogeneity(source: str,
     print("The chosen source tif has a dimension of:"
           f"\n\t{width=}\n\t{height=}")
 
+    blur_params=lbprep.get_blur_params(**blur_params)
     # get the diffusion kernel size in pixels
     psigma = blur_params['sigma'] / scale  # get sigma in pixels
     pdiameter = blur_params['diameter'] / scale  # get sigma in pixels
