@@ -641,14 +641,14 @@ def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_m
         exp_bbox_geom = buffer_geometries_metric(gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[bbox_geom]),
                                                  buffer_meter=abs(buffer_meter),
                                                  source_crs=gdf.crs)
-        exp_geometry = gpd.clip(geometry, exp_bbox_geom)
+        exp_geometry = gpd.clip(geometry, exp_bbox_geom, keep_geom_type=True)
 
         geometry = buffer_geometries_metric(exp_geometry,
                                             buffer_meter=buffer_meter,
                                             source_crs=gdf.crs)
 
     # Clip to bbox
-    geometry_clip = gpd.clip(geometry, bbox_geom)
+    geometry_clip = gpd.clip(geometry, bbox_geom, keep_geom_type=True)
 
     # Write to temporary geojson
     geojson_name = "tmp_processing_ecoregion.geojson"
