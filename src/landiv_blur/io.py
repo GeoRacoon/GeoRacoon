@@ -653,9 +653,8 @@ def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_m
     # Make sure there are no Multilinestrings
     geom_types = [t for t in geometry_clip.geom_type.unique()]
     if len(geom_types) != 1:
-        if ['MultiPolygon', 'Polygon'] == geom_types:
+        if {'MultiPolygon', 'Polygon'} == set(geom_types):
             geometry_clip = geometry_clip.explode(ignore_index=True)
-            print(geometry_clip.geom_type.unique())
             if 'MultiPolygon' == geometry_clip.geom_type.unique():
                 raise ValueError("Issue in transforming MultiPolygons to Polygons using geopandas.explode")
         else:
