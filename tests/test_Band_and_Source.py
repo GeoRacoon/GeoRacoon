@@ -1,6 +1,7 @@
 import pytest
 
 import numpy as np
+import rasterio
 import rasterio as rio
 
 from landiv_blur.io_ import Source, Band
@@ -14,8 +15,13 @@ from .config import ALL_MAPS
 def test_Band_tagging(datafiles):
     test_file = datafiles / 'test.tif'
     b1_tags_0 = dict(category=1)
-    with rio.open(test_file, 'w+', width=10, height=10, count=3,
-                  dtype=np.float64) as src:
+    profile = {
+        "count": 3,
+        "width": 10, "height": 10,
+        "dtype": np.float64,
+        "transform": rasterio.Affine(1, 0, 0, 0, 1, 0)
+    }
+    with rio.open(test_file, 'w+', **profile) as src:
         # setting a tag via rasterio directly
         src.update_tags(1, ns='LANDIV', **b1_tags_0)
     # create source objcet
