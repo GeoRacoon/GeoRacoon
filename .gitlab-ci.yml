@@ -29,7 +29,8 @@ stages:          # List of stages for jobs, and their order of execution
 setting_up_env:
   stage: .pre
   tags:
-    - docker
+    # - docker
+    - linux
   # for gdal
   before_script:
     - apt update && apt install -y build-essential libgdal-dev
@@ -43,7 +44,8 @@ setting_up_env:
 build-package:
   stage: build
   tags:
-    - docker
+    # - docker
+    - linux
   # for gdal
   before_script:
     - apt update && apt install -y build-essential libgdal-dev
@@ -58,7 +60,8 @@ build-package:
 first-test:
   stage: test    # Only starts when the job in the build stage succeedes 
   tags:
-    - docker
+    # - docker
+    - linux
   needs: ["build-package",]
   # for gdal
   before_script:
@@ -74,7 +77,8 @@ first-test:
 pages:
   stage: deploy
   tags:
-    - docker 
+    # - docker 
+    - linux
   needs: 
     - "first-test"
     - "build-package"
