@@ -47,6 +47,22 @@ def match_all(targets:dict, tags:dict)->bool:
             match = False
     return match
 
+def match_any(targets:dict, tags:dict)->bool:
+    """Check if any tag in targets is present in tags
+    """
+    match = False
+    for t, v in targets.items():
+        if match:
+            break  # stop if there was a match
+        if t in tags:  # if tag is present check for value match
+            if tags[t] == v:
+                match = True
+            else:  # if a value is different it is no match
+                match = False
+        else:  # if a tag is absent it is no match
+            match = False
+    return match
+
 def view_to_window(view: None | tuple[int, int, int, int]):
     """Conerts a view into a rasterio Window
 

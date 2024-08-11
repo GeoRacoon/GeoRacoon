@@ -47,7 +47,7 @@ dominance_scores = range(max_dom + 1)
 #
 # - load the tif
 source_file = os.path.join(data_path, orig_fname.format(utm_zone=utm_zone))
-orig_map = lbio.load_block(source=source_file)
+orig_map = lbio.load_block(source=source_file, indexes=None)
 lc_types = np.unique(orig_map['data'])
 print(f"Land-cover types found: {lc_types=}")
 # - select for specific category

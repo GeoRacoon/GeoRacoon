@@ -39,31 +39,52 @@ def _get_class_colormap(colors=COLORS):
     return ListedColormap(colors)
 
 
-def show_block(source:str, output, start=None, size=None):
-    """Show only a specific block in a tif with all categories
+def plot_block(source:str,
+               ax,
+               view:None|tuple[int,int,int,int]=None,
+               scaling_params=dict(),
+               fig_params=dict(),
+               **tags):
+    """Plot categorical data and save it to a file.
 
     Parameters
     ----------
     source: str
       The path to the tif file to load
-    start: tuple
-      horizontal and vertical starting coordinate
-    size: tuple
-      width and height of the block to extract
-    """
-    block = load_block(source, start, size)
-    data = block['data']
-    # cmap = _get_class_colormap()
-    # plot_categories(data, transform, output, cmap)
-    plot_categories(data, source, size, output)
+    view:
+      An optional tuple (x, y, width, height) defining the area to load.
 
+      If `None` is provided (the default) then the entire file is loaded.
 
-def plot_block(source:str, start, size, ax, scaling=None,
-               scaling_params=dict(), fig_params=dict()):
-    """Plot categorical data and save it to a file.
+    scaling_params:
+      Optional dictionary to set a rescaling of the data.
+      If provided, the following keywords are accepted:
+
+      scaling: tuple[float,float]
+        Factors to rescale the number of pixels. Values >1 will upscale.
+      method: rasterio.enums.Resampling
+        The resampling method. If not provided then the bilinear resampling
+        is used.
+
+    fig_params:
+      Parametrization of the figure:
+
+      axs:
+        Axes to draw on
+      gs:
+        GridSpec
+      output: str
+        Where to store the image
+
+    **tags:
+      Arbitrary number of keyword arguments to describe the band to select.    
+
+      See `get_bidx` for further details
+
     """
-    block = load_block(source=source, start=start, size=size,
-                       scaling=scaling, **scaling_params)
+    block = load_block(source=source, view=view,
+                       scaling_params=scaling_params,
+                       **tags)
     data, transform = block['data'], block['transform']
     cmap = fig_params.get('cmap', _get_class_colormap())
 
@@ -75,22 +96,28 @@ def plot_block(source:str, start, size, ax, scaling=None,
     return to_display.get_images()[0]
 
 
-def plot_categories(source, output, start=None, size=None):
+def plot_categories(source:str,
+                    output:str,
+                    view:None|tuple[int,int,int,int]=None,
+                    **tags):
     """Plot categorical data and save it to a file.
 
     Parameters
     ----------
-    source: str
+    source:
       The path to the tif file to load
-    start: tuple
-      horizontal and vertical starting coordinate
-    size: tuple
-      width and height of the block to extract
-    output: str
+    output:
       Where to store the image
+    view:
+      An optional tuple (x, y, width, height) defining the view to show
+
+    **tags:
+      Arbitrary number of keyword arguments to describe the band to select.    
+
+      See `get_bidx` for further details
     """
     fig, ax = plt.subplots(figsize=(16, 16))
-    im = plot_block(source, start, size, ax)
+    im = plot_block(source, ax=ax, view=view, **tags)
     fig.colorbar(im, ax=ax)
     fig.savefig(output, dpi=DPI)
 
@@ -111,30 +138,48 @@ def show_category(data, category, transform, ax):
     )
 
 
-def figure_categories(source, start, size, img_filter=None, params=None,
-                      scaling=None, categories:list|None=None,
-                      fig_params=dict(), scaling_params=dict()):
+def figure_categories(source:str,
+                      view:None|tuple[int,int,int,int]=None,
+                      img_filter=None, params=None,
+                      categories:list|None=None,
+                      fig_params=dict(), scaling_params=dict(),
+                      **tags):
     """Plot each category on a separate axes
 
     Parameters
     ----------
     source: str
       The path to the tif file to load
-    start: tuple
-      horizontal and vertical starting coordinate
-    size: tuple
-      width and height of the block to extract
+    view:
+      An optional tuple (x, y, width, height) defining the view to show
+    scaling_params:
+      Optional dictionary to set a rescaling of the data.
+      If provided, the following keywords are accepted:
 
-    keywords:
+      scaling: tuple[float,float]
+        Factors to rescale the number of pixels. Values >1 will upscale.
+      method: rasterio.enums.Resampling
+        The resampling method. If not provided then the bilinear resampling
+        is used.
+
+    fig_params:
+      Parametrization of the figure:
+
       axs:
         Axes to draw on
       gs:
         GridSpec
       output: str
         Where to store the image
+
+    **tags:
+      Arbitrary number of keyword arguments to describe the band to select
+      from source
+
+      See `get_bidx` for further details
     """
-    block = load_block(source, start, size, indexes=None, scaling=scaling,
-                       **scaling_params)
+    block = load_block(source, view=view,
+                       scaling_params=scaling_params, **tags)
     data, transform = block['data'], block['transform']
 
     axs = fig_params.get('axs', None)
@@ -195,22 +240,46 @@ def figure_categories(source, start, size, img_filter=None, params=None,
     return axs
 
 
-def plot_entropy(source:str, start:tuple[int,int], size:tuple[int,int],
-                 output:str, scaling=None,
-                 fig_params=dict(), scale_params=dict()):
+def plot_entropy(source:str,
+                 view:None|tuple[int,int,int,int]=None,
+                 fig_params=dict(),
+                 scaling_params=dict(),
+                 **tags):
     """Plot the entropy in each pixel from a tif file
 
     Parameters
     ----------
     source: str
       The path to the tif file to load
-    start: tuple
-      horizontal and vertical starting coordinate
-    size: tuple
-      width and height of the block to extract
+    view:
+      An optional tuple (x, y, width, height) defining the view to show
+    scaling_params:
+      Optional dictionary to set a rescaling of the data.
+      If provided, the following keywords are accepted:
+
+      scaling: tuple[float,float]
+        Factors to rescale the number of pixels. Values >1 will upscale.
+      method: rasterio.enums.Resampling
+        The resampling method. If not provided then the bilinear resampling
+        is used.
+    fig_params:
+      Parametrization of the figure:
+
+      axs:
+        Axes to draw on
+      gs:
+        GridSpec
+      output: str
+        Where to store the image
+
+    **tags:
+      Arbitrary number of keyword arguments to describe the band to select.    
+
+      See `get_bidx` for further details
     """
-    block = load_block(source=source, start=start, size=size,
-                       scaling=scaling, **scale_params)
+    block = load_block(source=source, view=view,
+                       scaling_params=scaling_params,
+                       **tags)
     data, transform = block['data'], block['transform']
     entropy_array = data
     ax = fig_params.get('ax', None)
@@ -230,13 +299,17 @@ def plot_entropy(source:str, start:tuple[int,int], size:tuple[int,int],
     im = to_display.get_images()[0]
     if do_print:
         fig.colorbar(im, ax=ax)
-        fig.savefig(output, dpi=DPI)
+        fig.savefig(fig_params['output'], dpi=fig_params.get('dpi', DPI))
     return ax, (im, )
 
 
-def plot_entropy_full(source, start, size, output, img_filter=None,
+def plot_entropy_full(source:str,
+                      output:str,
+                      view:None|tuple[int,int,int,int]=None,
+                      img_filter=None,
                       filter_params:dict|None=None,
-                      entropy_params:dict|None=None
+                      entropy_params:dict|None=None,
+                      **tags
                       ):
     """Plot the entropy in each pixel after category diffusion
 
@@ -244,17 +317,24 @@ def plot_entropy_full(source, start, size, output, img_filter=None,
     ----------
     source: str
       The path to the tif file to load
-    start: tuple
-      horizontal and vertical starting coordinate
-    size: tuple
-      width and height of the block to extract
     output: str
       Where to store the image
+    view:
+      An optional tuple (x, y, width, height) defining the view to show
+
+    **tags:
+      Arbitrary number of keyword arguments to describe the band to select from
+      the source map (i.e. the band that contains the categorical values).
+
+      See `get_bidx` for further details
     """
-    block = load_block(source, start, size)
+    block = load_block(source=source,
+                       view=view,
+                       **tags)
     data, transform = block['data'], block['transform']
     cats = get_categories(data)
     entropy_array = get_entropy(data, categories=cats,
+                                img_filter=img_filter,
                                 filter_params=filter_params,
                                 entropy_params=entropy_params,
                                 normed=True)

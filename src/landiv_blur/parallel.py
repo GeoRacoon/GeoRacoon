@@ -27,7 +27,7 @@ from .inference import (
         transposed_product,
         get_optimal_weights_source,
     )
-from .io import set_tags, compress_tif
+from .io import set_tags, write_band, compress_tif
 
 # TODO: this needs adaptation once !36 is merged (using tags instead of indexes)
 def combine_blurred_categories(output_params: dict, blur_q:Queue):
@@ -47,6 +47,7 @@ def combine_blurred_categories(output_params: dict, blur_q:Queue):
                 signal = output.get('signal', None)
                 if signal:
                     if signal == "kill":
+                        # TODO: FINALIZE_TASK:
                         print(f"\n\nClosing: {output_file}\n\n")
                         break
                 categories_data = output.pop('data')
@@ -55,11 +56,16 @@ def combine_blurred_categories(output_params: dict, blur_q:Queue):
                 # get the relevant block (i.e. remove borders)
                 # write to output file
                 w = view_to_window(inner_view)
-                for idx, (band, data) in enumerate(categories_data.items(),
+                for bidx, (band, data) in enumerate(categories_data.items(),
                                                    start=1):
-                    dst.write(data, window=w, indexes=idx)
-                    dst.set_band_description(idx, f'LC_{band}')
-                    set_tags(dst, bidx=idx, category=band)
+                     # TODO: UPDATE_TASK
+                    # NOTE: downside of this is that we set the tags
+                    #       every time, unfortunately, in the FINALIZE_TASK
+                    #       we do not have the bidx 
+                    write_band(src=dst, bidx=bidx, data=data, window=w,
+                               category=band)
+                    # NOTE: we might want keep the description unchanged:
+                    dst.set_band_description(bidx, f'LC_{band}')
                 print(f"Wrote out bands for blurred block {inner_view=}")
                 timer.new_lab()
     return timer
@@ -163,11 +169,9 @@ def process_block(task:Callable,
         print(f"{view=}\n{data=}\n{mask=}")
     return timer
 
-
-
-
-# TODO: make single function for this and combine_blurred_categories
-def combine_entropy_blocks(output_params: dict, entropy_q:Queue):
+def combine_entropy_blocks(output_params: dict,
+                           entropy_q:Queue,
+                           tags=dict(category='entropy')):
     """Listen to queue (entropy_q) and write computed block to single file
     """
     with TimedTask() as timer:
@@ -177,7 +181,6 @@ def combine_entropy_blocks(output_params: dict, entropy_q:Queue):
         print(f"{output_dtype=}")
         profile = output_params.pop('profile')
         profile['dtype'] = output_dtype
-
         out_band = output_params.pop('out_band', None)
         if out_band is None:
             out_band = Band(source=Source(path=output_file),
@@ -197,25 +200,18 @@ def combine_entropy_blocks(output_params: dict, entropy_q:Queue):
                 signal = output.get('signal', None)
                 if signal:
                     if signal == "kill":
-                        print(f"\n\nClosing: {output_file}\n\n")
+                        print(f"\n\nClosing: {out_band.source.path}\n\n")
                         break
                 data = output.pop('data')
                 view = copy(output.pop('view'))
-                # load block tif
-                # get the relevant block (i.e. remove borders)
-                # write to output file
                 w = view_to_window(view)
-                # dst.write(data, window=w, indexes=1)
                 write(data, window=w)
-
-                # dst.set_band_description(1, f'Entropy')
-                # set_tags(dst, bidx=1, category="entropy")
                 print(f"Wrote out entropy block {view=}")
-                # print(f"{np.unique(data)=}")
                 timer.new_lab()
-    plot_entropy(output_file, start=(0, 0),
-                 size=(profile['width'], profile['height']),
-                 output=f"{output_file}.preview.pdf")
+    plot_entropy(source=output_file,
+                 view=(0, 0, profile['width'], profile['height']),
+                 category=tags['category'],  # select the layer by tag
+                 fig_params=dict(output=f"{output_file}.preview.pdf"))
     return timer
 
 

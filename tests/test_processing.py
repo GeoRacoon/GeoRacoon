@@ -86,8 +86,8 @@ def test_entropy_normalization_conversion(datafiles):
     """Test the normalization of the entropy along with casting to unsigned int
     """
     map_tif = list(datafiles.iterdir())[0]
-    map = lbio.load_map(map_tif)
-    data = map['data']
+    map_data = lbio.load_map(map_tif)
+    data = map_data['data']
     categories = lbproc.get_categories(data)
     entropy_data = lbproc.get_entropy(data, categories=categories,
                                        normed=False,

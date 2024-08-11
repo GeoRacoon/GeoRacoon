@@ -99,10 +99,7 @@ def get_lct_heterogeneity(source: str,
     # get the diffusion kernel size in pixels
     psigma = blur_params['sigma'] / scale  # get sigma in pixels
     pdiameter = blur_params['diameter'] / scale  # get sigma in pixels
-    truncate = blur_params['truncate']
-    # get the distance from center to border of the Gaussian kernel
-    ksize = lbf_gauss.get_kernel_size(sigma=psigma,
-                                      truncate=truncate)
+    truncate = blur_params.get('truncate')
     print("Chosen parameters in distance units and corresponting pixels):\n"
           f"\t- sigma: {blur_params['sigma']} => {psigma} pixels\n"
           f"\t- diameter: {blur_params['diameter']} => {pdiameter} pixels\n"
@@ -129,6 +126,8 @@ def get_lct_heterogeneity(source: str,
 
     # now let's prepare the output parameters:
     if categories is None:
+        print(f"WARNING:\nYou are using {categories=}")
+        print("This will consider all unique values as categories")
         count = None
     else:
         count = len(categories)
@@ -162,7 +161,7 @@ def get_lct_heterogeneity(source: str,
     # The parameter for the filter we want to apply:
     filter_params = dict(
         sigma=psigma,
-        truncate=truncate,
+        truncate=blur_params['truncate'],
     )
     for view, inner_view in zip(views, inner_views):
         bparams = dict(source=source,
@@ -294,7 +293,7 @@ def main():
         scale=scale,
         block_size=(bwidth, bheight),
         categories=categories,
-        blur_params=lbprep.get_blur_params(diameter, sigma, truncate),
+        blur_params=dict(diameter=diameter, sigma=sigma, truncate=truncate),
         output_file=output_file,
         entropy_as_ubyte=entropy_ubyte,
         blur_as_int=blur_int,
