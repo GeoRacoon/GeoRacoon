@@ -56,34 +56,33 @@ def main_cli():
     if args.do == 'show':
         fname, fextension = os.path.splitext(args.output)
         if args.type == 'entropy':
-
             plot_entropy_full(
-                args.source,
-                (args.hstart, args.vstart),
-                (args.size, args.size),
+                source=args.source,
                 output=f"{ fname }_category_entropy_{args.sigma}{ fextension }",
+                view=(args.hstart, args.vstart, args.size, args.size),
                 img_filter=gaussian,
                 filter_params=dict(sigma=args.sigma,)
             )
         else:
             plot_categories(
-                args.source,
-                (args.hstart, args.vstart),
-                (args.size, args.size),
+                source=args.source,
                 output=f"{ fname }{ fextension }",
+                view=(args.hstart, args.vstart, args.size, args.size),
             )
             figure_categories(
-                args.source,
-                (args.hstart, args.vstart),
-                (args.size, args.size),
-                output=f"{ fname }_category{ fextension }",
+                source=args.source,
+                view=(args.hstart, args.vstart, args.size, args.size),
+                fig_params = dict(
+                    output=f"{ fname }_category{ fextension }",
+                )
             )
             # now with filter
             figure_categories(
-                args.source,
-                (args.hstart, args.vstart),
-                (args.size, args.size),
-                output=f"{ fname }_categories_filtered_{args.sigma}{ fextension }",
+                source=args.source,
+                view=(args.hstart, args.vstart, args.size, args.size),
+                fig_params = dict(
+                    output=f"{ fname }_categories_filtered_{args.sigma}{ fextension }",
+                )
                 img_filter=gaussian,
                 params=dict(sigma=args.sigma,)
             )

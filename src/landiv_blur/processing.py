@@ -3,7 +3,7 @@ from typing import Callable
 from collections.abc import Callable, Collection, Sequence
 
 import numpy as np
-from numpy.typing import ArrayLike
+from numpy.typing import NDArray
 from scipy.stats import entropy
 
 from .helper import dtype_range
@@ -11,7 +11,8 @@ from .io import load_block
 from .prepare import get_view, relative_view
 
 
-def select_category(data, category: int | list[int],
+def select_category(data:NDArray,
+                    category: int | list[int],
                     as_dtype: type = np.uint8,
                     limits: tuple | None = None):
     """Filter for particular category or categories
@@ -82,8 +83,7 @@ def get_max_entropy(nbr:int):
     return entropy(np.ones(nbr))
 
 
-# TODO: this needs an inplementation in `.parallel`
-def get_categories(data:ArrayLike, )->list[int]:
+def get_categories(data:NDArray, )->list[int]:
     """Return the list of categories present in the data.
 
     Parameters
@@ -103,12 +103,12 @@ def get_categories(data:ArrayLike, )->list[int]:
     return list(map(int, categories))
 
 
-def get_category_data(data:ArrayLike,
+def get_category_data(data:NDArray,
                       category:int | list[int],
                       img_filter:Callable|None=None,
                       filter_params:dict|None=None,
                       output_dtype:type|None=None,
-                      as_dtype:type=np.uint8)->ArrayLike:
+                      as_dtype:type=np.uint8)->NDArray:
     """Return the data of a single category, optionally after applying a filter
 
     ..Note::
@@ -164,11 +164,11 @@ def get_category_data(data:ArrayLike,
     return _data
 
 
-def get_filtered_categories(data:ArrayLike,
+def get_filtered_categories(data:NDArray,
                             categories: None|Collection=None,
                             img_filter=None,
                             output_dtype:type|None=np.uint8,
-                            filter_params:dict|None=None)->dict[int, ArrayLike]:
+                            filter_params:dict|None=None)->dict[int, NDArray]:
     """Extract each category into a separate `np.array` and apply an image filter
 
     ..Note::
@@ -180,8 +180,8 @@ def get_filtered_categories(data:ArrayLike,
     ----------
     data: np.array
       A land-cover type matrix or any other matrix with integers
-    categories: iterable or None
-      A list or other `iterable` with the categories to extract.
+    categories: Collection or None
+      A list or other collection with the categories to extract.
       If not provided then all categories found in `data` are included.
     img_filter: callable
       a filter function to apply on the np.array of each category.
@@ -208,10 +208,10 @@ def get_filtered_categories(data:ArrayLike,
     return all_categories
 
 
-def compute_entropy(data_arrays: Sequence[ArrayLike],
+def compute_entropy(data_arrays: Sequence[NDArray],
                     normed:bool=True,
                     output_dtype:type|None=np.uint8,
-                    **entropy_params)->ArrayLike:
+                    **entropy_params)->NDArray:
     """Per cell entropy computed over a series of data arrays
 
     Parameters
@@ -239,7 +239,7 @@ def compute_entropy(data_arrays: Sequence[ArrayLike],
 
     Returns
     -------
-    ArrayLike:
+    entropy:
       A `np.array` with identical shape as the elements in `data_arrays` holding the
       per-cell entropy
     """
@@ -255,13 +255,13 @@ def compute_entropy(data_arrays: Sequence[ArrayLike],
     return entropy_array
 
 
-def get_entropy(data:ArrayLike,
+def get_entropy(data:NDArray,
                 categories:Collection|None=None,
                 normed:bool=False,
                 img_filter:Callable|None=None,
                 output_dtype:type|None=None,
                 filter_params:dict|None=None,
-                entropy_params:dict|None=None)->ArrayLike:
+                entropy_params:dict|None=None)->NDArray:
     """Compute the Shannon entropy per cell directly from a 2D array of categorical data
 
 
@@ -300,7 +300,7 @@ def get_entropy(data:ArrayLike,
 
     Returns
     -------
-    ArrayLike:
+    entropy:
       A `np.array` with identical shape as the elements in `data_arrays` holding the
       per-cell entropy
     """
@@ -320,10 +320,14 @@ def view_blurred(source:str,
                  categories:Collection|None,
                  img_filter:Callable,
                  filter_params:dict = dict(),
-                 output_dtype:type|None = np.uint8):
+                 output_dtype:type|None = np.uint8,
+                 **tags):
+
     """Uses a tif file with categorical data to compute blurred binary arrays
 
     The provided tif file must contain a band with categorical data (i.e. of type `uint`).
+    You may use the `**tags` to specify which band to read, by default only the
+    first band is read.
     The method then generates for each of the category first an indicator array
     (i.e. a dichotomous array indicating the presence/absence of a category)
     and then applies the filter method to each of these arrays.
@@ -353,20 +357,14 @@ def view_blurred(source:str,
         this data type.
 
         See `get_category_data` for further details.
+
+    **tags:
+      Arbitrary number of keyword arguments to describe the band to select.    
+
+      See `io.load_block` for further details.
     """
-    # view = params.pop('view')
-    # inner_view = params.pop('inner_view')
-    # blur_as_int = params.pop('blur_as_int', False)
-    # categories = copy(params.pop('categories'))
     # read out block from original file
-    start = (view[0], view[1])
-    size = (view[2], view[3])
-    result = load_block(
-        source,
-        start=start,
-        size=size,
-        indexes=1,
-    )
+    result = load_block(source, view=view, scaling_params=None, **tags)
     data = result.pop('data')
     print(f"{data.shape=}")
     # transform = result.pop('transform')
@@ -388,8 +386,7 @@ def view_blurred(source:str,
     return dict(data=blurred_categories, view=inner_view)
 
 
-# TODO: pass a file selector in order to read out the data
-def  view_entropy(category_arrays:dict[int, ArrayLike],
+def  view_entropy(category_arrays:dict[int, NDArray],
                   view:tuple[int,int,int,int],
                   normed:bool = True,
                   output_dtype:type|None = np.uint8):
@@ -420,19 +417,25 @@ def  view_entropy(category_arrays:dict[int, ArrayLike],
     return dict(data=entropy_array, view=view)
 
 
-def get_entropy_view(source,
-                     view,
-                     inner_view,
+def get_entropy_view(source:str,
+                     view:tuple[int,int,int,int],
+                     inner_view:tuple[int,int,int,int],
                      categories: Collection,
                      img_filter,
                      filter_params:dict=dict(),
                      entropy_as_ubyte: bool = False,
                      blur_as_int: bool = False,
-                     normed:bool=True):
+                     normed:bool=True,
+                     **tags):
     """Returns the entropy for some categories over a view from a tif file
 
     ..Warning::
       This function is deprecated and should not be used
+
+    **tags:
+      Arbitrary number of keyword arguments to describe the band to select.    
+
+      See `io.load_block` for further details.
     """
     if blur_as_int:
         blur_output_dtype = np.uint8
@@ -451,6 +454,7 @@ def get_entropy_view(source,
         img_filter=img_filter,
         filter_params=filter_params,
         output_dtype=blur_output_dtype,
+        **tags
     )
     assert blurred_data['view'] == inner_view
 

@@ -9,31 +9,31 @@ def main(args):
     """Generate all plots
     """
     plot_categories(
-        args.source,
-        (args.hstart, args.vstart),
-        (args.size, args.size),
+        source=args.source,
         output=f"{ args.output }.{ args.format }",
+        view=(args.hstart, args.vstart, args.size, args.size),
     )
     figure_categories(
-        args.source,
-        (args.hstart, args.vstart),
-        (args.size, args.size),
-        output=f"{ args.output }_categories.{ args.format }",
+        source=args.source,
+        view=(args.hstart, args.vstart, args.size, args.size),
+        fig_params=dict(
+            output=f"{ args.output }_categories.{ args.format }",
+        )
     )
     # now with filter
     figure_categories(
-        args.source,
-        (args.hstart, args.vstart),
-        (args.size, args.size),
-        output=f"{ args.output }_categories_filtered_{args.sigma}.{ args.format }",
+        source=args.source,
+        view=(args.hstart, args.vstart, args.size, args.size),
+        fig_params=dict(
+            output=f"{ args.output }_categories_filtered_{args.sigma}.{ args.format }",
+        )
         img_filter=gaussian,
         params=dict(sigma=args.sigma,)
     )
     plot_entropy_full(
-        args.source,
-        (args.hstart, args.vstart),
-        (args.size, args.size),
+        source=args.source,
         output=f"{ args.output }_categories_entropy_{args.sigma}.{ args.format }",
+        view=(args.hstart, args.vstart, args.size, args.size),
         img_filter=gaussian,
         filter_params=dict(sigma=args.sigma,)
     )

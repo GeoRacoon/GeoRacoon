@@ -89,11 +89,10 @@ def test_blur_recombination(datafiles):
         block_params = []
         for view, inner_view in zip(views, inner_views):
             bparams = dict(source=ch_map_tif,
-                           categories=[category],
                            view=view,
                            inner_view=inner_view,
+                           categories=[category],
                            img_filter=img_filter,
-                           # entropy_as_ubyte=True,
                            output_dtype=output_dtype,)
             block_params.append(bparams)
         manager = mproc.Manager()

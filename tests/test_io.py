@@ -2,6 +2,7 @@ import pytest
 import rasterio as rio
 import numpy as np
 from skimage.filters import gaussian
+from rasterio.windows import Window
 
 from .config import ALL_MAPS, get_example_data
 from landiv_blur.exceptions import (
@@ -16,7 +17,8 @@ from landiv_blur import processing as lbproc
 def test_load_block():
     """This is just a smoketest"""
     with pytest.raises(rio.RasterioIOError):
-        lbio.load_block('non-existing', start=(0, 0), size=(10, 10))
+        lbio.load_block(source='non-existing',
+                        view=(0, 0, 10, 10))
 
 
 @ALL_MAPS
@@ -25,8 +27,9 @@ def test_import_export(datafiles):
     """
     start = (1020, 1020)
     size = (700, 700)
+    view1 = (*start, *size)
     ch_map_tif = list(datafiles.iterdir())[0]
-    block = lbio.load_block(ch_map_tif, start=start, size=size, indexes=1)
+    block = lbio.load_block(ch_map_tif, view=view1, indexes=1)
     entropy_array = lbproc.get_entropy(block['data'], categories=range(8),
                                        normed=True,
                                        img_filter=gaussian)
@@ -38,7 +41,8 @@ def test_import_export(datafiles):
         # we need the transform from the window from block 1
         transform=block['transform']
     )
-    block_2 = lbio.load_block(outfile, start=(0, 0), size=size)
+    view2 = (0, 0, *size)
+    block_2 = lbio.load_block(outfile, view=view2)
     # NOTE: if the arrays contain np.nan then np.all will always be False
     assert np.all(np.nan_to_num(entropy_array,
                   nan=-1) == np.nan_to_num(block_2['data'], nan=-1))

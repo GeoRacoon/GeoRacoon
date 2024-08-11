@@ -9,7 +9,10 @@ from landiv_blur import plotting as lbplot
 
 utm_zone = 'utm32U'
 # we are going to re-scale the maps by changing the resolution by this factor:
-scaling = 0.5
+scaling_params = dict(
+    scaling = (0.5, 0.5)
+    method = Resampling.nearest
+)
 # the land-cover types to plot
 lc_types = [1, 2, 8]  # , 10]
 
@@ -26,16 +29,16 @@ source_file = os.path.join(data_path, filename.format(utm_zone=utm_zone))
 # first plot the land-cover types as different colors
 print(f"plotting overview map for\n{source_file=}")
 ax = fig.add_subplot(gs[1:5, :2])
-lbplot.plot_block(source=source_file, start=None, size=None, ax=ax,
-                  scaling=scaling)
+lbplot.plot_block(source=source_file, view=None, ax=ax,
+                  scaling_params=scaling_params)
 
 # first we get the individual category from the source file
 # for the categories we increase visibility:
-s_method_category = Resampling.nearest
 
 # to plot the categories individually we have a little helper function
-_axs = lbplot.figure_categories(source_file, None, None, scaling=scaling,
-                                scaling_params=dict(scaling_method=s_method_category),
+_axs = lbplot.figure_categories(source=source_file,
+                                view=None, 
+                                scaling_params=scaling_params,
                                 # see #31 for the category combination
                                 categories=lc_types,
                                 fig_params=dict(fig=fig, gs=gs,
@@ -57,7 +60,7 @@ print(f"plotting blurred map:\n{source_file=}")
 
 for i, lct in enumerate(lc_types):
     print(f"{source_file=}")
-    print(f"{scaling=}")
+    print(f"{scaling_params['scaling']=}")
     print(f"{lct=}")
     ax = fig.add_subplot(gs[2*i:2*i+2, 4:6])
     utm_map = lbio.load_block(source_file,
@@ -66,8 +69,8 @@ for i, lct in enumerate(lc_types):
                               # scaling=scaling)
     # encoded the categories starting from 0
     lbplot.show_category(utm_map['data'], category=lct,
-                      transform=utm_map['transform'],
-                      ax=ax)
+                         transform=utm_map['transform'],
+                         ax=ax)
 
 # now we get the entropy map and plot it
 # TODO: for illustration purposes we show the entropy map for a smaller kernel
@@ -81,9 +84,9 @@ entropy_map = result_map.format(utm_zone=utm_zone.lower(),
 source_file = os.path.join(results_path, entropy_map)
 print(f"printing entropy map\n{entropy_map=}")
 ax = fig.add_subplot(gs[1:5, 6:])
-ax, plot_params = lbplot.plot_entropy(source=source_file, size=None,
-                                      start=None,
-                                      scaling=scaling,
+ax, plot_params = lbplot.plot_entropy(source=source_file,
+                                      view=None,
+                                      scaling_params=scaling_params,
                                       fig_params=dict(fig=fig, ax=ax))
 # adding the colormap
 # fig.colorbar(plot_params[0], ax=ax)
