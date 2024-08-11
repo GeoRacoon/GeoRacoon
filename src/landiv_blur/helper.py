@@ -12,6 +12,7 @@ import rasterio as rio
 from rasterio.windows import Window
 
 from typing import Any
+from numpy.typing import NDArray
 
 def serialize(tags:dict[str,Any])->dict[str,str]:
     """Convert the values of a dict to into JSON
@@ -254,3 +255,24 @@ def dtype_range(dtype):
         except ValueError:
             raise ValueError(f"{dtype=} has no min-/maximal values.")
     return _max, _min
+
+
+def reduced_mask(array:NDArray,
+                nodata=0,
+                logic:str='all',):
+    """Computes a mask based on the value of serveral bands
+
+    Parameters
+    ----------
+    array:
+        3D array holding multiple bands of map data
+    logic:
+        Allowed strings are:
+        - `"any"`: Masekd will be each cell for which any of the bands matches the nodata value
+        - `"all"`: Masked will be each cell for which all of the bands match the nodata value
+    """
+    if logic=='any':
+        _logic = np.logical_and
+    else:
+        _logic = np.logical_or
+    return _logic.reduce(array=array!=nodata, axis=0).astype(np.uint8)

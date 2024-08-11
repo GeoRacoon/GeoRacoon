@@ -3,6 +3,10 @@ from . import array_processing as ap
 from .io import (
     load_block,
 )
+from .io_ import (
+    Source,
+    Band
+)
 from .processing import (
     get_entropy,
     get_category_data,

@@ -571,8 +571,7 @@ def test_entropy_2_step(datafiles):
         output_file=entropy_out,
         block_size=view_size,
         blur_params=blur_params.copy(),
-        categories=categories,
-        entropy_as_ubyte=entropy_as_ubyte,
+        categories=categories, entropy_as_ubyte=entropy_as_ubyte,
         normed=normed,
     )
 
@@ -583,7 +582,7 @@ def test_entropy_2_step(datafiles):
     # for the 2-step approach
     entropy_source = lbio_.Source(path=entropy_tif)
     # get the entropy band as a object
-    eband = entropy_source.extract_band(category='entropy')
+    eband = entropy_source.get_band(category='entropy')
     entropy_data_2step = eband.get_data()
 
     # plt.imshow(entropy_data)
@@ -607,3 +606,45 @@ def test_entropy_2_step(datafiles):
     #     'The recombined entropy map in the 1 step and the 2 step process ' \
     #     'are different!'
     # )
+
+@ALL_MAPS
+def test_reduced_mask(datafiles):
+    """Compute a mask from multiple bands in one go and then in parallel
+    """
+    ch_map_tif = list(datafiles.iterdir())[0]
+    source = lbio_.Source(path=ch_map_tif)
+    blur_out = str(datafiles / 'blur_out.tif')
+    # create the blurred bands
+    img_filter = lbf_gauss.gaussian
+    blur_as_int = True
+    diameter = 5000  # this is in meter
+    scale = 100  # meter per pixel
+    truncate = 3
+    view_size = (500, 400)
+    categories = [1, 2, 3, 4, 5]
+    _diameter = diameter / scale
+    blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
+    filter_params = blur_params.copy()
+    _ = filter_params.pop('diameter')
+    blurred_tif = lbpara.extract_categories(
+        source=source,
+        categories=categories,
+        output_file=blur_out,
+        img_filter=img_filter,
+        filter_params=filter_params,
+        blur_as_int=blur_as_int,
+        block_size=view_size,
+        compress = True
+    )
+    blurr_source = lbio_.Source(path=blurred_tif)
+    initial_mask = blurr_source.get_mask()
+    # get the mask loading the entire dataset
+    with blurr_source.data_reader(mode='r') as read:
+        dataset = read()
+    print(f"{dataset.shape=}")
+    mask = lbhelp.reduced_mask(array=dataset)
+    print(f"{mask=}")
+    lbpara.compute_mask(source=blurr_source,block_size=view_size)
+    updated_mask = blurr_source.get_mask()
+    np.testing.assert_array_equal(mask, updated_mask)
+    assert not np.array_equal(initial_mask, updated_mask)
