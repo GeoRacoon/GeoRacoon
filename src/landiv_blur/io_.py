@@ -2,6 +2,8 @@ from __future__ import annotations
 import os
 
 import rasterio as rio
+
+from rasterio.windows import Window
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -13,6 +15,7 @@ from .exceptions import (
     BandSelectionAmbiguousError,
     SourceNotSavedError,
     UnknownExtensionError,
+    InvalidMaskSelectorError,
 )
 
 from .io import (
@@ -30,15 +33,31 @@ class Source:
     """
     def __init__(self, path:str|Path,
                  tags: dict|None=None,
+                 profile: dict|None=None,
                  ns: str=NS):
         self.path = Path(path)
         self.tags = tags or dict()
         self._ns = ns
+        self.profile = profile or dict()
 
     def __repr__(self):
         items = [f"path={str(self.path)}", f"exists: { self.exists }"]
         return "{}({})".format(type(self).__name__, ", ".join(items))
 
+    def import_profile(self, update_self:bool=True):
+        """Read the profile from the source file
+
+        Parameters
+        ----------
+        update_self:
+          If set, the profile property will be updated with the profile fetched
+          from the source file.
+        """
+        with self.open(mode='r') as src:
+            profile = src.profile
+        if update_self:
+            self.profile.update(profile)
+        return profile
 
     @property
     def exists(self)->bool:
@@ -62,7 +81,7 @@ class Source:
                 bidxs = [bidx,]
             else:
                 bidxs = bidx
-            for _bidx in src.indexes:
+            for _bidx in bidxs:
                 t_vals[_bidx] = get_tags(src=src,
                                          bidx=_bidx,
                                          ns=self._ns).get(tag, None)
@@ -72,7 +91,59 @@ class Source:
         with self.open(mode='r+') as src:
             set_tags(src=src, bidx=bidx, ns=self._ns, **tags)
 
-    def extract_band(self, bidx:int|None=None, **tags)->Band:
+    @contextmanager
+    def mask_reader(self, **kwargs):
+        mode = kwargs.pop('mode', 'r')
+        with self.open(mode=mode, **kwargs) as src:
+            yield src.dataset_mask
+
+    def get_mask(self, **kwargs):
+        """Read band dataset mask from the file
+
+        With the exception of `okwargs` all keyword arguments are passed to
+        the `dataset_mask` method of the source.
+
+        Parameters
+        ----------
+        **kwargs:
+          Optional set of keyword arguments to pass to the `read` method of the source.
+          Notable exception:
+
+          `okwargs`: dict
+            These arguments will be passed to the `open` method of the source
+        """
+        okwargs = kwargs.pop('okwargs', dict())
+        with self.mask_reader(mode='r', **okwargs) as dataset_mask:
+            mask = dataset_mask(**kwargs)
+        return mask
+
+    @contextmanager
+    def mask_writer(self, **kwargs):
+        mode = kwargs.pop('mode', 'r+')
+        with self.open(mode=mode, **kwargs) as src:
+            yield src.write_mask
+
+    def export_mask(self, mask:NDArray, window:Window):
+        """Write the mask into the output file
+
+        Parameters
+        ----------
+        mask:
+            Array to use as a mask. Values > 0 representa valid data
+        window:
+            Optional subset to write to
+        """
+        with self.open(mode='r+') as src:
+            src.write_mask(mask_array=mask, window=window)
+
+    def init_source(self, overwrite:bool=False, **kwargs):
+        """Create or accesses source file
+        """
+        if overwrite or not self.exists:
+            with self.open(mode='w', **self.profile, **kwargs) as _:
+                print(f'Initiating empty file\n\t"{self.path}"\n')
+
+    def get_band(self, bidx:int|None=None, **tags)->Band:
         """Find the wanted band and return a related band object
         """
         if not self.exists:
@@ -103,6 +174,17 @@ class Source:
             tags.update(band_tags)
         return Band(source=self, bidx=_bidx or _tb_bidx, tags=tags)
 
+    def get_bands(self)->list[Band]:
+        """Return a list with all Bands present in the dataset
+        """
+        bands = []
+        with self.open(mode='r') as src:
+            for bidx in src.indexes:
+                tags = get_tags(src=src, bidx=bidx, ns=self._ns)
+                _b = Band(source=self, bidx=bidx, tags=tags)
+                bands.append(_b)
+        return bands
+
     def _get_source(self, *args, **kwargs):
         if self.path.suffix in ['.tif', ]:
             src_open = partial(rio.open, fp=self.path)
@@ -120,6 +202,22 @@ class Source:
             yield src
         finally:
             src.close()
+
+    @contextmanager
+    def data_reader(self, bands:list[Band]|None=None, **kwargs):
+        """Read out from mulitple bands and return a 3D data array
+
+        Parameters
+        ----------
+        bands:
+            Collection of Band objects.
+        """
+        mode = kwargs.pop('mode', 'r')
+        if bands is None:
+            bands = self.get_bands()
+        bidxs = [band.get_bidx() for band in bands]
+        with self.open(mode=mode, **kwargs) as src:
+            yield partial(src.read, indexes=bidxs)
 
     @property
     def band_indexes(self,):
@@ -213,15 +311,13 @@ class Source:
         if uncompressed != self.path:
             os.remove(uncompressed)
 
-
 @dataclass
 class Band:
     source: Source
     tags: dict = field(default_factory=dict)
     bidx: int|None = None
-    masked: bool = False  # we might want to get a masked array
-                          # then return data and the mask directly
     read_params: dict = field(default_factory=dict)
+    _use_mask: str = 'self'
     _ns = NS
 
     def __repr__(self):
@@ -230,7 +326,7 @@ class Band:
 
     def __hash__(self):
         return hash((self.bidx, *(self.tags.values())))
-
+            
     @property
     def source_exists(self)->bool:
         return self.source.exists
@@ -435,9 +531,8 @@ class Band:
           Specifies the profile of the data set (see `rasterio.profile` for an
           example)
         """
-        if overwrite or not self.source.exists:
-            with self.source.open(mode='w', **profile, **kwargs) as _:
-                print(f'Initiating empty file\n\t"{self.source.path}"\n')
+        self.source.profile.update(profile)
+        return self.source.init_source(overwrite=overwrite, **kwargs)
 
     def get_data(self, **kwargs)->NDArray:
         """Read band out from the file
@@ -457,17 +552,83 @@ class Band:
         okwargs = kwargs.pop('okwargs', dict())
         with self.source.open(mode='r', **okwargs) as src:
             data = src.read(indexes=self.source.get_bidx(band=self), **kwargs)
-        if self.masked:
-            # separate data and mask
-            # TODO
-            pass
         return data
 
     @contextmanager
-    def data_writer(self, match:str|list|None=None, *args, **kwargs):
+    def data_writer(self, match:str|list|None=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        **kwargs:
+          Optional keword arguments that will be passed to `rasterio.io.DatasetWriter.write`
+        """
+        mode = kwargs.pop('mode', 'r+' if self.source.exists else 'w')
         bidx = self.get_bidx(match=match)
-        with self.source.open(*args, **kwargs) as src:
+        with self.source.open(mode=mode, **kwargs) as src:
             yield partial(src.write, indexes=bidx)
+
+    @contextmanager
+    def data_reader(self, match:str|list|None=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        **kwargs:
+          Optional keword arguments that will be passed to `rasterio.io.DatasetReader.read`
+        """
+        mode = kwargs.pop('mode', 'r')
+        bidx = self.get_bidx(match=match)
+        with self.source.open(mode=mode, **kwargs) as src:
+            yield partial(src.read, indexes=bidx)
+
+    def set_mask_reader(self, use:str='band'):
+        assert use in ['self', 'band', 'source'], \
+            f'"{use}" is an invalid selector for a mask, options are:' \
+            '\n\t- "band": uses the bands own mask (i.e. ' \
+            'rasterio.io.DataReader.read_masks)\n\t- "source": uses the ' \
+            'dataset mask (i.e. rasterio.io.DataReader.dataset_mask)'
+        self._use_mask = use if use=='source' else 'self'
+            
+        
+    def get_mask_reader(self,):
+        """Return the mask reader for this band.
+
+        By default mask reader is `rasterio.io.DatasetReader.read_masks` with the corresponding
+        band index set. However, other readers can be specified. See `set_mask_reader` for more
+        details.
+
+        """
+
+        if self._use_mask is None or self._use_mask == 'self':  # read the band mask
+            return self.mask_reader
+        elif self._use_mask == 'source':  # read the dataset mask
+            return self.source.mask_reader
+        else:
+            raise InvalidMaskSelectorError(
+                f'"{self._use_mask}" is an invalid selector for a mask,'
+                'options are:'
+                '\n\t- "self": uses the bands own mask'
+                ' (i.e. rasterio.io.DataReader.read_masks)'
+                '\n\t- "source": uses the bands own mask'
+                ' (i.e. rasterio.io.DataReader.dataset_mask)'
+            )
+        
+    @contextmanager
+    def mask_reader(self, match:str|list|None=None, **kwargs):
+        """Get a read method for the band mask.
+
+        ..Note::
+
+          This yields always the band specific mask reader (i.e. the
+          'rasterio.io.DatasetReader.read_masks(indexes=<bidx of self>)`
+
+        """
+        mode = kwargs.pop('mode', 'r')
+        bidx = self.get_bidx(match=match)
+        with self.source.open(mode=mode, **kwargs) as src:
+            yield partial(src.read_masks, indexes=bidx)
+
 
     def set_data(self, data:NDArray, **kwargs):
         """Read out the data from a band
@@ -475,4 +636,3 @@ class Band:
         # with self.source.open(mode='w', **kwargs) as src:
         with self.data_writer(mode='w', **kwargs) as src:
             src.write(data)
-                      

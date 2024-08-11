@@ -17,7 +17,7 @@ from multiprocessing import Pool, Queue, Manager, cpu_count
 from numpy.typing import NDArray
 
 from .io_ import Source, Band
-from .helper import (view_to_window, output_filename)
+from .helper import (view_to_window, output_filename, reduced_mask)
 from .timing import TimedTask
 from .plotting import plot_entropy
 from .processing import view_blurred, view_entropy
@@ -109,6 +109,61 @@ def partial_optimal_betas(params:dict, output_q:Queue):
         params,
         wrapper=_wrap
     )
+
+
+def data_writer(writer, writer_params:dict, aggr_q:Queue):
+    """Write out data using the context manager `writer`
+
+    This function can be used with the various context managers deifned
+    in the `io_.Source` and `io_.Band` classes.
+
+
+    """
+    with TimedTask() as timer:
+        with writer(**writer_params) as write:
+            while True:
+                # load the entropy_q
+                job_out = aggr_q.get()
+                signal = job_out.get('signal', None)
+                if signal:
+                    if signal == "kill":
+                        print(f"\n\nTerminating data writer.\n\n")
+                        break
+                data = job_out.pop('data')
+                view = copy(job_out.pop('view'))
+                w = view_to_window(view)
+                # 
+                write(data, window=w)
+                # print(f"Wrote out block {view=}")
+                timer.new_lab()
+    return timer
+
+def process_block(task:Callable, 
+                 source:str|Source,
+                 bands:list[Band]|None,
+                 view:tuple[int,int,int,int],
+                 task_params:dict,
+                 read_params:dict,
+                 open_params:dict,
+                 out_q:Queue):
+    with TimedTask() as timer:
+        if isinstance(source, str):
+            source = Source(path=source)
+        if bands is None:
+            print('No specifc bands selected, using all')
+            bands = source.get_bands()
+        assert all(band.source == source for band in bands), "Not all bands point to the correct source!"
+        window = view_to_window(view)
+        with source.data_reader(bands=bands, **open_params) as read:
+            data = read(window=window, **read_params)
+        mask = runner_call(callback=task,
+                        params=dict(array=data, **task_params),
+                        queue=out_q,
+                        wrapper=lambda x: dict(data=x, view=view))
+        print(f"{view=}\n{data=}\n{mask=}")
+    return timer
+
+
 
 
 # TODO: make single function for this and combine_blurred_categories
@@ -459,6 +514,119 @@ def compute_entropy(source: str|Source,
     print(f"maximal duration of single job: {max(job_timers)=}")
     return entropy_output_file
 
+def compute_mask(source: str|Source,
+                 block_size: tuple[int, int],
+                 nodata=0,
+                 logic:str='all',
+                 bands:list[Band]|None=None,
+                 **params):
+    """Compute the mask of a dataset in parallel and write it it out to the file
+
+    Parameters
+    ----------
+    source : str
+        Path to the land cover type tif file
+    logic:
+        Either a string or a callable.
+        Allowed strings are:
+        - `"any"`: Masekd will be each cell for which any of the bands matches the nodata value
+        - `"all"`: Masked will be each cell for which all of the bands match the nodata value
+        If a callable is provided it takes the data of a window (3D array if multiple
+        bands are present, 2D otherwise) and must return a 2D array of
+        np.uint8 with 0 for invalid pixels and any value > 0 for valid ones
+    block_size: tuple of int
+        Size (width, height) in #pixel of the block that a single job processes
+    bands:
+        An optional selection of bands to use. If not provided all bands are
+        used.
+    **params:
+        Optional arguments for the multiprocessing (e.g. nbr_cpus)
+    
+    """
+    if isinstance(source, str):
+        source = Source(path=source)
+    # make sure the profile is up to date
+    source.import_profile()
+
+    width = source.profile.get('width')
+    height = source.profile.get('height')
+        
+    if bands is None:
+        bands = source.get_bands()
+
+    # set the per-block parameter
+    _, inner_views = create_views(view_size=block_size,
+                                      border=(0,0),
+                                      size=(width, height))
+    
+    block_params = []
+    for view in inner_views:
+        task_params = dict(
+            nodata=nodata,
+            logic=logic,
+            #  inner_view=inner_view,
+        )
+        read_params = dict()
+        open_params = dict(mode='r',)
+        bparams = dict(task=reduced_mask,
+                       source=source,
+                       bands=bands,
+                       view=view,
+                       task_params=task_params,
+                       open_params=open_params,
+                       read_params=read_params,
+                       )
+                            # inner_view=inner_view,
+        block_params.append(bparams)
+
+    # ###
+    # prepare multiprocessing
+    # ###
+    manager = Manager()
+    aggr_q = manager.Queue()
+    # get number of cpu's
+    nbr_cpus = params.pop('nbrcpu', cpu_count())
+    print(f"using {nbr_cpus=}")
+    pool = Pool(nbr_cpus)
+
+    # start the aggregator task
+    aggregator = source.export_mask
+    aggr_params = dict(mode='r+')  # nothing else to pass
+    aggregator_job = pool.apply_async(
+        func=data_writer,  # the callable
+        kwds=dict(             # its arguments:
+            writer=source.mask_writer,
+            writer_params=aggr_params,
+            aggr_q=aggr_q,
+        ),
+    )
+    # start the block jobs
+    block_jobs = []
+    for bparams in block_params:
+        block_jobs.append(pool.apply_async(
+            func=process_block,
+            kwds=dict(**bparams, out_q=aggr_q,)
+        ))
+    # collect results
+    job_timers = []
+    for job in block_jobs:
+        # await for the jobs to return (i.e. complete) by calling .get
+        # get the duration from the timer object that is returned by .get()
+        job_timers.append(job.get().get_duration())
+
+    aggr_q.put(dict(signal='kill'))
+    pool.close()
+    # wait for the *_combiner tasks to finish
+    pool.join()
+    total_duration = aggregator_job.get().get_duration()
+
+
+def logical_and(key:Callable, data):
+    """Return True if all cells along 1 axis evaluate to True
+    """
+    # apply callable on all cells
+    # stack and compare along one axis
+    return True
 
 def block_entropy(params:dict, entropy_q:Queue)->TimedTask:
     """Per block (i.e. view) heterogeneity measure based on entropy

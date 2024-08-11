@@ -1,7 +1,8 @@
 import pytest
 
-import numpy as np
 import rasterio
+import numpy as np
+import numpy.ma as ma
 import rasterio as rio
 
 from landiv_blur.io_ import Source, Band
@@ -26,7 +27,7 @@ def test_Band_tagging(datafiles):
         src.update_tags(1, ns='LANDIV', **b1_tags_0)
     # create source objcet
     mysrc = Source(path=test_file)
-    b1 = mysrc.extract_band(bidx=1)
+    b1 = mysrc.get_band(bidx=1)
     assert b1.bidx == 1
     assert b1_tags_0 == b1.tags
     # adding a tag to the object
@@ -34,7 +35,7 @@ def test_Band_tagging(datafiles):
     # propagate tags to the file
     b1.export_tags()
     # get the band in a new object
-    b1_1 = mysrc.extract_band(1)
+    b1_1 = mysrc.get_band(1)
     # make sure the new tag was added
     assert 'new_tag' in b1_1.tags
     assert b1_1.tags['new_tag'] == 'some_value'
@@ -53,7 +54,7 @@ def test_Band_tagging(datafiles):
     # make sure exporting tags also works with matching tags
     b1_2.export_tags(match='category')
     # new object with current state in file
-    b1_3 = mysrc.extract_band(1)
+    b1_3 = mysrc.get_band(1)
     # make sure the extra_tag='hello' is there
     assert 'extra_tag' in b1_3.tags
     assert b1_3.tags['extra_tag'] == 4.4
@@ -66,7 +67,7 @@ def test_Band_tagging(datafiles):
     assert 'new_tag' in b1.tags
     assert b1.tags['new_tag'] == 'some_value'
     # get another band
-    b2 = mysrc.extract_band(2)
+    b2 = mysrc.get_band(2)
     # TODO: make sure we cannot select multiple bands with a tag
 
     # -----------------------------------
@@ -80,9 +81,92 @@ def test_Band_tagging(datafiles):
         prof = src.profile
         assert prof['compress'] == 'lzw'
     # make sure all tags were transferrred
-    com_b1 = mysrc.extract_band(1)
+    com_b1 = mysrc.get_band(1)
     assert 'extra_tag' in com_b1.tags
     assert com_b1.tags['extra_tag'] == 4.4
     assert 'new_tag' in com_b1.tags
     assert com_b1.tags['new_tag'] == 'some_value'
     assert com_b1.get_bidx(match='category') == com_b1.bidx
+
+@ALL_MAPS
+def test_rasterio_band_mask(datafiles):
+    """Check if there is a difference between rastreio's band and dataset mask
+    """
+    ch_map_tif = list(datafiles.iterdir())[0]
+    test_file = datafiles / 'test.tif'
+    with rio.open(ch_map_tif, 'r+') as src:
+        mask_ds0 = src.dataset_mask()
+        mask_b1 = src.read_masks(1)
+        data = src.read(indexes=1)
+        #  print(f"{mask_ds0=}")
+        #  print(f"{mask_b1=}")
+        profile = src.profile.copy()
+    profile['count'] = 2
+    masked_band1 = ma.masked_array(data, np.zeros(shape=data.shape))
+    masked_band2 = ma.masked_array(data, np.ones(shape=data.shape))
+    print(f"{masked_band1.mask=}")
+    print(f"{masked_band2.mask=}")
+    with rio.open(test_file, 'w', **profile) as src:
+        src.write(masked_band1, indexes=1, masked=True)  # 0s first
+        src.write(masked_band2, indexes=2, masked=True)  # then 1s
+    with rio.open(test_file, 'r') as src:
+        dsmask0 = src.dataset_mask()
+        mask1 = src.read_masks(indexes=1)
+        mask2 = src.read_masks(indexes=2)
+    # are both masks equal
+    np.testing.assert_equal(mask1, mask2)
+    # both correspond to the last mask written
+    np.testing.assert_equal(mask1, np.zeros(shape=mask1.shape))
+    with rio.open(test_file, 'w', **profile) as src:
+        src.write(masked_band1, indexes=1, masked=True)  # 0s first
+    # check if the other band changed as well
+    with rio.open(test_file, 'r') as src:
+        dsmask1 = src.dataset_mask()
+        mask1 = src.read_masks(indexes=1)
+        mask2 = src.read_masks(indexes=2)
+    np.testing.assert_equal(mask1, mask2)
+    # check if the dataset mask changed as well
+    np.testing.assert_equal(dsmask0, np.where(dsmask1==255, 0, 255))
+    # No error means changing a band mask changes the dataset mask
+
+@ALL_MAPS
+def test_masking(datafiles):
+    ch_map_tif = list(datafiles.iterdir())[0]
+    test_file = datafiles / 'test.tif'
+    source = Source(path=ch_map_tif)
+    source.import_profile()  # load profile from file
+    # we are going to duplicate the file
+    out_source = Source(path=test_file)  # create a new object
+    out_source.profile.update(source.profile)  # use the profile
+    out_source.profile.update({'count':2})  # updated it
+    out_source.init_source()  # create the file (and export the profile)
+    # duplicate into two bands
+    band1 = source.get_band(bidx=1)
+    band2 = source.get_band(bidx=1)
+    band2.bidx=2
+    band1.source=out_source
+    band2.source=out_source
+    b1_data = band1.get_data()
+    b2_data = band2.get_data()
+    # define two oposite masks
+    masked_band1 = ma.masked_array(b1_data, np.zeros(shape=b1_data.shape))
+    masked_band2 = ma.masked_array(b2_data, np.ones(shape=b2_data.shape))
+    # try to write "per band" masks
+    with band1.data_writer() as write:
+        write(masked_band1, masked=True)
+    with band2.data_writer() as write:
+        write(masked_band2, masked=True)
+    # use the "band mask" for both bands
+    band1.set_mask_reader(use='self')
+    band2.set_mask_reader(use='self')
+    # get the "band-" masks
+    b1_mask_reader = band1.get_mask_reader()
+    b2_mask_reader = band2.get_mask_reader()
+    with b1_mask_reader() as read_mask:
+        b1_mask = read_mask()
+    with b2_mask_reader() as read_mask:
+        b2_mask = read_mask()
+    # the masks should be to opposite of each other:
+    np.testing.assert_equal(masked_band1.mask, ~masked_band2.mask)
+    # also when reading from the file - but it isn't
+    np.testing.assert_equal(b1_mask, np.where(b2_mask!=255, 0, 255))
