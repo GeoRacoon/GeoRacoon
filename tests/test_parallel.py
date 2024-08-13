@@ -599,12 +599,12 @@ def test_entropy_2_step(datafiles):
     # plt.savefig('/home/.../2step.pdf')
     # plt.imshow(entropy_data_2step-entropy_data)
     # plt.savefig('/home/.../test.pdf')
-    # np.testing.assert_array_equal(
-    #     entropy_data,
-    #     entropy_data_2step,
-    #     'The recombined entropy map in the 1 step and the 2 step process ' \
-    #     'are different!'
-    # )
+    np.testing.assert_array_equal(
+        entropy_data,
+        entropy_data_2step,
+        'The recombined entropy map in the 1 step and the 2 step process ' \
+        'are different!'
+    )
 
 @ALL_MAPS
 def test_reduced_mask(datafiles):
