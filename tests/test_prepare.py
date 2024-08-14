@@ -4,11 +4,12 @@ import rasterio as rio
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.collections import PatchCollection
-from .config import ALL_MAPS
+
 from landiv_blur import prepare as lbprep
 from landiv_blur import processing as lbproc
 from landiv_blur.filters import gaussian as lbgauss
 
+from .conftest import ALL_MAPS, get_file
 
 def test_view_definition():
     """Make sure that the views returned are correct
@@ -157,7 +158,7 @@ def test_lct_coverage(datafiles):
     """
     from skimage.filters import gaussian
     # test_tif = 'data/reclass_GLC_FCS30_2015_utm32U.tif'
-    test_tif = list(datafiles.iterdir())[0]
+    test_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     sigma = 0.5
     truncate = 3
     with rio.open(test_tif) as src:
@@ -167,12 +168,12 @@ def test_lct_coverage(datafiles):
         data = src.read(indexes=1)
     haslct = np.zeros((height, width), dtype=np.bool_)
     lcts = lbproc.get_categories(data)
-    print(f"{profile=}")
-    print(f"{width=}")
-    print(f"{height=}")
-    print(f"{data.shape=}")
-    print(f"{haslct.shape=}")
-    print(f"{lcts=}")
+    # print(f"{profile=}")
+    # print(f"{width=}")
+    # print(f"{height=}")
+    # print(f"{data.shape=}")
+    # print(f"{haslct.shape=}")
+    # print(f"{lcts=}")
     blurred_categories = lbproc.get_filtered_categories(data, categories=lcts,
                                                         img_filter=gaussian,
                                                         filter_params=dict(
@@ -187,7 +188,7 @@ def test_lct_coverage(datafiles):
         output_dtype=np.uint8
     )
     for lct in lcts:
-        print(f"{lct=}")
+        # print(f"{lct=}")
         lct_data = lbproc.get_category_data(data, category=lct,
                                             img_filter=gaussian,
                                             filter_params=dict(
@@ -195,13 +196,13 @@ def test_lct_coverage(datafiles):
                                                 truncate=truncate
                                             ),
                                             output_dtype=np.uint8)
-        print(f"\t{lct_data.dtype=}")
-        print(f"\t{lct_data.shape=}")
-        print(f"\t{np.unique(lct_data)=}")
+        # print(f"\t{lct_data.dtype=}")
+        # print(f"\t{lct_data.shape=}")
+        # print(f"\t{np.unique(lct_data)=}")
         haslct = np.where(lct_data != 0, 1, haslct)
         vals, counts = np.unique(haslct, return_counts=True)
-        print(f"\t{vals=}")
-        print(f"\t{counts=}")
+        # print(f"\t{vals=}")
+        # print(f"\t{counts=}")
     # now make sure that we do not have any unassigned cells
     vals, counts = np.unique(haslct, return_counts=True)
     assert len(vals) == 1, f"We have cells without lct: {vals=}, {counts=}"

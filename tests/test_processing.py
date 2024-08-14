@@ -6,7 +6,7 @@ from landiv_blur import io as lbio
 from landiv_blur import processing as lbproc
 from landiv_blur.filters import gaussian as lbf_gauss
 
-from .config import ALL_MAPS
+from .conftest import ALL_MAPS, get_file
 
 
 def test_select_category():
@@ -49,7 +49,7 @@ def test_apply_filter_gaussian():
 def test_nbr_lct(datafiles):
     """Make sure the detection of land-cover types works as expected
     """
-    ch_map_tif = list(datafiles.iterdir())[0]
+    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ch_data = lbio.load_map(ch_map_tif)['data']
     categories = lbproc.get_categories(ch_data)
     unique_values = np.unique(categories)
@@ -61,7 +61,7 @@ def test_nbr_lct(datafiles):
 def test_single_category_filter(datafiles):
     """Make sure the detection of categories works as expected
     """
-    ch_map_tif = list(datafiles.iterdir())[0]
+    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ch_data = lbio.load_map(ch_map_tif)['data']
     categories = lbproc.get_categories(ch_data)
     categories = np.unique(categories)
@@ -85,7 +85,7 @@ def test_single_category_filter(datafiles):
 def test_entropy_normalization_conversion(datafiles):
     """Test the normalization of the entropy along with casting to unsigned int
     """
-    map_tif = list(datafiles.iterdir())[0]
+    map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     map_data = lbio.load_map(map_tif)
     data = map_data['data']
     categories = lbproc.get_categories(data)

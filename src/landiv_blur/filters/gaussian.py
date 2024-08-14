@@ -18,7 +18,7 @@ def get_kernel_diameter(sigma, **params):
 
         .. note::
 
-          Currently only single vales are supported
+          Currently only single values are supported
 
     """
     msize = int(10 * sigma)

@@ -19,7 +19,7 @@ from landiv_blur.filters import gaussian as lbf_gauss
 from landiv_blur import parallel as lbpara
 from landiv_blur.filters import gaussian as lbf_gauss
 
-from .config import ALL_MAPS
+from .conftest import ALL_MAPS, get_file
 
 from matplotlib import pyplot as plt
 
@@ -40,7 +40,7 @@ def test_blur_recombination(datafiles):
                                                   truncate=truncate)
     border = (100, 100)
     # load the data
-    ch_map_tif = list(datafiles.iterdir())[0]
+    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ch_map = lbio.load_map(ch_map_tif, indexes=1)
     ch_data = ch_map['data']
     profile = ch_map['orig_profile']
@@ -57,7 +57,7 @@ def test_blur_recombination(datafiles):
     _ = blur_params.pop('diameter')
     img_filter = partial(lbf_gauss.gaussian, **blur_params)
     # we perform the test for each category 
-    print("CATEGORIES", categories)
+    # print("CATEGORIES", categories)
     for category in categories:
         # Index needs to be fixed as code does not write the band to equivalent
         # index.
@@ -127,7 +127,7 @@ def test_blur_recombination(datafiles):
         # free up the resources
         pool.close()
         pool.join()
-        print(f"job took {duration} seconds")
+        # print(f"job took {duration} seconds")
 
         # check if tags were set correctly
         with rio.open(blur_output_file) as src:
@@ -173,7 +173,7 @@ def test_entropy_recombination(datafiles):
                                                   truncate=truncate)
     border = (50, 50)
     # load the data
-    ch_map_tif = list(datafiles.iterdir())[0]
+    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ch_map = lbio.load_map(ch_map_tif, indexes=1)
     ch_data = ch_map['data']
     profile = ch_map['orig_profile']
@@ -226,7 +226,7 @@ def test_entropy_recombination(datafiles):
     entropy_q = manager.Queue()
     # get number of cpu's
     nbr_cpus = mproc.cpu_count() - 1
-    print(f"using {nbr_cpus=}")
+    # print(f"using {nbr_cpus=}")
     pool = mproc.Pool(nbr_cpus)
     # start the blurred category writer task
     blur_combiner = pool.apply_async(
@@ -255,7 +255,7 @@ def test_entropy_recombination(datafiles):
     # free up the resources
     pool.close()
     pool.join()
-    print(f"job took {duration} seconds")
+    # print(f"job took {duration} seconds")
 
     # check if tags were set correctly
     with rio.open(entropy_output_file) as src:
@@ -286,9 +286,9 @@ def test_parallel_transposed_prod(datafiles):
     """Calculate the transposed product of a predictor matrix
     """
     verbose = True
-    test_data = list(datafiles.iterdir())
-    landcover_map = test_data[0]
-    ndvi_map = test_data[1]
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    lct_source = lbio_.Source(path=landcover_map)
+    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     # scale it down to 100x100m (from 30x30)
     lbio.coregister_raster(ndvi_map, landcover_map, output=str(ndvi_map))
     # create a mask for ndvi_map masking the nan's
@@ -298,7 +298,35 @@ def test_parallel_transposed_prod(datafiles):
         src.write_mask(mask)
     # create the predicotrs 
     response = ndvi_map
-    predictors = ((landcover_map, 1, (1, 2, 3, 4, 5), True),)
+    # ###
+    # compute blurred layers
+    blur_out = str(datafiles / 'blur_out.tif')
+    diameter = 5000  # this is in meter
+    scale = 100  # meter per pixel
+    truncate = 3
+    _diameter = diameter / scale
+    blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
+    filter_params = blur_params.copy()
+    _ = filter_params.pop('diameter')
+    blurred_tif = lbpara.extract_categories(
+        source=lct_source,
+        categories=[1,2,3,4,5],
+        output_file=blur_out,
+        img_filter=lbf_gauss.gaussian,
+        filter_params=filter_params,
+        blur_as_int=True,
+        block_size=(500, 500),
+        compress = True
+    )
+    blurr_source = lbio_.Source(path=blurred_tif)
+    # compute the mask
+    view_size = (500, 400)
+    lbpara.compute_mask(source=blurr_source, block_size=view_size, logic='all')
+    # ###
+    predictors = blurr_source.get_bands()
+    # use the dataset mask
+    for pred in predictors:
+        pred.set_mask_reader(use='source')
     # first compute the full matrix and calculate XT X
     X, _ = lbinf.prepare_predictors(response,
                                     *predictors,
@@ -336,7 +364,7 @@ def test_parallel_transposed_prod(datafiles):
     manager = mproc.Manager()
     output_q = manager.Queue()
     nbr_cpus = mproc.cpu_count() - 1
-    print(f"using {nbr_cpus=}")
+    # print(f"using {nbr_cpus=}")
     pool = mproc.Pool(nbr_cpus)
     # start the aggregation step
     matrix_aggregator = pool.apply_async(
@@ -359,7 +387,7 @@ def test_parallel_transposed_prod(datafiles):
     output_q.put(dict(signal='kill'))
     # wait for the recombination job to terminate
     recombined_tpX, _ = matrix_aggregator.get()
-    print(f"\n{transprod_full=}\n{recombined_tpX=}\n")
+    # print(f"\n{transprod_full=}\n{recombined_tpX=}\n")
     np.testing.assert_array_equal(transprod_full, recombined_tpX)
     # finally in condensed form
     # get the aggregated selector (again)
@@ -376,17 +404,17 @@ def test_parallel_transposed_prod(datafiles):
 
 
 @ALL_MAPS
-def test_parallel_optimal_weights(datafiles):
+def test_parallel_optimal_weights(datafiles, create_blurred_tif):
     """Calculate the transposed product of a predictor matrix
     """
     as_dtype = np.float64
     include_intercept = False
     verbose = True
-    test_data = list(datafiles.iterdir())
-    landcover_map = test_data[0]
-    ndvi_map = test_data[1]
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     # scale it down to 100x100m (from 30x30)
-    lbio.coregister_raster(ndvi_map, landcover_map, output=str(ndvi_map))
+    ndvi_map = str(datafiles / 'lct_coreged.tif')
+    lbio.coregister_raster(_ndvi_map, landcover_map, output=ndvi_map)
     # create a mask for ndvi_map masking the nan's
     with rio.open(ndvi_map, 'r+') as src:
         data = src.read(indexes=1)
@@ -394,7 +422,12 @@ def test_parallel_optimal_weights(datafiles):
         src.write_mask(mask)
     # create the predicotrs 
     response = ndvi_map
-    predictors = ((landcover_map, 1, (1, 2, 3, 4, 5), True),)
+
+    blurred_source = lbio_.Source(path=create_blurred_tif)
+    predictors = blurred_source.get_bands()
+    # choose the write mask
+    for pred in predictors:
+        pred.set_mask_reader(use='source')
     selector = lbinf.prepare_selector(response,
                                       *predictors)
     view_size = (500, 400)
@@ -406,9 +439,9 @@ def test_parallel_optimal_weights(datafiles):
                           view_size=view_size,
                           )
     Y = np.linalg.inv(tpX)
-    print(f"{tpX=}\n{Y=}")
-    print("#####\n#####\n#####")
-    betas = lbpara.get_optimal_betas(*predictors,
+    # print(f"{tpX=}\n{Y=}")
+    # print("#####\n#####\n#####")
+    betas_dict = lbpara.get_optimal_betas(*predictors,
                                      Y=Y,
                                      response=response,
                                      selector=selector,
@@ -425,8 +458,8 @@ def test_parallel_optimal_weights(datafiles):
                                     )
     # round both the the 6th digit
     b = np.round(lbinf.get_optimal_weights(X, y), 6)
-    betas = np.round(betas, 6)
-    print(f"{b=}\n{betas=}")
+    betas = np.round(list(betas_dict.values()), 6)
+    # print(f"{b=}\n{betas=}")
     np.testing.assert_array_equal(betas, b)
 
 
@@ -451,7 +484,7 @@ def test_entropy_2_step(datafiles):
                                                   truncate=truncate)
     border = (50, 50)
     # load the data
-    ch_map_tif = list(datafiles.iterdir())[0]
+    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ch_map = lbio.load_map(ch_map_tif, indexes=1)
     ch_data = ch_map['data']
     profile = ch_map['orig_profile']
@@ -466,7 +499,7 @@ def test_entropy_2_step(datafiles):
     img_filter = lbf_gauss.gaussian
     # get number of cpu's
     nbr_cpus = mproc.cpu_count() - 1
-    print(f"using {nbr_cpus=}")
+    # print(f"using {nbr_cpus=}")
 
     # ###
     # use single step approach
@@ -531,7 +564,7 @@ def test_entropy_2_step(datafiles):
     # free up the resources
     pool.close()
     pool.join()
-    print(f"job took {duration} seconds")
+    # print(f"job took {duration} seconds")
 
     ###
     # Now calculate first the map with blurred layers and then the entropy
@@ -610,7 +643,7 @@ def test_entropy_2_step(datafiles):
 def test_reduced_mask(datafiles):
     """Compute a mask from multiple bands in one go and then in parallel
     """
-    ch_map_tif = list(datafiles.iterdir())[0]
+    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     source = lbio_.Source(path=ch_map_tif)
     blur_out = str(datafiles / 'blur_out.tif')
     # create the blurred bands
@@ -640,10 +673,49 @@ def test_reduced_mask(datafiles):
     # get the mask loading the entire dataset
     with blurr_source.data_reader(mode='r') as read:
         dataset = read()
-    print(f"{dataset.shape=}")
+    # print(f"{dataset.shape=}")
     mask = lbhelp.reduced_mask(array=dataset)
-    print(f"{mask=}")
+    # print(f"{mask=}")
     lbpara.compute_mask(source=blurr_source,block_size=view_size)
     updated_mask = blurr_source.get_mask()
     np.testing.assert_array_equal(mask, updated_mask)
     assert not np.array_equal(initial_mask, updated_mask)
+
+
+@ALL_MAPS
+def test_selector_computation(datafiles, create_blurred_tif):
+    """Compare the selector generation in parallel to the full one
+    """
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+
+    # scale it down to 100x100m (from 30x30)
+    ndvi_map = str(datafiles / 'lct_coreged.tif')
+    lbio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+
+    lct_source = lbio_.Source(path=landcover_map)
+    ndvi_source = lbio_.Source(path=ndvi_map)
+    blurred_source = lbio_.Source(path=create_blurred_tif)
+    # set the mask
+    lbpara.compute_mask(source=blurred_source, block_size=(1000, 1000),
+                        nodata=0, logic='all')
+    # create the inputs
+    response = lbio_.Band(source=lbio_.Source(path=ndvi_map))
+    predictors = blurred_source.get_bands()
+    # Each band should use the dataset mask:
+    for pred_band in predictors:
+        pred_band.set_mask_reader(use='source')
+    #predictors = ((landcover_map, 1, (1, 2, 3, 4, 5), False),)
+
+    # create a mask for ndvi_map masking the nan's
+    with rio.open(ndvi_map, 'r+') as src:
+        data = src.read(indexes=1)
+        mask = np.where(np.isnan(data), 0, 255)
+        src.write_mask(mask)
+
+    selector_full = lbinf.prepare_selector(response,
+                                           *predictors)
+    selector_para = lbpara.prepare_selector(response, *predictors, block_size=(1000,1000))
+    print(f"{np.unique(selector_full, return_counts=True)=}")
+    print(f"{np.unique(selector_para, return_counts=True)=}")
+    np.testing.assert_equal(selector_full, selector_para)

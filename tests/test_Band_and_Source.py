@@ -10,7 +10,7 @@ from landiv_blur.exceptions import (
     BandSelectionNoMatchError,
 )
 
-from .config import ALL_MAPS
+from .conftest import ALL_MAPS, get_file
 
 @ALL_MAPS
 def test_Band_tagging(datafiles):
@@ -92,7 +92,7 @@ def test_Band_tagging(datafiles):
 def test_rasterio_band_mask(datafiles):
     """Check if there is a difference between rastreio's band and dataset mask
     """
-    ch_map_tif = list(datafiles.iterdir())[0]
+    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     test_file = datafiles / 'test.tif'
     with rio.open(ch_map_tif, 'r+') as src:
         mask_ds0 = src.dataset_mask()
@@ -104,8 +104,8 @@ def test_rasterio_band_mask(datafiles):
     profile['count'] = 2
     masked_band1 = ma.masked_array(data, np.zeros(shape=data.shape))
     masked_band2 = ma.masked_array(data, np.ones(shape=data.shape))
-    print(f"{masked_band1.mask=}")
-    print(f"{masked_band2.mask=}")
+    # print(f"{masked_band1.mask=}")
+    # print(f"{masked_band2.mask=}")
     with rio.open(test_file, 'w', **profile) as src:
         src.write(masked_band1, indexes=1, masked=True)  # 0s first
         src.write(masked_band2, indexes=2, masked=True)  # then 1s
@@ -131,7 +131,7 @@ def test_rasterio_band_mask(datafiles):
 
 @ALL_MAPS
 def test_masking(datafiles):
-    ch_map_tif = list(datafiles.iterdir())[0]
+    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     test_file = datafiles / 'test.tif'
     source = Source(path=ch_map_tif)
     source.import_profile()  # load profile from file

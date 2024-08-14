@@ -4,6 +4,7 @@ import numpy as np
 import rasterio as rio
 
 from landiv_blur import io as lbio
+from landiv_blur import io_ as lbio_
 from landiv_blur import parallel as lbpara
 from landiv_blur import inference as lbinf
 
@@ -34,26 +35,39 @@ def get_optimal_weights():
         lctdata_path,
         'lc_heterogeneity_32U_blurred_diameter_5000_sigma_833_truncate_3_compress.tif'
     )
-    predictors = (
-        # TODO: there are landcover bands that mask 100%: check
-        #(lctblurred_file, 1),
-        (lctblurred_file, 2),
-        (lctblurred_file, 3),
-        #(lctblurred_file, 4),
-        (lctblurred_file, 5),
-        #(lctblurred_file, 6),
-        (
-            os.path.join(lctdata_path,
-                        'lc_heterogeneity_32U_entropy_diameter_5000_sigma_833_truncate_3_compress.tif'),
-            1
-        )
+    predictors = lbio_.Source(path=lctblurred_file).get_bands()
+    # adding the entropy
+    entropy_band = lbio_.Band(
+        source=lbio_.Source(path=os.path.join(
+            lctdata_path,
+            'lc_heterogeneity_32U_entropy_diameter_5000_sigma_833_truncate_3_compress.tif'
+        ))
     )
+    predictors.append(entropy_band)
+    for pred in predictors:
+        pred.set_mask_reader(use='source')
+
+
+    # predictors = (
+    #     # TODO: there are landcover bands that mask 100%: check
+    #     #(lctblurred_file, 1),
+    #     (lctblurred_file, 2),
+    #     (lctblurred_file, 3),
+    #     #(lctblurred_file, 4),
+    #     (lctblurred_file, 5),
+    #     #(lctblurred_file, 6),
+    #     (
+    #         os.path.join(lctdata_path,
+    #                     'lc_heterogeneity_32U_entropy_diameter_5000_sigma_833_truncate_3_compress.tif'),
+    #         1
+    #     )
+    # )
     # firs step: use the response mask and enrich it with the predictor masks
     #            to create a data selector
     print("Creating selector...")
-    # TODO: selector is calculated within get_XT_X again: remove from fct!
     selector = lbinf.prepare_selector(response,
-                                      *predictors)
+                                      *predictors,
+                                      verbose=True)
     print("\tdone!")
     # compute (X^T X) in parallel 
     print("Calculate X.T @ X...")

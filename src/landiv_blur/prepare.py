@@ -122,13 +122,13 @@ def create_views(view_size:tuple[int, int],
     # number of full block along each axis that do not cover the leftovers
     nbr_views = list(map(lambda x: math.floor((x[1] - x[2]) / x[0]),
                          zip(view_size, size, leftovers)))
-    print("\n")
-    print(f"\t{size=}")
-    print(f"\t{view_size=}")
-    print(f"\t{leftovers=}")
-    print(f"\t{nbr_views=}")
-    print(f"\t{border=}")
-    print("\n")
+    # print("\n")
+    # print(f"\t{size=}")
+    # print(f"\t{view_size=}")
+    # print(f"\t{leftovers=}")
+    # print(f"\t{nbr_views=}")
+    # print(f"\t{border=}")
+    # print("\n")
 
     xstarts = []
     ystarts = []
@@ -224,10 +224,10 @@ def create_views(view_size:tuple[int, int],
         inner_ys.append(size[1] - view_size[1])
         inner_w.append(view_size[0])
         inner_h.append(view_size[1])
-    print(f"{xstarts=}\n{ystarts=}")
-    print(f"{widths=}\n{heights=}")
-    print(f"{inner_xs=}\n{inner_ys=}")
-    print(f"{inner_w=}\n{inner_h=}")
+    # print(f"{xstarts=}\n{ystarts=}")
+    # print(f"{widths=}\n{heights=}")
+    # print(f"{inner_xs=}\n{inner_ys=}")
+    # print(f"{inner_w=}\n{inner_h=}")
     return (
         list(zip(xstarts, ystarts, widths, heights)),
         list(zip(inner_xs, inner_ys, inner_w, inner_h))

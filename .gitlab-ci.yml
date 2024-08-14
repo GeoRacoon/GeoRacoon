@@ -71,7 +71,7 @@ first-test:
     - 'pip install -r requirements.txt'
     - 'pip install -r tests/requirements.txt'  # this installs packages downstream as well, not ideal
     - 'pip install dist/*.whl'  # install the package
-    - 'python -m pytest -vvv --cov'
+    - 'python -m pytest -vvv --cov -s'
   coverage: /(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/
 
 pages:

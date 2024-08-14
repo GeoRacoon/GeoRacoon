@@ -11,7 +11,7 @@ from landiv_blur.filters import _get_kernel_diam
 from landiv_blur.filters import _get_kernel_size
 from landiv_blur.filters.gaussian import gaussian, compatible_border_size
 
-from .config import ALL_MAPS
+from .conftest import ALL_MAPS, get_file
 
 
 def test_kernel_scaling():
@@ -23,7 +23,7 @@ def test_kernel_scaling():
         for scale in [0.5, 1, 1.5, 2, 10, 100]:
             sigma = scale * default_sigma
             kernels.append(get_ks(sigma))
-            print(f"{sigma=} - kernel size {kernels[-1]}")
+            # print(f"{sigma=} - kernel size {kernels[-1]}")
             expected_ks.append(default_size*scale)
         assert kernels == expected_ks, 'Gaussian kernel size does not scale' \
                'linearly with sigma!'
@@ -33,7 +33,7 @@ def test_kernel_scaling():
 def test_filter_signal_preservation(datafiles):
     """Filtering shouldn't lose more than 0.1% of the initial signal in the map
     """
-    ch_map_tif = list(datafiles.iterdir())[0]
+    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ch_data = lbio.load_map(ch_map_tif)['data']
     lctypes = lbproc.get_categories(ch_data)
     sigma = 10
@@ -72,8 +72,8 @@ def test_signal_preservation():
                                          _get_kernel_size):
         kd = _get_kd(sigma=sigma, truncate=truncate)
         ks = _get_ks(sigma=sigma, truncate=truncate)
-        print(f"kernel diameter {kd=}")
-        print(f"kernel size {ks=}")
+        # print(f"kernel diameter {kd=}")
+        # print(f"kernel size {ks=}")
         gsquare = _filter(data, sigma=sigma, truncate=truncate)
         assert round(signal, 2) == round(gsquare.sum(), 2)
 

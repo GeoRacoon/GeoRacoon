@@ -71,12 +71,12 @@ def mask_relative(source:str,
     """
     # we only need the mask where the source file is
     clipper_data = read_clip(source=masker, clipping=source, **tags)['data']
-    print(f"{clipper_data.shape=}")
+    # print(f"{clipper_data.shape=}")
     source_map = load_block(source=source,
                             view=None,
                             indexes=None)
     source_data = source_map['data']
-    print(f"{source_data.shape=}")
+    # print(f"{source_data.shape=}")
     # TODO: we still need to make sure masker and source have the same
     #       resolution after clipping
     masked = np.where(clipper_data == masking, source_data, no_value)
