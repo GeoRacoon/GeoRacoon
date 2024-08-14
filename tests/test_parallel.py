@@ -666,7 +666,7 @@ def test_reduced_mask(datafiles):
         filter_params=filter_params,
         blur_as_int=blur_as_int,
         block_size=view_size,
-        compress = True
+        compress=True
     )
     blurr_source = lbio_.Source(path=blurred_tif)
     initial_mask = blurr_source.get_mask()
@@ -676,8 +676,12 @@ def test_reduced_mask(datafiles):
     # print(f"{dataset.shape=}")
     mask = lbhelp.reduced_mask(array=dataset)
     # print(f"{mask=}")
-    lbpara.compute_mask(source=blurr_source,block_size=view_size)
+    lbpara.compute_mask(source=blurr_source, block_size=view_size)
     updated_mask = blurr_source.get_mask()
+    # as get_mask returns [0, 255] mask and mask produces [0, 1] we need to account for that
+    # it is important that > 0 is Valid data and needs to be equal
+    updated_mask = np.divide(updated_mask, 255)
+    # print(f"UNIQUE VALUES: \n mask: {np.unique(mask)}\n updated_mask: {np.unique(updated_mask)}")
     np.testing.assert_array_equal(mask, updated_mask)
     assert not np.array_equal(initial_mask, updated_mask)
 

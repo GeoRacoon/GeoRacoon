@@ -344,10 +344,10 @@ def process_masks(task:Callable,
     return timer
 
 def combine_entropy_blocks(output_params: dict,
-                           entropy_q:Queue,
-                           tags=dict(category='entropy')):
+                           entropy_q:Queue):
     """Listen to queue (entropy_q) and write computed block to single file
     """
+
     with TimedTask() as timer:
         output_dtype = output_params.pop('output_dtype')
         output_file = output_params.pop('output_file')
@@ -382,10 +382,6 @@ def combine_entropy_blocks(output_params: dict,
                 write(data, window=w)
                 print(f"Wrote out entropy block {view=}")
                 timer.new_lab()
-    plot_entropy(source=output_file,
-                 view=(0, 0, profile['width'], profile['height']),
-                 category=tags['category'],  # select the layer by tag
-                 fig_params=dict(output=f"{output_file}.preview.pdf"))
     return timer
 
 
@@ -405,6 +401,7 @@ def runner_call(queue: Queue[Any],
         queue.put(output)
     return output
 
+
 def extract_categories(source: str|Source,
                        categories: list,
                        output_file: str,
@@ -412,6 +409,7 @@ def extract_categories(source: str|Source,
                        filter_params:dict,
                        block_size: tuple[int, int],
                        blur_as_int: bool = True,
+                       verbose: bool = False,
                        **params):
     """Load per-category maps from resource, apply a filter and export.
 
@@ -453,9 +451,11 @@ def extract_categories(source: str|Source,
     # the border size of a block should be at least as large as the kernel size
     # TODO: this should be a computed term, rather than simply set
     # set the block size in pixels
-    print(f"The block size without border is {block_size=} pixels")
+    if verbose:
+        print(f"The block size without border is {block_size=} pixels")
     border = compatible_border_size(**filter_params)
-    print(f"The resulting border size is {border=} pixels")
+    if verbose:
+        print(f"The resulting border size is {border=} pixels")
     if blur_as_int:
         blur_output_dtype = np.uint8
     else:
@@ -494,7 +494,8 @@ def extract_categories(source: str|Source,
     # TODO: this should be specific pmc parameters
     # get number of cpu's
     nbr_cpus = params.pop('nbrcpu', cpu_count())
-    print(f"using {nbr_cpus=}")
+    if verbose:
+        print(f"using {nbr_cpus=}")
     pool = Pool(nbr_cpus)
 
     # start the blurred category writer task
@@ -540,7 +541,9 @@ def compute_entropy(source: str|Source,
                     blur_params: dict,  # TODO: is only used to format output_file
                     categories: list | None = None,
                     entropy_as_ubyte: bool = True,
-                    normed:bool=True,
+                    normed: bool=True,
+                    plot_pdf_preview: bool = True,
+                    verbose: bool = False,
                     **params):
     """Compute the entropy-based heterogeneity from several category bands
 
@@ -567,6 +570,10 @@ def compute_entropy(source: str|Source,
         Should the entropy be normalized and returned as ubyte?
     normed:
         If the entropy should be normalized
+    plot_pdf_preview:
+        Whether a preview (.pdf) plot of the result should be generated
+    verbose:
+        Print out processing steps
     **params:
         Optional arguments for the multiprocessing (e.g. nbr_cpus)
     
@@ -583,17 +590,11 @@ def compute_entropy(source: str|Source,
         width = src.width
         height = src.height
         profile = copy(src.profile)
-    bidxs = source.band_indexes
-    band_tags_str = '\n\t'.join((f'{bidx=}: {source.get_tags(bidx=bidx)}'
-                                 for bidx in bidxs))
-    print("The chosen source tif has a dimension of:"
-          f"\n\t{width=}\n\t{height=}\n"
-          "\tAnd the tags per band index:\n"
-          f"\t{band_tags_str}")
 
+    if verbose:
+        print("The chosen source tif has a dimension of:"
+              f"\n\t{width=}\n\t{height=}\n")
 
-    print("Chosen parameters for the entropy calculation:\n"
-          "\t- ?: \n")
     # adapt the profile:
     profile['count'] = 1  # single band for entropy
 
@@ -606,6 +607,11 @@ def compute_entropy(source: str|Source,
     # TODO: provide the categories we want to include
     input_bands = [Band(source=source, tags=dict(category=category))
                    for category in categories]
+    if verbose:
+        band_choice_str = '\n\t'.join((f'{band.get_bidx()}:{band.tags}' for band in input_bands))
+        print("Chosen bands for the entropy calculation:\n"
+              f"\t{band_choice_str} \n")
+
     # TODO: We should not change the output file
     entropy_output_file = output_filename(
         base_name=output_file,
@@ -645,12 +651,13 @@ def compute_entropy(source: str|Source,
     entropy_q = manager.Queue()
     # get number of cpu's
     nbr_cpus = params.pop('nbrcpu', cpu_count())
-    print(f"using {nbr_cpus=}")
+    if verbose:
+        print(f"using {nbr_cpus=}")
     pool = Pool(nbr_cpus)
 
     # start the entropy writer task
     entropy_combiner = pool.apply_async(combine_entropy_blocks,
-                                        (entropy_output_params, entropy_q, ))
+                                        (entropy_output_params, entropy_q))
 
     # start the block processing
     all_jobs = []
@@ -671,6 +678,13 @@ def compute_entropy(source: str|Source,
     # wait for the *_combiner tasks to finish
     pool.join()
 
+    # Plot preview as pdf
+    if plot_pdf_preview:
+        plot_entropy(source=entropy_output_file,
+                     view=(0, 0, profile['width'], profile['height']),
+                     category='entropy',  # select the layer by tag
+                     fig_params=dict(output=f"{entropy_output_file}.preview.pdf"))
+
     # lzw-compress final output
     compress = params.pop('compress', False)
     if compress:
@@ -689,6 +703,7 @@ def compute_mask(source: str|Source,
                  nodata=0,
                  logic:str='all',
                  bands:list[Band]|None=None,
+                 verbose: bool = False,
                  **params):
     """Compute the mask of a dataset in parallel and write it it out to the file
 
@@ -723,6 +738,10 @@ def compute_mask(source: str|Source,
         
     if bands is None:
         bands = source.get_bands()
+    else:
+        # make sure the profile is up to date for Bands (if not taken from source but provided as parameter)
+        for band in bands:
+            band.source.import_profile()
 
     # set the per-block parameter
     _, inner_views = create_views(view_size=block_size,
@@ -756,7 +775,8 @@ def compute_mask(source: str|Source,
     aggr_q = manager.Queue()
     # get number of cpu's
     nbr_cpus = params.pop('nbrcpu', cpu_count())
-    print(f"using {nbr_cpus=}")
+    if verbose:
+        print(f"using {nbr_cpus=}")
     pool = Pool(nbr_cpus)
 
     # start the aggregator task
@@ -828,8 +848,9 @@ def prepare_selector(*bands: Band,
     manager = Manager()
     aggr_q = manager.Queue()
     # get number of cpu's
-    nbr_cpus = params.pop('nbrcpu', cpu_count())
-    print(f"using {nbr_cpus=}")
+    nbr_cpus = params.get('nbrcpu', cpu_count())
+    if verbose:
+        print(f"using {nbr_cpus=}")
     pool = Pool(nbr_cpus)
     # start the aggregator job
     # set the aggregator parameter - just an all-False selector
@@ -912,6 +933,7 @@ def block_entropy(params:dict, entropy_q:Queue)->TimedTask:
         )
     return timer
 
+
 def block_filter(params:dict, blur_q:Queue)->TimedTask:
     """Per block (i.e. view) heterogeneity measure based on entropy
 
@@ -959,6 +981,7 @@ def block_filter(params:dict, blur_q:Queue)->TimedTask:
             blur_params
         )
     return timer
+
 
 def block_heterogeneity(params:dict, entropy_q:Queue, blur_q:Queue)->TimedTask:
     """Per block (i.e. view) heterogeneity measure based on entropy
@@ -1068,7 +1091,7 @@ def get_XT_X(response: str|Band,
       
       Optional:
 
-      nbr_cpus: int
+      nbrcpu: int
         The number of cpu's to use. If not set then then the available number
         of threads -1 are used.
 
@@ -1077,7 +1100,7 @@ def get_XT_X(response: str|Band,
         response = Band(source=Source(path=response),
                         bidx=1)
     view_size = mpc_params.get('view_size')
-    nbr_cpus = mpc_params.get('nbr_cpus', cpu_count() - 1)
+    nbr_cpus = mpc_params.get('nbrcpu', cpu_count() - 1)
     src_profile = response.source.import_profile()
     src_width = int(src_profile.get('width'))
     src_height = int(src_profile.get('height'))
@@ -1141,7 +1164,7 @@ def get_optimal_betas(*predictors: Band|str,
         response = Band(source=Source(path=response),
                         bidx=1)
     view_size = mpc_params.get('view_size')
-    nbr_cpus = mpc_params.get('nbr_cpus', cpu_count() - 1)
+    nbr_cpus = mpc_params.get('nbrcpu', cpu_count() - 1)
     src_profile = response.source.import_profile()
     src_width = int(src_profile.get('width'))
     src_height = int(src_profile.get('height'))
@@ -1194,12 +1217,14 @@ def get_optimal_betas(*predictors: Band|str,
     print(f"{betas=}")
     return {pred: beta for pred, beta in zip(predictors, betas)}
 
+
 def compute_weights(response: str|Band,
                     predictors: Collection[Band],
                     block_size: tuple[int, int],
                     include_intercept:bool=True,
                     as_dtype=np.float64,
                     verbose=False,
+                    **params
                     )->dict[Band,float]:
     """Compute the optimal weight in a multiple linear regression
 
@@ -1216,17 +1241,30 @@ def compute_weights(response: str|Band,
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
                         bidx=1)
-    selector = prepare_selector(response, *predictors, block_size=block_size)
+    if verbose:
+        print("Creating selector...")
+    selector = prepare_selector(response,
+                                *predictors,
+                                block_size=block_size,
+                                verbose=verbose,
+                                **params)
+    if verbose:
+        print("Calculate X.T @ X...")
     tpX = get_XT_X(response,
                    *predictors,
                    selector=selector,
                    include_intercept=include_intercept,
                    verbose=verbose,
                    view_size=block_size,
-                   )
+                   **params)
+
+    if verbose:
+        print("Inverting X.T @ X...")
     Y = np.linalg.inv(tpX)
     # print(f"{tpX=}\n{Y=}")
     # print("#####\n#####\n#####")
+    if verbose:
+        print("Calculate Y @ X.T @ y (optimal weights)...")
     betas_dict = get_optimal_betas(*predictors,
                                    Y=Y,
                                    response=response,
@@ -1235,5 +1273,5 @@ def compute_weights(response: str|Band,
                                    verbose=verbose,
                                    as_dtype=as_dtype,
                                    view_size=block_size,
-                                   )
+                                   **params)
     return betas_dict

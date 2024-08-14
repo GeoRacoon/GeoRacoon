@@ -45,6 +45,12 @@ class Source:
         items = [f"path={str(self.path)}", f"exists: { self.exists }"]
         return "{}({})".format(type(self).__name__, ", ".join(items))
 
+    def __eq__(self, other):
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return (self.path == other.path and self.tags == other.tags and
+                self._ns == other._ns and self.profile == other.profile)
+
     def import_profile(self, update_self:bool=True):
         """Read the profile from the source file
 
@@ -121,8 +127,9 @@ class Source:
     @contextmanager
     def mask_writer(self, **kwargs):
         mode = kwargs.pop('mode', 'r+')
-        with self.open(mode=mode, **kwargs) as src:
-            yield src.write_mask
+        with rio.Env(GDAL_TIFF_INTERNAL_MASK=True):
+            with self.open(mode=mode, **kwargs) as src:
+                yield src.write_mask
 
     def export_mask(self, mask:NDArray, window:Window):
         """Write the mask into the output file
