@@ -27,6 +27,7 @@ from .io import (
     find_bidxs,
     compress_tif,
 )
+from .helper import check_compatibility as _check_compatibility
 
 class Source:
     """Specifies a data source
@@ -57,7 +58,7 @@ class Source:
             profile = src.profile
         if update_self:
             self.profile.update(profile)
-        return profile
+        return self.profile
 
     @property
     def exists(self)->bool:
@@ -310,6 +311,17 @@ class Source:
         # remove uncompressed file:
         if uncompressed != self.path:
             os.remove(uncompressed)
+
+    def check_compatibility(self, *sources: Source):
+        """Make sure the provided bands are compatible with this one
+
+        See `helper.check_compatibility` for details
+
+        """
+        _sources = {self.path,}
+        for source in sources:
+            _sources.add(source.path)
+        return _check_compatibility(*_sources)
 
 @dataclass
 class Band:

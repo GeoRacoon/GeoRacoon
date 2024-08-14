@@ -366,7 +366,7 @@ def view_blurred(source:str,
     # read out block from original file
     result = load_block(source, view=view, scaling_params=None, **tags)
     data = result.pop('data')
-    print(f"{data.shape=}")
+    # print(f"{data.shape=}")
     # transform = result.pop('transform')
     # orig_profile = result.pop('orig_profile')
     # perform blur

@@ -6,7 +6,7 @@ of filters on a tif
 """
 import os
 from typing import Any
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 
 from copy import copy
 
@@ -17,11 +17,14 @@ from multiprocessing import Pool, Queue, Manager, cpu_count
 from numpy.typing import NDArray
 
 from .io_ import Source, Band
-from .helper import (view_to_window, output_filename, reduced_mask)
+from .helper import (view_to_window,
+                     output_filename,
+                     reduced_mask,
+                     aggregated_selector)
 from .timing import TimedTask
 from .plotting import plot_entropy
 from .processing import view_blurred, view_entropy
-from .prepare import create_views, get_blur_params
+from .prepare import create_views, get_blur_params, update_view
 from .filters.gaussian import (gaussian, compatible_border_size)
 from .inference import (
         transposed_product,
@@ -30,14 +33,22 @@ from .inference import (
 from .io import set_tags, write_band, compress_tif
 
 # TODO: this needs adaptation once !36 is merged (using tags instead of indexes)
-def combine_blurred_categories(output_params: dict, blur_q:Queue):
+def combine_blurred_categories(output_params: dict, blur_q:Queue)->TimedTask:
     """Listen to queue (blur_q) and write blurred blocks to a single file
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    TimedTask:
+        Can report the duration of the task
     """
     with TimedTask() as timer:
         output_dtype = output_params.pop('output_dtype')
         output_file = output_params.pop('output_file')
-        print(f"{output_file=}")
-        print(f"{output_dtype=}")
+        # print(f"{output_file=}")
+        # print(f"{output_dtype=}")
         profile = output_params.pop('profile')
         profile['dtype'] = output_dtype
         profile['count'] = output_params.get('count', profile['count'])
@@ -48,7 +59,7 @@ def combine_blurred_categories(output_params: dict, blur_q:Queue):
                 if signal:
                     if signal == "kill":
                         # TODO: FINALIZE_TASK:
-                        print(f"\n\nClosing: {output_file}\n\n")
+                        # print(f"\n\nClosing: {output_file}\n\n")
                         break
                 categories_data = output.pop('data')
                 inner_view = copy(output.pop('view'))
@@ -66,13 +77,26 @@ def combine_blurred_categories(output_params: dict, blur_q:Queue):
                                category=band)
                     # NOTE: we might want keep the description unchanged:
                     dst.set_band_description(bidx, f'LC_{band}')
-                print(f"Wrote out bands for blurred block {inner_view=}")
+                # print(f"Wrote out bands for blurred block {inner_view=}")
                 timer.new_lab()
+        # print(f"\n\n########\n\nProfile")
+
     return timer
 
 
-def combine_matrices(output_q:Queue):
+def combine_matrices(output_q:Queue)->tuple[NDArray|None, tuple]:
     """Adding up matrices that hold partial sums
+
+    Parameters
+    ----------
+    output_q:
+        The queue this job listens to.
+
+    Returns
+    -------
+    matrice, (TimedTask, ):
+        The first object is the aggregated matrix, the second holds a
+        `TimedTask` object that holds information on the duration of this task
     """
     out_matrix = None
     with TimedTask() as timer:
@@ -81,19 +105,62 @@ def combine_matrices(output_q:Queue):
             signal = output.get('signal', None)
             if signal:
                 if signal == "kill":
-                    print(f"\n\nDone with the matrix aggregation.\n\n")
+                    # print(f"\n\nDone with the matrix aggregation.\n\n")
                     break
             partial = output.pop('X')
             if out_matrix is not None:
-                out_matrix += partial
+                part_array = np.array(partial)
+                part_array[np.isnan(part_array)] = 0
+                out_matrix += part_array
             else:
-                out_matrix = partial
+                out_matrix = np.array(partial)
+                # replace nan's with 0's
+                out_matrix[np.isnan(out_matrix)] = 0
             timer.new_lab()
     return out_matrix, (timer,) 
 
 
+def fill_matrix(matrix:NDArray, aggr_q:Queue)->tuple[NDArray|None, tuple]:
+    """Filling up a matrix
+
+    Parameters
+    ----------
+    aggr_q:
+        The queue this job listens to.
+        Each element in the queue must be a `dict` containing either:
+        - "view" + "data" specifying where to write what
+        - "signal" with value:
+          - "kill": will terminate the process and return the filled matrix
+
+    Returns
+    -------
+    matrice, (TimedTask, ):
+        The first object is the filled matrix, the second holds a
+        `TimedTask` object that holds information on the duration of this task
+    """
+    with TimedTask() as timer:
+        while True:
+            output = aggr_q.get()
+            signal = output.get('signal', None)
+            if signal:
+                if signal == "kill":
+                    # print(f"\n\nDone with the matrix aggregation.\n\n")
+                    break
+            view = output.pop('view')
+            block_data = output.pop('data')
+            update_view(data=matrix, view=view, block=block_data)
+            timer.new_lab()
+    return matrix, (timer,) 
+
 def partial_transposed_product(params:dict, output_q:Queue):
-    """Run .inference.transposed_product in parallel
+    """Run `.inference.transposed_product` in parallel
+
+    Parameters
+    ----------
+    params:
+        The keywords arguments passed to `.inference.transposed_product`
+    output_q:
+        The queue this job listens to.
     """
     def _wrap(tpX):
         return dict(X=tpX)
@@ -106,9 +173,17 @@ def partial_transposed_product(params:dict, output_q:Queue):
 
 def partial_optimal_betas(params:dict, output_q:Queue):
     """Runs .inference.get_optimal_weights_source in parallel
+
+    Parameters
+    ----------
+    params:
+        The keywords arguments passed to
+        `.inference.get_optimal_weights_source`
+    output_q:
+        The queue this job listens to.
     """
-    def _wrap(betas):
-        return dict(X=betas)
+    def _wrap(beta_dict):
+        return dict(X=list(beta_dict.values()))  # ok for python >= 3.6 (dict keeps order)
     runner_call(
         output_q,
         get_optimal_weights_source,
@@ -117,12 +192,25 @@ def partial_optimal_betas(params:dict, output_q:Queue):
     )
 
 
-def data_writer(writer, writer_params:dict, aggr_q:Queue):
+def data_writer(writer:Callable, writer_params:dict, aggr_q:Queue)->TimedTask:
     """Write out data using the context manager `writer`
 
-    This function can be used with the various context managers deifned
+    This function can be used with the various context managers defined
     in the `io_.Source` and `io_.Band` classes.
 
+    Parameters
+    ----------
+    writer:
+        A `io_.Source` or `io_.Band` `data_write` (or `mask_writer`)
+    writer_params:
+        Keyword arguments that will be passed to the `writer` method
+    aggr_q:
+        The queue this job listens to.
+
+    Returns
+    -------
+    TimedTask:
+        Can report the duration of the task
 
     """
     with TimedTask() as timer:
@@ -133,7 +221,7 @@ def data_writer(writer, writer_params:dict, aggr_q:Queue):
                 signal = job_out.get('signal', None)
                 if signal:
                     if signal == "kill":
-                        print(f"\n\nTerminating data writer.\n\n")
+                        # print(f"\n\nTerminating data writer.\n\n")
                         break
                 data = job_out.pop('data')
                 view = copy(job_out.pop('view'))
@@ -146,27 +234,113 @@ def data_writer(writer, writer_params:dict, aggr_q:Queue):
 
 def process_block(task:Callable, 
                  source:str|Source,
-                 bands:list[Band]|None,
+                 bands:Collection[Band]|None,
                  view:tuple[int,int,int,int],
                  task_params:dict,
                  read_params:dict,
                  open_params:dict,
-                 out_q:Queue):
+                 out_q:Queue)->TimedTask:
+    """Processes a section of the data in the source file.
+
+    This is a general purpose function that can be used to process a large .tif
+    in a parallelized manner.
+
+    Parameters
+    ----------
+    task:
+        Function that will be called on the data from the specified band.
+        The first argument of the function must be `data`, a `numpy.array`
+        that holds the data from this section.
+    source:
+        Either a string or an `io_.Source` object
+    bands:
+        A collection of strings or `io_.Band` object the specify which bands to use
+    view:
+      A tuple (x, y, width, height) defining the view of data to extract and
+      process
+    task_params:
+        Keyword arguments that will be passed to the callable `task`
+    read_params:
+        Keyword arguments that are passed to the open method of the `source` object
+    open_params:
+        Keyword arguments that are passed to the reader method of the `source` object
+    out_q: 
+        The queue this job will put the output of the callable `task` into
+        
+
+    Returns
+    -------
+    TimedTask:
+        Can report the duration of the task
+    """
     with TimedTask() as timer:
-        if isinstance(source, str):
+        if not isinstance(source, Source):
             source = Source(path=source)
         if bands is None:
-            print('No specifc bands selected, using all')
+            # print('No specific bands selected, using all')
             bands = source.get_bands()
         assert all(band.source == source for band in bands), "Not all bands point to the correct source!"
         window = view_to_window(view)
         with source.data_reader(bands=bands, **open_params) as read:
             data = read(window=window, **read_params)
-        mask = runner_call(callback=task,
+        _ = runner_call(callback=task,
                         params=dict(array=data, **task_params),
                         queue=out_q,
                         wrapper=lambda x: dict(data=x, view=view))
-        print(f"{view=}\n{data=}\n{mask=}")
+        # print(f"{view=}\n{data=}\nmask={_}")
+    return timer
+
+def process_masks(task:Callable, 
+                  bands:Collection[Band],
+                  view:tuple[int,int,int,int],
+                  task_params:dict,
+                  read_params:dict,
+                  open_params:dict,
+                  aggr_q:Queue)->TimedTask:
+    """Processes a section of the mask for each band
+
+    This is a general purpose function that can be used to process a large .tif
+    in a parallelized manner.
+
+    Parameters
+    ----------
+    task:
+        Function that will be called on the data from the specified band.
+        The first argument of the function must be `data`, a `numpy.array`
+        that holds the data from this section.
+    bands:
+        A collection of strings or `io_.Band` object the specify which bands to use
+    view:
+      A tuple (x, y, width, height) defining the view of data to extract and
+      process
+    task_params:
+        Keyword arguments that will be passed to the callable `task`
+    read_params:
+        Keyword arguments that are passed to the open method of the `source` object
+    open_params:
+        Keyword arguments that are passed to the reader method of the `source` object
+    aggr_q: 
+        The queue this job will put the output of the callable `task` into
+        
+
+    Returns
+    -------
+    TimedTask:
+        Can report the duration of the task
+    """
+    window = view_to_window(view)
+    with TimedTask() as timer:
+        masks = []
+        for band in bands:
+            mask_reader = band.get_mask_reader()
+            with mask_reader(**open_params) as read_mask:
+                _mask = read_mask(window=window, **read_params)
+                masks.append(_mask)
+        _ = runner_call(callback=task,
+                        params=dict(masks=masks, **task_params),
+                        queue=aggr_q,
+                        wrapper=lambda x: dict(data=x, view=view))
+        # print(f"{view=}\n{data=}\nmask={_}")
     return timer
 
 def combine_entropy_blocks(output_params: dict,
@@ -177,8 +351,8 @@ def combine_entropy_blocks(output_params: dict,
     with TimedTask() as timer:
         output_dtype = output_params.pop('output_dtype')
         output_file = output_params.pop('output_file')
-        print(f"{output_file=}")
-        print(f"{output_dtype=}")
+        # print(f"{output_file=}")
+        # print(f"{output_dtype=}")
         profile = output_params.pop('profile')
         profile['dtype'] = output_dtype
         out_band = output_params.pop('out_band', None)
@@ -190,7 +364,7 @@ def combine_entropy_blocks(output_params: dict,
         out_band.init_source(profile=profile)
         # write out the tags
         out_band.export_tags()
-        print(f'INIT:\n{out_band.source=}\n{out_band=}')
+        # print(f'INIT:\n{out_band.source=}\n{out_band=}')
 
         #with out_band.source.open(mode='r+', **profile) as dst:
         with out_band.data_writer(mode='r+', **profile) as write:
@@ -586,7 +760,6 @@ def compute_mask(source: str|Source,
     pool = Pool(nbr_cpus)
 
     # start the aggregator task
-    aggregator = source.export_mask
     aggr_params = dict(mode='r+')  # nothing else to pass
     aggregator_job = pool.apply_async(
         func=data_writer,  # the callable
@@ -617,12 +790,77 @@ def compute_mask(source: str|Source,
     total_duration = aggregator_job.get().get_duration()
 
 
-def logical_and(key:Callable, data):
-    """Return True if all cells along 1 axis evaluate to True
+def prepare_selector(*bands: Band,
+                     block_size: tuple[int, int],
+                     verbose=False,
+                     **params)->NDArray:
+    """Compute a boolean selector from masks of the provided `io_.Band` objects
     """
-    # apply callable on all cells
-    # stack and compare along one axis
-    return True
+    # make sure the bands are compatible
+    _source0 = bands[0].source
+    if len(bands) > 1:
+        _source0.check_compatibility(*(b.source for b in bands[1:]))
+    # make sure the profile is up to date
+    source0_profile = bands[0].source.import_profile()
+
+    width = source0_profile.get('width')
+    height = source0_profile.get('height')
+
+    # set the per-block parameter
+    _, inner_views = create_views(view_size=block_size,
+                                  border=(0,0),
+                                  size=(width, height))
+    # set the per job parameter
+    block_params = []
+    for view in inner_views:
+        bparams = dict(
+            task=aggregated_selector,
+            bands=bands,
+            view=view,
+            task_params=dict(logic='all'),
+            open_params=dict(mode='r'),
+            read_params=dict(),
+        )
+        block_params.append(bparams)
+    # ###
+    # prepare multiprocessing
+    # ###
+    manager = Manager()
+    aggr_q = manager.Queue()
+    # get number of cpu's
+    nbr_cpus = params.pop('nbrcpu', cpu_count())
+    print(f"using {nbr_cpus=}")
+    pool = Pool(nbr_cpus)
+    # start the aggregator job
+    # set the aggregator parameter - just an all-False selector
+    aggr_params = dict(
+        matrix=np.full((height, width), False),
+        aggr_q=aggr_q
+    )
+    aggregator_job = pool.apply_async(
+        func=fill_matrix,  # the callable
+        kwds=aggr_params,  # and its arguments
+    )
+    # start the block jobs
+    block_jobs = []
+    for bparams in block_params:
+        block_jobs.append(pool.apply_async(
+            func=process_masks,
+            kwds=dict(**bparams, aggr_q=aggr_q,)
+        ))
+    # collect results
+    job_timers = []
+    for job in block_jobs:
+        job_timers.append(job.get().get_duration())
+    # now initiate shutdown of aggregator
+    aggr_q.put(dict(signal='kill'))
+    pool.close()
+    # wait for the *_combiner tasks to finish
+    pool.join()
+    selector, (timer,) = aggregator_job.get()
+    total_duration = timer.get_duration()
+    return selector
+
 
 def block_entropy(params:dict, entropy_q:Queue)->TimedTask:
     """Per block (i.e. view) heterogeneity measure based on entropy
@@ -735,8 +973,7 @@ def block_heterogeneity(params:dict, entropy_q:Queue, blur_q:Queue)->TimedTask:
         Path to the tif file to use
       view: tuple
         (x, y, width, height) defining the outer border of the view or block
-        to process
-      inner_view: tuple
+        to process inner_view: tuple
         (x, y, width, height) defining the usable part of the block, i.e.
         without the borders
       blur_as_int: bool
@@ -794,11 +1031,8 @@ def block_heterogeneity(params:dict, entropy_q:Queue, blur_q:Queue)->TimedTask:
 
 
 # TODO: mpc_params should become first class parameter if mandatory
-def get_XT_X(response: str,
-             *predictors: tuple[str,
-                                int,
-                                tuple[int, ...] | None,
-                                bool | None],
+def get_XT_X(response: str|Band,
+             *predictors: Band|str,
              selector:NDArray,
              include_intercept:bool=True,
              verbose:bool=False,
@@ -812,12 +1046,12 @@ def get_XT_X(response: str,
     Parameters
     ----------
     response:
-      Path to a tif file that contains the reponse data. The file is only used
+      Path to a tif file that contains the response data. The file is only used
       to get the dimensions.
     *predictors:
       A collection with arbitrary many predictors to use.
       See inference.prepare_predictors for further details on how to specify
-      predicotrs.
+      predictors.
     selector:
         a `np.bool_` array to select usable cells in a numpy 2D array
     include_intercept: _optional_
@@ -839,11 +1073,14 @@ def get_XT_X(response: str,
         of threads -1 are used.
 
     """
+    if not isinstance(response, Band):
+        response = Band(source=Source(path=response),
+                        bidx=1)
     view_size = mpc_params.get('view_size')
     nbr_cpus = mpc_params.get('nbr_cpus', cpu_count() - 1)
-    with rio.open(response, 'r') as src:
-        src_width = src.width
-        src_height = src.height
+    src_profile = response.source.import_profile()
+    src_width = int(src_profile.get('width'))
+    src_height = int(src_profile.get('height'))
     # create a list of views and put it into runner_params
     size = (src_width, src_height)
     border = (0, 0)
@@ -889,12 +1126,9 @@ def get_XT_X(response: str,
     return recombined_tpX
 
 
-def get_optimal_betas(*predictors: tuple[str,
-                                         int,
-                                         tuple[int, ...] | None,
-                                         bool | None],
+def get_optimal_betas(*predictors: Band|str,
                       Y: np.ndarray,
-                      response: str,
+                      response: str|Band,
                       selector,
                       include_intercept=True,
                       verbose: bool = False,
@@ -903,11 +1137,14 @@ def get_optimal_betas(*predictors: tuple[str,
                       ):
     """
     """
+    if not isinstance(response, Band):
+        response = Band(source=Source(path=response),
+                        bidx=1)
     view_size = mpc_params.get('view_size')
     nbr_cpus = mpc_params.get('nbr_cpus', cpu_count() - 1)
-    with rio.open(response, 'r') as src:
-        src_width = src.width
-        src_height = src.height
+    src_profile = response.source.import_profile()
+    src_width = int(src_profile.get('width'))
+    src_height = int(src_profile.get('height'))
     size = (src_width, src_height)
     border = (0, 0)
     #  _ is for the inner_views which we do not need
@@ -954,4 +1191,49 @@ def get_optimal_betas(*predictors: tuple[str,
     output_q.put(dict(signal='kill'))
     # wait for the recombination job to terminate
     betas, _ = matrix_aggregator.get()
-    return betas 
+    print(f"{betas=}")
+    return {pred: beta for pred, beta in zip(predictors, betas)}
+
+def compute_weights(response: str|Band,
+                    predictors: Collection[Band],
+                    block_size: tuple[int, int],
+                    include_intercept:bool=True,
+                    as_dtype=np.float64,
+                    verbose=False,
+                    )->dict[Band,float]:
+    """Compute the optimal weight in a multiple linear regression
+
+    Parameters
+    ----------
+    response:
+      Path to a tif file that contains the response data. The file is only used
+      to get the dimensions.
+    *predictors:
+      A collection with arbitrary many predictors to use.
+      See inference.prepare_predictors for further details on how to specify
+      predictors.
+    """
+    if not isinstance(response, Band):
+        response = Band(source=Source(path=response),
+                        bidx=1)
+    selector = prepare_selector(response, *predictors, block_size=block_size)
+    tpX = get_XT_X(response,
+                   *predictors,
+                   selector=selector,
+                   include_intercept=include_intercept,
+                   verbose=verbose,
+                   view_size=block_size,
+                   )
+    Y = np.linalg.inv(tpX)
+    # print(f"{tpX=}\n{Y=}")
+    # print("#####\n#####\n#####")
+    betas_dict = get_optimal_betas(*predictors,
+                                   Y=Y,
+                                   response=response,
+                                   selector=selector,
+                                   include_intercept=include_intercept,
+                                   verbose=verbose,
+                                   as_dtype=as_dtype,
+                                   view_size=block_size,
+                                   )
+    return betas_dict

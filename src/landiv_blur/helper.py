@@ -82,16 +82,18 @@ def view_to_window(view: None | tuple[int, int, int, int]):
 
 def check_crs_raster(source, reference, verbose=False):
     """Compare coordinate reference systems of two raster datasets"""
-    with rio.open(source) as src:
+    with rio.open(source, mode='r') as src:
         src_crs = str(src.crs)
-    with rio.open(reference) as ref:
+    with rio.open(reference, mode='r') as ref:
         ref_crs = str(ref.crs)
 
     if src_crs == ref_crs:
         if verbose:
             print(f"Coordinate systems are the same: {src_crs} --> {ref_crs}")
         return True
-
+    else:
+        print(f"CRS CHECK FAILING: {src_crs=} - {ref_crs=}")
+        return False
 
 def check_units(*sources):
     """Assert that all sources have the same units
@@ -147,7 +149,7 @@ def check_compatibility(*sources):
     units = check_units(*sources)
     crss = check_crs(*sources)
     ress = check_resolution(*sources)
-    print(f"{crss=}, {units=}, {ress=}")
+    # print(f"{crss=}, {units=}, {ress=}")
     return crss, units, ress
 
 
@@ -271,6 +273,35 @@ def dtype_range(dtype):
         except ValueError:
             raise ValueError(f"{dtype=} has no min-/maximal values.")
     return _max, _min
+
+
+def aggregated_selector(masks:list[NDArray], logic:str='all')->NDArray:
+    """Turns several rasterio masks into a boolen selector for a numpy array
+
+    Rasterio masks are uint8 numpy arrays where every value > 0 is considered
+    a valid cell
+
+    Parameters
+    ----------
+    masks:
+        Arbitrary number of numpy arrays resalting from
+        `rasterio.io.DatasetReader.dataset_mask` or
+        `rasterio.io.DatasetReader.read_masks`
+    logic:
+        Determines how the aggreagation should happen.
+        If `all` (the default) a cell is only selected if **all** masks
+        consider it valid data. `logic="any"` will lead to selecting
+        all cells which **at least one** mask considers valid
+    """
+    selector = masks[0]!=0  # values > 0 are selected (i.e. True)
+    if logic == 'any':
+        _logic = np.logical_or
+    else:
+        _logic = np.logical_and
+    if len(masks) > 1:
+        for mask in masks[1:]:
+            _logic(selector, mask!=0, out=selector)
+    return selector
 
 
 def reduced_mask(array:NDArray,

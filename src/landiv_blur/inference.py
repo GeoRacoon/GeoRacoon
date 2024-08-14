@@ -15,6 +15,9 @@ from __future__ import annotations
 import numpy as np
 import rasterio as rio
 
+from operator import mul
+from collections.abc import Collection
+
 from rasterio.windows import Window
 from sklearn.linear_model import LinearRegression
 
@@ -26,6 +29,7 @@ from .helper import (check_compatibility,
                      usable_pixels_count,
                      view_to_window,)
 from .processing import select_category
+from .io_ import Source, Band
 
 def to_numpy_selector(rasterio_mask:NDArray)->NDArray:
     """Converts rasterio mask (e.g. `read_masks(band)`) into a `numpy.bool_'
@@ -45,89 +49,11 @@ def to_numpy_selector(rasterio_mask:NDArray)->NDArray:
     np.array:
         A 2D array of np.bool_ values indicating what cell can be used.
     """
-    return np.where(rasterio_mask == 255, True, False)
+    return np.where(rasterio_mask != 0, True, False)
 
 
-# TODO: this should change to a dict base approach using tags
-def check_predictors(selector:NDArray,
-                     *predictors: tuple[str,
-                                        int,
-                                        tuple[int, ...] | None,
-                                        bool | None],
-                     include_intercept:bool,
-                     verbose:bool=False):
-    """Checks if with these predictors analytical solution can be calculated
-
-    Parameters
-    ----------
-    selector: np.array
-        a `np.bool_` array to select usable cells in a numpy 2D array
-    *predictors:
-      An arbitrary number of tuples, each specifying one or several predictors.
-    include_intercept:
-      Determine if the predictor matrix should also contain an extra column of
-      1's at the end, which is needed if also the intercepts should be fitted.
-
-      See `prepare_predictors` for more details.
-    verbose: Default: False
-      If the method should print runtime info
-
-    """
-    for predictor in predictors:
-        pred_file_path, band = predictor[:2]
-        with rio.open(pred_file_path, 'r') as psrc:
-            _pred_mask = psrc.read_masks(band)
-            all_pixels = psrc.width * psrc.height
-        pred_selector = to_numpy_selector(_pred_mask)
-        if verbose:
-            data_pixels = usable_pixels_count(pred_selector)
-            print("##########")
-            print(f"- predictor:\n\t{pred_file_path=}")
-            usable_pixels_info(all_pixels, data_pixels)
-        # now handle the case of a category
-        if len(predictor) >= 3:
-            extract_values = predictor[2]
-            if len(predictor) >= 4:
-                mask_unselected = predictor[3]
-            else:
-                mask_unselected = False
-            if mask_unselected and include_intercept:
-                raise InferenceError(
-                    f"Invalid:\n\t{predictor=}\n"
-                    f"Using {include_intercept=} and "
-                    "masking the unselected categories"
-                    f" (i.e. {predictor[3]=}) leads to"
-                    " a non-invertible (X^T X) matrix."
-                )
-        else:
-            extract_values = None
-        if extract_values is not None:
-
-            all_types = set()
-            with rio.open(pred_file_path, mode='r') as psrc:
-                for _, window in psrc.block_windows(band):
-                    wdata = psrc.read(band, window=window)
-                    all_types = all_types.union(
-                        np.unique(wdata[selector[window.toslices()]])
-                    )
-            for e_value in extract_values:
-                if e_value not in all_types:
-                    raise InferenceError(f"Invalid\n\t{predictor=}\n"
-                                         f"the category {e_value} is no longer"
-                                         " present when aggregated filter is"
-                                         " applied.\nFOR THIS TO WORK YOU"
-                                         f" NEED OT REMOVE BAND {e_value}!")
-        if verbose:
-            print("  passed!")
-            print("##########")
-
-
-# TODO: needs adaptation for predictors as dict using tags
 def enrich_selector(selector:NDArray,
-                    *predictors: tuple[str,
-                                       int,
-                                       tuple[int, ...] | None,
-                                       bool | None],
+                    *predictors: Band,
                     verbose:bool=False)->NDArray:
     """Complete the selector with the masks extracted from the pridictors
 
@@ -136,7 +62,8 @@ def enrich_selector(selector:NDArray,
     selector: np.array
         a `np.bool_` array to select usable cells in a numpy 2D array
     *predictors:
-      An arbitrary number of tuples, each specifying one or several predictors.
+      An arbitrary number of `.io_.Band` objects each specifying one or
+      several predictors.
 
       See `prepare_predictors` for more details.
 
@@ -149,54 +76,31 @@ def enrich_selector(selector:NDArray,
         A 2D array of np.bool_ values indicating what cell can be used.
     """
     aggr_selector = np.copy(selector)
+    pred_mask_readers = dict()
     for predictor in predictors:
-        pred_file_path, band = predictor[:2]
-        with rio.open(pred_file_path, 'r') as psrc:
-            _pred_mask = psrc.read_masks(band)
-            all_pixels = psrc.width * psrc.height
+        pred_mask_reader = predictor.get_mask_reader()
+        if pred_mask_reader in pred_mask_readers:
+            pred_mask_readers[pred_mask_reader].append(predictor)
+        else:
+            pred_mask_readers[pred_mask_reader] = [predictor,]
+    # print(f"{pred_mask_readers=}")
+    for mask_reader in pred_mask_readers:
+        with mask_reader() as read_mask:
+            _pred_mask = read_mask()
+            all_pixels = mul(*_pred_mask.shape)
         pred_selector = to_numpy_selector(_pred_mask)
         if verbose:
             data_pixels = usable_pixels_count(pred_selector)
             print("##########")
-            print(f"- predictor:\n\t{pred_file_path=}")
+            _pred_string = '- '+'\n\t- '.join(map(str, pred_mask_readers[mask_reader]))
+            print(f"Predictor(s):\n\t{_pred_string}")
+            print(f"\tUse mask: {mask_reader}")
             usable_pixels_info(all_pixels, data_pixels)
         np.logical_and(aggr_selector, pred_selector, out=aggr_selector)
-        # now handle the case of a categorical band
-        if len(predictor) >= 3:
-            extract_values = predictor[2]
-        else:
-            extract_values = None
-        if len(predictor) >= 4:
-            mask_unselected = predictor[3]
-        else:
-            mask_unselected = False
-        if extract_values is not None and mask_unselected:
-            # get all categories
-            all_cats = set()
-            with rio.open(pred_file_path, mode='r') as psrc:
-                for _, window in psrc.block_windows(band):
-                    wdata = psrc.read(band, window=window)
-                    wdw_slices = window.toslices()
-                    np.logical_and(
-                        aggr_selector[wdw_slices],
-                        np.isin(wdata, extract_values),
-                        out=aggr_selector[wdw_slices]
-                    )
-                    all_cats = all_cats.union(np.unique(wdata))
-            if verbose:
-                unselected_types = all_cats.difference(extract_values)
-                data_pixels = usable_pixels_count(aggr_selector)
-                print(f"After masking {unselected_types=}:")
-                usable_pixels_info(all_pixels, data_pixels)
-                print("##########")
     return aggr_selector
 
-# TODO: needs adaptation to use dict for predictors with tags
-def prepare_selector(response: str,
-                     *predictors: tuple[str,
-                                        int,
-                                        tuple[int, ...] | None,
-                                        bool | None],
+def prepare_selector(response: str|Band,
+                     *predictors: Band,
                      verbose=False)->NDArray:
     """Creates a boolean selector based on the masks of response and predictors
 
@@ -208,9 +112,10 @@ def prepare_selector(response: str,
     _See `prepare_predictors` for a detailed description description._
 
     response:
-      Path to a map (.tif file) that holds the response data
+      A `.io_.Band` object describing the response data.
     *predictors:
-      An arbitrary number of tuples, each specifying one or several predictors.
+      An arbitrary number of `io_.Band` objects each specifying one or several
+      predictors.
     verbose: Default: False
       If the method should print runtime info
 
@@ -220,23 +125,22 @@ def prepare_selector(response: str,
       Boolean array of the same shape as `response`
 
     """
-    # read out the response
-    with rio.open(response, 'r') as src:
-        # get the shape and the projection
-        src_profile = src.profile.copy()
-        # get the nodata values or try to read the mask
-        mask = src.read_masks(1)
+    if not isinstance(response, Band):
+        response = Band(source=Source(path=response),
+                        bidx=1)
+    # Note: we can set which reader to use with responze.set_mask_reader(use='band'/'source')
+    response_mask_reader = response.get_mask_reader()
+    src_profile = response.source.import_profile()
+    with response_mask_reader() as read_mask:
+        mask = read_mask()
     src_width = src_profile["width"]
     src_height = src_profile["height"]
     all_pixels = src_width * src_height
-    # determine the number of rows (height*width - # of masked pixels)
-    # we want a numpy boolean mask
     selector = to_numpy_selector(mask)
     if verbose:
         print("\nResponse data:")
         data_pixels = usable_pixels_count(selector)
         usable_pixels_info(all_pixels, data_pixels)
-
     # first we get all the masks to compute an overall mask
     aggr_selector = enrich_selector(selector, *predictors, verbose=verbose)
 
@@ -248,10 +152,7 @@ def prepare_selector(response: str,
     return aggr_selector
 
 
-def init_X(predictors: list[tuple[str,
-              int,
-              tuple[int, ...] | None,
-              bool | None]],
+def init_X(predictors: Collection[Band],
            selector:NDArray,
            window:Window|None,
            include_intercept:bool)->NDArray:
@@ -260,7 +161,7 @@ def init_X(predictors: list[tuple[str,
     Parameters
     ----------
     predictors:
-      An arbitrary number of tuples, each specifying one or several predictors.
+      Collection of `io_.Band` objects each specifying one or several predictors.
     selector: np.array
         a `np.bool_` array to select usable cells in a numpy 2D array
     window:
@@ -286,12 +187,7 @@ def init_X(predictors: list[tuple[str,
         nbr_rows = usable_pixels_count(selector[partial])
     except IndexError:
         nbr_rows = 0
-    nbr_cols = 0
-    for pred in predictors:
-        if len(pred) >= 3 and pred[2] is not None:
-            nbr_cols += len(pred[2])
-        else:
-            nbr_cols += 1
+    nbr_cols = len(predictors)
     if include_intercept:
         nbr_cols += 1
     # create emtpy predictor array
@@ -342,13 +238,8 @@ def populate_X(X:NDArray,
         X[:, -1] = 1.0
 
 
-# TODO: here we use band indexes, but we should switch to using tags
-#       both for predictors and for response
-def prepare_predictors(response: str,
-                       *predictors: tuple[str,
-                                          int,
-                                          tuple[int, ...] | None,
-                                          bool | None],
+def prepare_predictors(response: str|Band,
+                       *predictors: Band|str,
                        view: tuple[int, int, int, int] | None = None,
                        include_intercept=True,
                        verbose: bool = False):
@@ -394,58 +285,18 @@ def prepare_predictors(response: str,
     Parameters
     ----------
     response:
-      Path to a map (.tif file) that holds the response data
+      Either a `.io_.Band` object or a string that specifies the path to a map
+      (.tif file) that holds the response data.
 
       ..Note::
-        The response must be stored in a single band.
+        If a string is provided then the response must be stored in a
+        single band.
     *predictors:
-      An arbitrary number of tuples, each specifying one or several predictors.
+      An arbitrary number of either `io_.Band` objects or strings sepcifying one
+      or several predictors.
 
-      Each tuple must contain:
-
-      - **first element** the path to a .tif file from which to load the data.
-      - **second element** is an int providing the band to load form the tif
-        file.
-      Optional are:
-
-      - **third element** provide the values to extract from a
-        _categorical band_. The values are extracted from the band and the
-        routine will create individual predictors for each.
-      - **fourth element** is a boolean to indicate if the un-selected
-        categories from the band should be masked.
-        
-        **default=`False`**
-
-        ..Warning::
-            If you selected a _categorical band_ and masked the un-selected
-            categories then `include_intercept` must be `False` as otherwise
-            we end up with a singular matrix (i.e. not invertible) since the
-            last column (i.e. the 1's) is a linear combination of all the
-            columns with the selected categories.
-
-      ..Note::
-        If the **third element** is providing a `tuple` of values, then the
-        routine tries to extract these values from the band that that was
-        provided in the **second element**.
-
-        E.g. the following would extract band 1 and use and create 3
-        predictor maps each one a binary map indicating the presence of the
-        values 0, 2 and 3:
-
-        ```
-        ('path/to/tif.tif', 1, (0,2,3))
-        ```
-        This is equivalent to 
-        ```
-        ('path/to/tif.tif', 1, (0,2,3), False)
-        ```
-        Setting the **fourth** element to `True`,
-        ```
-        ('path/to/tif.tif', 1, (0,2,3), True)
-        ```
-        will extract all values from band `1` and mask all cells with categories
-        other than `0`, `2`, or `3`.
-        
+      If a string is provided then it is treated as the path to a `tif` file
+      and **all** bands in the file are added as individual predictor each.
     view:
       An optional tuple (x, y, width, height) defining the view of the predictors
       and response data to consider.
@@ -461,27 +312,49 @@ def prepare_predictors(response: str,
         intercept is fitted as well) and the height being equal to the number
         of data pixels with valid data.
     """
+    # make sure response is a band
+    if not isinstance(response, Band):
+        response = Band(source=Source(path=response),
+                        bidx=1)
+    # make sure the Source profile is updated
+    response_profile = response.source.import_profile()
+    response_dtype = response_profile['dtype']
+    # make sure the predicotrs are bands
+    _predictors = []
+    for pred in predictors:
+        if not isinstance(pred, Band):
+            _source = Source(path=pred)
+            _bands = _source.get_bands()
+            _predictors.extend(_bands)
+        else:
+            _predictors.append(pred)
+    # get all paths and check the compatibility
+    _sources = [response.source.path,]
+    _sources.extend(
+        [pred.source.path for pred in _predictors]
+    )
     # make sure used tif files are compatible (i.e. check crs and units)
-    check_compatibility(response, *(pred[0] for pred in predictors))
+    check_compatibility(*set(_sources))
     # extract the mask from response and enrich it with masks from predictors
-    aggr_selector = prepare_selector(response, *predictors, verbose=verbose)
-    # check that we have valid predictor columns
-    check_predictors(aggr_selector,
-                     *predictors,
-                     include_intercept=include_intercept,
-                     verbose=verbose)
+    aggr_selector = prepare_selector(response, *_predictors, verbose=verbose)
+
+    # NOTE: check_predictors is useless if we do not compute the bands for
+    #       categorical data on the fly. This is because the check simply
+    #       relies on the selection criterion of the bands to use and not
+    #       on the actual data.
+    #       TODO: we should introduce a check of linear dependency between
+    #             the columns if we want a reliable check. Or then do not
+    #             check ant let the matrix inversion fail
+
     riow = view_to_window(view)
     # create empty predictor array
-    X = init_X(list(predictors),
+    X = init_X(_predictors,
                selector=aggr_selector,
                window=riow,
                include_intercept=include_intercept)
-    # get response data
-    with rio.open(response, 'r') as src:
-        # TODO: use tags to get the band index 
-        response_dtype = src.dtypes[0]
+
     # loop again over the predictors to extract data
-    pred_datas = extract_predictor_data(*predictors,
+    pred_datas = extract_predictor_data(*_predictors,
                                         window=riow,
                                         as_dtype=response_dtype)
     populate_X(X=X, predictor_datas=pred_datas, window=riow,
@@ -491,10 +364,7 @@ def prepare_predictors(response: str,
     return X, y
 
 
-def extract_predictor_data(*predictors: tuple[str,
-                                              int,
-                                              tuple[int, ...] | None,
-                                              bool | None],
+def extract_predictor_data(*predictors: Band,
                            window: Window | None,
                            as_dtype):
     """Extract the data form the predictors
@@ -502,7 +372,7 @@ def extract_predictor_data(*predictors: tuple[str,
     Parameters
     ----------
     *predictors:
-      An arbitrary number of tuples, each specifying one or several predictors.
+      An arbitrary number of of `io_.Band` objects each specifying a predictor
     window:
       Limits the data array to a specific window
     as_dtype:
@@ -512,30 +382,13 @@ def extract_predictor_data(*predictors: tuple[str,
     # Create a window
     pred_datas = []
     for predictor in predictors:
-        pred_file_path, band = predictor[:2]
-        if len(predictor) >= 3:
-            extract_values = predictor[2]
-        else:
-            extract_values = None
-        with rio.open(pred_file_path, 'r') as psrc:
-            pred_data = psrc.read(indexes=band, window=window)
-        if extract_values is not None:
-            for value in extract_values:
-                pred_datas.append(
-                    select_category(pred_data, category=value,
-                                    as_dtype=as_dtype,
-                                    # TODO: limits should only be used for float
-                                    limits=(1.0, 0.0))
-                )
-        else:
+        with predictor.data_reader() as read:
+            pred_data = read(window=window)
             pred_datas.append(pred_data.astype(as_dtype))
     return pred_datas
 
 
-def transposed_product(predictors:list[tuple[str,
-                                             int,
-                                             tuple[int, ...] | None,
-                                             bool | None]],
+def transposed_product(predictors: Collection[Band],
                        view:tuple[int,int,int,int]|None,
                        selector:NDArray,
                        include_intercept: bool = False,
@@ -546,7 +399,7 @@ def transposed_product(predictors:list[tuple[str,
     Parameters
     ----------
     predictors:
-      An arbitrary number of tuples, each specifying one or several predictors.
+      An arbitrary number of of `io_.Band` objects each specifying a predictor
     view:
       An optional tuple (x, y, width, height) defining the view of the predictors
       and response data to consider.
@@ -605,8 +458,7 @@ def get_optimal_weights(X, y):
     return (np.linalg.inv(X.T @ X) @ X.T) @ y
 
 
-# TODO: we use band index here, switch to using tags
-def partial_response(response:str,
+def partial_response(response:str|Band,
                      window:Window|None,
                      selector:NDArray):
     """Returns the window view of the response data after applying the selector
@@ -616,20 +468,18 @@ def partial_response(response:str,
     response:
       Path to a map (.tif file) that holds the response data
     """
+    if not isinstance(response, Band):
+        response = Band(source=Source(path=response),
+                        bidx=1)
     if window is not None:
         _selector = selector[window.toslices()]
     else:
         _selector = selector 
-    with rio.open(response, 'r') as src:
-        # NOTE: for now we assume the response has just one band
-        response_data = src.read(indexes=1, window=window)
-        # response_dtype = src.dtypes[0]
+    with response.data_reader(mode='r') as read:
+        response_data = read(window=window)
     return response_data[_selector]
 
-def partial_X(predictors: list[tuple[str,
-              int,
-              tuple[int, ...] | None,
-              bool | None]],
+def partial_X(predictors: Collection[Band],
               window:Window|None,
               selector:NDArray,
               include_intercept:bool,
@@ -643,7 +493,7 @@ def partial_X(predictors: list[tuple[str,
     Parameters
     ----------
     predictors:
-      An arbitrary number of tuples, each specifying one or several predictors.
+      Collection of `io_.Band` objects each specifying one or several predictors.
     window:
       Limits the data array to a specific window. The window is converted to a
       `slice` with `window.toslices()`.
@@ -678,16 +528,13 @@ def partial_X(predictors: list[tuple[str,
 
 
 def get_optimal_weights_source(Y:NDArray,
-                               response:str,
-                               predictors: list[tuple[str,
-                                             int,
-                                             tuple[int, ...] | None,
-                                             bool | None]],
+                               response:str|Band,
+                               predictors: Collection[Band],
                                view:tuple[int,int,int,int]|None,
                                selector,
                                include_intercept: bool = False,
                                as_dtype=np.float64
-                               )->NDArray:
+                               )->dict[Band, float]:
     r"""Calculate the optimal weights directly from predictors and the inverse of
     the transposed product, Y.
 
@@ -711,9 +558,9 @@ def get_optimal_weights_source(Y:NDArray,
         Typically you would use the output of `transposed_product` to compute
         `Y`.
     response:
-      Path to a map (.tif file) that holds the response data
+      A `.io_.Band` object describing the response data.
     predictors:
-      An arbitrary number of tuples, each specifying one or several predictors.
+      Collection of `io_.Band` objects each specifying one or several predictors.
     view:
       An optional tuple (x, y, width, height) defining the view of the predictors
     selector: np.array
@@ -734,7 +581,7 @@ def get_optimal_weights_source(Y:NDArray,
                        as_dtype=as_dtype)
     part_y = partial_response(response, riow, selector)
     betas = Y @ part_X.T @ part_y
-    return betas
+    return {pred: beta for pred, beta in zip(predictors, betas)}
 
 
 def get_approx_weights(X:NDArray,

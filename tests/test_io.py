@@ -4,7 +4,7 @@ import numpy as np
 from skimage.filters import gaussian
 from rasterio.windows import Window
 
-from .config import ALL_MAPS, get_example_data
+from .conftest import ALL_MAPS, get_example_data, get_file
 from landiv_blur.exceptions import (
     BandSelectionAmbiguousError,
     BandSelectionNoMatchError
@@ -28,7 +28,7 @@ def test_import_export(datafiles):
     start = (1020, 1020)
     size = (700, 700)
     view1 = (*start, *size)
-    ch_map_tif = list(datafiles.iterdir())[0]
+    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     block = lbio.load_block(ch_map_tif, view=view1, indexes=1)
     entropy_array = lbproc.get_entropy(block['data'], categories=range(8),
                                        normed=True,
@@ -53,9 +53,8 @@ def test_import_export(datafiles):
 def test_resampling(datafiles):
     """Make sure our re-sampling method works as expected.
     """
-    test_data = list(datafiles.iterdir())
-    landcover_map = test_data[0]
-    ndvi_map = test_data[1]
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     # make sure the compatibility check fails
     with pytest.raises(TypeError):
         check_compatibility(ndvi_map, landcover_map)
@@ -110,15 +109,15 @@ def test_band_tagging(datafiles):
     # read the tif
     with rio.open(outfile, 'r') as src:
         default_ns_tags = src.tags()
-        print('\nWithout any tags set:')
-        print_tag_details(src)
+        # print('\nWithout any tags set:')
+        # print_tag_details(src)
     # now we add a namespace and some tags
-    print(f'\nNow we set a new namespace "{our_namespace}" and ')
-    print('in there the tags:\n')
-    print(f'- General:\n\t{gen_tag1}\n\t{gen_tag2}')
-    print('- Per band:')
-    for bidx, b_tags in band_tags.items():
-        print(f'\t{bidx=}:\n\t\t{b_tags}')
+    # print(f'\nNow we set a new namespace "{our_namespace}" and ')
+    # print('in there the tags:\n')
+    # print(f'- General:\n\t{gen_tag1}\n\t{gen_tag2}')
+    # print('- Per band:')
+    # for bidx, b_tags in band_tags.items():
+    #     print(f'\t{bidx=}:\n\t\t{b_tags}')
     with rio.open(outfile, 'r+') as src:
         # file wide tags
         # src.update_tags(ns=our_namespace, **gen_tag1)
@@ -130,14 +129,14 @@ def test_band_tagging(datafiles):
             # src.update_tags(ns=our_namespace, bidx=idx, **band_tags[idx])
             lbio.set_tags(src=src, bidx=idx, **band_tags[idx])
     # read the tif
-    print('\nAnd now we read the tags again form the tif:')
+    # print('\nAnd now we read the tags again form the tif:')
     with rio.open(outfile, 'r') as src:
         assert src.tags() == default_ns_tags
         assert src.tags(ns=our_namespace) != default_ns_tags
-        print('First without specifying the namespace:')
-        print_tag_details(src)
-        print(f'\nAnd now in NAMESPACE "{our_namespace}":')
-        print_tag_details(src, ns=our_namespace)
+        # print('First without specifying the namespace:')
+        # print_tag_details(src)
+        # print(f'\nAnd now in NAMESPACE "{our_namespace}":')
+        # print_tag_details(src, ns=our_namespace)
 
 
 @ALL_MAPS
@@ -225,8 +224,10 @@ def test_tag_matching(datafiles):
 def test_tif_compression(datafiles):
     """Test whether compression produces correct ouput and transfers tags
     """
-    test_data = list(datafiles.iterdir())
-
+    test_data = (
+        get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles),
+        get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    )
     for file in test_data:
         file_tagged = lbio.outfile_suffix(file, "tagged")
         # create file copy with tags
