@@ -298,31 +298,43 @@ def test_optimal_beta(datafiles, create_blurred_tif):
     for pred in predictors:
         pred.set_mask_reader(use='source')
 
+    # test for intercept set and not set
+    intercept_switch = [True, False]
+    for isetup in intercept_switch:
+        X, y = lbinf.prepare_predictors(response,
+                                        *predictors,
+                                        include_intercept=isetup,
+                                        verbose=True,
+                                        )
+        tpX = X.T @ X
+        # calculte the inverse
+        Y = np.linalg.inv(tpX)
+        # calculate optimal betas
+        betas = Y @ X.T @ y
+        # calculate it per predictor columns
+        selector = lbinf.prepare_selector(response,
+                                          *predictors)
+        tpX_col = lbinf.transposed_product(predictors,
+                                           view=None,
+                                           include_intercept=isetup,
+                                           selector=selector,
+                                           as_dtype=np.float64)
+        Y_col = np.linalg.inv(tpX_col)
+        betas_col = lbinf.get_optimal_weights_source(Y=Y,
+                                                     response=response,
+                                                     predictors=predictors,
+                                                     view=None,
+                                                     include_intercept=isetup,
+                                                     selector=selector,
+                                                     as_dtype=np.float64)
+        # print(f"{Y=}, {Y_col=}")
+        np.testing.assert_array_equal(Y, Y_col)
+        np.testing.assert_array_equal(betas, list(betas_col.values()))
 
-    X, y = lbinf.prepare_predictors(response,
-                                    *predictors,
-                                    include_intercept=False,
-                                    verbose=True,
-                                    )
-    tpX = X.T @ X
-    # calculte the inverse
-    Y = np.linalg.inv(tpX)
-    # calculate optimal betas
-    betas = Y @ X.T @ y
-    # calculate it per predictor columns
-    selector = lbinf.prepare_selector(response,
-                                      *predictors)
-    tpX_col = lbinf.transposed_product(predictors,
-                                       view=None,
-                                       selector=selector,
-                                       as_dtype=np.float64)
-    Y_col = np.linalg.inv(tpX_col)
-    betas_col = lbinf.get_optimal_weights_source(Y=Y,
-                                                 response=response,
-                                                 predictors=predictors,
-                                                 view=None,
-                                                 selector=selector,
-                                                 as_dtype=np.float64)
-    # print(f"{Y=}, {Y_col=}")
-    np.testing.assert_array_equal(Y, Y_col)
-    np.testing.assert_array_equal(betas, list(betas_col.values()))
+        # test ouput length for correct key, value pairs
+        n_predictors = len(predictors)
+        n_betas = len(betas_col.values())
+        if isetup:
+            n_predictors += 1
+        np.testing.assert_equal(n_betas, n_predictors,
+                                err_msg=f"Number of beta {n_betas=} not equal to prdictors {n_predictors=}")

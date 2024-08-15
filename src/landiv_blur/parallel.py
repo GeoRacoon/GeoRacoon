@@ -1214,7 +1214,19 @@ def get_optimal_betas(*predictors: Band|str,
     output_q.put(dict(signal='kill'))
     # wait for the recombination job to terminate
     betas, _ = matrix_aggregator.get()
-    print(f"{betas=}")
+
+    # append predictor if intercept set
+    if include_intercept:
+        pred_list = list(predictors)
+        pred_list.append('intercept')
+        predictors = tuple(pred_list)
+
+    if len(betas) != len(predictors):
+        raise ValueError(f"Number of predictors {len(predictors)} not equal with number of fitted values {len(betas)}")
+
+    if verbose:
+        print(f"{predictors=}")
+        print(f"{betas=}")
     return {pred: beta for pred, beta in zip(predictors, betas)}
 
 

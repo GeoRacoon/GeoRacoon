@@ -27,11 +27,12 @@ from .exceptions import InferenceError
 from .helper import (check_compatibility,
                      usable_pixels_info,
                      usable_pixels_count,
-                     view_to_window,)
+                     view_to_window, )
 from .processing import select_category
 from .io_ import Source, Band
 
-def to_numpy_selector(rasterio_mask:NDArray)->NDArray:
+
+def to_numpy_selector(rasterio_mask: NDArray) -> NDArray:
     """Converts rasterio mask (e.g. `read_masks(band)`) into a `numpy.bool_'
 
     ..Note::
@@ -52,9 +53,9 @@ def to_numpy_selector(rasterio_mask:NDArray)->NDArray:
     return np.where(rasterio_mask != 0, True, False)
 
 
-def enrich_selector(selector:NDArray,
+def enrich_selector(selector: NDArray,
                     *predictors: Band,
-                    verbose:bool=False)->NDArray:
+                    verbose: bool = False) -> NDArray:
     """Complete the selector with the masks extracted from the pridictors
 
     Parameters
@@ -82,7 +83,7 @@ def enrich_selector(selector:NDArray,
         if pred_mask_reader in pred_mask_readers:
             pred_mask_readers[pred_mask_reader].append(predictor)
         else:
-            pred_mask_readers[pred_mask_reader] = [predictor,]
+            pred_mask_readers[pred_mask_reader] = [predictor, ]
     # print(f"{pred_mask_readers=}")
     for mask_reader in pred_mask_readers:
         with mask_reader() as read_mask:
@@ -92,16 +93,17 @@ def enrich_selector(selector:NDArray,
         if verbose:
             data_pixels = usable_pixels_count(pred_selector)
             print("##########")
-            _pred_string = '- '+'\n\t- '.join(map(str, pred_mask_readers[mask_reader]))
+            _pred_string = '- ' + '\n\t- '.join(map(str, pred_mask_readers[mask_reader]))
             print(f"Predictor(s):\n\t{_pred_string}")
             print(f"\tUse mask: {mask_reader}")
             usable_pixels_info(all_pixels, data_pixels)
         np.logical_and(aggr_selector, pred_selector, out=aggr_selector)
     return aggr_selector
 
-def prepare_selector(response: str|Band,
+
+def prepare_selector(response: str | Band,
                      *predictors: Band,
-                     verbose=False)->NDArray:
+                     verbose=False) -> NDArray:
     """Creates a boolean selector based on the masks of response and predictors
 
     The selector is a np.array of type np.bool_ indicating which well can be
@@ -153,9 +155,9 @@ def prepare_selector(response: str|Band,
 
 
 def init_X(predictors: Collection[Band],
-           selector:NDArray,
-           window:Window|None,
-           include_intercept:bool)->NDArray:
+           selector: NDArray,
+           window: Window | None,
+           include_intercept: bool) -> NDArray:
     """Initiates the matrix X with the appropriate width and height
 
     Parameters
@@ -194,11 +196,11 @@ def init_X(predictors: Collection[Band],
     return np.zeros((nbr_rows, nbr_cols), np.float64)
 
 
-def populate_X(X:NDArray,
-               predictor_datas:list[NDArray],
-               window:Window|None,
-               selector:NDArray,
-               include_intercept:bool):
+def populate_X(X: NDArray,
+               predictor_datas: list[NDArray],
+               window: Window | None,
+               selector: NDArray,
+               include_intercept: bool):
     """Adds column per predictor_datas with selector applied in the window view
 
     ..Note::
@@ -227,8 +229,8 @@ def populate_X(X:NDArray,
     if window is not None:
         _selector = selector[window.toslices()]
     else:
-        _selector = selector 
-    # apply the mask and populate X
+        _selector = selector
+        # apply the mask and populate X
     for i, data in enumerate(predictor_datas):
         # reshape to (-1,1)
         # hstack to predictor array
@@ -238,8 +240,8 @@ def populate_X(X:NDArray,
         X[:, -1] = 1.0
 
 
-def prepare_predictors(response: str|Band,
-                       *predictors: Band|str,
+def prepare_predictors(response: str | Band,
+                       *predictors: Band | str,
                        view: tuple[int, int, int, int] | None = None,
                        include_intercept=True,
                        verbose: bool = False):
@@ -329,7 +331,7 @@ def prepare_predictors(response: str|Band,
         else:
             _predictors.append(pred)
     # get all paths and check the compatibility
-    _sources = [response.source.path,]
+    _sources = [response.source.path, ]
     _sources.extend(
         [pred.source.path for pred in _predictors]
     )
@@ -389,8 +391,8 @@ def extract_predictor_data(*predictors: Band,
 
 
 def transposed_product(predictors: Collection[Band],
-                       view:tuple[int,int,int,int]|None,
-                       selector:NDArray,
+                       view: tuple[int, int, int, int] | None,
+                       selector: NDArray,
                        include_intercept: bool = False,
                        as_dtype=np.float64
                        ):
@@ -458,9 +460,9 @@ def get_optimal_weights(X, y):
     return (np.linalg.inv(X.T @ X) @ X.T) @ y
 
 
-def partial_response(response:str|Band,
-                     window:Window|None,
-                     selector:NDArray):
+def partial_response(response: str | Band,
+                     window: Window | None,
+                     selector: NDArray):
     """Returns the window view of the response data after applying the selector
 
     Parameters
@@ -474,15 +476,16 @@ def partial_response(response:str|Band,
     if window is not None:
         _selector = selector[window.toslices()]
     else:
-        _selector = selector 
+        _selector = selector
     with response.data_reader(mode='r') as read:
         response_data = read(window=window)
     return response_data[_selector]
 
+
 def partial_X(predictors: Collection[Band],
-              window:Window|None,
-              selector:NDArray,
-              include_intercept:bool,
+              window: Window | None,
+              selector: NDArray,
+              include_intercept: bool,
               as_dtype):
     """Generate (a partial) predictor matrix, $`X`$.
 
@@ -527,14 +530,14 @@ def partial_X(predictors: Collection[Band],
     return X
 
 
-def get_optimal_weights_source(Y:NDArray,
-                               response:str|Band,
+def get_optimal_weights_source(Y: NDArray,
+                               response: str | Band,
                                predictors: Collection[Band],
-                               view:tuple[int,int,int,int]|None,
+                               view: tuple[int, int, int, int] | None,
                                selector,
                                include_intercept: bool = False,
                                as_dtype=np.float64
-                               )->dict[Band, float]:
+                               ) -> dict[Band, float]:
     r"""Calculate the optimal weights directly from predictors and the inverse of
     the transposed product, Y.
 
@@ -581,12 +584,19 @@ def get_optimal_weights_source(Y:NDArray,
                        as_dtype=as_dtype)
     part_y = partial_response(response, riow, selector)
     betas = Y @ part_X.T @ part_y
+
+    if include_intercept:
+        pred_list = list(predictors)
+        pred_list.append('intercept')
+        predictors = tuple(pred_list)
+    if len(betas) != len(predictors):
+        raise ValueError(f"Number of predictors {len(predictors)} not equal with number of fitted values {len(betas)}")
     return {pred: beta for pred, beta in zip(predictors, betas)}
 
 
-def get_approx_weights(X:NDArray,
-                       y:NDArray,
-                       fit_intercept:bool=False)->LinearRegression:
+def get_approx_weights(X: NDArray,
+                       y: NDArray,
+                       fit_intercept: bool = False) -> LinearRegression:
     r"""Numerical optimization to determine weights in a mlt. lin. regression.
 
     The multiple linear regression is defined by the equation:
