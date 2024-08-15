@@ -408,7 +408,7 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
     """Calculate the transposed product of a predictor matrix
     """
     as_dtype = np.float64
-    include_intercept = False
+    include_intercept = True
     verbose = True
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
@@ -456,11 +456,18 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
                                     include_intercept=include_intercept,
                                     verbose=verbose,
                                     )
-    # round both the the 6th digit
+    # round both to the 6th digit
     b = np.round(lbinf.get_optimal_weights(X, y), 6)
     betas = np.round(list(betas_dict.values()), 6)
     # print(f"{b=}\n{betas=}")
     np.testing.assert_array_equal(betas, b)
+    # test ouput length for correct key, value pairs
+    n_predictors = len(predictors)
+    n_betas = len(betas_dict.values())
+    if include_intercept:
+        n_predictors += 1
+    np.testing.assert_equal(n_betas, n_predictors,
+                            err_msg=f"Number of beta {n_betas=} not equal to prdictors {n_predictors=}")
 
 
 @ALL_MAPS
