@@ -1,9 +1,10 @@
-from __future__ import annotations
 """
 This module contains various helper functions to parallelize the application
 of filters on a tif
 
 """
+from __future__ import annotations
+
 import os
 from typing import Any
 from collections.abc import Callable, Collection
@@ -27,13 +28,14 @@ from .processing import view_blurred, view_entropy
 from .prepare import create_views, get_blur_params, update_view
 from .filters.gaussian import (gaussian, compatible_border_size)
 from .inference import (
-        transposed_product,
-        get_optimal_weights_source,
-    )
+    transposed_product,
+    get_optimal_weights_source,
+)
 from .io import set_tags, write_band, compress_tif
 
+
 # TODO: this needs adaptation once !36 is merged (using tags instead of indexes)
-def combine_blurred_categories(output_params: dict, blur_q:Queue)->TimedTask:
+def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
     """Listen to queue (blur_q) and write blurred blocks to a single file
 
     Parameters
@@ -68,8 +70,8 @@ def combine_blurred_categories(output_params: dict, blur_q:Queue)->TimedTask:
                 # write to output file
                 w = view_to_window(inner_view)
                 for bidx, (band, data) in enumerate(categories_data.items(),
-                                                   start=1):
-                     # TODO: UPDATE_TASK
+                                                    start=1):
+                    # TODO: UPDATE_TASK
                     # NOTE: downside of this is that we set the tags
                     #       every time, unfortunately, in the FINALIZE_TASK
                     #       we do not have the bidx 
@@ -84,7 +86,7 @@ def combine_blurred_categories(output_params: dict, blur_q:Queue)->TimedTask:
     return timer
 
 
-def combine_matrices(output_q:Queue)->tuple[NDArray|None, tuple]:
+def combine_matrices(output_q: Queue) -> tuple[NDArray | None, tuple]:
     """Adding up matrices that hold partial sums
 
     Parameters
@@ -117,14 +119,16 @@ def combine_matrices(output_q:Queue)->tuple[NDArray|None, tuple]:
                 # replace nan's with 0's
                 out_matrix[np.isnan(out_matrix)] = 0
             timer.new_lab()
-    return out_matrix, (timer,) 
+    return out_matrix, (timer,)
 
 
-def fill_matrix(matrix:NDArray, aggr_q:Queue)->tuple[NDArray|None, tuple]:
+def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
     """Filling up a matrix
 
     Parameters
     ----------
+    matrix:
+      ...
     aggr_q:
         The queue this job listens to.
         Each element in the queue must be a `dict` containing either:
@@ -150,9 +154,10 @@ def fill_matrix(matrix:NDArray, aggr_q:Queue)->tuple[NDArray|None, tuple]:
             block_data = output.pop('data')
             update_view(data=matrix, view=view, block=block_data)
             timer.new_lab()
-    return matrix, (timer,) 
+    return matrix, (timer,)
 
-def partial_transposed_product(params:dict, output_q:Queue):
+
+def partial_transposed_product(params: dict, output_q: Queue):
     """Run `.inference.transposed_product` in parallel
 
     Parameters
@@ -162,16 +167,19 @@ def partial_transposed_product(params:dict, output_q:Queue):
     output_q:
         The queue this job listens to.
     """
+
     def _wrap(tpX):
         return dict(X=tpX)
+
     runner_call(
         output_q,
         transposed_product,
         params,
         wrapper=_wrap
-        )
+    )
 
-def partial_optimal_betas(params:dict, output_q:Queue):
+
+def partial_optimal_betas(params: dict, output_q: Queue):
     """Runs .inference.get_optimal_weights_source in parallel
 
     Parameters
@@ -182,8 +190,10 @@ def partial_optimal_betas(params:dict, output_q:Queue):
     output_q:
         The queue this job listens to.
     """
+
     def _wrap(beta_dict):
         return dict(X=list(beta_dict.values()))  # ok for python >= 3.6 (dict keeps order)
+
     runner_call(
         output_q,
         get_optimal_weights_source,
@@ -192,7 +202,7 @@ def partial_optimal_betas(params:dict, output_q:Queue):
     )
 
 
-def data_writer(writer:Callable, writer_params:dict, aggr_q:Queue)->TimedTask:
+def data_writer(writer: Callable, writer_params: dict, aggr_q: Queue) -> TimedTask:
     """Write out data using the context manager `writer`
 
     This function can be used with the various context managers defined
@@ -232,14 +242,15 @@ def data_writer(writer:Callable, writer_params:dict, aggr_q:Queue)->TimedTask:
                 timer.new_lab()
     return timer
 
-def process_block(task:Callable, 
-                 source:str|Source,
-                 bands:Collection[Band]|None,
-                 view:tuple[int,int,int,int],
-                 task_params:dict,
-                 read_params:dict,
-                 open_params:dict,
-                 out_q:Queue)->TimedTask:
+
+def process_block(task: Callable,
+                  source: str | Source,
+                  bands: Collection[Band] | None,
+                  view: tuple[int, int, int, int],
+                  task_params: dict,
+                  read_params: dict,
+                  open_params: dict,
+                  out_q: Queue) -> TimedTask:
     """Processes a section of the data in the source file.
 
     This is a general purpose function that can be used to process a large .tif
@@ -290,13 +301,14 @@ def process_block(task:Callable,
         # print(f"{view=}\n{data=}\nmask={_}")
     return timer
 
-def process_masks(task:Callable, 
-                  bands:Collection[Band],
-                  view:tuple[int,int,int,int],
-                  task_params:dict,
-                  read_params:dict,
-                  open_params:dict,
-                  aggr_q:Queue)->TimedTask:
+
+def process_masks(task: Callable,
+                  bands: Collection[Band],
+                  view: tuple[int, int, int, int],
+                  task_params: dict,
+                  read_params: dict,
+                  open_params: dict,
+                  aggr_q: Queue) -> TimedTask:
     """Processes a section of the mask for each band
 
     This is a general purpose function that can be used to process a large .tif
@@ -343,8 +355,9 @@ def process_masks(task:Callable,
         # print(f"{view=}\n{data=}\nmask={_}")
     return timer
 
+
 def combine_entropy_blocks(output_params: dict,
-                           entropy_q:Queue):
+                           entropy_q: Queue):
     """Listen to queue (entropy_q) and write computed block to single file
     """
 
@@ -366,7 +379,7 @@ def combine_entropy_blocks(output_params: dict,
         out_band.export_tags()
         # print(f'INIT:\n{out_band.source=}\n{out_band=}')
 
-        #with out_band.source.open(mode='r+', **profile) as dst:
+        # with out_band.source.open(mode='r+', **profile) as dst:
         with out_band.data_writer(mode='r+', **profile) as write:
             while True:
                 # load the entropy_q
@@ -386,9 +399,9 @@ def combine_entropy_blocks(output_params: dict,
 
 
 def runner_call(queue: Queue[Any],
-                callback:Callable,
-                params:dict,
-                wrapper:Callable|None=None):
+                callback: Callable,
+                params: dict,
+                wrapper: Callable | None = None):
     """Put the results of callback using parameter into the queue
 
     If provided `wrapper(callback(**params))` is put into the queue.
@@ -402,11 +415,11 @@ def runner_call(queue: Queue[Any],
     return output
 
 
-def extract_categories(source: str|Source,
+def extract_categories(source: str | Source,
                        categories: list,
                        output_file: str,
-                       img_filter:Callable,
-                       filter_params:dict,
+                       img_filter: Callable,
+                       filter_params: dict,
                        block_size: tuple[int, int],
                        blur_as_int: bool = True,
                        verbose: bool = False,
@@ -431,6 +444,8 @@ def extract_categories(source: str|Source,
         Size (width, height) in #pixel of the block that a single job processes
     blur_as_int:
         If the blurred category arrays should be converted to `np.uint8`
+    verbose:
+        Print out processing step infos
     **params:
         Optional arguments for the multiprocessing (e.g. nbr_cpus)
 
@@ -473,7 +488,7 @@ def extract_categories(source: str|Source,
     views, inner_views = create_views(view_size=block_size,
                                       border=border,
                                       size=(width, height))
-    
+
     block_params = []
     # The parameter for the filter we want to apply:
     for view, inner_view in zip(views, inner_views):
@@ -483,7 +498,7 @@ def extract_categories(source: str|Source,
                        categories=categories,
                        img_filter=img_filter,
                        filter_params=filter_params,
-                       blur_as_int=blur_as_int,)
+                       blur_as_int=blur_as_int, )
         block_params.append(bparams)
 
     # ###
@@ -491,9 +506,8 @@ def extract_categories(source: str|Source,
     # ###
     manager = Manager()
     blur_q = manager.Queue()
-    # TODO: this should be specific pmc parameters
     # get number of cpu's
-    nbr_cpus = params.pop('nbrcpu', cpu_count())
+    nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
     pool = Pool(nbr_cpus)
@@ -535,13 +549,13 @@ def extract_categories(source: str|Source,
     return output_file
 
 
-def compute_entropy(source: str|Source,
+def compute_entropy(source: str | Source,
                     output_file: str,
                     block_size: tuple[int, int],
                     blur_params: dict,  # TODO: is only used to format output_file
                     categories: list | None = None,
                     entropy_as_ubyte: bool = True,
-                    normed: bool=True,
+                    normed: bool = True,
                     plot_pdf_preview: bool = True,
                     verbose: bool = False,
                     **params):
@@ -553,8 +567,6 @@ def compute_entropy(source: str|Source,
         Path to the land cover type tif file
     output_file : str
         Path to where the heterogeneity tif should be saved
-    scale : float
-        Size of a single pixel in the same units as `diameter` and `sigma`
     categories: list
         Specify which of the land-cover types to use as categories.
         If not provided then all the land-cover types are used.
@@ -563,9 +575,6 @@ def compute_entropy(source: str|Source,
     blur_params : dict
         Parameters for the Gaussian blur. It must contain at least either
         `diameter` or `sigma` in a in meters or any other measure of distance.
-    blur_as_int:
-        If the blurred category arrays should be converted to `np.uint8` before
-        computing the entropy.
     entropy_as_ubyte:
         Should the entropy be normalized and returned as ubyte?
     normed:
@@ -632,16 +641,16 @@ def compute_entropy(source: str|Source,
         output_tags=dict(category='entropy'),
     )
     _, inner_views = create_views(view_size=block_size,
-                                      border=(0,0),
-                                      size=(width, height))
-    
+                                  border=(0, 0),
+                                  size=(width, height))
+
     block_params = []
     for inner_view in inner_views:
         bparams = dict(input_bands=input_bands,
                        categories=categories,
                        inner_view=inner_view,
                        normed=normed,
-                       entropy_as_ubyte=entropy_as_ubyte,)
+                       entropy_as_ubyte=entropy_as_ubyte, )
         block_params.append(bparams)
 
     # ###
@@ -650,7 +659,7 @@ def compute_entropy(source: str|Source,
     manager = Manager()
     entropy_q = manager.Queue()
     # get number of cpu's
-    nbr_cpus = params.pop('nbrcpu', cpu_count())
+    nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
     pool = Pool(nbr_cpus)
@@ -698,11 +707,12 @@ def compute_entropy(source: str|Source,
     print(f"maximal duration of single job: {max(job_timers)=}")
     return entropy_output_file
 
-def compute_mask(source: str|Source,
+
+def compute_mask(source: str | Source,
                  block_size: tuple[int, int],
                  nodata=0,
-                 logic:str='all',
-                 bands:list[Band]|None=None,
+                 logic: str = 'all',
+                 bands: list[Band] | None = None,
                  verbose: bool = False,
                  **params):
     """Compute the mask of a dataset in parallel and write it it out to the file
@@ -711,6 +721,8 @@ def compute_mask(source: str|Source,
     ----------
     source : str
         Path to the land cover type tif file
+    nodata:
+        Supply nodata value to use for mask computation
     logic:
         Either a string or a callable.
         Allowed strings are:
@@ -724,6 +736,8 @@ def compute_mask(source: str|Source,
     bands:
         An optional selection of bands to use. If not provided all bands are
         used.
+    verbose:
+        Print out processing step infos
     **params:
         Optional arguments for the multiprocessing (e.g. nbr_cpus)
     
@@ -735,7 +749,7 @@ def compute_mask(source: str|Source,
 
     width = source.profile.get('width')
     height = source.profile.get('height')
-        
+
     if bands is None:
         bands = source.get_bands()
     else:
@@ -745,9 +759,9 @@ def compute_mask(source: str|Source,
 
     # set the per-block parameter
     _, inner_views = create_views(view_size=block_size,
-                                      border=(0,0),
-                                      size=(width, height))
-    
+                                  border=(0, 0),
+                                  size=(width, height))
+
     block_params = []
     for view in inner_views:
         task_params = dict(
@@ -756,7 +770,7 @@ def compute_mask(source: str|Source,
             #  inner_view=inner_view,
         )
         read_params = dict()
-        open_params = dict(mode='r',)
+        open_params = dict(mode='r', )
         bparams = dict(task=reduced_mask,
                        source=source,
                        bands=bands,
@@ -765,7 +779,7 @@ def compute_mask(source: str|Source,
                        open_params=open_params,
                        read_params=read_params,
                        )
-                            # inner_view=inner_view,
+        # inner_view=inner_view,
         block_params.append(bparams)
 
     # ###
@@ -774,7 +788,7 @@ def compute_mask(source: str|Source,
     manager = Manager()
     aggr_q = manager.Queue()
     # get number of cpu's
-    nbr_cpus = params.pop('nbrcpu', cpu_count())
+    nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
     pool = Pool(nbr_cpus)
@@ -783,7 +797,7 @@ def compute_mask(source: str|Source,
     aggr_params = dict(mode='r+')  # nothing else to pass
     aggregator_job = pool.apply_async(
         func=data_writer,  # the callable
-        kwds=dict(             # its arguments:
+        kwds=dict(  # its arguments:
             writer=source.mask_writer,
             writer_params=aggr_params,
             aggr_q=aggr_q,
@@ -794,7 +808,7 @@ def compute_mask(source: str|Source,
     for bparams in block_params:
         block_jobs.append(pool.apply_async(
             func=process_block,
-            kwds=dict(**bparams, out_q=aggr_q,)
+            kwds=dict(**bparams, out_q=aggr_q, )
         ))
     # collect results
     job_timers = []
@@ -813,7 +827,7 @@ def compute_mask(source: str|Source,
 def prepare_selector(*bands: Band,
                      block_size: tuple[int, int],
                      verbose=False,
-                     **params)->NDArray:
+                     **params) -> NDArray:
     """Compute a boolean selector from masks of the provided `io_.Band` objects
     """
     # make sure the bands are compatible
@@ -828,7 +842,7 @@ def prepare_selector(*bands: Band,
 
     # set the per-block parameter
     _, inner_views = create_views(view_size=block_size,
-                                  border=(0,0),
+                                  border=(0, 0),
                                   size=(width, height))
     # set the per job parameter
     block_params = []
@@ -848,7 +862,7 @@ def prepare_selector(*bands: Band,
     manager = Manager()
     aggr_q = manager.Queue()
     # get number of cpu's
-    nbr_cpus = params.get('nbrcpu', cpu_count())
+    nbr_cpus = params.get('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
     pool = Pool(nbr_cpus)
@@ -867,7 +881,7 @@ def prepare_selector(*bands: Band,
     for bparams in block_params:
         block_jobs.append(pool.apply_async(
             func=process_masks,
-            kwds=dict(**bparams, aggr_q=aggr_q,)
+            kwds=dict(**bparams, aggr_q=aggr_q, )
         ))
     # collect results
     job_timers = []
@@ -883,7 +897,7 @@ def prepare_selector(*bands: Band,
     return selector
 
 
-def block_entropy(params:dict, entropy_q:Queue)->TimedTask:
+def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
     """Per block (i.e. view) heterogeneity measure based on entropy
 
     Parameters
@@ -934,7 +948,7 @@ def block_entropy(params:dict, entropy_q:Queue)->TimedTask:
     return timer
 
 
-def block_filter(params:dict, blur_q:Queue)->TimedTask:
+def block_filter(params: dict, blur_q: Queue) -> TimedTask:
     """Per block (i.e. view) heterogeneity measure based on entropy
 
     Parameters
@@ -983,7 +997,7 @@ def block_filter(params:dict, blur_q:Queue)->TimedTask:
     return timer
 
 
-def block_heterogeneity(params:dict, entropy_q:Queue, blur_q:Queue)->TimedTask:
+def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedTask:
     """Per block (i.e. view) heterogeneity measure based on entropy
 
     Parameters
@@ -1054,13 +1068,13 @@ def block_heterogeneity(params:dict, entropy_q:Queue, blur_q:Queue)->TimedTask:
 
 
 # TODO: mpc_params should become first class parameter if mandatory
-def get_XT_X(response: str|Band,
-             *predictors: Band|str,
-             selector:NDArray,
-             include_intercept:bool=True,
-             verbose:bool=False,
+def get_XT_X(response: str | Band,
+             *predictors: Band | str,
+             selector: NDArray,
+             include_intercept: bool = True,
+             verbose: bool = False,
              **mpc_params
-             )->np.ndarray:
+             ) -> np.ndarray:
     """Calculate X.T @ X in parallel directly from view of the predictor data
 
     ..Note::
@@ -1082,7 +1096,7 @@ def get_XT_X(response: str|Band,
       1's at the end, which is needed if also the intercepts should be fitted.
     verbose: _optional_
       If the method should print runtime info
-    **mpc_arams:
+    **mpc_params:
       Parametrization of the multiporcessing approach.
       Needed are:
 
@@ -1128,7 +1142,7 @@ def get_XT_X(response: str|Band,
     # start the aggregation step
     matrix_aggregator = pool.apply_async(
         combine_matrices,
-        (output_q, )
+        (output_q,)
     )
     all_jobs = []
     for pparams in part_params:
@@ -1149,9 +1163,9 @@ def get_XT_X(response: str|Band,
     return recombined_tpX
 
 
-def get_optimal_betas(*predictors: Band|str,
+def get_optimal_betas(*predictors: Band | str,
                       Y: np.ndarray,
-                      response: str|Band,
+                      response: str | Band,
                       selector,
                       include_intercept=True,
                       verbose: bool = False,
@@ -1196,7 +1210,7 @@ def get_optimal_betas(*predictors: Band|str,
     # start the aggregation step
     matrix_aggregator = pool.apply_async(
         combine_matrices,
-        (output_q, )
+        (output_q,)
     )
     all_jobs = []
     for pparams in part_params:
@@ -1230,14 +1244,14 @@ def get_optimal_betas(*predictors: Band|str,
     return {pred: beta for pred, beta in zip(predictors, betas)}
 
 
-def compute_weights(response: str|Band,
+def compute_weights(response: str | Band,
                     predictors: Collection[Band],
                     block_size: tuple[int, int],
-                    include_intercept:bool=True,
+                    include_intercept: bool = True,
                     as_dtype=np.float64,
                     verbose=False,
                     **params
-                    )->dict[Band,float]:
+                    ) -> dict[Band, float]:
     """Compute the optimal weight in a multiple linear regression
 
     Parameters
@@ -1249,19 +1263,27 @@ def compute_weights(response: str|Band,
       A collection with arbitrary many predictors to use.
       See inference.prepare_predictors for further details on how to specify
       predictors.
+    block_size:
+      ...
+    include_intercept:
+        Whether to fit the intercept when computing weights
+    as_dtype:
+       ...
+    verbose:
+        Print out processing step infos
     """
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
                         bidx=1)
-    if verbose:
-        print("Creating selector...")
+
+    print("Creating selector...")
     selector = prepare_selector(response,
                                 *predictors,
                                 block_size=block_size,
                                 verbose=verbose,
                                 **params)
-    if verbose:
-        print("Calculate X.T @ X...")
+
+    print("Calculate X.T @ X...")
     tpX = get_XT_X(response,
                    *predictors,
                    selector=selector,
@@ -1270,13 +1292,13 @@ def compute_weights(response: str|Band,
                    view_size=block_size,
                    **params)
 
-    if verbose:
-        print("Inverting X.T @ X...")
+
+    print("Inverting X.T @ X...")
     Y = np.linalg.inv(tpX)
     # print(f"{tpX=}\n{Y=}")
     # print("#####\n#####\n#####")
-    if verbose:
-        print("Calculate Y @ X.T @ y (optimal weights)...")
+
+    print("Calculate Y @ X.T @ y (optimal weights)...")
     betas_dict = get_optimal_betas(*predictors,
                                    Y=Y,
                                    response=response,
