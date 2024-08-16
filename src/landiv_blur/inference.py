@@ -203,12 +203,14 @@ def populate_X(X: NDArray,
                include_intercept: bool):
     """Adds column per predictor_datas with selector applied in the window view
 
-    ..Note::
+    ...Note::
       $X$ is updated in place.
     
     Parameters
     ----------
-    predictors_datas:
+    X:
+     ....
+    predictor_datas:
       List of arrays each being used as a predictor
     selector: np.array
         a `np.bool_` array to select usable cells in a numpy 2D array
@@ -306,6 +308,8 @@ def prepare_predictors(response: str | Band,
     include_intercept:
       Determine if the predictor matrix should also contain an extra column of
       1's at the end, which is needed if also the intercepts should be fitted.
+    verbose:
+        Print out processing steps
 
     Return
     ------
@@ -362,7 +366,9 @@ def prepare_predictors(response: str | Band,
     populate_X(X=X, predictor_datas=pred_datas, window=riow,
                selector=aggr_selector, include_intercept=include_intercept)
     # return predictor matrix and the response vector
-    y = partial_response(response, riow, aggr_selector)
+    y = partial_response(response=response,
+                         window=riow,
+                         selector=aggr_selector)
     return X, y
 
 
@@ -469,6 +475,10 @@ def partial_response(response: str | Band,
     ----------
     response:
       Path to a map (.tif file) that holds the response data
+    window:
+      ...
+    selector:
+      ...
     """
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
@@ -582,7 +592,9 @@ def get_optimal_weights_source(Y: NDArray,
                        selector=selector,
                        include_intercept=include_intercept,
                        as_dtype=as_dtype)
-    part_y = partial_response(response, riow, selector)
+    part_y = partial_response(response=response,
+                              window=riow,
+                              selector=selector)
     betas = Y @ part_X.T @ part_y
 
     if include_intercept:

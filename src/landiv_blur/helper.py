@@ -14,11 +14,13 @@ from rasterio.windows import Window
 from typing import Any
 from numpy.typing import NDArray
 
+
 def serialize(tags:dict[str,Any])->dict[str,str]:
     """Convert the values of a dict to into JSON
     """
     return {tag: json.dumps(obj=value) 
             for tag, value in tags.items()}
+
 
 def deserialize(tags:dict[str,str])->dict[str,Any]:
     """Reads python objects from JSON-encoded values of a dict
@@ -26,10 +28,12 @@ def deserialize(tags:dict[str,str])->dict[str,Any]:
     return {tag: json.loads(s=value) 
             for tag, value in tags.items()}
 
+
 def sanitize(tags:dict[str,Any])->Any:
     """Serializes then deserializes values of a dict
     """
     return deserialize(serialize(tags))
+
 
 def match_all(targets:dict, tags:dict)->bool:
     """Check if all tags in targets are present in tags
@@ -47,6 +51,7 @@ def match_all(targets:dict, tags:dict)->bool:
             match = False
     return match
 
+
 def match_any(targets:dict, tags:dict)->bool:
     """Check if any tag in targets is present in tags
     """
@@ -62,6 +67,7 @@ def match_any(targets:dict, tags:dict)->bool:
         else:  # if a tag is absent it is no match
             match = False
     return match
+
 
 def view_to_window(view: None | tuple[int, int, int, int]):
     """Conerts a view into a rasterio Window
@@ -80,6 +86,7 @@ def view_to_window(view: None | tuple[int, int, int, int]):
         window = None
     return window
 
+
 def check_crs_raster(source, reference, verbose=False):
     """Compare coordinate reference systems of two raster datasets"""
     with rio.open(source, mode='r') as src:
@@ -94,6 +101,7 @@ def check_crs_raster(source, reference, verbose=False):
     else:
         print(f"CRS CHECK FAILING: {src_crs=} - {ref_crs=}")
         return False
+
 
 def check_units(*sources):
     """Assert that all sources have the same units
