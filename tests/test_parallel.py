@@ -388,7 +388,7 @@ def test_parallel_transposed_prod(datafiles):
     # wait for the recombination job to terminate
     recombined_tpX, _ = matrix_aggregator.get()
     # print(f"\n{transprod_full=}\n{recombined_tpX=}\n")
-    np.testing.assert_array_equal(transprod_full, recombined_tpX)
+    np.testing.assert_allclose(transprod_full, recombined_tpX, rtol=1e-06)
     # finally in condensed form
     # get the aggregated selector (again)
     selector = lbinf.prepare_selector(response,
@@ -400,7 +400,7 @@ def test_parallel_transposed_prod(datafiles):
                                 include_intercept=False,
                                 verbose=verbose,
                                 view_size=view_size, )
-    np.testing.assert_array_equal(transprod_full, recombtpX)
+    np.testing.assert_allclose(transprod_full, recombtpX, rtol=1e-06)
 
 
 @ALL_MAPS

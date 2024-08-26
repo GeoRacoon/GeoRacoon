@@ -271,6 +271,9 @@ def usable_pixels_count(selector):
 def dtype_range(dtype):
     """Get the range of the specified dtype
     """
+    # avoid issues of object not callable from rasterio
+    if hasattr(dtype, 'type'):
+        dtype = dtype.type
     try:
         _max = dtype(np.iinfo(dtype).max)
         _min = dtype(np.iinfo(dtype).min)
@@ -281,6 +284,28 @@ def dtype_range(dtype):
         except ValueError:
             raise ValueError(f"{dtype=} has no min-/maximal values.")
     return _max, _min
+
+
+def convert_to_scaled(arr: NDArray,
+                      as_dtype,
+                      data_range: tuple=None) -> NDArray:
+    """Converts a data array to desired as_type and
+    scales the array by the maximum value in the dtype of the input array or provided data_range if provided
+
+    Parameters
+    ----------
+    arr: input numpy NDArray
+    as_dtype: desired data type to convert to (e.g. np.float)
+    data_range: provide a range of intput array as tuple (e.g. (0, 1)
+    """
+    if data_range is None:
+        _max, _min = dtype_range(arr.dtype)
+    else:
+        if len(data_range) != 2:
+            raise ValueError(f"data_range must be of length 2 (e.g. (0,1), but is {len(data_range)}")
+        _min, _max = data_range
+    scale = _max - _min
+    return np.divide(arr.astype(as_dtype), scale)
 
 
 def aggregated_selector(masks:list[NDArray], logic:str='all')->NDArray:
