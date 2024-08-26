@@ -27,7 +27,8 @@ from .exceptions import InferenceError
 from .helper import (check_compatibility,
                      usable_pixels_info,
                      usable_pixels_count,
-                     view_to_window, )
+                     view_to_window,
+                     convert_to_scaled)
 from .processing import select_category
 from .io_ import Source, Band
 
@@ -380,7 +381,7 @@ def extract_predictor_data(*predictors: Band,
     Parameters
     ----------
     *predictors:
-      An arbitrary number of of `io_.Band` objects each specifying a predictor
+      An arbitrary number of `io_.Band` objects each specifying a predictor
     window:
       Limits the data array to a specific window
     as_dtype:
@@ -392,7 +393,8 @@ def extract_predictor_data(*predictors: Band,
     for predictor in predictors:
         with predictor.data_reader() as read:
             pred_data = read(window=window)
-            pred_datas.append(pred_data.astype(as_dtype))
+            pred_data_scaled = convert_to_scaled(pred_data, as_dtype=as_dtype)
+            pred_datas.append(pred_data_scaled)
     return pred_datas
 
 

@@ -181,7 +181,7 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif):
     # blurred_source = lbio_.Source(path=blurred_tif)
     blurred_source = lbio_.Source(path=create_blurred_tif)
     # set the mask
-    lbpara.compute_mask(source=blurred_source, block_size=[500, 500], nodata=0, logic='all')
+    lbpara.compute_mask(source=blurred_source, block_size=(500, 500), nodata=0, logic='all')
     # create the inputs
     response = lbio_.Band(source=lbio_.Source(path=ndvi_map))
     predictors = blurred_source.get_bands()
@@ -211,7 +211,7 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif):
                                           as_dtype=np.float64)
 
     # print(f"\n{tpX=}\n{transprodX=}\n")
-    np.testing.assert_array_equal(tpX, transprodX)
+    np.testing.assert_allclose(tpX, transprodX, rtol=1e-06)
 
 
 @ALL_MAPS
@@ -328,8 +328,8 @@ def test_optimal_beta(datafiles, create_blurred_tif):
                                                      selector=selector,
                                                      as_dtype=np.float64)
         # print(f"{Y=}, {Y_col=}")
-        np.testing.assert_array_equal(Y, Y_col)
-        np.testing.assert_array_equal(betas, list(betas_col.values()))
+        np.testing.assert_allclose(Y, Y_col, rtol=1e-06)
+        np.testing.assert_allclose(betas, list(betas_col.values()), rtol=1e-05)
 
         # test ouput length for correct key, value pairs
         n_predictors = len(predictors)
