@@ -11,7 +11,7 @@ import rasterio as rio
 
 from rasterio.windows import Window
 
-from typing import Any
+from typing import Any, Union
 from numpy.typing import NDArray
 
 
@@ -356,3 +356,33 @@ def reduced_mask(array:NDArray,
     else:
         _logic = np.logical_or
     return _logic.reduce(array=array!=nodata, axis=0).astype(np.uint8)
+
+def count_contribution(data:NDArray,
+                       selector:NDArray[np.bool_],
+                       no_data:Union[int, float]=0)->int:
+    """The remaining number of data cells when applying the selector
+
+    Parameters
+    ----------
+    data:
+      The data to cont the contribution in
+    selector:
+      A boolean array in the shape of `data` selecting the single cells that
+      should be considered
+    no_data:
+      The value that should be considered as invalid.
+
+      .. note::
+        You might also provide `np.nan` as no data value.
+
+    """
+    if np.isnan(no_data):
+        b_vals, b_counts = np.unique(~np.isnan(data[selector]), return_counts=True)
+    else:
+        b_vals, b_counts = np.unique(data[selector]!=no_data, return_counts=True)
+    # b_vals is [True, False] and can be used as selector for b_counts
+    # thus returning the count of True
+    if True in b_vals:
+        return int(b_counts[b_vals][0])
+    else:
+        return 0

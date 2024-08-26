@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 
+import numpy as np
 import rasterio as rio
 
 from rasterio.windows import Window
@@ -9,6 +10,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from functools import partial
 from numpy.typing import NDArray
+
+from typing import Union
 
 from .exceptions import (
     BandSelectionNoMatchError,
@@ -27,7 +30,11 @@ from .io import (
     find_bidxs,
     compress_tif,
 )
-from .helper import check_compatibility as _check_compatibility
+from .helper import (
+    check_compatibility as _check_compatibility,
+    count_contribution,
+)
+
 
 class Source:
     """Specifies a data source
@@ -572,6 +579,43 @@ class Band:
         with self.source.open(mode='r', **okwargs) as src:
             data = src.read(indexes=self.source.get_bidx(band=self), **kwargs)
         return data
+
+    def count_valid_pixels(self, selector:NDArray|None, no_data:Union[int,float],
+                           limit_count:int=0):
+        """Count the number of valid pixels under some selector mask
+
+        Parameters
+        ----------
+        selector:
+          A boolean array in the same shape as the data stored in the band
+        no_data:
+          Value of a cell considered as invalid value.
+        limit_count:
+          An optional number to use as limit count. If set, then this method
+          returns True/False if the count of valid cells is bigger/smaller than
+          this limit value.
+        """
+        if selector is None:
+            self.source.import_profile()
+            height = self.source.profile['height']
+            width = self.source.profile['width']
+            selector = np.full(shape=(height, width), fill_value=True)
+
+        bidx = self.get_bidx()
+        count = 0
+        with self.source.open() as src:
+            for _ji, window, in src.block_windows(bidx):
+                data = src.read(bidx, window=window)
+
+                count += count_contribution(data=data,
+                                            selector=selector[window.toslices()],
+                                            no_data=no_data)
+                if limit_count and count > limit_count:
+                    return True
+        if limit_count:
+            return False
+        else:
+            return count
 
     @contextmanager
     def data_writer(self, match:str|list|None=None, **kwargs):

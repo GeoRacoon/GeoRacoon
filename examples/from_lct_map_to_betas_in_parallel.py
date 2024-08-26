@@ -113,5 +113,8 @@ optimal_weights = lbpara.compute_weights(response=response_band,
                                          include_intercept=include_intercept,
                                          block_size=block_size,
                                          as_dtype=as_dtype,
-                                         verbose=True,)
+                                         limit_contribution=0.5,
+                                         sanitize_predictors=True,
+                                         verbose=True,
+                                         )
 print(f"{optimal_weights=}")
