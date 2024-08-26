@@ -33,3 +33,8 @@ class InvalidMaskSelectorError(Exception):
     """An selector string was used that did not match to any mask reader.
     """
     pass
+
+class InvalidPredictorError(Exception):
+    """Not all of the provided predictors are valid.
+    """
+    pass

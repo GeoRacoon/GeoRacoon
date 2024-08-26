@@ -11,6 +11,7 @@ from landiv_blur.exceptions import (
 )
 from landiv_blur.helper import check_compatibility
 from landiv_blur import io as lbio
+from landiv_blur import io_ as lbio_
 from landiv_blur import processing as lbproc
 
 
@@ -251,4 +252,27 @@ def test_tif_compression(datafiles):
         assert len(target) == len(test)
         assert target == test
 
+@ALL_MAPS
+def test_band_count_contrib(datafiles):
+    """Check the count of valid pixels for a band
+    """
+    test_data = (
+        get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles),
+        get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    )
+    for test_file in test_data:
+        band = lbio_.Band(source=lbio_.Source(path=test_file), bidx=1)
+        valids = band.count_valid_pixels(selector=None, no_data=0)
+        print(f"{valids=}")
+        assert isinstance(valids, int)
+        limit_count = int(0.5*valids)
+        valid = band.count_valid_pixels(selector=None, no_data=0,
+                                         limit_count=limit_count)
+        assert isinstance(valid, bool)
+        assert valid
+        limit_count = int(1.5*valids)
+        valid = band.count_valid_pixels(selector=None, no_data=0,
+                                         limit_count=limit_count)
+        assert isinstance(valid, bool)
+        assert ~valid
 

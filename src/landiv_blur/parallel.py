@@ -6,16 +6,20 @@ of filters on a tif
 from __future__ import annotations
 
 import os
+import math
 from typing import Any
 from collections.abc import Callable, Collection
 
 from copy import copy
+
+from typing import Union
 
 import numpy as np
 import rasterio as rio
 
 from multiprocessing import Pool, Queue, Manager, cpu_count
 from numpy.typing import NDArray
+
 
 from .io_ import Source, Band
 from .helper import (view_to_window,
@@ -32,6 +36,7 @@ from .inference import (
     get_optimal_weights_source,
 )
 from .io import set_tags, write_band, compress_tif
+from .exceptions import InvalidPredictorError
 
 
 # TODO: this needs adaptation once !36 is merged (using tags instead of indexes)
@@ -241,6 +246,17 @@ def data_writer(writer: Callable, writer_params: dict, aggr_q: Queue) -> TimedTa
                 # print(f"Wrote out block {view=}")
                 timer.new_lab()
     return timer
+
+
+def process_band_count_valid(band: Band,
+                             selector:NDArray[np.bool_],
+                             no_data:Union[int,float],
+                             limit_count:int):
+    with TimedTask() as timer:
+        valid = band.count_valid_pixels(selector=selector,
+                                        no_data=no_data,
+                                        limit_count=limit_count)
+    return {band: valid}, (timer,)
 
 
 def process_block(task: Callable,
@@ -837,8 +853,8 @@ def prepare_selector(*bands: Band,
     # make sure the profile is up to date
     source0_profile = bands[0].source.import_profile()
 
-    width = source0_profile.get('width')
-    height = source0_profile.get('height')
+    width = int(source0_profile['width'])
+    height = int(source0_profile['height'])
 
     # set the per-block parameter
     _, inner_views = create_views(view_size=block_size,
@@ -893,8 +909,111 @@ def prepare_selector(*bands: Band,
     # wait for the *_combiner tasks to finish
     pool.join()
     selector, (timer,) = aggregator_job.get()
+    if selector is None:
+        print("WARNING: The selector creation retunred no selector: "
+              "All pixel are used!")
+        selector = np.full(shape=(height, width), fill_value=True)
     total_duration = timer.get_duration()
     return selector
+
+
+def check_predictor_consistency(predictors: Collection[Band],
+                                selector:NDArray[np.bool_],
+                                tolerance:float=0.0,
+                                no_data=0.0,
+                                sanitize:bool=False,
+                                verbose:bool=False,
+                                **params)->Collection[Band]:
+    """Check if with the selector all the predictors still contain data
+
+    Parameters
+    ----------
+    predictors:
+      A collection with arbitrary many predictors to use.
+      See inference.prepare_predictors for further details on how to specify
+      predictors.
+    selector:
+      A boolean array in the same shape of the predictors that indicates
+      which cells are usable
+    tolerance:
+      Determines the limit fraction below which a predictor is considered to
+      be completely masked.
+      By default (i.e. `tolerance=0.0`) a single cell with a valid value is
+      enough to consider the predictor to be valid.
+
+      The fraction of valid cells is computed as the number of valid-cells
+      the predictor has divided by the total number of considered cells
+      (i.e. the count of `True` in `selector`).
+    no_data:
+      Value of a cell considered as invalid data.
+
+    sanitize:
+      Determines if predictors that end up contributing not a single data-point
+      (after applying the `selector`) should be removed automatically.
+
+      By defautl this values is set to `False` which raises an exception
+      if a predictor ends up contriuting nothing.
+
+    Returns
+    -------
+    Collection[Band]:
+      The remaining predictors. By default (i.e. `sanitize=False`) this simply
+      corresponds to the argument that was provided in `predictors`.
+      If `sanitize=True` then the colleciton will no longer contain predictors
+      that get completely masked when the `selector` is applied.
+    """
+    _vals, _counts = np.unique(selector, return_counts=True)
+    total_selected = int(_counts[_vals][0])
+    # convert the tolerance fraction to an actual number of pixels
+    limit_count = max(1, math.ceil(tolerance * total_selected))
+    # for each predictor
+    # - apply the selector
+    # - count the number of 'valid' cells > valid
+    # - if valid/total_selecte is <= tolerance > predictor is problematic
+    #   - either kick it out (if 'sanitize') or raise exception
+    # set the per job parameter
+    job_params = []
+    for predictor in predictors:
+        jparams = dict(
+            band=predictor,
+            selector=selector,
+            limit_count=limit_count,
+            no_data=no_data
+        )
+        job_params.append(jparams)
+    nbr_cpus = params.get('nbrcpu', cpu_count() - 1)
+    if verbose:
+        print(f"Predictor consistency check using {nbr_cpus=}")
+    pool = Pool(nbr_cpus)
+    all_jobs = []
+    for jparams in job_params:
+        all_jobs.append(pool.apply_async(process_band_count_valid,
+                                         kwds=jparams))
+    band_validity = dict()
+    durations = []
+    for job in all_jobs:
+        valid_band, (time, ) = job.get()
+        band_validity.update(valid_band)
+        durations.append(time.get_duration())
+    if not all(band_validity.values()):
+        valid_predictors = []
+        invalid_predictors = []
+        invalid_str = ''
+        for band, valid in band_validity.items():
+            if not valid:
+                invalid_str += f"- {band}\n"
+                invalid_predictors.append(band)
+            else:
+                valid_predictors.append(band)
+        if sanitize:
+            print("WARNING: Some predictors do not satify the minimal "
+                  f"contribution condition:\n{invalid_str}\n"
+                  "They will be removed from the list of predictors!")
+            return valid_predictors
+        else:
+            raise InvalidPredictorError(f"Invalid predictors:\n{invalid_str}")
+    else:
+        return predictors
 
 
 def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
@@ -1249,7 +1368,10 @@ def compute_weights(response: str | Band,
                     block_size: tuple[int, int],
                     include_intercept: bool = True,
                     as_dtype=np.float64,
-                    verbose=False,
+                    limit_contribution:float=0.0,
+                    no_data:Union[int,float]=0.0,
+                    sanitize_predictors:bool=False,
+                    verbose:bool=False,
                     **params
                     ) -> dict[Band, float]:
     """Compute the optimal weight in a multiple linear regression
@@ -1271,6 +1393,25 @@ def compute_weights(response: str | Band,
        ...
     verbose:
         Print out processing step infos
+    limit_contribution:
+        The fraction of cells, among all valid cells, each predictor must
+        contribute for it to be considered a valid predictors.
+        By default (i.e. `limit_contribution=0.0`) a single value is enough.
+    no_data:
+        Each cell with this value is considered to be invalid.
+        Most likely you will never have to change this!
+    sanitize_predictors:
+        Determines if predictors that end up
+        contributing not a single data-point should be removed automatically.
+
+        By default this values is set to `False` which raises an exception
+        if a predictor ends up contributing nothing.
+
+    **params:
+        Optional arguments:
+
+        - `nbr_cpus` (int): how many CPUs should be used (by default the number
+          of available CPUs minus one will be used.
     """
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
@@ -1282,6 +1423,28 @@ def compute_weights(response: str | Band,
                                 block_size=block_size,
                                 verbose=verbose,
                                 **params)
+
+    print("Check consistency of remaining predictor data...")
+    nbr_predictors = len(predictors)
+    predictors = check_predictor_consistency(predictors,
+                                             selector=selector,
+                                             tolerance=limit_contribution,
+                                             sanitize=sanitize_predictors,
+                                             no_data=no_data,
+                                             )
+    if len(predictors) != nbr_predictors:
+        # the consistency check removed some predictors
+        # we re-create the selector in this case since the dropped out
+        # predictor(s) might have masked some cells
+        selector = prepare_selector(response,
+                                    *predictors,
+                                    block_size=block_size,
+                                    verbose=verbose,
+                                    **params)
+        # NOTE: We do not need to check_predictor_consistency again sine
+        #       removing the predictor leads to at least the same valid
+        #       pixels, if not more.
+
 
     print("Calculate X.T @ X...")
     tpX = get_XT_X(response,
