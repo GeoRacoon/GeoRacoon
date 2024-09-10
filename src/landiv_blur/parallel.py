@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import os
 import math
-from typing import Any
+from typing import Any, Dict
 from collections.abc import Callable, Collection
 
 from copy import copy
@@ -1454,21 +1454,24 @@ def compute_weights(response: str | Band,
                    verbose=verbose,
                    view_size=block_size,
                    **params)
+    if np.linalg.det(tpX) == 0:
+        print(f"WARNING: matrix not invertiable - determinant is 0\n",
+              f"({predictors=})")
+        return None
+    else:
+        print("Inverting X.T @ X...")
+        Y = np.linalg.inv(tpX)
+        # print(f"{tpX=}\n{Y=}")
+        # print("#####\n#####\n#####")
 
-
-    print("Inverting X.T @ X...")
-    Y = np.linalg.inv(tpX)
-    # print(f"{tpX=}\n{Y=}")
-    # print("#####\n#####\n#####")
-
-    print("Calculate Y @ X.T @ y (optimal weights)...")
-    betas_dict = get_optimal_betas(*predictors,
-                                   Y=Y,
-                                   response=response,
-                                   selector=selector,
-                                   include_intercept=include_intercept,
-                                   verbose=verbose,
-                                   as_dtype=as_dtype,
-                                   view_size=block_size,
-                                   **params)
-    return betas_dict
+        print("Calculate Y @ X.T @ y (optimal weights)...")
+        betas_dict = get_optimal_betas(*predictors,
+                                       Y=Y,
+                                       response=response,
+                                       selector=selector,
+                                       include_intercept=include_intercept,
+                                       verbose=verbose,
+                                       as_dtype=as_dtype,
+                                       view_size=block_size,
+                                       **params)
+        return betas_dict
