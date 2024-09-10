@@ -1424,6 +1424,13 @@ def compute_weights(response: str | Band,
                                 verbose=verbose,
                                 **params)
 
+    # If selector is empty (meaning all is FALSE) - no need to proceed
+    _vals = np.unique(selector)
+    if len(_vals) == 1:
+        if _vals[0] == False:  # if not _vals[0] is less explicit
+            print(f"WARNING: no pixels to fit, selector masks all pixels")
+            return None
+
     print("Check consistency of remaining predictor data...")
     nbr_predictors = len(predictors)
     predictors = check_predictor_consistency(predictors,
@@ -1432,7 +1439,13 @@ def compute_weights(response: str | Band,
                                              sanitize=sanitize_predictors,
                                              no_data=no_data,
                                              )
+    # TODO: I think this is irrelevant
+    #  (tested if selector above & below are equal - they are if no Source has been removed (think of mask)
     if len(predictors) != nbr_predictors:
+        # TODO: implement a check for
+        #   (a) all predictors use source as mask_reader
+        #   (b) len(sources for predictors) is same as before
+        #   --> then we can skip this recalculation
         # the consistency check removed some predictors
         # we re-create the selector in this case since the dropped out
         # predictor(s) might have masked some cells
@@ -1444,7 +1457,6 @@ def compute_weights(response: str | Band,
         # NOTE: We do not need to check_predictor_consistency again sine
         #       removing the predictor leads to at least the same valid
         #       pixels, if not more.
-
 
     print("Calculate X.T @ X...")
     tpX = get_XT_X(response,
@@ -1458,20 +1470,20 @@ def compute_weights(response: str | Band,
         print(f"WARNING: matrix not invertiable - determinant is 0\n",
               f"({predictors=})")
         return None
-    else:
-        print("Inverting X.T @ X...")
-        Y = np.linalg.inv(tpX)
-        # print(f"{tpX=}\n{Y=}")
-        # print("#####\n#####\n#####")
 
-        print("Calculate Y @ X.T @ y (optimal weights)...")
-        betas_dict = get_optimal_betas(*predictors,
-                                       Y=Y,
-                                       response=response,
-                                       selector=selector,
-                                       include_intercept=include_intercept,
-                                       verbose=verbose,
-                                       as_dtype=as_dtype,
-                                       view_size=block_size,
-                                       **params)
-        return betas_dict
+    print("Inverting X.T @ X...")
+    Y = np.linalg.inv(tpX)
+    # print(f"{tpX=}\n{Y=}")
+    # print("#####\n#####\n#####")
+
+    print("Calculate Y @ X.T @ y (optimal weights)...")
+    betas_dict = get_optimal_betas(*predictors,
+                                   Y=Y,
+                                   response=response,
+                                   selector=selector,
+                                   include_intercept=include_intercept,
+                                   verbose=verbose,
+                                   as_dtype=as_dtype,
+                                   view_size=block_size,
+                                   **params)
+    return betas_dict
