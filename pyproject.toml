@@ -3,7 +3,7 @@ name = "landiv_blur"
 authors = [
   { name="Jonas I. Liechti", email="j-i-l@t4d.ch" },
 ]
-dynamic = ["version"]
+dynamic = ["version", "dependencies"]
 description = "Package to compute diversity measures in land cover type (LCT) maps"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -13,11 +13,8 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-dependencies = [
-    "rasterio",
-    "scikit-image",
-    "matplotlib"
-]
+[tool.setuptools.dynamic.dependencies]
+file = ["requirements.txt"]
 
 [project.urls]
 Homepage = "https://git.math.uzh.ch/landiv/landiv/"
