@@ -1038,6 +1038,8 @@ def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
 
       entropy_as_ubyte: bool, Default=False
         Should the entropy be normalized and returned as ubyte?
+      normed: bool, Default=True
+        Determines if the values in the provided arrays should be normed or not.
 
     entropy_q: multiprocessing.Queue
       The queue to push the entropy maps through
@@ -1053,8 +1055,10 @@ def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
             blurred_data[bidx] = band.get_data(window=window)
 
         entropy_as_ubyte = params.pop('entropy_as_ubyte', False)
+        normed = params.pop('normed', True)
         entropy_params = dict(
             view=view,
+            normed=normed,
             category_arrays=blurred_data,
             output_dtype=np.uint8 if entropy_as_ubyte else None,
         )
