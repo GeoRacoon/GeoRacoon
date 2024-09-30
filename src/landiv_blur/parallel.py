@@ -28,8 +28,9 @@ from .helper import (view_to_window,
                      aggregated_selector)
 from .timing import TimedTask
 from .plotting import plot_entropy
-from .processing import view_blurred, view_entropy
+from .processing import view_blurred, view_entropy, view_filtered
 from .prepare import create_views, get_blur_params, update_view
+from .filters.gaussian import img_filter
 from .filters.gaussian import (gaussian, compatible_border_size)
 from .inference import (
     transposed_product,
@@ -434,7 +435,7 @@ def runner_call(queue: Queue[Any],
 def extract_categories(source: str | Source,
                        categories: list,
                        output_file: str,
-                       img_filter: Callable,
+                       img_filter: None|Callable,
                        filter_params: dict,
                        block_size: tuple[int, int],
                        blur_as_int: bool = True,
@@ -563,6 +564,173 @@ def extract_categories(source: str | Source,
     print(f"{total_duration=}")
     print(f"maximal duration of single job: {max(job_timers)=}")
     return output_file
+
+
+# TODO: This could be called in extract_categories
+def apply_filter(source: str | Source,
+                 output_file: str,
+                 block_size: tuple[int, int],
+                 bands: list[Band] | None = None,
+                 data_in_range:None|NDArray|Collection=None,
+                 data_output_dtype:type|None=np.uint8,
+                 data_output_range:None|NDArray|Collection=None,
+                 img_filter=None,
+                 filter_params:dict|None=None,
+                 filter_output_range:Collection|None=(0.,1.),
+                 output_dtype:type|None=np.uint8,
+                 output_range:tuple|None=None,
+                 verbose: bool = False,
+                 **params
+                 )->str:
+    """
+    Parameters
+    ----------
+    source : str
+        Path to the file with the bands
+    output_file:
+      The path to write the resulting data to
+    bands:
+        An optional selection of bands to apply the filter to.
+        If not provided all bands are used.
+    block_size:
+        Size (width, height) in #pixel of the block that a single job processes
+    data_in_range:
+        an array or list from which min and max will be used as range of the
+        input data
+    data_output_dtype:
+      Set the data type that the input data should be converted to before
+      applying the the filter
+
+      ..note::
+        If provided, the loaded data will be rescaled to the range of
+        this data type or `out_range` (if provided).
+    data_output_range:
+      an array or list from which min and max will be used as limits loaded
+      data if its data type is changed
+    img_filter: Callable
+        A filter function that can be applied to the data. See e.g.
+        skimage.filter.gaussian
+    filter_params:
+      Parameter to pass to the filter callable
+    filter_output_range:
+      The range of values the applied filter function can return
+    output_dtype:
+        Data type into which the output of the filer function will be converted
+    output_range:
+      an array or list from which min and max will be used as limits for the
+      returned output, if `output_dtype` is provided
+    verbose:
+        Print out processing step infos
+    **params:
+        Optional arguments for the multiprocessing (e.g. nbr_cpus)
+    """
+    if isinstance(source, str):
+        source = Source(path=source)
+    with source.open() as src:
+        width = src.width
+        height = src.height
+    if verbose:
+        print("The chosen source tif has a dimension of:"
+            f"\n\t{width=}\n\t{height=}")
+        print(f"The block size without border is {block_size=} pixels")
+    if bands is None:
+        bands = source.get_bands()
+    else:
+        sources = set()
+        sources.add(source)
+        for band in bands:
+            sources.add(band.source)
+        assert len(sources) == 1, "Only bands with the same source are "\
+                                  f"allowed!\nWe have\n\t{sources=}"
+        source = sources.pop()
+
+    # we pass indexes
+    indexes = [band.get_bidx() for band in bands]
+    profile = source.import_profile()
+    border = compatible_border_size(**filter_params)
+    if verbose:
+        print(f"The resulting border size is {border=} pixels")
+
+    # set the parameter for the resulting file
+    blur_output_params = dict(
+        profile=profile,
+        count=len(indexes),
+        output_dtype=output_dtype,
+        output_file=output_file,
+    )
+    views, inner_views = create_views(view_size=block_size,
+                                      border=border,
+                                      size=(width, height))
+
+    block_params = []
+    # The parameter for the filter we want to apply:
+    for view, inner_view in zip(views, inner_views):
+        bparams = dict(source=str(source.path),
+                       bands=bands,
+                       view=view,
+                       inner_view=inner_view,
+                       data_in_range=data_in_range,
+                       data_output_dtype=data_output_dtype,
+                       data_output_range=data_output_range,
+                       img_filter=img_filter,
+                       filter_params=filter_params,
+                       filter_output_range=filter_output_range,
+                       output_dtype=output_dtype,
+                       output_range=output_range,
+                       )
+        block_params.append(bparams)
+    # ###
+    # prepare multiprocessing
+    # ###
+    manager = Manager()
+    blur_q = manager.Queue()
+    # get number of cpu's
+    nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
+    if verbose:
+        print(f"using {nbr_cpus=}")
+    pool = Pool(nbr_cpus)
+
+    # start the blurred category writer task
+    blur_combiner = pool.apply_async(
+        func=combine_blurred_categories,
+        kwds=dict(output_params=blur_output_params, blur_q=blur_q)
+    )
+    # start the block processing
+    all_jobs = []
+    for bparams in block_params:
+
+        all_jobs.append(pool.apply_async(
+            func=runner_call,
+            kwds=dict(queue=blur_q,
+                      callback=view_filtered,
+                      params=bparams)
+        ))
+    # collect results
+    job_outputs = []
+    for job in all_jobs:
+        # await for the jobs to return (i.e. complete) by calling .get
+        # get the duration from the timer object that is returned by .get()
+        job_outputs.append(job.get())
+
+    # once we have all the blocks, add a last element to the queue to stop
+    # the combination process
+    blur_q.put(dict(signal='kill'))
+    pool.close()
+    # wait for the *_combiner tasks to finish
+    pool.join()
+
+    # lzw-compress final output
+    compress = params.pop('compress', False)
+    if compress:
+        out_source = Source(output_file)
+        out_source.compress(output=None)
+        output_file = str(out_source.path)
+        print("Files compressed successfully")
+
+    total_duration = blur_combiner.get().get_duration()
+    print(f"{total_duration=}")
+    return output_file
+
 
 
 def compute_entropy(source: str | Source,

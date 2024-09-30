@@ -21,7 +21,7 @@ rand_data = np.random.randint(8, size=(100, 200)) + 1
 # Next we construct a map for a single land-cover type from the map
 mono_lctype_map = lbproc.select_category(rand_data, category=3)
 # Now we can apply a filter on the resulting map:
-blurred = lbproc.apply_filter(mono_lctype_map, gaussian, sigma=1)
+blurred = lbproc._apply_filter(mono_lctype_map, gaussian, sigma=1)
 # convert it back to uint8
 n_max, _ = lbhelp.dtype_range(np.uint8)
 blurred = blurred * n_max
@@ -29,7 +29,7 @@ blurred = blurred.astype(np.uint8, copy=False)
 
 # Let's to the same thing for another land-cover type:
 mono_lctype_map_2 = lbproc.select_category(rand_data, category=2)
-blurred_2 = lbproc.apply_filter(mono_lctype_map_2, gaussian, sigma=1)
+blurred_2 = lbproc._apply_filter(mono_lctype_map_2, gaussian, sigma=1)
 blurred_2 = blurred_2 * n_max
 blurred_2 = blurred_2.astype(np.uint8, copy=False)
 

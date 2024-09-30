@@ -29,6 +29,7 @@ from .io import (
     match_all,
     find_bidxs,
     compress_tif,
+    load_block
 )
 from .helper import (
     check_compatibility as _check_compatibility,
@@ -336,6 +337,19 @@ class Source:
         for source in sources:
             _sources.add(source.path)
         return _check_compatibility(*_sources)
+
+    def load_block(self,
+                   view:None|tuple[int,int,int,int]=None,
+                   scaling_params:dict|None=None,
+                   **tags)->dict:
+        """Get a block from a specific band along with the transform
+
+        See `io.load_block` for further details
+        """
+        return load_block(source=str(self.path),
+                          view=view,
+                          scaling_params=scaling_params,
+                          **tags)
 
 @dataclass
 class Band:
@@ -699,3 +713,17 @@ class Band:
         # with self.source.open(mode='w', **kwargs) as src:
         with self.data_writer(mode='w', **kwargs) as src:
             src.write(data)
+
+    def load_block(self,
+                   view:None|tuple[int,int,int,int]=None,
+                   scaling_params:dict|None=None,
+                   match:str|list|None=None)->dict:
+        """Get a block from a specific band along with the transform
+
+        See `io.load_block` for further details
+        """
+        bidx = self.get_bidx(match=match)
+        return self.source.load_block(
+                          view=view,
+                          scaling_params=scaling_params,
+                          indexes=bidx)

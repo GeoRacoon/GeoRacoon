@@ -8,6 +8,10 @@ from skimage.filters import gaussian
 
 from .. import ap
 
+# we abstract the specific filter so that wie can to:
+# from landiv_blur.filters.<some_filter> import img_filter
+img_filter = gaussian
+
 def get_kernel_diameter(sigma, **params):
     """Compute the kernel diameter in number of cells
 

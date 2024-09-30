@@ -121,7 +121,7 @@ def get_tags(src, bidx:int|None=None, ns:str=NS):
         related methods of this package use the same default namespace.
     """
     if bidx is None:
-        bidx = 0
+        bidx = 0  # get the tags for the files metadata
     return deserialize(src.tags(bidx=bidx, ns=ns))
 
 def find_bidxs(src, ns:str=NS, **tags):

@@ -4,7 +4,8 @@ import numpy as np
 from landiv_blur.helper import (
     match_all,
     match_any,
-    count_contribution
+    count_contribution,
+    convert_to_dtype
 )
 
 def test_matching():
@@ -70,3 +71,19 @@ def test_count_contrib():
                                 no_data=0.0)
     # now only 2 out of the unmased should be there
     assert counts == 0
+
+def test_convert_to_dtype():
+    """
+    """
+    # array containing min and max of uint8
+    a = np.array([[1,2,2],[3,0.,2], [20,128.,255.]], dtype=np.uint8)
+    b = convert_to_dtype(data=a, as_dtype=np.uint16)
+    assert np.max(b) == np.iinfo(np.uint16).max
+    assert np.min(b) == np.iinfo(np.uint16).min
+    c = convert_to_dtype(data=a, as_dtype=np.float32, out_range=[0,1])
+    assert np.max(c) == 1
+    assert np.min(c) == 0
+    # rescale a float in [0,1] to a float in [0,1] > do nothing
+    d = convert_to_dtype(data=c, as_dtype=np.float32, in_range=[0,1],
+                         out_range=[0,1])
+    np.testing.assert_equal(c, d)
