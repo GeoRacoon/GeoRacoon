@@ -46,7 +46,7 @@ def test_filter_signal_preservation(datafiles):
         dtype = np.uint8
         dmax = np.iinfo(dtype).max
         category_data = lbproc.get_category_data(ch_data, category=cat,
-                                              output_dtype=dtype)
+                                                 output_dtype=dtype)
         filtered_data = lbproc.get_category_data(ch_data, category=cat,
                                                  img_filter=gaussian,
                                                  filter_params=params)

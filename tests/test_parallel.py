@@ -730,3 +730,69 @@ def test_selector_computation(datafiles, create_blurred_tif):
     print(f"{np.unique(selector_full, return_counts=True)=}")
     print(f"{np.unique(selector_para, return_counts=True)=}")
     np.testing.assert_equal(selector_full, selector_para)
+
+@ALL_MAPS
+def test_apply_filter(datafiles):
+    """Test the parallel application of a filter to one or serveral bands
+    """
+    blur_para = str(datafiles / 'blur_para.tif')
+    blur_single = str(datafiles / 'blur_single.tif')
+    bands_out = str(datafiles / 'bands_out.tif')
+    diameter = 1000  # this is in meter
+    scale = 100  # meter per pixel
+    _diameter = diameter / scale
+    truncate = 3  # property of the gaussian filter
+    block_size = (500, 400)
+    output_dtype = np.uint8  # data type to use for the blurred arrays
+    blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
+    img_filter=lbf_gauss.gaussian
+    filter_params = blur_params.copy()
+    _ = filter_params.pop('diameter')
+    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    categories = [1,2,3]
+    # compute in one go
+    blurred_tif = lbpara.extract_categories(
+        source=str(ch_map_tif),
+        categories=categories,
+        output_file=blur_single,
+        img_filter=img_filter,
+        filter_params=filter_params,
+        blur_as_int=True,
+        block_size=block_size,
+        compress=True
+    )
+    # now in two steps:
+    # first extract categories
+    bands_tif = lbpara.extract_categories(
+        source=str(ch_map_tif),
+        categories=categories,
+        output_file=bands_out,
+        img_filter=None,
+        filter_params=filter_params,
+        blur_as_int=True,
+        block_size=block_size,
+        verbose=True,
+        compress=True
+    )
+    # apply the filter in parallel
+    blurred_para = lbpara.apply_filter(source=bands_tif,
+                                       output_file=blur_para,
+                                       block_size=block_size,
+                                       bands=None,
+                                       data_output_dtype=np.uint8,
+                                       img_filter=img_filter,
+                                       filter_params=filter_params,
+                                       filter_output_range=(0.,1.),
+                                       output_dtype=output_dtype,
+                                       verbose=True)
+    for cat in categories:
+        b_nope = lbio_.Band(source=lbio_.Source(path=bands_tif),
+                            bidx=cat)
+        b_twostep = lbio_.Band(source=lbio_.Source(path=blurred_para),
+                               bidx=cat)
+        b_single = lbio_.Band(source=lbio_.Source(path=blurred_tif),
+                              bidx=cat)
+        b_nope.import_tags()
+        b_twostep.import_tags()
+        b_single.import_tags()
+        np.testing.assert_equal(b_twostep.get_data(), b_single.get_data())

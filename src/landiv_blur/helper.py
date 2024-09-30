@@ -12,7 +12,12 @@ import rasterio as rio
 from rasterio.windows import Window
 
 from typing import Any, Union
+
+from collections.abc import Collection
+
 from numpy.typing import NDArray
+
+from decimal import Decimal
 
 
 def serialize(tags:dict[str,Any])->dict[str,str]:
@@ -268,29 +273,85 @@ def usable_pixels_count(selector):
         return 0
 
 
-def dtype_range(dtype):
+def dtype_range(dtype)->tuple[int|float, int|float]:
     """Get the range of the specified dtype
+
+    ..warning::
+      This functions returns min or max as either `int` or `floats`.
+
+      Be sure to convert them back into `dtype` if needed!
+
     """
     # avoid issues of object not callable from rasterio
     if hasattr(dtype, 'type'):
         dtype = dtype.type
     try:
-        _max = dtype(np.iinfo(dtype).max)
-        _min = dtype(np.iinfo(dtype).min)
+        _max = int(np.iinfo(dtype).max)
+        _min = int(np.iinfo(dtype).min)
     except ValueError:
         try:
-            _max = dtype(np.finfo(dtype).max)
-            _min = dtype(np.finfo(dtype).min)
+            _max = float(np.finfo(dtype).max)
+            _min = float(np.finfo(dtype).min)
         except ValueError:
             raise ValueError(f"{dtype=} has no min-/maximal values.")
     return _max, _min
 
 
+def convert_to_dtype(data: NDArray,
+                     as_dtype,
+                     in_range:None|NDArray|Collection=None,
+                     out_range:None|NDArray|Collection=None)->NDArray:
+    """Converts a data as_dtype and rescales it
+
+    Parameters
+    ----------
+    data: input numpy NDArray
+    as_dtype: desired data type to convert to (e.g. np.float64)
+    in_range:
+        an array or list from which min and max will be used as input range
+
+        ..note::
+          You might simply provide the same value as for `data` in order to
+          use its min an max for scaling
+    out_range:
+      an array or list from which min and max will be used as limits for the
+      output
+    """
+    if in_range is None:
+        _inmax, _inmin = dtype_range(data.dtype)
+    else:
+        # we convert to float since Decimal cannot handle np.uintX
+        _inmax = float(np.max(in_range))
+        _inmin = float(np.min(in_range))
+    # now the output dtype
+    if out_range is None:
+        _outmax, _outmin = dtype_range(as_dtype)
+    else:
+        # we convert to float since Decimal cannot handle np.uintX
+        _outmax = float(np.max(out_range))
+        _outmin = float(np.min(out_range))
+    scale = (Decimal(_outmax) - Decimal(_outmin)) / \
+            (Decimal(_inmax) - Decimal(_inmin))
+    return _outmin + (data * float(scale)).astype(as_dtype)
+
+
 def convert_to_scaled(arr: NDArray,
                       as_dtype,
-                      data_range: tuple=None) -> NDArray:
+                      data_range:None|tuple=None) -> NDArray:
     """Converts a data array to desired as_type and
     scales the array by the maximum value in the dtype of the input array or provided data_range if provided
+
+    ..warning::
+      Only use this function if you want to rescale an `np.uintX` array
+      to the range [0,1].
+
+      This function converts and then rescales the provided array to the
+      fraction of its own dtype range or `data_range` with `as_dtype` setting
+      the inital dtype conversion.
+      The rescale is then done with np.divide and, as such, the retuned array
+      might not necessarily be of dtype `as_dtype`:
+
+      Use `convert_to_dtype` form more control of the rescaling.
 
     Parameters
     ----------

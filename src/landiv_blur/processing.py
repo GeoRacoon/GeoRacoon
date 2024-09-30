@@ -6,8 +6,9 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.stats import entropy
 
-from .helper import dtype_range
-from .io import load_block
+from .helper import dtype_range, convert_to_dtype
+from .io import load_block, get_bands
+from .io_ import Source, Band
 from .prepare import get_view, relative_view
 
 
@@ -45,7 +46,7 @@ def select_category(data:NDArray,
     if limits:
         _is, _is_not = limits
     else:
-        _is, _is_not = dtype_range(as_dtype)
+        _is, _is_not = map(as_dtype, dtype_range(as_dtype))
 
     if isinstance(category, int):
         _selected = [category,]
@@ -54,7 +55,7 @@ def select_category(data:NDArray,
     return np.where(np.isin(data, _selected), _is, _is_not)
 
 
-def apply_filter(data, img_filter:Callable, **params):
+def _apply_filter(data, img_filter:Callable, **params):
     """Apply a filter to the provided data
 
     Parameters
@@ -155,7 +156,7 @@ def get_category_data(data:NDArray,
     filter_params = filter_params or dict()
     # apply the image filter if provided
     if img_filter:
-        _data = apply_filter(_data, img_filter, **filter_params)
+        _data = _apply_filter(_data, img_filter, **filter_params)
         # convert to the desired output type
         if output_dtype:
             n_max, _ = dtype_range(output_dtype)
@@ -163,10 +164,166 @@ def get_category_data(data:NDArray,
             _data = _data.astype(output_dtype, copy=False)
     return _data
 
+def view_data(source:Source|str,
+              bands: list[Band|int]|None,
+              view:tuple[int,int,int,int],
+              in_range:None|NDArray|Collection,
+              output_dtype:type|None,
+              output_range:None|NDArray|Collection,
+              ):
+
+    """Get a data view from tif file + optionally convert and rescale the values
+
+    You may use the `**tags` to specify which band to read, by default only the
+    first band is read.
+
+    If tags for multiple bands are provided then all matching bands are returned
+
+    Parameters
+    ----------
+    source:
+      The path to the tif file to load
+    bands:
+        A collection of strings or `io_.Band` object the specify which bands to use
+    view:
+      defines the view of the data array to update
+    in_range:
+        an array or list from which min and max will be used as input range
+    output_dtype:
+      Set the data type of the arrays that are returned.
+
+      ..note::
+        If provided, the loaded data will be rescaled to the range of
+        this data type or `out_range` (if provided).
+
+    output_range:
+      Optional tuple to overwrite the [min,max] range of the output
+
+      See `io.load_block` for further details.
+    """
+    # read out block from original file
+
+    if not isinstance(source, Source):
+        source = Source(path=source)
+    if bands is None:
+        # print('No specific bands selected, using all')
+        bands = source.get_bands()
+    elif any(isinstance(band, int) for band in bands):
+        bands = [band if isinstance(band, Band) else source.get_band(bidx=band)
+                 for band in bands]
+    print(f"{bands=}")
+    data_views = dict()
+    for band in bands:
+        result = band.load_block(view=view, scaling_params=None)
+        data = result.pop('data')
+        if output_dtype is not None:
+            data = convert_to_dtype(data=data,
+                                    as_dtype=output_dtype,
+                                    in_range=in_range,
+                                    out_range=output_range)
+        data_views[band] = dict(data=data, view=view)
+    return data_views
+
+
+def filter_data(data:NDArray,
+                img_filter=None,
+                filter_output_range:Collection|None=(0.,1.),
+                filter_params:dict|None=None,
+                output_dtype:type|None=np.uint8,
+                output_range:tuple|None=None,
+                )->NDArray:
+    """Applies a filter to an `np.array`
+
+    Parameters
+    ----------
+    data: np.array
+      A 2D numpy array
+
+    img_filter: callable
+      a filter function to apply on the np.array
+
+      See e.g. skimage.filter.gaussian
+
+    output_dtype:
+      Specify what data type to use for the returned data.
+
+    filter_output_range:
+      Optional tuple to pass the output range of the applied filter
+
+    output_range:
+      Optional tuple to overwrite the [min,max] range of the output
+      dtype.
+
+      ..note::
+        This can be used to map to the range `[0,1]` for `floats`:
+
+        ```python
+            `output_dtype=np.float64`
+            `output_range=(0.0, 1.0)`
+        ```
+    filter_params:
+      Parameter to pass to the filter callable
+
+    Returns
+    -------
+    np.array:
+      Resulting data array
+    """
+    # apply the filter if one is chosen
+    if img_filter is not None:
+        filter_params = filter_params or dict()
+        _data = _apply_filter(data, img_filter, **filter_params)
+    else:
+        _data = data
+    # convert to the desired output type
+    if output_dtype is not None:
+        _data = convert_to_dtype(data=_data,
+                                 as_dtype=output_dtype,
+                                 in_range=filter_output_range,
+                                 out_range=output_range)
+    return _data
+
+def view_filtered(source:Source|str,
+                  view:tuple[int,int,int,int],
+                  inner_view:tuple[int,int,int,int],
+                  data_in_range:None|NDArray|Collection=None,
+                  data_output_dtype:type|None=np.uint8,
+                  data_output_range:None|NDArray|Collection=None,
+                  img_filter=None,
+                  filter_params:dict|None=None,
+                  filter_output_range:Collection|None=(0., 1.),
+                  output_dtype:type|None=np.uint8,
+                  output_range:tuple|None=None,
+                  bands: list[Band|int]|None = None,
+                  ):
+    """Extracts and possibly converts a view from the source file
+
+    """
+    data_views = view_data(source=source,
+                           bands=bands,
+                           view=view,
+                           in_range=data_in_range,
+                           output_dtype=data_output_dtype,
+                           output_range=data_output_range)
+    filtered_datas = {}
+    for band, data_view in data_views.items():
+        _filtered_data = filter_data(
+                data=data_view['data'],
+                img_filter=img_filter,
+                filter_params=filter_params,
+                filter_output_range=filter_output_range,
+                output_dtype=output_dtype,
+                output_range=output_range)
+        # only keep the inner view
+        filtered_datas[band.get_bidx()] = np.copy(
+            get_view(_filtered_data,
+                     relative_view(view, inner_view))
+        )
+    return dict(data=filtered_datas, view=inner_view)
 
 def get_filtered_categories(data:NDArray,
                             categories: None|Collection=None,
-                            img_filter=None,
+                            img_filter:None|Callable=None,
                             output_dtype:type|None=np.uint8,
                             filter_params:dict|None=None)->dict[int, NDArray]:
     """Extract each category into a separate `np.array` and apply an image filter

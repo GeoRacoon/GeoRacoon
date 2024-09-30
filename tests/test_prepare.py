@@ -61,7 +61,7 @@ def test_recombination():
     views, inner_views = lbprep.create_views(view_size=view_size,
                                              border=border,
                                              size=mapshape)
-    desired_output = lbproc.apply_filter(
+    desired_output = lbproc._apply_filter(
         point_map,
         gaussian,
         sigma=sigma,
@@ -72,7 +72,7 @@ def test_recombination():
     for i, view in enumerate(views):
         # vslice = slice(block[0], block[0] + block[2])
         # hslice = slice(block[1], block[1] + block[3])
-        _output = lbproc.apply_filter(
+        _output = lbproc._apply_filter(
             lbprep.get_view(point_map, view),
             # point_map[vslice, hslice],
             gaussian,
