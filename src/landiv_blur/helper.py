@@ -332,7 +332,7 @@ def convert_to_dtype(data: NDArray,
         _outmin = float(np.min(out_range))
     scale = (Decimal(_outmax) - Decimal(_outmin)) / \
             (Decimal(_inmax) - Decimal(_inmin))
-    return _outmin + (data * float(scale)).astype(as_dtype)
+    return _outmin + ((data - _inmin) * float(scale)).astype(as_dtype)
 
 
 def convert_to_scaled(arr: NDArray,
