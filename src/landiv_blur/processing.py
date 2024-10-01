@@ -406,9 +406,9 @@ def compute_entropy(data_arrays: Sequence[NDArray],
     if normed:
         max_entropy = get_max_entropy(len(data_arrays))
         entropy_array = entropy_array / max_entropy
-    if output_dtype:
-        _max, _ = dtype_range(output_dtype)
-        entropy_array = (entropy_array * _max).astype(output_dtype)
+        if output_dtype:
+            _max, _ = dtype_range(output_dtype)
+            entropy_array = (entropy_array * _max).astype(output_dtype)
     return entropy_array
 
 
