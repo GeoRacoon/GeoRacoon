@@ -53,11 +53,14 @@ class Source:
         items = [f"path={str(self.path)}", f"exists: { self.exists }"]
         return "{}({})".format(type(self).__name__, ", ".join(items))
 
+    def __hash__(self):
+        return hash((self.path, self._ns, *(self.tags.values())))
+
     def __eq__(self, other):
         if not isinstance(other, type(self)):
             return NotImplemented
         return (self.path == other.path and self.tags == other.tags and
-                self._ns == other._ns and self.profile == other.profile)
+                self._ns == other._ns)
 
     def import_profile(self, update_self:bool=True):
         """Read the profile from the source file
