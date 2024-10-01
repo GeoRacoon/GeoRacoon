@@ -82,7 +82,7 @@ def main_cli():
                 view=(args.hstart, args.vstart, args.size, args.size),
                 fig_params = dict(
                     output=f"{ fname }_categories_filtered_{args.sigma}{ fextension }",
-                )
+                ),
                 img_filter=gaussian,
                 params=dict(sigma=args.sigma,)
             )

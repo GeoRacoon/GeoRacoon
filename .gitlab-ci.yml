@@ -72,7 +72,13 @@ first-test:
     - 'pip install -r tests/requirements.txt'  # this installs packages downstream as well, not ideal
     - 'pip install dist/*.whl'  # install the package
     - 'python -m pytest -vvv --cov=landiv_blur'
-  coverage: /(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/
+    - 'coverage xml'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+  coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
 
 pages:
   stage: deploy
