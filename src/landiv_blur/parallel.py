@@ -17,7 +17,12 @@ from typing import Union
 import numpy as np
 import rasterio as rio
 
-from multiprocessing import Pool, Queue, Manager, cpu_count
+from multiprocessing import (
+    Queue,
+    Manager,
+    cpu_count,
+    get_context,
+)
 from numpy.typing import NDArray
 
 
@@ -38,6 +43,10 @@ from .inference import (
 )
 from .io import set_tags, write_band, compress_tif
 from .exceptions import InvalidPredictorError
+
+
+# NOTE: The first element will be picked by default
+MPC_STARTER_METHODS = ['spawn', 'fork', 'forkserver']
 
 
 # TODO: this needs adaptation once !36 is merged (using tags instead of indexes)
@@ -464,26 +473,32 @@ def extract_categories(source: str | Source,
     verbose:
         Print out processing step infos
     **params:
-        Optional arguments for the multiprocessing (e.g. nbr_cpus)
+        Optional arguments for the multiprocessing:
+
+        nbrcpu: int
+          The number of cpu's to use. If not set then then the available number
+          of threads -1 are used.
+        start_method: str
+          Starting method for multiprocessing jobs
 
     Returns
     -------
     output_file:
        Path to the resulting tif file
     """
+    print(f'extract_categories - {source=}, {categories=}')
     if isinstance(source, str):
         source = Source(path=source)
     with source.open() as src:
         width = src.width
         height = src.height
         profile = copy(src.profile)
-    print("The chosen source tif has a dimension of:"
-          f"\n\t{width=}\n\t{height=}")
-
     # the border size of a block should be at least as large as the kernel size
     # TODO: this should be a computed term, rather than simply set
     # set the block size in pixels
     if verbose:
+        print("The chosen source tif has a dimension of:"
+            f"\n\t{width=}\n\t{height=}")
         print(f"The block size without border is {block_size=} pixels")
     border = compatible_border_size(**filter_params)
     if verbose:
@@ -523,34 +538,35 @@ def extract_categories(source: str | Source,
     # ###
     manager = Manager()
     blur_q = manager.Queue()
+    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
+    assert start_method in MPC_STARTER_METHODS
     # get number of cpu's
     nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
-    pool = Pool(nbr_cpus)
+    with get_context(start_method).Pool(nbr_cpus) as pool:
+        # start the blurred category writer task
+        blur_combiner = pool.apply_async(combine_blurred_categories,
+                                         (blur_output_params, blur_q))
 
-    # start the blurred category writer task
-    blur_combiner = pool.apply_async(combine_blurred_categories,
-                                     (blur_output_params, blur_q))
+        # start the block processing
+        all_jobs = []
+        for bparams in block_params:
+            all_jobs.append(pool.apply_async(block_filter,
+                                             (bparams, blur_q)))
+        # collect results
+        job_timers = []
+        for job in all_jobs:
+            # await for the jobs to return (i.e. complete) by calling .get
+            # get the duration from the timer object that is returned by .get()
+            job_timers.append(job.get().get_duration())
 
-    # start the block processing
-    all_jobs = []
-    for bparams in block_params:
-        all_jobs.append(pool.apply_async(block_filter,
-                                         (bparams, blur_q)))
-    # collect results
-    job_timers = []
-    for job in all_jobs:
-        # await for the jobs to return (i.e. complete) by calling .get
-        # get the duration from the timer object that is returned by .get()
-        job_timers.append(job.get().get_duration())
-
-    # once we have all the blocks, add a last element to the queue to stop
-    # the combination process
-    blur_q.put(dict(signal='kill'))
-    pool.close()
-    # wait for the *_combiner tasks to finish
-    pool.join()
+        # once we have all the blocks, add a last element to the queue to stop
+        # the combination process
+        blur_q.put(dict(signal='kill'))
+        pool.close()
+        # wait for the *_combiner tasks to finish
+        pool.join()
 
     # lzw-compress final output
     compress = params.pop('compress', False)
@@ -623,6 +639,8 @@ def apply_filter(source: str | Source,
         Print out processing step infos
     **params:
         Optional arguments for the multiprocessing (e.g. nbr_cpus)
+        start_method: str
+          Starting method for multiprocessing jobs
     """
     if isinstance(source, str):
         source = Source(path=source)
@@ -688,36 +706,42 @@ def apply_filter(source: str | Source,
     nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
-    pool = Pool(nbr_cpus)
+    
+    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
+    assert start_method in MPC_STARTER_METHODS
 
-    # start the blurred category writer task
-    blur_combiner = pool.apply_async(
-        func=combine_blurred_categories,
-        kwds=dict(output_params=blur_output_params, blur_q=blur_q)
-    )
-    # start the block processing
-    all_jobs = []
-    for bparams in block_params:
+    with get_context(start_method).Pool(nbr_cpus) as pool:
 
-        all_jobs.append(pool.apply_async(
-            func=runner_call,
-            kwds=dict(queue=blur_q,
-                      callback=view_filtered,
-                      params=bparams)
-        ))
-    # collect results
-    job_outputs = []
-    for job in all_jobs:
-        # await for the jobs to return (i.e. complete) by calling .get
-        # get the duration from the timer object that is returned by .get()
-        job_outputs.append(job.get())
+        # start the blurred category writer task
+        blur_combiner = pool.apply_async(
+            func=combine_blurred_categories,
+            kwds=dict(output_params=blur_output_params, blur_q=blur_q)
+        )
+        # start the block processing
+        all_jobs = []
+        for bparams in block_params:
 
-    # once we have all the blocks, add a last element to the queue to stop
-    # the combination process
-    blur_q.put(dict(signal='kill'))
-    pool.close()
-    # wait for the *_combiner tasks to finish
-    pool.join()
+            all_jobs.append(pool.apply_async(
+                func=runner_call,
+                kwds=dict(queue=blur_q,
+                        callback=view_filtered,
+                        params=bparams)
+            ))
+        # collect results
+        job_outputs = []
+        for job in all_jobs:
+            # await for the jobs to return (i.e. complete) by calling .get
+            # get the duration from the timer object that is returned by .get()
+            job_outputs.append(job.get())
+
+        # once we have all the blocks, add a last element to the queue to stop
+        # the combination process
+        blur_q.put(dict(signal='kill'))
+        pool.close()
+        # wait for the *_combiner tasks to finish
+        pool.join()
+    total_duration = blur_combiner.get().get_duration()
+    print(f"{total_duration=}")
 
     # lzw-compress final output
     compress = params.pop('compress', False)
@@ -727,8 +751,6 @@ def apply_filter(source: str | Source,
         output_file = str(out_source.path)
         print("Files compressed successfully")
 
-    total_duration = blur_combiner.get().get_duration()
-    print(f"{total_duration=}")
     return output_file
 
 
@@ -768,7 +790,13 @@ def compute_entropy(source: str | Source,
     verbose:
         Print out processing steps
     **params:
-        Optional arguments for the multiprocessing (e.g. nbr_cpus)
+        Optional arguments for the multiprocessing:
+
+        nbrcpu: int
+          The number of cpu's to use. If not set then then the available number
+          of threads -1 are used.
+        start_method: str
+          Starting method for multiprocessing jobs
     
 
     Returns
@@ -777,6 +805,7 @@ def compute_entropy(source: str | Source,
        Path to the resulting tif file
 
     """
+    print(f'compute_entropy - {source=}, {categories=}')
     if isinstance(source, str):
         source = Source(path=source)
     with source.open(mode='r') as src:
@@ -842,34 +871,35 @@ def compute_entropy(source: str | Source,
     # ###
     manager = Manager()
     entropy_q = manager.Queue()
+    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
+    assert start_method in MPC_STARTER_METHODS
     # get number of cpu's
     nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
-    pool = Pool(nbr_cpus)
+    with get_context(start_method).Pool(nbr_cpus) as pool:
+        # start the entropy writer task
+        entropy_combiner = pool.apply_async(combine_entropy_blocks,
+                                            (entropy_output_params, entropy_q))
 
-    # start the entropy writer task
-    entropy_combiner = pool.apply_async(combine_entropy_blocks,
-                                        (entropy_output_params, entropy_q))
+        # start the block processing
+        all_jobs = []
+        for bparams in block_params:
+            all_jobs.append(pool.apply_async(block_entropy,
+                                             (bparams, entropy_q)))
+        # collect results
+        job_timers = []
+        for job in all_jobs:
+            # await for the jobs to return (i.e. complete) by calling .get
+            # get the duration from the timer object that is returned by .get()
+            job_timers.append(job.get().get_duration())
 
-    # start the block processing
-    all_jobs = []
-    for bparams in block_params:
-        all_jobs.append(pool.apply_async(block_entropy,
-                                         (bparams, entropy_q)))
-    # collect results
-    job_timers = []
-    for job in all_jobs:
-        # await for the jobs to return (i.e. complete) by calling .get
-        # get the duration from the timer object that is returned by .get()
-        job_timers.append(job.get().get_duration())
-
-    # once we have all the blocks, add a last element to the queue to stop
-    # the combination process
-    entropy_q.put(dict(signal='kill'))
-    pool.close()
-    # wait for the *_combiner tasks to finish
-    pool.join()
+        # once we have all the blocks, add a last element to the queue to stop
+        # the combination process
+        entropy_q.put(dict(signal='kill'))
+        pool.close()
+        # wait for the *_combiner tasks to finish
+        pool.join()
 
     # Plot preview as pdf
     if plot_pdf_preview:
@@ -923,9 +953,16 @@ def compute_mask(source: str | Source,
     verbose:
         Print out processing step infos
     **params:
-        Optional arguments for the multiprocessing (e.g. nbr_cpus)
+        Optional arguments for the multiprocessing:
+
+        nbrcpu: int
+          The number of cpu's to use. If not set then then the available number
+          of threads -1 are used.
+        start_method: str
+          Starting method for multiprocessing jobs
     
     """
+    print(f'compute_mask - {source=}')
     if isinstance(source, str):
         source = Source(path=source)
     # make sure the profile is up to date
@@ -971,41 +1008,42 @@ def compute_mask(source: str | Source,
     # ###
     manager = Manager()
     aggr_q = manager.Queue()
+    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
+    assert start_method in MPC_STARTER_METHODS
     # get number of cpu's
     nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
-    pool = Pool(nbr_cpus)
+    with get_context(start_method).Pool(nbr_cpus) as pool:
+        # start the aggregator task
+        aggr_params = dict(mode='r+')  # nothing else to pass
+        aggregator_job = pool.apply_async(
+            func=data_writer,  # the callable
+            kwds=dict(  # its arguments:
+                writer=source.mask_writer,
+                writer_params=aggr_params,
+                aggr_q=aggr_q,
+            ),
+        )
+        # start the block jobs
+        block_jobs = []
+        for bparams in block_params:
+            block_jobs.append(pool.apply_async(
+                func=process_block,
+                kwds=dict(**bparams, out_q=aggr_q, )
+            ))
+        # collect results
+        job_timers = []
+        for job in block_jobs:
+            # await for the jobs to return (i.e. complete) by calling .get
+            # get the duration from the timer object that is returned by .get()
+            job_timers.append(job.get().get_duration())
 
-    # start the aggregator task
-    aggr_params = dict(mode='r+')  # nothing else to pass
-    aggregator_job = pool.apply_async(
-        func=data_writer,  # the callable
-        kwds=dict(  # its arguments:
-            writer=source.mask_writer,
-            writer_params=aggr_params,
-            aggr_q=aggr_q,
-        ),
-    )
-    # start the block jobs
-    block_jobs = []
-    for bparams in block_params:
-        block_jobs.append(pool.apply_async(
-            func=process_block,
-            kwds=dict(**bparams, out_q=aggr_q, )
-        ))
-    # collect results
-    job_timers = []
-    for job in block_jobs:
-        # await for the jobs to return (i.e. complete) by calling .get
-        # get the duration from the timer object that is returned by .get()
-        job_timers.append(job.get().get_duration())
-
-    aggr_q.put(dict(signal='kill'))
-    pool.close()
-    # wait for the *_combiner tasks to finish
-    pool.join()
-    total_duration = aggregator_job.get().get_duration()
+        aggr_q.put(dict(signal='kill'))
+        pool.close()
+        # wait for the *_combiner tasks to finish
+        pool.join()
+        total_duration = aggregator_job.get().get_duration()
 
 
 def prepare_selector(*bands: Band,
@@ -1013,7 +1051,31 @@ def prepare_selector(*bands: Band,
                      verbose=False,
                      **params) -> NDArray:
     """Compute a boolean selector from masks of the provided `io_.Band` objects
+
+
+    Parameters
+    ----------
+    bands:
+        A collection of strings or `io_.Band` object the specify which bands to use
+    block_size:
+        Size (width, height) in #pixel of the block that a single job processes
+    verbose:
+        Print out processing step infos
+    **params:
+        Optional arguments for the multiprocessing:
+
+        nbrcpu: int
+          The number of cpu's to use. If not set then then the available number
+          of threads -1 are used.
+        start_method: str
+          Starting method for multiprocessing jobs
+
+    Returns
+    -------
+    NDArray:
+       A boolean array that can be used as selector
     """
+    print(f'prepare_selector - {bands=}')
     # make sure the bands are compatible
     _source0 = bands[0].source
     if len(bands) > 1:
@@ -1045,43 +1107,45 @@ def prepare_selector(*bands: Band,
     # ###
     manager = Manager()
     aggr_q = manager.Queue()
+    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
+    assert start_method in MPC_STARTER_METHODS
     # get number of cpu's
     nbr_cpus = params.get('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
-    pool = Pool(nbr_cpus)
-    # start the aggregator job
-    # set the aggregator parameter - just an all-False selector
-    aggr_params = dict(
-        matrix=np.full((height, width), False),
-        aggr_q=aggr_q
-    )
-    aggregator_job = pool.apply_async(
-        func=fill_matrix,  # the callable
-        kwds=aggr_params,  # and its arguments
-    )
-    # start the block jobs
-    block_jobs = []
-    for bparams in block_params:
-        block_jobs.append(pool.apply_async(
-            func=process_masks,
-            kwds=dict(**bparams, aggr_q=aggr_q, )
-        ))
-    # collect results
-    job_timers = []
-    for job in block_jobs:
-        job_timers.append(job.get().get_duration())
-    # now initiate shutdown of aggregator
-    aggr_q.put(dict(signal='kill'))
-    pool.close()
-    # wait for the *_combiner tasks to finish
-    pool.join()
-    selector, (timer,) = aggregator_job.get()
-    if selector is None:
-        print("WARNING: The selector creation retunred no selector: "
-              "All pixel are used!")
-        selector = np.full(shape=(height, width), fill_value=True)
-    total_duration = timer.get_duration()
+    with get_context(start_method).Pool(nbr_cpus) as pool:
+        # start the aggregator job
+        # set the aggregator parameter - just an all-False selector
+        aggr_params = dict(
+            matrix=np.full((height, width), False),
+            aggr_q=aggr_q
+        )
+        aggregator_job = pool.apply_async(
+            func=fill_matrix,  # the callable
+            kwds=aggr_params,  # and its arguments
+        )
+        # start the block jobs
+        block_jobs = []
+        for bparams in block_params:
+            block_jobs.append(pool.apply_async(
+                func=process_masks,
+                kwds=dict(**bparams, aggr_q=aggr_q, )
+            ))
+        # collect results
+        job_timers = []
+        for job in block_jobs:
+            job_timers.append(job.get().get_duration())
+        # now initiate shutdown of aggregator
+        aggr_q.put(dict(signal='kill'))
+        pool.close()
+        # wait for the *_combiner tasks to finish
+        pool.join()
+        selector, (timer,) = aggregator_job.get()
+        if selector is None:
+            print("WARNING: The selector creation retunred no selector: "
+                  "All pixel are used!")
+            selector = np.full(shape=(height, width), fill_value=True)
+        total_duration = timer.get_duration()
     return selector
 
 
@@ -1114,13 +1178,20 @@ def check_predictor_consistency(predictors: Collection[Band],
       (i.e. the count of `True` in `selector`).
     no_data:
       Value of a cell considered as invalid data.
-
     sanitize:
       Determines if predictors that end up contributing not a single data-point
       (after applying the `selector`) should be removed automatically.
 
       By defautl this values is set to `False` which raises an exception
       if a predictor ends up contriuting nothing.
+    **params:
+        Optional arguments for the multiprocessing:
+
+        nbrcpu: int
+          The number of cpu's to use. If not set then then the available number
+          of threads -1 are used.
+        start_method: str
+          Starting method for multiprocessing jobs
 
     Returns
     -------
@@ -1130,6 +1201,7 @@ def check_predictor_consistency(predictors: Collection[Band],
       If `sanitize=True` then the colleciton will no longer contain predictors
       that get completely masked when the `selector` is applied.
     """
+    print(f'check_predictor_consistency - {predictors=}')
     _vals, _counts = np.unique(selector, return_counts=True)
     total_selected = int(_counts[_vals][0])
     # convert the tolerance fraction to an actual number of pixels
@@ -1149,20 +1221,22 @@ def check_predictor_consistency(predictors: Collection[Band],
             no_data=no_data
         )
         job_params.append(jparams)
+    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
+    assert start_method in MPC_STARTER_METHODS
     nbr_cpus = params.get('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"Predictor consistency check using {nbr_cpus=}")
-    pool = Pool(nbr_cpus)
-    all_jobs = []
-    for jparams in job_params:
-        all_jobs.append(pool.apply_async(process_band_count_valid,
-                                         kwds=jparams))
-    band_validity = dict()
-    durations = []
-    for job in all_jobs:
-        valid_band, (time, ) = job.get()
-        band_validity.update(valid_band)
-        durations.append(time.get_duration())
+    with get_context(start_method).Pool(nbr_cpus) as pool:
+        all_jobs = []
+        for jparams in job_params:
+            all_jobs.append(pool.apply_async(process_band_count_valid,
+                                             kwds=jparams))
+        band_validity = dict()
+        durations = []
+        for job in all_jobs:
+            valid_band, (time, ) = job.get()
+            band_validity.update(valid_band)
+            durations.append(time.get_duration())
     if not all(band_validity.values()):
         valid_predictors = []
         invalid_predictors = []
@@ -1399,11 +1473,16 @@ def get_XT_X(response: str | Band,
       nbrcpu: int
         The number of cpu's to use. If not set then then the available number
         of threads -1 are used.
+      start_method: str
+        Starting method for multiprocessing jobs
 
     """
+    print(f'get_XT_X - {response=}, {predictors=}')
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
                         bidx=1)
+    start_method = mpc_params.get('start_method', MPC_STARTER_METHODS[0])
+    assert start_method in MPC_STARTER_METHODS
     view_size = mpc_params.get('view_size')
     nbr_cpus = mpc_params.get('nbrcpu', cpu_count() - 1)
     src_profile = response.source.import_profile()
@@ -1429,28 +1508,28 @@ def get_XT_X(response: str | Band,
     output_q = manager.Queue()
     if verbose:
         print(f"using {nbr_cpus=}")
-    pool = Pool(nbr_cpus)
-    # start the aggregation step
-    matrix_aggregator = pool.apply_async(
-        combine_matrices,
-        (output_q,)
-    )
-    all_jobs = []
-    for pparams in part_params:
-        all_jobs.append(pool.apply_async(
-            partial_transposed_product,
-            (pparams, output_q)
-        ))
-    # now lets wait for all of these jobs to finish
-    job_timers = []
-    for job in all_jobs:
-        # await for the jobs to return (i.e. complete) by calling .get
-        # get the duration from the timer object that is returned by .get()
-        job_timers.append(job.get())
-    # send the final kill job to the queue
-    output_q.put(dict(signal='kill'))
-    # wait for the recombination job to terminate
-    recombined_tpX, _ = matrix_aggregator.get()
+    with get_context(start_method).Pool(nbr_cpus) as pool:
+        # start the aggregation step
+        matrix_aggregator = pool.apply_async(
+            combine_matrices,
+            (output_q,)
+        )
+        all_jobs = []
+        for pparams in part_params:
+            all_jobs.append(pool.apply_async(
+                partial_transposed_product,
+                (pparams, output_q)
+            ))
+        # now lets wait for all of these jobs to finish
+        job_timers = []
+        for job in all_jobs:
+            # await for the jobs to return (i.e. complete) by calling .get
+            # get the duration from the timer object that is returned by .get()
+            job_timers.append(job.get())
+        # send the final kill job to the queue
+        output_q.put(dict(signal='kill'))
+        # wait for the recombination job to terminate
+        recombined_tpX, _ = matrix_aggregator.get()
     return recombined_tpX
 
 
@@ -1465,9 +1544,12 @@ def get_optimal_betas(*predictors: Band | str,
                       ):
     """
     """
+    print(f'get_optimal_betas - {response=}, {predictors=}')
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
                         bidx=1)
+    start_method = mpc_params.get('start_method', MPC_STARTER_METHODS[0])
+    assert start_method in MPC_STARTER_METHODS
     view_size = mpc_params.get('view_size')
     nbr_cpus = mpc_params.get('nbrcpu', cpu_count() - 1)
     src_profile = response.source.import_profile()
@@ -1497,28 +1579,29 @@ def get_optimal_betas(*predictors: Band | str,
     output_q = manager.Queue()
     if verbose:
         print(f"using {nbr_cpus=}")
-    pool = Pool(nbr_cpus)
-    # start the aggregation step
-    matrix_aggregator = pool.apply_async(
-        combine_matrices,
-        (output_q,)
-    )
-    all_jobs = []
-    for pparams in part_params:
-        all_jobs.append(pool.apply_async(
-            partial_optimal_betas,
-            (pparams, output_q)
-        ))
-    # now lets wait for all of these jobs to finish
-    job_timers = []
-    for job in all_jobs:
-        # await for the jobs to return (i.e. complete) by calling .get
-        # get the duration from the timer object that is returned by .get()
-        job_timers.append(job.get())
-    # send the final kill job to the queue
-    output_q.put(dict(signal='kill'))
-    # wait for the recombination job to terminate
-    betas, _ = matrix_aggregator.get()
+
+    with get_context(start_method).Pool(nbr_cpus) as pool:
+        # start the aggregation step
+        matrix_aggregator = pool.apply_async(
+            combine_matrices,
+            (output_q,)
+        )
+        all_jobs = []
+        for pparams in part_params:
+            all_jobs.append(pool.apply_async(
+                partial_optimal_betas,
+                (pparams, output_q)
+            ))
+        # now lets wait for all of these jobs to finish
+        job_timers = []
+        for job in all_jobs:
+            # await for the jobs to return (i.e. complete) by calling .get
+            # get the duration from the timer object that is returned by .get()
+            job_timers.append(job.get())
+        # send the final kill job to the queue
+        output_q.put(dict(signal='kill'))
+        # wait for the recombination job to terminate
+        betas, _ = matrix_aggregator.get()
 
     # append predictor if intercept set
     if include_intercept:
@@ -1584,6 +1667,8 @@ def compute_weights(response: str | Band,
 
         - `nbr_cpus` (int): how many CPUs should be used (by default the number
           of available CPUs minus one will be used.
+        - `start_method` (str): Determines how the workers should start a
+          process. Accepted are 'spawn', 'fork' or 'forkserver'.
     """
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),

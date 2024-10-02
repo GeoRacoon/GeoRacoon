@@ -679,9 +679,11 @@ class Band:
             The mask of the source file should be used,
             i.e. either `nodata` or the associated mask bandl
           `'mask_none'`:
-            This instructs to consider all pixels as valid data
+            This instructs to consider all pixels as valid data, i.e.
+            an array containg all `1`s is returned
           `'mask_all'`:
-            This simply assumes all values are invalid.
+            This simply assumes all values are invalid, i.e. an array
+            containing only `0`s is returend.
             It is likely only useful in some edge-cases
         """
         assert use in ['self', 'band', 'source', 'mask_all', 'mask_none'], \
@@ -709,9 +711,9 @@ class Band:
         elif self._use_mask == 'source':  # read the dataset mask
             return self.source.mask_reader
         elif self._use_mask == 'mask_none':
-            return partial(self._mask_full, fill_value=False)
+            return partial(self._mask_full, fill_value=0)
         elif self._use_mask == 'mask_all':
-            return partial(self._mask_full, fill_value=True)
+            return partial(self._mask_full, fill_value=1)
         else:
             raise InvalidMaskSelectorError(
                 f'"{self._use_mask}" is an invalid selector for a mask,'

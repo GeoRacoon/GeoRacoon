@@ -207,18 +207,20 @@ def test_masking_all_none(datafiles):
     # use the "band mask" for both bands
     band1.set_mask_reader(use='mask_none')
     band2.set_mask_reader(use='mask_all')
+    band3.set_mask_reader(use='source')
     # get the "band-" masks
     b1_mask_reader = band1.get_mask_reader()
     b2_mask_reader = band2.get_mask_reader()
     b3_mask_reader = band3.get_mask_reader()
     with b1_mask_reader() as read_mask:
         b1_mask = read_mask()
-    assert set(np.unique(b1_mask)) == {False}
+    assert set(np.unique(b1_mask)) == {0}
     with b2_mask_reader() as read_mask:
         b2_mask = read_mask()
-    assert set(np.unique(b2_mask)) == {True}
+    assert set(np.unique(b2_mask)) == {1}
     with b3_mask_reader() as read_mask:
         b3_mask = read_mask()
+    assert set(np.unique(b3_mask)) == {0, 255}
     # the masks should be to opposite of each other:
     np.testing.assert_equal(masked_band1.mask, ~masked_band2.mask)
     # also when reading from the file - but it isn't
