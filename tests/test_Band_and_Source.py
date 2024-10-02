@@ -170,3 +170,61 @@ def test_masking(datafiles):
     np.testing.assert_equal(masked_band1.mask, ~masked_band2.mask)
     # also when reading from the file - but it isn't
     np.testing.assert_equal(b1_mask, np.where(b2_mask!=255, 0, 255))
+
+@ALL_MAPS
+def test_masking_all_none(datafiles):
+    """make sure the not masking and the masking all works as expected"""
+    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    test_file = datafiles / 'test.tif'
+    source = Source(path=ch_map_tif)
+    source.import_profile()  # load profile from file
+    # we are going to duplicate the file
+    out_source = Source(path=test_file)  # create a new object
+    out_source.profile.update(source.profile)  # use the profile
+    out_source.profile.update({'count':3})  # updated it
+    out_source.init_source()  # create the file (and export the profile)
+    # duplicate into two bands
+    band1 = source.get_band(bidx=1)
+    band2 = source.get_band(bidx=1)
+    band3 = source.get_band(bidx=1)
+    band2.bidx=2
+    band3.bidx=3
+    band1.source=out_source
+    band2.source=out_source
+    band3.source=out_source
+    b1_data = band1.get_data()
+    b2_data = band2.get_data()
+    b3_data = band3.get_data()
+    # define two oposite masks and a random one
+    masked_band1 = ma.masked_array(b1_data, np.zeros(shape=b1_data.shape))
+    masked_band2 = ma.masked_array(b2_data, np.ones(shape=b2_data.shape))
+    masked_band3 = ma.masked_array(b2_data,
+                                   np.random.randint(0, 2,
+                                                     size=b2_data.shape,
+                                                     dtype=np.bool_))
+    with band3.data_writer() as write:
+        write(masked_band3, masked=True)
+    # use the "band mask" for both bands
+    band1.set_mask_reader(use='mask_none')
+    band2.set_mask_reader(use='mask_all')
+    # get the "band-" masks
+    b1_mask_reader = band1.get_mask_reader()
+    b2_mask_reader = band2.get_mask_reader()
+    b3_mask_reader = band3.get_mask_reader()
+    with b1_mask_reader() as read_mask:
+        b1_mask = read_mask()
+    assert set(np.unique(b1_mask)) == {False}
+    with b2_mask_reader() as read_mask:
+        b2_mask = read_mask()
+    assert set(np.unique(b2_mask)) == {True}
+    with b3_mask_reader() as read_mask:
+        b3_mask = read_mask()
+    # the masks should be to opposite of each other:
+    np.testing.assert_equal(masked_band1.mask, ~masked_band2.mask)
+    # also when reading from the file - but it isn't
+    np.testing.assert_(not np.array_equal(
+        b1_mask, b3_mask
+        ))
+    np.testing.assert_(not np.array_equal(
+        b2_mask, b3_mask
+        ))
