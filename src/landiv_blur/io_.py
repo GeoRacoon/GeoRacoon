@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from functools import partial
 from numpy.typing import NDArray
+from collections.abc import Callable
 
 from typing import Union
 
@@ -663,12 +664,35 @@ class Band:
             yield partial(src.read, indexes=bidx)
 
     def set_mask_reader(self, use:str='band'):
-        assert use in ['self', 'band', 'source'], \
+        """Set what mask should be used, if at all
+
+        Parameters
+        ----------
+        use:
+          Determines the mask to use.
+
+          Options are:
+
+          `'self'` or `'band'`:
+            The band mask should be used
+          `'source'`:
+            The mask of the source file should be used,
+            i.e. either `nodata` or the associated mask bandl
+          `'mask_none'`:
+            This instructs to consider all pixels as valid data
+          `'mask_all'`:
+            This simply assumes all values are invalid.
+            It is likely only useful in some edge-cases
+        """
+        assert use in ['self', 'band', 'source', 'mask_all', 'mask_none'], \
             f'"{use}" is an invalid selector for a mask, options are:' \
             '\n\t- "band": uses the bands own mask (i.e. ' \
             'rasterio.io.DataReader.read_masks)\n\t- "source": uses the ' \
             'dataset mask (i.e. rasterio.io.DataReader.dataset_mask)'
-        self._use_mask = use if use=='source' else 'self'
+        if use in ['self', 'band']:
+            self._use_mask = 'self'
+        else:
+            self._use_mask = use
             
         
     def get_mask_reader(self,):
@@ -684,6 +708,10 @@ class Band:
             return self.mask_reader
         elif self._use_mask == 'source':  # read the dataset mask
             return self.source.mask_reader
+        elif self._use_mask == 'mask_none':
+            return partial(self._mask_full, fill_value=False)
+        elif self._use_mask == 'mask_all':
+            return partial(self._mask_full, fill_value=True)
         else:
             raise InvalidMaskSelectorError(
                 f'"{self._use_mask}" is an invalid selector for a mask,'
@@ -708,6 +736,41 @@ class Band:
         bidx = self.get_bidx(match=match)
         with self.source.open(mode=mode, **kwargs) as src:
             yield partial(src.read_masks, indexes=bidx)
+
+    @contextmanager
+    def _mask_full(self, match:str|list|None=None, fill_value:int|float|bool=False,
+                   **kwargs):
+        """Mocked maks read method of band mask returning all `True`/`False`
+
+        The mocked read method first calls the normal band read method 
+        (i.e. rasterios `read_masks`) in order to assure than transformation,
+        rescaling, window, etc. is performed correctly.
+        It then returns a similar numpy array holding exclusively
+        `True` or `False` as values effectively ignoring the actual mask
+
+        ..Note::
+
+          This uses always the band specific mask reader (i.e. the
+          'rasterio.io.DatasetReader.read_masks(indexes=<bidx of self>)`
+
+        Parameters
+        ----------
+        value:
+          Either `True` or `False` (but also numbers are accepted) that will be used
+          in the array
+
+        """
+        mode = kwargs.pop('mode', 'r')
+        bidx = self.get_bidx(match=match)
+
+        def _mock_all(mask_reader:Callable, *args, **kwargs)->NDArray:
+            _mask = mask_reader(indexes=bidx, *args, **kwargs)
+            full_array =  np.full(shape=_mask.shape, fill_value=fill_value)
+            del _mask
+            return full_array
+
+        with self.source.open(mode=mode, **kwargs) as src:
+            yield partial(_mock_all, mask_reader=src.read_masks)
 
 
     def set_data(self, data:NDArray, **kwargs):
