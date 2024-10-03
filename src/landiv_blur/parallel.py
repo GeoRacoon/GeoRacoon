@@ -33,7 +33,7 @@ from .helper import (view_to_window,
                      aggregated_selector)
 from .timing import TimedTask
 from .plotting import plot_entropy
-from .processing import view_blurred, view_entropy, view_filtered
+from .processing import view_blurred, view_entropy, view_filtered, view_interaction
 from .prepare import create_views, get_blur_params, update_view
 from .filters.gaussian import img_filter
 from .filters.gaussian import (gaussian, compatible_border_size)
@@ -420,6 +420,49 @@ def combine_entropy_blocks(output_params: dict,
                 w = view_to_window(view)
                 write(data, window=w)
                 print(f"Wrote out entropy block {view=}")
+                timer.new_lab()
+    return timer
+
+
+def combine_interaction_blocks(output_params: dict,
+                               interaction_q: Queue):
+    """Listen to queue (interaction_q) and write computed block to single file
+    """
+
+    with TimedTask() as timer:
+        output_dtype = output_params.pop('output_dtype')
+        output_file = output_params.pop('output_file')
+        # print(f"{output_file=}")
+        # print(f"{output_dtype=}")
+        profile = output_params.pop('profile')
+        profile['dtype'] = output_dtype
+        out_band = output_params.pop('out_band', None)
+        out_tag = output_params.pop('output_tag', dict(category='interaction'))
+        if out_band is None:
+            out_band = Band(source=Source(path=output_file),
+                            bidx=1,
+                            tags=out_tag)
+        # create the file
+        out_band.init_source(profile=profile)
+        # write out the tags
+        out_band.export_tags()
+        # print(f'INIT:\n{out_band.source=}\n{out_band=}')
+
+        # with out_band.source.open(mode='r+', **profile) as dst:
+        with out_band.data_writer(mode='r+', **profile) as write:
+            while True:
+                # load the interaction_q
+                output = interaction_q.get()
+                signal = output.get('signal', None)
+                if signal:
+                    if signal == "kill":
+                        print(f"\n\nClosing: {out_band.source.path}\n\n")
+                        break
+                data = output.pop('data')
+                view = copy(output.pop('view'))
+                w = view_to_window(view)
+                write(data, window=w)
+                print(f"Wrote out interaction block {view=}")
                 timer.new_lab()
     return timer
 
@@ -922,6 +965,156 @@ def compute_entropy(source: str | Source,
     return entropy_output_file
 
 
+def compute_interaction(source: str | Source,
+                        output_file: str,
+                        block_size: tuple[int, int],
+                        blur_params: dict,  # TODO: is only used to format output_file
+                        categories: list | None = None,
+                        interaction_as_ubyte: bool = True,
+                        normed: bool = True,
+                        verbose: bool = False,
+                        **params):
+    """Compute the interaction-strength from heterogeneity from several category bands in a pairwise,
+    tree-way-interaction, four-way-interaction.... manner
+
+    Parameters
+    ----------
+    source : str
+        Path to the land cover type tif file
+    output_file : str
+        Path to where the heterogeneity tif should be saved
+    categories: list
+        Specify which of the land-cover types to use as categories.
+        If not provided then all the land-cover types are used.
+    block_size: tuple of int
+        Size (width, height) in #pixel of the block that a single job processes
+    blur_params : dict
+        Parameters for the Gaussian blur. It must contain at least either
+        `diameter` or `sigma` in a in meters or any other measure of distance.
+    interaction_as_ubyte:
+        Should the interaction be normalized and returned as ubyte?
+    verbose:
+        Print out processing steps
+    **params:
+        Optional arguments for the multiprocessing (e.g. nbr_cpus)
+
+
+    Returns
+    -------
+    output_file:
+       Path to the resulting tif file
+
+    """
+    if isinstance(source, str):
+        source = Source(path=source)
+    with source.open(mode='r') as src:
+        width = src.width
+        height = src.height
+        profile = copy(src.profile)
+        input_dtype = np.dtype(profile['dtype'])
+
+    if verbose:
+        print("The chosen source tif has a dimension of:"
+              f"\n\t{width=}\n\t{height=}\n")
+
+    # adapt the profile:
+    profile['count'] = 1  # single band for interaction
+
+    # now let's prepare the output parameters:
+    if categories is None:
+        categories = list(source.get_tag_values(tag='category').values())
+        print('WARNING: Inferring the number of categories to use from the\n'
+              '         source file.')
+
+    input_bands = [Band(source=source, tags=dict(category=category))
+                   for category in categories]
+    if verbose:
+        band_choice_str = '\n\t'.join((f'{band.get_bidx()}:{band.tags}' for band in input_bands))
+        print("Chosen bands for the interaction calculation:\n"
+              f"\t{band_choice_str} \n")
+
+    interaction_output_file = output_filename(
+        base_name=output_file,
+        out_type='interaction',
+        blur_params=blur_params
+    )
+
+    if interaction_as_ubyte:
+        interaction_output_dtype = np.uint8
+    else:
+        interaction_output_dtype = rio.float64
+    interaction_output_params = dict(
+        input_bands=input_bands,
+        profile=profile,
+        output_dtype=interaction_output_dtype,
+        output_file=interaction_output_file,
+        output_tags=dict(category='interaction'),
+    )
+    _, inner_views = create_views(view_size=block_size,
+                                  border=(0, 0),
+                                  size=(width, height))
+
+    block_params = []
+    for inner_view in inner_views:
+        bparams = dict(input_bands=input_bands,
+                       categories=categories,
+                       input_dtype=input_dtype,
+                       inner_view=inner_view,
+                       normed=normed,
+                       interaction_as_ubyte=interaction_as_ubyte, )
+        block_params.append(bparams)
+
+    # ###
+    # prepare multiprocessing
+    # ###
+    manager = Manager()
+    interaction_q = manager.Queue()
+    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
+    assert start_method in MPC_STARTER_METHODS
+    # get number of cpu's
+    nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
+    if verbose:
+        print(f"using {nbr_cpus=}")
+    with get_context(start_method).Pool(nbr_cpus) as pool:
+        # start the interaction writer task
+        interaction_combiner = pool.apply_async(combine_interaction_blocks,
+                                                (interaction_output_params, interaction_q))
+
+        # start the block processing
+        all_jobs = []
+        for bparams in block_params:
+            all_jobs.append(pool.apply_async(block_interaction,
+                                            (bparams, interaction_q)))
+        # collect results
+        job_timers = []
+        for job in all_jobs:
+            # await for the jobs to return (i.e. complete) by calling .get
+            # get the duration from the timer object that is returned by .get()
+            job_timers.append(job.get().get_duration())
+
+        # once we have all the blocks, add a last element to the queue to stop
+        # the combination process
+        interaction_q.put(dict(signal='kill'))
+        pool.close()
+        # wait for the *_combiner tasks to finish
+        pool.join()
+
+    # lzw-compress final output
+    compress = params.pop('compress', False)
+    if compress:
+        out_source = Source(interaction_output_file)
+        out_source.compress(output=None)
+        interaction_output_file = str(out_source.path)
+        print("Files compressed successfully")
+
+    total_duration = interaction_combiner.get().get_duration()
+    print(f"{total_duration=}")
+    print(f"maximal duration of single job: {max(job_timers)=}")
+    return interaction_output_file
+
+
+
+
 def compute_mask(source: str | Source,
                  block_size: tuple[int, int],
                  nodata=0,
@@ -1309,6 +1502,63 @@ def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
             entropy_q,
             view_entropy,
             entropy_params
+        )
+    return timer
+
+
+def block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
+    """Per block (i.e. view) interaction measure based on given categories
+
+    Parameters
+    ----------
+    params: dict
+      Key value pairs holding all relevant data for a single worker
+      The data must include:
+
+      source: str
+        Path to the tif file to use
+      view: tuple
+        (x, y, width, height) defining the outer border of the view or block
+        to process
+      inner_view: tuple
+        (x, y, width, height) defining the usable part of the block, i.e.
+        without the borders
+
+      Optionally the following parameters can be set:
+
+      interaction_as_ubyte: bool, Default=False
+        Should the interaction be normalized and returned as ubyte?
+      normed: bool, Default=True
+        Determines if the values in the provided arrays should be normed or not.
+
+    interaction_q: multiprocessing.Queue
+      The queue to push the interaction maps through
+    """
+    with TimedTask() as timer:
+        input_bands = params.pop('input_bands')
+        blurred_data = dict()
+        # for the interaction only the inner view is needed
+        view = params.get('inner_view')
+        window = view_to_window(view)
+        for band in input_bands:
+            bidx = band.get_bidx(match='category')
+            blurred_data[bidx] = band.get_data(window=window)
+
+        interaction_as_ubyte = params.pop('interaction_as_ubyte', False)
+        normed = params.pop('normed', True)
+        input_dtype = params.pop('input_dtype', None)
+        interaction_params = dict(
+            view=view,
+            input_dtype=input_dtype,
+            normed=normed,
+            category_arrays=blurred_data,
+            output_dtype=np.uint8 if interaction_as_ubyte else None,
+        )
+        # This would return the interaction data
+        _ = runner_call(
+            interaction_q,
+            view_interaction,
+            interaction_params
         )
     return timer
 

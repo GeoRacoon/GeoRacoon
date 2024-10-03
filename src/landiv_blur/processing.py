@@ -412,6 +412,54 @@ def compute_entropy(data_arrays: Sequence[NDArray],
     return entropy_array
 
 
+def compute_interaction(data_arrays: Sequence[NDArray],
+                        input_dtype: type|None=np.uint8,
+                        normed:bool=True,
+                        output_dtype:type|None=np.uint8)->NDArray:
+    """Per cell interaction computed over a series of data arrays
+    For 'float' inputs:
+        .. math::
+            LC_i \times LC_j
+
+    For 'uint8' inputs:
+        .. math::
+            \frac{\left(\frac{LC_i}{255} \times \frac{LC_j}{255}\right)}{\frac{1}{n^2}} \times 255
+
+    Parameters
+    ----------
+    data_arrays:
+      A series of data arrays to stack and compute the per-cell interaction for
+    normed:
+      Determines if the values in the provided arrays should be normed or not.
+    output_dtype:
+      Set the data-type of the resulting `np.array`
+
+    Returns
+    -------
+    interaction:
+      A `np.array` with identical shape as the elements in `data_arrays` holding the
+      per-cell interaction between given layers
+    """
+    # define rescaling based on input type
+    _max_scale = 1
+    if input_dtype:
+        _max_scale, _ = dtype_range(input_dtype)
+
+    # calculate the interaction
+    interaction_array = np.ones(data_arrays[0].shape)
+    for arr in data_arrays:
+        interaction_array *= (arr / _max_scale)
+
+    if normed:
+        max_interaction = 1 / len(data_arrays)**len(data_arrays)
+        interaction_array = interaction_array / max_interaction
+        if output_dtype:
+            _max, _ = dtype_range(output_dtype)
+            # np.ceil relevant to avoid artefacts from rounding
+            interaction_array = np.ceil((interaction_array * _max)).astype(output_dtype)
+    return interaction_array
+
+
 def get_entropy(data:NDArray,
                 categories:Collection|None=None,
                 normed:bool=False,
@@ -572,6 +620,33 @@ def  view_entropy(category_arrays:dict[int, NDArray],
         output_dtype=output_dtype,
     )
     return dict(data=entropy_array, view=view)
+
+
+def view_interaction(category_arrays:dict[int, NDArray],
+                      view:tuple[int,int,int,int],
+                      input_dtype: type|None = np.uint8,
+                      normed:bool = True,
+                      output_dtype:type|None = np.uint8):
+    """Return a per-cell interaction computed from the per category arrays.
+
+    Parameters
+    ----------
+    data_arrays:
+      A series of data arrays to stack and compute the per-cell interaction for
+    view:
+      defining the view of the data arrays to consider
+    output_dtype:
+      Set the data-type of the returned array.
+
+      See `comptue_interaction` for further details
+    """
+    interaction_array = compute_interaction(
+        data_arrays=tuple(category_arrays.values()),
+        input_dtype=input_dtype,
+        normed=normed,
+        output_dtype=output_dtype,
+    )
+    return dict(data=interaction_array, view=view)
 
 
 def get_entropy_view(source:str,
