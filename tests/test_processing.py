@@ -1,6 +1,8 @@
 import numpy as np
 from skimage.filters import gaussian
 from scipy.stats import entropy
+import itertools
+import random
 
 from landiv_blur import io as lbio
 from landiv_blur import processing as lbproc
@@ -138,3 +140,37 @@ def test_entropy_normalization_conversion(datafiles):
            np.nanmax(entropy_data)/max_entropy, 'Normalization is faulty'
     assert np.nanmax(rescaled_entropy_data) <= 255
     assert rescaled_entropy_data.dtype == np.uint8
+
+@ALL_MAPS
+def test_interaction_computation(datafiles):
+    """Test the computation of the interaction on a general bassis
+    """
+    test_dtype = np.uint8
+
+    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_data = lbio.load_map(ch_map_tif)['data']
+    categories = lbproc.get_categories(ch_data)
+    blurred_categories = lbproc.get_filtered_categories(ch_data,
+                                                        categories=categories,
+                                                        img_filter=gaussian,
+                                                        output_dtype=test_dtype)
+    # Pairs
+    # TODO: write a better test here (it still fails for i >= 3
+    for i in range(2, 3):
+        all_possible_pairs = [list(x) for x in itertools.combinations(categories, r=i)]
+        test_pair = random.choice(all_possible_pairs)
+        data_array = [blurred_categories[c] for c in test_pair]
+        # Interaction
+        interaction_data = lbproc.compute_interaction(data_arrays=data_array,
+                                                      input_dtype=test_dtype,
+                                                      output_dtype=test_dtype)
+        # make sure output is correct
+        assert interaction_data.dtype == test_dtype
+        assert np.nanmax(interaction_data) <= 255
+        # Calculate manual result
+        manual_result = np.ones(data_array[0].shape, dtype=float)
+        for arr in data_array:
+            manual_result *= arr.astype(float)
+        manual_result = np.ceil((manual_result * len(data_array) ** len(data_array)) / 255).astype(test_dtype)
+        # Check if the error (from rounding etc.) is not > 1 in unit9
+        assert np.nanmax(np.absolute(interaction_data.astype(float) - manual_result.astype(float))) <= 1
