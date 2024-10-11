@@ -711,9 +711,11 @@ class Band:
         elif self._use_mask == 'source':  # read the dataset mask
             return self.source.mask_reader
         elif self._use_mask == 'mask_none':
-            return partial(self._mask_full, fill_value=0)
-        elif self._use_mask == 'mask_all':
+            # 1 is valid data
             return partial(self._mask_full, fill_value=1)
+        elif self._use_mask == 'mask_all':
+            # 0 is invalid data
+            return partial(self._mask_full, fill_value=0)
         else:
             raise InvalidMaskSelectorError(
                 f'"{self._use_mask}" is an invalid selector for a mask,'

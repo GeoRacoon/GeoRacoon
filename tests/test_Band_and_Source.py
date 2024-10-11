@@ -174,6 +174,7 @@ def test_masking(datafiles):
 @ALL_MAPS
 def test_masking_all_none(datafiles):
     """make sure the not masking and the masking all works as expected"""
+    from landiv_blur.helper import aggregated_selector
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     test_file = datafiles / 'test.tif'
     source = Source(path=ch_map_tif)
@@ -214,10 +215,10 @@ def test_masking_all_none(datafiles):
     b3_mask_reader = band3.get_mask_reader()
     with b1_mask_reader() as read_mask:
         b1_mask = read_mask()
-    assert set(np.unique(b1_mask)) == {0}
+    assert set(np.unique(b1_mask)) == {1}
     with b2_mask_reader() as read_mask:
         b2_mask = read_mask()
-    assert set(np.unique(b2_mask)) == {1}
+    assert set(np.unique(b2_mask)) == {0}
     with b3_mask_reader() as read_mask:
         b3_mask = read_mask()
     assert set(np.unique(b3_mask)) == {0, 255}
@@ -230,3 +231,8 @@ def test_masking_all_none(datafiles):
     np.testing.assert_(not np.array_equal(
         b2_mask, b3_mask
         ))
+    # make sure `mask_none` gives all Ture selector
+    selector_mask_none = aggregated_selector([b1_mask, ], logic='all')
+    assert set(np.unique(selector_mask_none)) == {True,}
+    selector_mask_all = aggregated_selector([b2_mask, ], logic='all')
+    assert set(np.unique(selector_mask_all)) == {False,}
