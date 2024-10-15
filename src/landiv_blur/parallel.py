@@ -55,6 +55,11 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
 
     Parameters
     ----------
+    output_params:
+      dtype:
+          Data type to use for the output data
+      nodata:
+        Value to be used as nodata value (if not provided `None` is used)
 
     Returns
     -------
@@ -62,12 +67,14 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
         Can report the duration of the task
     """
     with TimedTask() as timer:
-        output_dtype = output_params.pop('output_dtype')
+        dtype = output_params.pop('dtype')
         output_file = output_params.pop('output_file')
         # print(f"{output_file=}")
-        # print(f"{output_dtype=}")
+        # print(f"{dtype=}")
         profile = output_params.pop('profile')
-        profile['dtype'] = output_dtype
+        profile['dtype'] = dtype
+        # overwrite the profile if explicitely provided:
+        profile['nodata'] = output_params.pop('nodata', profile.get('nodata', None))
         profile['count'] = output_params.get('count', profile['count'])
         with rio.open(output_file, 'w', **profile) as dst:
             while True:
@@ -491,6 +498,7 @@ def extract_categories(source: str | Source,
                        filter_params: dict,
                        block_size: tuple[int, int],
                        blur_as_int: bool = True,
+                       output_params:None|dict = None,
                        verbose: bool = False,
                        **params):
     """Load per-category maps from resource, apply a filter and export.
@@ -513,6 +521,15 @@ def extract_categories(source: str | Source,
         Size (width, height) in #pixel of the block that a single job processes
     blur_as_int:
         If the blurred category arrays should be converted to `np.uint8`
+    output_params:
+        Keyword arguments for the output file:
+        nodata:
+          Value to be used as nodata value (if not provided `None` is used)
+        dtype:
+          Data type into which the output of the filer function will be converted
+
+          .. note::
+            This overwrites `output_dtype`, which will me deprecated in the future
     verbose:
         Print out processing step infos
     **params:
@@ -546,20 +563,26 @@ def extract_categories(source: str | Source,
     border = compatible_border_size(**filter_params)
     if verbose:
         print(f"The resulting border size is {border=} pixels")
-    if blur_as_int:
-        blur_output_dtype = np.uint8
-    else:
-        blur_output_dtype = rio.float64
 
     # now let's prepare the output parameters:
     count = len(categories)
 
+    # prepare output params
+    if output_params is None:
+        output_params = dict()
+    if blur_as_int:
+        output_params['dtype'] = np.uint8
+    else:
+        output_params['dtype'] = rio.float64
+
     blur_output_params = dict(
         profile=profile,
         count=count,
-        output_dtype=blur_output_dtype,
         output_file=output_file,
     )
+    # use directly the `output_params` arg:
+    blur_output_params.update(output_params)
+
     views, inner_views = create_views(view_size=block_size,
                                       border=border,
                                       size=(width, height))
@@ -639,6 +662,7 @@ def apply_filter(source: str | Source,
                  output_dtype:type|None=np.uint8,
                  output_range:tuple|None=None,
                  verbose: bool = False,
+                 output_params:None|dict = None,
                  **params
                  )->str:
     """
@@ -675,9 +699,23 @@ def apply_filter(source: str | Source,
       The range of values the applied filter function can return
     output_dtype:
         Data type into which the output of the filer function will be converted
+    output_nodata:
+        Set what value should be used as nodata value in the output file
+        Default: None
     output_range:
       an array or list from which min and max will be used as limits for the
       returned output, if `output_dtype` is provided
+    output_params:
+        Keyword arguments for the output file:
+
+        nodata:
+          Value to be used as nodata value (if not provided `None` is used)
+        dtype:
+          Data type into which the output of the filer function will be converted
+
+          .. note::
+            This overwrites `output_dtype`, which will me deprecated in the future
+
     verbose:
         Print out processing step infos
     **params:
@@ -705,6 +743,12 @@ def apply_filter(source: str | Source,
                                   f"allowed!\nWe have\n\t{sources=}"
         source = sources.pop()
 
+    # prepare output params
+    if output_params is None:
+        output_params = dict()
+    if output_dtype is not None:
+        output_params['dtype'] = output_dtype
+
     # we pass indexes
     indexes = [band.get_bidx() for band in bands]
     profile = source.import_profile()
@@ -716,9 +760,11 @@ def apply_filter(source: str | Source,
     blur_output_params = dict(
         profile=profile,
         count=len(indexes),
-        output_dtype=output_dtype,
         output_file=output_file,
     )
+    # use directly the `output_params` arg:
+    blur_output_params.update(output_params)
+
     views, inner_views = create_views(view_size=block_size,
                                       border=border,
                                       size=(width, height))

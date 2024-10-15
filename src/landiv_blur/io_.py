@@ -41,6 +41,11 @@ from .helper import (
 class Source:
     """Specifies a data source
     """
+    _mode_writing = ('w', 'w+')
+    _mode_reading = ('r', 'r+')
+    _mode_default = 'r'
+    _modes = _mode_reading + _mode_writing
+
     def __init__(self, path:str|Path,
                  tags: dict|None=None,
                  profile: dict|None=None,
@@ -206,8 +211,20 @@ class Source:
         return bands
 
     def _get_source(self, *args, **kwargs):
+        """Partially evaluate `rasterio.open` by passing fp and further kwargs
+
+        .. note::
+
+          If the file is opened in writing mode, the profile is injected
+          into rio.open
+        """
+        mode = kwargs.get('mode', args[0] if len(args) else self._mode_default)
+        assert mode in self._modes
         if self.path.suffix in ['.tif', ]:
-            src_open = partial(rio.open, fp=self.path)
+            if mode in self._mode_writing:
+                src_open = partial(rio.open, fp=self.path, **self.profile)
+            else:
+                src_open = partial(rio.open, fp=self.path)
         else:
             raise UnknownExtensionError(
                 f'"{self.path.suffix}" is not supported.\nCurrently only '
@@ -217,6 +234,14 @@ class Source:
 
     @contextmanager
     def open(self, *args, **kwargs):
+        f"""Opens the file for I/O operations.
+
+        .. note::
+          If the file is openend in writing mode the profile is ijected into the open function.
+
+          Therefore: **the profile needs to be set when calling this method with writing mode!**
+
+        """
         src = self._get_source(*args, **kwargs)
         try:
             yield src
@@ -778,11 +803,11 @@ class Band:
 
 
     def set_data(self, data:NDArray, **kwargs):
-        """Read out the data from a band
+        """Write out the data from a band
         """
         # with self.source.open(mode='w', **kwargs) as src:
-        with self.data_writer(mode='w', **kwargs) as src:
-            src.write(data)
+        with self.data_writer(mode='w', **kwargs) as write:
+            write(data)
 
     def load_block(self,
                    view:None|tuple[int,int,int,int]=None,

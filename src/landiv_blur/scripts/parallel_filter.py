@@ -134,7 +134,7 @@ def get_lct_heterogeneity(source: str,
     blur_output_params = dict(
         profile=profile,
         count=count,
-        output_dtype=blur_output_dtype,
+        dtype=blur_output_dtype,
         output_file=blur_output_file,
     )
     entropy_output_file = lbhelp.output_filename(
