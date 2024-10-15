@@ -80,7 +80,7 @@ def test_blur_recombination(datafiles):
             profile=profile,
             as_int=True,
             output_file=blur_output_file,
-            output_dtype=output_dtype
+            dtype=output_dtype
         )
         # now the parameter for the per block blur tasks
         views, inner_views = lbprep.create_views(view_size=view_size,
@@ -279,6 +279,60 @@ def test_entropy_recombination(datafiles):
         entropy_recomb_data,
         f'The recombined entropy map is different!'
     )
+
+@ALL_MAPS
+def test_extract_categories(datafiles):
+    """Make sure the extract categories works as expected
+    """
+    verbose = True
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    lct_source = lbio_.Source(path=landcover_map)
+    source_profile = lct_source.import_profile()
+    source_band = lct_source.get_band(bidx=1)
+    print(f"{source_profile=}")
+    # check nodata handling
+    # creat an output file (with changed nodata)
+    to_types = [np.float32, np.int16, np.uint8]
+    as_ints = [False, True, True]
+    nodatas = [np.nan, 0, None]
+    for nodata, to_type, as_int in zip(nodatas, to_types, as_ints):
+        tmp_map = str(datafiles / 'bands_out.tif')
+        tmp_source = lbio_.Source(path=tmp_map)
+        tmp_profile = source_profile.copy()
+        tmp_profile['nodata'] = nodata
+        tmp_profile['dtype'] = to_type
+        tmp_source.profile = tmp_profile
+        tmp_source.init_source(overwrite=True)
+        # sanity check for Source.init_source resp. Source.open
+        with rio.open(tmp_source.path, 'r') as src:
+            _profile = src.profile.copy()
+        np.testing.assert_equal(_profile['nodata'], nodata)
+
+        tmp_band = lbio_.Band(source=tmp_source, bidx=1)
+        # write out data as 
+        tmp_band.set_data(source_band.get_data().astype(to_type))
+        filter_params = dict(
+            sigma = 100,
+            truncate = 3
+        )
+        blurred_tif = lbpara.extract_categories(
+            source=tmp_source,
+            categories=[1,2,3,4,5],
+            output_file=str(datafiles / 'blur_out.tif'),
+            img_filter=lbf_gauss.gaussian,
+            filter_params=filter_params,
+            blur_as_int=as_int,
+            block_size=(500, 500),
+            compress = True,
+            output_params = dict(
+                nodata=nodata,
+                dtype=to_type
+            ),
+        )
+        out_source = lbio_.Source(path=blurred_tif)
+        out_profile = out_source.import_profile()
+        print(f"{out_profile=}")
+        np.testing.assert_equal(out_profile['nodata'], nodata)
 
 
 @ALL_MAPS
