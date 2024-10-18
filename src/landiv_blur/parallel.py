@@ -1916,11 +1916,11 @@ def get_optimal_betas(*predictors: Band | str,
 
 def compute_weights(response: str | Band,
                     predictors: Collection[Band],
-                    block_size: tuple[int, int],
+                    block_size: Union[dict[str, tuple[int, int]], tuple[int, int]],
                     include_intercept: bool = True,
                     as_dtype=np.float64,
                     limit_contribution:float=0.0,
-                    no_data:Union[int,float]=0.0,
+                    no_data: Union[int,float]=0.0,
                     sanitize_predictors:bool=False,
                     verbose:bool=False,
                     **params
@@ -1937,7 +1937,10 @@ def compute_weights(response: str | Band,
       See inference.prepare_predictors for further details on how to specify
       predictors.
     block_size:
-      ...
+        Block sizes for specific functions or a default block size for all functions.
+        If a dictionary is provided, it should map function names to block sizes
+        ('prepare_selector': tuple, 'get_XT_X': tuple, 'get_optimal_betas': tuple).
+        If a single tuple is provided, it will be used for all functions.
     include_intercept:
         Whether to fit the intercept when computing weights
     as_dtype:
@@ -1954,7 +1957,6 @@ def compute_weights(response: str | Band,
     sanitize_predictors:
         Determines if predictors that end up
         contributing not a single data-point should be removed automatically.
-
         By default this values is set to `False` which raises an exception
         if a predictor ends up contributing nothing.
 
@@ -1966,6 +1968,16 @@ def compute_weights(response: str | Band,
         - `start_method` (str): Determines how the workers should start a
           process. Accepted are 'spawn', 'fork' or 'forkserver'.
     """
+    # if block sizes are provided as dictionary - some pre-check on input is desired - else
+    block_size_params = dict(prepare_selector=None, get_XT_X=None, get_optimal_betas=None)
+    if isinstance(block_size, tuple):
+        for key in block_size_params:
+            block_size_params[key] = block_size
+    if isinstance(block_size, dict):
+        if block_size_params.keys() != block_size.keys() or not all(isinstance(v, tuple) for v in block_size.values()):
+            raise ValueError(f"Block size dict does not conform with all necessary keys and value-types: {block_size=}")
+        block_size_params.update(block_size)
+
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
                         bidx=1)
@@ -1973,7 +1985,7 @@ def compute_weights(response: str | Band,
     print("Creating selector...")
     selector = prepare_selector(response,
                                 *predictors,
-                                block_size=block_size,
+                                block_size=block_size_params["prepare_selector"],
                                 verbose=verbose,
                                 **params)
 
@@ -2004,7 +2016,7 @@ def compute_weights(response: str | Band,
         # predictor(s) might have masked some cells
         selector = prepare_selector(response,
                                     *predictors,
-                                    block_size=block_size,
+                                    block_size=block_size_params["prepare_selector"],
                                     verbose=verbose,
                                     **params)
         # NOTE: We do not need to check_predictor_consistency again sine
@@ -2017,7 +2029,7 @@ def compute_weights(response: str | Band,
                    selector=selector,
                    include_intercept=include_intercept,
                    verbose=verbose,
-                   view_size=block_size,
+                   view_size=block_size_params["get_XT_X"],
                    **params)
     if np.linalg.det(tpX) == 0:
         print(f"WARNING: matrix not invertiable - determinant is 0\n",
@@ -2037,6 +2049,6 @@ def compute_weights(response: str | Band,
                                    include_intercept=include_intercept,
                                    verbose=verbose,
                                    as_dtype=as_dtype,
-                                   view_size=block_size,
+                                   view_size=block_size_params["get_optimal_betas"],
                                    **params)
     return betas_dict
