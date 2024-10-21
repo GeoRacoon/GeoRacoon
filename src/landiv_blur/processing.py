@@ -647,10 +647,11 @@ def  view_entropy(category_arrays:dict[int, NDArray],
 
 
 def view_interaction(category_arrays:dict[int, NDArray],
-                      view:tuple[int,int,int,int],
-                      input_dtype: type|None = np.uint8,
-                      normed:bool = True,
-                      output_dtype:type|None = np.uint8):
+                     view:tuple[int,int,int,int],
+                     input_dtype: type|None = np.uint8,
+                     standardize: bool = False,
+                     normed:bool = True,
+                     output_dtype:type|None = np.uint8):
     """Return a per-cell interaction computed from the per category arrays.
 
     Parameters
@@ -667,6 +668,7 @@ def view_interaction(category_arrays:dict[int, NDArray],
     interaction_array = compute_interaction(
         data_arrays=tuple(category_arrays.values()),
         input_dtype=input_dtype,
+        standardize=standardize,
         normed=normed,
         output_dtype=output_dtype,
     )
