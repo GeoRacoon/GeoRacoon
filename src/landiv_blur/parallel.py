@@ -25,7 +25,6 @@ from multiprocessing import (
 )
 from numpy.typing import NDArray
 
-
 from .io_ import Source, Band
 from .helper import (view_to_window,
                      output_filename,
@@ -1017,6 +1016,7 @@ def compute_interaction(source: str | Source,
                         blur_params: dict,  # TODO: is only used to format output_file
                         categories: list | None = None,
                         interaction_as_ubyte: bool = True,
+                        standardize: bool = True,
                         normed: bool = True,
                         verbose: bool = False,
                         **params):
@@ -1039,6 +1039,8 @@ def compute_interaction(source: str | Source,
         `diameter` or `sigma` in a in meters or any other measure of distance.
     interaction_as_ubyte:
         Should the interaction be normalized and returned as ubyte?
+    standardize:
+    normed:
     verbose:
         Print out processing steps
     **params:
@@ -1106,6 +1108,7 @@ def compute_interaction(source: str | Source,
                        categories=categories,
                        input_dtype=input_dtype,
                        inner_view=inner_view,
+                       standardize=standardize,
                        normed=normed,
                        interaction_as_ubyte=interaction_as_ubyte, )
         block_params.append(bparams)
@@ -1574,8 +1577,8 @@ def block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
 
       interaction_as_ubyte: bool, Default=False
         Should the interaction be normalized and returned as ubyte?
+      standardize: bool, Default=False
       normed: bool, Default=True
-        Determines if the values in the provided arrays should be normed or not.
 
     interaction_q: multiprocessing.Queue
       The queue to push the interaction maps through
@@ -1590,12 +1593,14 @@ def block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
             bidx = band.get_bidx(match='category')
             blurred_data[bidx] = band.get_data(window=window)
 
-        interaction_as_ubyte = params.pop('interaction_as_ubyte', False)
-        normed = params.pop('normed', True)
         input_dtype = params.pop('input_dtype', None)
+        standardize = params.pop('standardize', False)
+        normed = params.pop('normed', True)
+        interaction_as_ubyte = params.pop('interaction_as_ubyte', False)
         interaction_params = dict(
             view=view,
             input_dtype=input_dtype,
+            standardize=standardize,
             normed=normed,
             category_arrays=blurred_data,
             output_dtype=np.uint8 if interaction_as_ubyte else None,

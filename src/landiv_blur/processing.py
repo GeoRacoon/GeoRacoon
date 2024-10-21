@@ -414,6 +414,7 @@ def compute_entropy(data_arrays: Sequence[NDArray],
 
 def compute_interaction(data_arrays: Sequence[NDArray],
                         input_dtype: type|None=np.uint8,
+                        standardize:bool=False,
                         normed:bool=True,
                         output_dtype:type|None=np.uint8)->NDArray:
     """Per cell interaction computed over a series of data arrays
@@ -429,6 +430,8 @@ def compute_interaction(data_arrays: Sequence[NDArray],
     ----------
     data_arrays:
       A series of data arrays to stack and compute the per-cell interaction for
+    standardize:
+      Whether the interaction (strength) should be standardized by the fraction of area used (A*B)/(A+B)
     normed:
       Determines if the values in the provided arrays should be normed or not.
     output_dtype:
@@ -440,23 +443,44 @@ def compute_interaction(data_arrays: Sequence[NDArray],
       A `np.array` with identical shape as the elements in `data_arrays` holding the
       per-cell interaction between given layers
     """
+    # TODO: all of this does not work with floats yet --> implement
+
+    array_dtype = data_arrays[0].dtype
+    if array_dtype != input_dtype:
+        raise ValueError(f"Array data type {array_dtype} does not match provided input data type {input_dtype}")
+
     # define rescaling based on input type
-    _max_scale = 1
     if input_dtype:
         _max_scale, _ = dtype_range(input_dtype)
+        if np.issubdtype(input_dtype, np.floating):
+            _max_scale = 1
 
-    # calculate the interaction
-    interaction_array = np.ones(data_arrays[0].shape)
+    # calculate the interaction (A * B)
+    interaction_array = np.ones_like(data_arrays[0], dtype=float)
     for arr in data_arrays:
         interaction_array *= (arr / _max_scale)
 
+    # standardize by the sum (A + B) -> result is A*B/(A+B)
+    if standardize:
+        standardize_array = np.zeros_like(data_arrays[0], dtype=float)
+        for arr in data_arrays:
+            standardize_array += (arr / _max_scale)
+        interaction_array = np.divide(interaction_array, standardize_array,
+                                      out=np.zeros_like(interaction_array, dtype=float),
+                                      where=standardize_array != 0)
     if normed:
         max_interaction = 1 / len(data_arrays)**len(data_arrays)
         interaction_array = interaction_array / max_interaction
         if output_dtype:
             _max, _ = dtype_range(output_dtype)
-            # np.ceil relevant to avoid artefacts from rounding
-            interaction_array = np.ceil((interaction_array * _max)).astype(output_dtype)
+            if np.issubdtype(output_dtype, np.floating):
+                _max = 1
+                interaction_array = (interaction_array * _max).astype(output_dtype)
+            else:
+                # when rescaling to uint8 it is important to not have values > 1 before rescaling (else 256 would be 0)
+                interaction_array[interaction_array > 1] = 1
+                # np.ceil relevant to avoid artefacts from rounding (when using unit8)
+                interaction_array = np.ceil((interaction_array * _max)).astype(output_dtype)
     return interaction_array
 
 

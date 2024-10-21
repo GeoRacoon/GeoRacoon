@@ -145,14 +145,22 @@ def test_entropy_normalization_conversion(datafiles):
 def test_interaction_computation(datafiles):
     """Test the computation of the interaction on a general bassis
     """
+    # TODO: also test this for float64 - which fails until now as the dtype_range function return inf for _max
+    # see issue #115 (https://gitlab.uzh.ch/landiv/landiv/-/issues/115) for more
     test_dtype = np.uint8
 
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ch_data = lbio.load_map(ch_map_tif)['data']
     categories = lbproc.get_categories(ch_data)
+    diameter = 1000  # 1km
+    truncate = 3  # after 3 sigma
+    scale = 100  # meter per pixel
     blurred_categories = lbproc.get_filtered_categories(ch_data,
                                                         categories=categories,
                                                         img_filter=gaussian,
+                                                        filter_params=dict(
+                                                            sigma=(0.5 * diameter / truncate) / scale,  # in pixel
+                                                            truncate=truncate),
                                                         output_dtype=test_dtype)
     # Pairs
     # TODO: write a better test here (it still fails for i >= 3
@@ -163,6 +171,8 @@ def test_interaction_computation(datafiles):
         # Interaction
         interaction_data = lbproc.compute_interaction(data_arrays=data_array,
                                                       input_dtype=test_dtype,
+                                                      normed=True,
+                                                      standardize=False,
                                                       output_dtype=test_dtype)
         # make sure output is correct
         assert interaction_data.dtype == test_dtype
@@ -172,5 +182,41 @@ def test_interaction_computation(datafiles):
         for arr in data_array:
             manual_result *= arr.astype(float)
         manual_result = np.ceil((manual_result * len(data_array) ** len(data_array)) / 255).astype(test_dtype)
-        # Check if the error (from rounding etc.) is not > 1 in unit9
+        # Check if the error (from rounding etc.) is not > 1 in unit8
         assert np.nanmax(np.absolute(interaction_data.astype(float) - manual_result.astype(float))) <= 1
+
+def test_interaction_standardized_arrays():
+    # define example arrays
+    x = np.array([[0.5, 0.25], [0.0, 0.05]])
+    y = np.array([[0.5, 0.25], [0.0, 0.3]])
+
+    # test for float and unit8
+    type_test = {255: np.uint8, 1: np.float64}
+
+    for _max, _type in type_test.items():
+        a = (x * _max).astype(_type)
+        b = (y * _max).astype(_type)
+
+        # manual calculation
+        inter = np.ones_like(a, dtype=float)
+        for i in [a, b]:
+            inter *= (i / _max)
+        stand = np.zeros_like(a, dtype=float)
+        for j in [a, b]:
+            stand += (j / _max)
+        result = np.divide(inter, stand, out=np.zeros_like(inter), where=stand != 0)
+        result = result / 0.25  # maximum value for 50:50 mixture of 2 types 0.5*0.5
+        if _type == np.uint8:
+            result = np.ceil(result * _max).astype(_type)
+        else:
+            result = (result * _max).astype(_type)
+        # compare with result from function
+        interaction_array = lbproc.compute_interaction([a, b],
+                                                       input_dtype=_type,
+                                                       standardize=True,
+                                                       normed=True,
+                                                       output_dtype=_type)
+        # print(f"{a=}\n{b=}")
+        # print(f"{interaction_array=}\n{result=}")
+        # Assert arrays are equal
+        np.testing.assert_array_equal(interaction_array, result)
