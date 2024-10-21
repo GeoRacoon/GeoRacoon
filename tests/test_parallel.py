@@ -1,9 +1,12 @@
+import builtins
 from functools import partial
 
 from time import sleep
 
 import numpy as np
 import multiprocessing as mproc
+import itertools
+import random
 import rasterio as rio
 
 from rasterio.plot import show as rioshow
@@ -850,3 +853,57 @@ def test_apply_filter(datafiles):
         b_twostep.import_tags()
         b_single.import_tags()
         np.testing.assert_equal(b_twostep.get_data(), b_single.get_data())
+
+@ALL_MAPS
+def test_interaction_parallel_computation(datafiles):
+    """Compare whether parallel and single compute_interaction give the same result
+    TODO: only tested for uint8 and interactions of n=2 (test more)
+    """
+    landcover_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    lct_source = lbio_.Source(path=landcover_map_tif)
+    categories = [1, 2, 3, 4, 5, 6, 7, 8]
+    diameter = 1000  # 1km
+    blur_params = dict(
+        sigma=(0.5 * diameter / 3) / 100,  # 100=scale in pixel
+        truncate=3)
+    blurred_tif = lbpara.extract_categories(
+        source=lct_source,
+        categories=categories,
+        output_file=str(datafiles / 'blur_out.tif'),
+        img_filter=lbf_gauss.gaussian,
+        filter_params=blur_params,
+        blur_as_int=True,
+        block_size=(500, 500),
+        compress=True,
+        output_params=dict(
+            dtype=np.uint8
+        ),
+    )
+    out_source = lbio_.Source(path=blurred_tif)
+
+    # Pairs
+    all_possible_pairs = [list(x) for x in itertools.combinations(categories, r=2)]
+    test_pair = random.choice(all_possible_pairs)
+
+    # Interaction (parallel)
+    para_interaction_tif = lbpara.compute_interaction(source=out_source,
+                                                      output_file=str(datafiles / 'blur_out.tif'),
+                                                      block_size=(500, 500),
+                                                      categories=test_pair,
+                                                      blur_params=blur_params,
+                                                      interaction_as_ubyte=True,
+                                                      standardize=True,
+                                                      normed=True,
+                                                      verbose=False)
+    int_band = lbio_.Band(source=lbio_.Source(path=para_interaction_tif), bidx=1)
+    para_interaction_data = int_band.get_data()
+
+    # Interaction (single process
+    band_list = [out_source.get_band(category=c) for c in test_pair]
+    data_array = [b.get_data() for b in band_list]
+    interaction_data = lbproc.compute_interaction(data_arrays=data_array,
+                                                  input_dtype=np.uint8,
+                                                  normed=True,
+                                                  standardize=True,
+                                                  output_dtype=np.uint8)
+    np.testing.assert_array_equal(para_interaction_data, interaction_data)

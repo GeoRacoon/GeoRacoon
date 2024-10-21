@@ -1016,7 +1016,7 @@ def compute_interaction(source: str | Source,
                         blur_params: dict,  # TODO: is only used to format output_file
                         categories: list | None = None,
                         interaction_as_ubyte: bool = True,
-                        standardize: bool = True,
+                        standardize: bool = False,
                         normed: bool = True,
                         verbose: bool = False,
                         **params):
