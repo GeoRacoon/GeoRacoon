@@ -2008,7 +2008,8 @@ def compute_weights(response: str | Band,
                                              tolerance=limit_contribution,
                                              sanitize=sanitize_predictors,
                                              no_data=no_data,
-                                             )
+                                             verbose=verbose,
+                                             **params)
     # TODO: I think this is irrelevant
     #  (tested if selector above & below are equal - they are if no Source has been removed (think of mask)
     if len(predictors) != nbr_predictors:
