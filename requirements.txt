@@ -5,7 +5,7 @@ scikit-image~=0.22.0
 geopandas~=0.14.4
 shapely~=2.0.4
 numpy~=1.26.4
-gdal==3.6
+#gdal==3.6   not used anymore
 shapely==2.0.4
 geopandas==0.14.4
 scikit-learn==1.5.0
