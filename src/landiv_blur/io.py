@@ -25,7 +25,6 @@ from rasterio.warp import (
 )
 
 from shapely.geometry import box as shbox
-from osgeo import gdal, ogr
 import geopandas as gpd
 
 from numpy.typing import NDArray
@@ -736,20 +735,20 @@ def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_m
         else:
             raise ValueError(f'Unvalid geometry types in clipping json {geom_types}')
 
-    # Write to temporary geojson
-    geojson_name = "tmp_processing_ecoregion.geojson"
-    geometry_clip.to_file(geojson_name, driver='GeoJSON')
+    # Clip files using shapely geometries as list and rasterio
+    cutline_shape = [geom for geom in geometry_clip]
 
-    # Clip actual file
-    gdal.Warp(output, source,
-              cutlineDSName=geojson_name,
-              cutlineLayer="tmp_processing_ecoregion",
-              cropToCutline=False,  # if True, this extent the raster to the larger shapefile area outside the
-              copyMetadata=True)
+    with rio.open(source) as src:
+        out_array, out_transform = mask(src, cutline_shape, crop=False) # False to keep original dimension of raster
+        profile = src.profile.copy()
 
-    if os.path.exists(geojson_name):
-        os.remove(geojson_name)
+        profile.update({"driver": "GTiff",
+                         "height": out_array.shape[1],
+                         "width": out_array.shape[2],
+                         "transform": out_transform})
 
+        with rio.open(output, "w", **profile) as dst:
+            dst.write(out_array)
     return output
 
 
