@@ -1970,7 +1970,7 @@ def get_XT_X_dependency(response: str | Band,
           process. Accepted are 'spawn', 'fork' or 'forkserver'.
     """
     # if block sizes are provided as dictionary - some pre-check on input is desired - else
-    block_size_params = dict(prepare_selector=None, get_XT_X=None, get_optimal_betas=None)
+    block_size_params = dict(prepare_selector=None, get_XT_X=None)
     if isinstance(block_size, tuple):
         for key in block_size_params:
             block_size_params[key] = block_size
