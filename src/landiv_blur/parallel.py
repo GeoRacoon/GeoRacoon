@@ -21,25 +21,25 @@ from multiprocessing import (
     Queue,
     Manager,
     cpu_count,
-    get_context,
-)
+    get_context)
 from numpy.typing import NDArray
 
 from .io_ import Source, Band
 from .helper import (view_to_window,
                      output_filename,
                      reduced_mask,
-                     aggregated_selector)
+                     aggregated_selector,
+                     check_rank_deficiency)
 from .timing import TimedTask
 from .plotting import plot_entropy
 from .processing import view_blurred, view_entropy, view_filtered, view_interaction
 from .prepare import create_views, get_blur_params, update_view
-from .filters.gaussian import img_filter
-from .filters.gaussian import (gaussian, compatible_border_size)
+from .filters.gaussian import (img_filter,
+                               gaussian,
+                               compatible_border_size)
 from .inference import (
     transposed_product,
-    get_optimal_weights_source,
-)
+    get_optimal_weights_source)
 from .io import set_tags, write_band, compress_tif
 from .exceptions import InvalidPredictorError
 
@@ -1927,6 +1927,7 @@ def compute_weights(response: str | Band,
                     limit_contribution:float=0.0,
                     no_data: Union[int,float]=0.0,
                     sanitize_predictors:bool=False,
+                    drop_linear_dependent_predictors: bool = False,
                     verbose:bool=False,
                     **params
                     ) -> dict[Band, float]:
@@ -1964,7 +1965,12 @@ def compute_weights(response: str | Band,
         contributing not a single data-point should be removed automatically.
         By default this values is set to `False` which raises an exception
         if a predictor ends up contributing nothing.
-
+    drop_linear_dependent_predictors:
+        TODO: This is not implemented yet
+            Decicde whether we want to append the columns of linear dependency later to the beta_estimation results.
+            For now No
+        Whether to drop predictors that end up being linearly dependent when checking for rank-deficiency.
+        For instance: if 3 are dependent the last two with higher column index will be dropped to perform the inversion.
     **params:
         Optional arguments:
 
@@ -1993,6 +1999,7 @@ def compute_weights(response: str | Band,
                                 block_size=block_size_params["prepare_selector"],
                                 verbose=verbose,
                                 **params)
+
 
     # If selector is empty (meaning all is FALSE) - no need to proceed
     _vals = np.unique(selector)
@@ -2037,10 +2044,22 @@ def compute_weights(response: str | Band,
                    verbose=verbose,
                    view_size=block_size_params["get_XT_X"],
                    **params)
-    if np.linalg.det(tpX) == 0:
-        print(f"WARNING: matrix not invertiable - determinant is 0\n",
-              f"({predictors=})")
-        return None
+
+    print("Check linear dependency...")
+    # Check rank deficiency of matrix
+    rank_def_cols = check_rank_deficiency(tpX)
+
+    if rank_def_cols:
+        if drop_linear_dependent_predictors:
+            # TODO: implement this here (see description in docstring above)
+            print("ATTENTION: This function is not implemented yet")
+            pass
+        else:
+            # get relevant predictors
+            rank_def_pred = {predictors[k]: v for k, v in rank_def_cols.items()}
+            print(f"WARNING: matrix not invertible - Rank deficiency detected",
+                  f"{rank_def_pred=}")
+            return None
 
     print("Inverting X.T @ X...")
     Y = np.linalg.inv(tpX)
