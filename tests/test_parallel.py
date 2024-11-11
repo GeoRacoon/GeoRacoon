@@ -907,3 +907,54 @@ def test_interaction_parallel_computation(datafiles):
                                                   standardize=True,
                                                   output_dtype=np.uint8)
     np.testing.assert_array_equal(para_interaction_data, interaction_data)
+
+@ALL_MAPS
+def test_get_XT_X_dependency(datafiles):
+    """Test wether rank deficiency is captured when layers would be linear dependent
+    """
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    lbio.coregister_raster(ndvi_map, landcover_map, output=str(ndvi_map)) # rescale to 100m
+    lct_source = lbio_.Source(path=landcover_map)
+    categories = random.sample([1, 2, 3, 4, 5, 6, 7, 8], 4)
+    diameter = 1000  # 1km
+    blur_params = dict(
+        sigma=(0.5 * diameter / 3) / 100,  # 100=scale in pixel
+        truncate=3)
+    blurred_tif = lbpara.extract_categories(
+        source=lct_source,
+        categories=categories,
+        output_file=str(datafiles / 'blur_out.tif'),
+        img_filter=lbf_gauss.gaussian,
+        filter_params=blur_params,
+        blur_as_int=True,
+        block_size=(500, 500),
+        compress=True,
+        output_params=dict(
+            dtype=np.uint8
+        ),
+    )
+    blur_source = lbio_.Source(path=blurred_tif)
+    predictors = [blur_source.get_band(category=c) for c in categories]
+
+    result = lbpara.get_XT_X_dependency(response=ndvi_map,
+                                        predictors=predictors,
+                                        block_size=(500, 500),
+                                        include_intercept=False)
+    # Generally it should be empty (as there is no linear dependency by nature)
+    assert result == dict()
+
+    # Modify one band (to be linear dependent of other)
+    pred_sample = random.sample(predictors, 2)
+    ref_array = pred_sample[0].get_data()
+    with rio.open(blurred_tif, mode='r+') as dst:
+        dst.write(ref_array, indexes=pred_sample[1].get_bidx())
+
+    np.testing.assert_array_equal(ref_array, pred_sample[1].get_data())
+
+    result_issue = lbpara.get_XT_X_dependency(response=ndvi_map,
+                                              predictors=predictors,
+                                              block_size=(500, 500),
+                                              include_intercept=False)
+    print(f"{pred_sample=}, {result_issue=}")
+    assert set(pred_sample) == set([k for k, v in result_issue.items()])

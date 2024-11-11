@@ -1919,6 +1919,117 @@ def get_optimal_betas(*predictors: Band | str,
     return {pred: beta for pred, beta in zip(predictors, betas)}
 
 
+def get_XT_X_dependency(response: str | Band,
+                        predictors: Collection[Band],
+                        block_size: Union[dict[str, tuple[int, int]], tuple[int, int]],
+                        include_intercept: bool = True,
+                        limit_contribution:float=0.0,
+                        no_data: Union[int,float]=0.0,
+                        sanitize_predictors:bool=False,
+                        verbose:bool=False,
+                        **params
+                        ) -> dict[Band, str]:
+    """Test for linear dependency of columsn (before using other functions to fit the MLR)
+
+    Parameters
+    ----------
+    response:
+      Path to a tif file that contains the response data. The file is only used
+      to get the dimensions.
+    *predictors:
+      A collection with arbitrary many predictors to use.
+      See inference.prepare_predictors for further details on how to specify
+      predictors.
+    block_size:
+        Block sizes for specific functions or a default block size for all functions.
+        If a dictionary is provided, it should map function names to block sizes
+        ('prepare_selector': tuple, 'get_XT_X': tuple, 'get_optimal_betas': tuple).
+        If a single tuple is provided, it will be used for all functions.
+    include_intercept:
+        Whether to fit the intercept when computing weights
+    verbose:
+        Print out processing step infos
+    limit_contribution:
+        The fraction of cells, among all valid cells, each predictor must
+        contribute for it to be considered a valid predictors.
+        By default (i.e. `limit_contribution=0.0`) a single value is enough.
+    no_data:
+        Each cell with this value is considered to be invalid.
+        Most likely you will never have to change this!
+    sanitize_predictors:
+        Determines if predictors that end up
+        contributing not a single data-point should be removed automatically.
+        By default this values is set to `False` which raises an exception
+        if a predictor ends up contributing nothing.
+    **params:
+        Optional arguments:
+
+        - `nbr_cpus` (int): how many CPUs should be used (by default the number
+          of available CPUs minus one will be used.
+        - `start_method` (str): Determines how the workers should start a
+          process. Accepted are 'spawn', 'fork' or 'forkserver'.
+    """
+    # if block sizes are provided as dictionary - some pre-check on input is desired - else
+    block_size_params = dict(prepare_selector=None, get_XT_X=None, get_optimal_betas=None)
+    if isinstance(block_size, tuple):
+        for key in block_size_params:
+            block_size_params[key] = block_size
+    if isinstance(block_size, dict):
+        if block_size_params.keys() != block_size.keys() or not all(isinstance(v, tuple) for v in block_size.values()):
+            raise ValueError(f"Block size dict does not conform with all necessary keys and value-types: {block_size=}")
+        block_size_params.update(block_size)
+
+    if not isinstance(response, Band):
+        response = Band(source=Source(path=response),
+                        bidx=1)
+
+    print("Creating selector...")
+    selector = prepare_selector(response,
+                                *predictors,
+                                block_size=block_size_params["prepare_selector"],
+                                verbose=verbose,
+                                **params)
+
+
+    # If selector is empty (meaning all is FALSE) - no need to proceed
+    _vals = np.unique(selector)
+    if len(_vals) == 1:
+        if _vals[0] == False:  # if not _vals[0] is less explicit
+            print(f"WARNING: no pixels to fit, selector masks all pixels")
+            return None
+
+    print("Check consistency of remaining predictor data...")
+    nbr_predictors = len(predictors)
+    predictors = check_predictor_consistency(predictors,
+                                             selector=selector,
+                                             tolerance=limit_contribution,
+                                             sanitize=sanitize_predictors,
+                                             no_data=no_data,
+                                             verbose=verbose,
+                                             **params)
+
+    if len(predictors) != nbr_predictors:
+        # for details here: see compute_weights
+        selector = prepare_selector(response,
+                                    *predictors,
+                                    block_size=block_size_params["prepare_selector"],
+                                    verbose=verbose,
+                                    **params)
+
+    print("Calculate X.T @ X...")
+    tpX = get_XT_X(response,
+                   *predictors,
+                   selector=selector,
+                   include_intercept=include_intercept,
+                   verbose=verbose,
+                   view_size=block_size_params["get_XT_X"],
+                   **params)
+
+    print("Check linear dependency...")
+    rank_def_cols = check_rank_deficiency(tpX)
+    return {predictors[k]: v for k, v in rank_def_cols.items()}
+
+
 def compute_weights(response: str | Band,
                     predictors: Collection[Band],
                     block_size: Union[dict[str, tuple[int, int]], tuple[int, int]],
@@ -1927,7 +2038,6 @@ def compute_weights(response: str | Band,
                     limit_contribution:float=0.0,
                     no_data: Union[int,float]=0.0,
                     sanitize_predictors:bool=False,
-                    drop_linear_dependent_predictors: bool = False,
                     verbose:bool=False,
                     **params
                     ) -> dict[Band, float]:
@@ -1965,12 +2075,7 @@ def compute_weights(response: str | Band,
         contributing not a single data-point should be removed automatically.
         By default this values is set to `False` which raises an exception
         if a predictor ends up contributing nothing.
-    drop_linear_dependent_predictors:
-        TODO: This is not implemented yet
-            Decicde whether we want to append the columns of linear dependency later to the beta_estimation results.
-            For now No
-        Whether to drop predictors that end up being linearly dependent when checking for rank-deficiency.
-        For instance: if 3 are dependent the last two with higher column index will be dropped to perform the inversion.
+
     **params:
         Optional arguments:
 
@@ -1999,7 +2104,6 @@ def compute_weights(response: str | Band,
                                 block_size=block_size_params["prepare_selector"],
                                 verbose=verbose,
                                 **params)
-
 
     # If selector is empty (meaning all is FALSE) - no need to proceed
     _vals = np.unique(selector)
