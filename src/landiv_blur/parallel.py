@@ -29,6 +29,7 @@ from .helper import (view_to_window,
                      output_filename,
                      reduced_mask,
                      aggregated_selector,
+                     check_compatibility,
                      check_rank_deficiency)
 from .timing import TimedTask
 from .plotting import plot_entropy
@@ -46,6 +47,42 @@ from .exceptions import InvalidPredictorError
 
 # NOTE: The first element will be picked by default
 MPC_STARTER_METHODS = ['spawn', 'fork', 'forkserver']
+
+
+def combine_views(output_params: dict,
+                  job_out_q: Queue):
+    """Listens to a queue and writes provided view into a file
+    """
+
+    with TimedTask() as timer:
+        output_file = output_params.pop('output_file')
+        profile = output_params.pop('profile')
+        out_band = output_params.pop('band')
+        out_tag = output_params.pop('tags')
+        if out_band is None:
+            out_band = Band(source=Source(path=output_file),
+                            bidx=1,
+                            tags=out_tag)
+        # create the file
+        out_band.init_source(profile=profile)
+        # write out the tags
+        out_band.export_tags()
+        with out_band.data_writer(mode='r+') as write:
+            while True:
+                # get the next output from a block job
+                output = job_out_q.get()
+                signal = output.get('signal', None)
+                if signal:
+                    if signal == "kill":
+                        print(f"\n\nClosing: {out_band.source.path}\n\n")
+                        break
+                data = output.pop('data')
+                view = copy(output.pop('view'))
+                w = view_to_window(view)
+                write(data, window=w)
+                print(f"Wrote out block {view=}")
+                timer.new_lab()
+    return timer
 
 
 # TODO: this needs adaptation once !36 is merged (using tags instead of indexes)
@@ -1162,6 +1199,123 @@ def compute_interaction(source: str | Source,
     return interaction_output_file
 
 
+def compute_model(predictors: Collection[Band],
+                  optimal_weights: dict | None,
+                  output_file: str,
+                  block_size: tuple[int, int],
+                  profile: dict | None = None,
+                  verbose: bool = False,
+                  **params):
+    """Create a tif file with the model prediction values from a fitted model.
+
+    Parameters
+    ----------
+    predictors:
+        Collection predictors used in the multiple linar regression.
+    optimal_weights:
+        Holding for each predictor the optimal weight
+    output_file:
+        Path to where the model result should be written to
+    block_size: tuple of int
+        Size (width, height) in #pixel of the block that a single job processes
+    profile:
+        The profile to use for the newly created output tif.
+        By default the profile is copied from the first source of the
+        bredictor bands, updating the count to 1.
+    verbose:
+        Print out processing steps
+    **params:
+        Optional arguments for the multiprocessing (e.g. nbr_cpus)
+
+    Returns
+    -------
+    output_tif:
+       Path to the newly created tif file holding the model prediction data
+
+    """
+    # get all source files
+    sources = tuple(set(pred.source.path for pred in predictors))
+    check_compatibility(*sources)
+
+
+    # Handle the output profile
+    if profile is None:
+        profile = Source(path=sources[0]).import_profile()
+        profile['count'] = 1
+
+    # Note: with profile one could provide invalid dimensions
+    height = profile['height']
+    width = profile['width']
+    out_band = None  # cerate a new band bidx=1
+    tags = dict(category='model')
+
+    # Parameter for the aggregation task
+    combine_params = dict(
+        profile=profile,
+        output_file=output_file,
+        band=out_band,
+        tags=tags
+    )
+
+    # Parameter for the individual jobs
+    _, inner_views = create_views(view_size=block_size,
+                                  border=(0, 0),
+                                  size=(width, height))
+    block_params = []
+    for view in inner_views:
+        bparams = dict(view=view,
+                       predictors=predictors,
+                       optimal_weights=optimal_weights,)
+        block_params.append(bparams)
+
+
+    # ###
+    # prepare multiprocessing
+    # ###
+    manager = Manager()
+    job_out_q = manager.Queue()
+    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
+    assert start_method in MPC_STARTER_METHODS
+    # get number of cpu's
+    nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
+    if verbose:
+        print(f"using {nbr_cpus=}")
+    with get_context(start_method).Pool(nbr_cpus) as pool:
+        # start the aggregator task
+        combiner_job = pool.apply_async(combine_views,
+                                        (combine_params, job_out_q))
+
+        # start the block processing
+        all_jobs = []
+        for bparams in block_params:
+            all_jobs.append(pool.apply_async(block_model_prediction,
+                                            (bparams, job_out_q)))
+        # collect results
+        job_timers = []
+        for job in all_jobs:
+            # await for the jobs to return (i.e. complete) by calling .get
+            # get the duration from the timer object that is returned by .get()
+            job_timers.append(job.get().get_duration())
+
+        # once we have all the blocks, add a last element to the queue to stop
+        # the combination process
+        job_out_q.put(dict(signal='kill'))
+        pool.close()
+        # wait for the *_combiner tasks to finish
+        pool.join()
+
+    # lzw-compress final output
+    compress = params.pop('compress', False)
+    if compress:
+        out_source = Source(output_file)
+        out_source.compress(output=None)
+        output_file = str(out_source.path)
+        print("Files compressed successfully")
+
+    total_duration = combiner_job.get().get_duration()
+    print(f"{total_duration=}")
+    print(f"maximal duration of single job: {max(job_timers)=}")
+    return output_file
 
 
 def compute_mask(source: str | Source,
@@ -1504,6 +1658,48 @@ def check_predictor_consistency(predictors: Collection[Band],
             raise InvalidPredictorError(f"Invalid predictors:\n{invalid_str}")
     else:
         return predictors
+
+
+def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
+    """Per block (i.e. view) model prediction for a fitted regression
+
+    The created view is alwasy returned as np.float64
+
+    Parameters
+    ----------
+    params: dict
+      Key value pairs holding all relevant data for a single worker
+      The data must include:
+
+      view: tuple
+        (x, y, width, height) defining the view or block to process
+      predictors: Collection
+        A collection of _io.Band objects that were used as predictors
+      optimal_weights: dict
+        Provides the optimal weight for each predictor
+    job_out_q: multiprocessing.Queue
+      The queue to push the block data to
+    """
+    with TimedTask() as timer:
+        predictors = params.pop('predictors')
+        optimal_weights = params.pop('optimal_weights')
+        # for the interaction only the inner view is needed
+        view = params.get('view')
+        width = view[2]
+        height = view[3]
+        # start with an all zero map
+        model_data = np.full(shape=(height, width), fill_value=0.0,
+                             dtype=np.float64)
+        for pred in predictors:
+            block_data = pred.load_block(view=view)['data']
+            # add each predictor data layer multiplied by its weight
+            model_data += optimal_weights[pred] * block_data
+        output = dict(
+            data=model_data,
+            view=view
+        )
+        job_out_q.put(output)
+    return timer
 
 
 def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
