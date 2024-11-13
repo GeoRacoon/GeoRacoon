@@ -68,6 +68,8 @@ def get_example_data(bands=1, size=(240, 180)):
 
 @pytest.fixture(scope="function")  # is function scope since datafiles is too
 def create_blurred_tif(datafiles):
+    """Create blurred single land-cover type layers in uint8 format
+    """
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     test_data = list(datafiles.iterdir())
@@ -75,7 +77,7 @@ def create_blurred_tif(datafiles):
     lct_source = Source(path=landcover_map)
     # ###
     # compute blurred layers
-    blur_out = str(datafiles / 'blur_out.tif')
+    blur_out = str(datafiles / 'blur_out_uint.tif')
     diameter = 5000  # this is in meter
     scale = 100  # meter per pixel
     truncate = 3
@@ -90,6 +92,43 @@ def create_blurred_tif(datafiles):
         img_filter=gaussian,
         filter_params=filter_params,
         blur_as_int=True,
+        block_size=(500, 500),
+        compress = True
+    )
+    blurr_source = Source(path=blurred_tif)
+    # compute the mask
+    view_size = (500, 400)
+    compute_mask(source=blurr_source, block_size=view_size, logic='all')
+    # ###
+    print(f"{blurr_source.import_profile()=}")
+    return blurred_tif
+
+@pytest.fixture(scope="function")  # is function scope since datafiles is too
+def create_blurred_tif_float(datafiles):
+    """Create blurred single land-cover type layers as float rescaled to [0, 1]
+    """
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    test_data = list(datafiles.iterdir())
+    landcover_map = test_data[0]
+    lct_source = Source(path=landcover_map)
+    # ###
+    # compute blurred layers
+    blur_out = str(datafiles / 'blur_out_float.tif')
+    diameter = 5000  # this is in meter
+    scale = 100  # meter per pixel
+    truncate = 3
+    _diameter = diameter / scale
+    blur_params = get_blur_params(diameter=_diameter, truncate=truncate)
+    filter_params = blur_params.copy()
+    _ = filter_params.pop('diameter')
+    blurred_tif = extract_categories(
+        source=lct_source,
+        categories=[1,2,3,4,5],
+        output_file=blur_out,
+        img_filter=gaussian,
+        filter_params=filter_params,
+        blur_as_int=False,
         block_size=(500, 500),
         compress = True
     )

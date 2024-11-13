@@ -28,7 +28,7 @@ from .helper import (check_compatibility,
                      usable_pixels_info,
                      usable_pixels_count,
                      view_to_window,
-                     convert_to_scaled)
+                     convert_to_dtype)
 from .processing import select_category
 from .io_ import Source, Band
 
@@ -375,7 +375,9 @@ def prepare_predictors(response: str | Band,
 
 def extract_predictor_data(*predictors: Band,
                            window: Window | None,
-                           as_dtype):
+                           as_dtype: type,
+                           **conversion_params
+                           ):
     """Extract the data form the predictors
 
     Parameters
@@ -387,13 +389,19 @@ def extract_predictor_data(*predictors: Band,
     as_dtype:
       The data type to represent each category in if a categorical predictor
       is present
+    **conversion_params:
+        Optional arguments to handle data type conversion
+
+        See `helper.convert_to_dtype` for details.
+
     """
     # Create a window
     pred_datas = []
     for predictor in predictors:
         with predictor.data_reader() as read:
             pred_data = read(window=window)
-            pred_data_scaled = convert_to_scaled(pred_data, as_dtype=as_dtype)
+            pred_data_scaled = convert_to_dtype(pred_data, as_dtype=as_dtype,
+                                                **conversion_params)
             pred_datas.append(pred_data_scaled)
     return pred_datas
 

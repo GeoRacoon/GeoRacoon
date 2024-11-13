@@ -159,9 +159,7 @@ def get_category_data(data:NDArray,
         _data = _apply_filter(_data, img_filter, **filter_params)
         # convert to the desired output type
         if output_dtype:
-            n_max, _ = dtype_range(output_dtype)
-            _data = _data * n_max
-            _data = _data.astype(output_dtype, copy=False)
+            _data = convert_to_dtype(data=_data, as_dtype=output_dtype, )
     return _data
 
 def view_data(source:Source|str,
