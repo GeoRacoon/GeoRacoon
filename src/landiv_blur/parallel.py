@@ -572,7 +572,7 @@ def extract_categories(source: str | Source,
     if blur_as_int:
         output_params['dtype'] = np.uint8
     else:
-        output_params['dtype'] = rio.float64
+        output_params['dtype'] = np.float64
 
     blur_output_params = dict(
         profile=profile,
@@ -1638,8 +1638,7 @@ def block_filter(params: dict, blur_q: Queue) -> TimedTask:
         (x, y, width, height) defining the usable part of the block, i.e.
         without the borders
       blur_as_int: bool
-        If the blurred category arrays should be converted to `np.uint8` before
-        computing the entropy.
+        If the blurred category arrays should be converted to `np.uint8`.
       img_filter: Callable
         A filter function that can be applied to the data. See e.g.
         skimage.filter.gaussian

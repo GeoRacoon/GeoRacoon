@@ -89,6 +89,9 @@ def test_convert_to_dtype():
     d = convert_to_dtype(data=c, as_dtype=np.float32, in_range=[0,1],
                          out_range=[0,1])
     np.testing.assert_equal(c, d)
+    # convert a float back to an uint
+    e = convert_to_dtype(data=d, as_dtype=np.uint8, in_range=[0,1])
+    np.testing.assert_equal(e, a)
 
 
 def test_rank_deficiency():

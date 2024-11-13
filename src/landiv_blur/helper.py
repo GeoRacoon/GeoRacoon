@@ -301,7 +301,21 @@ def convert_to_dtype(data: NDArray,
                      as_dtype,
                      in_range:None|NDArray|Collection=None,
                      out_range:None|NDArray|Collection=None)->NDArray:
-    """Converts a data as_dtype and rescales it
+    """Converts data to as_dtype and optionally rescales it.
+
+    ..note::
+
+      The default range for any floating type is `[0,1]`!
+
+      This means:
+
+      - If the output data type, `as_dtype` is any subclass of `np.floating`
+        and no `out_range` is defined then the output is scaled to the intervarl
+        `[0, 1]`.
+      - If data is of any `np.floating` type and the data range lies withing
+        `[0, 1]` (and `in_range` is not provided) then `in_range` is set to be
+        `[0, 1]`.
+
 
     Parameters
     ----------
@@ -317,15 +331,23 @@ def convert_to_dtype(data: NDArray,
       an array or list from which min and max will be used as limits for the
       output
     """
+    in_dtype = data.dtype
+
     if in_range is None:
-        _inmax, _inmin = dtype_range(data.dtype)
+        if np.issubdtype(in_dtype, np.floating) and np.nanmin(data) >= 0.0 and np.nanmax(data) <= 1.0:
+            _inmax, _inmin = 1.0, 0.0
+        else:
+            _inmax, _inmin = dtype_range(in_dtype)
     else:
         # we convert to float since Decimal cannot handle np.uintX
         _inmax = float(np.max(in_range))
         _inmin = float(np.min(in_range))
     # now the output dtype
     if out_range is None:
-        _outmax, _outmin = dtype_range(as_dtype)
+        if np.issubdtype(as_dtype, np.floating):
+            _outmax, _outmin = 1.0, 0.0
+        else:
+            _outmax, _outmin = dtype_range(as_dtype)
     else:
         # we convert to float since Decimal cannot handle np.uintX
         _outmax = float(np.max(out_range))
@@ -333,40 +355,6 @@ def convert_to_dtype(data: NDArray,
     scale = (Decimal(_outmax) - Decimal(_outmin)) / \
             (Decimal(_inmax) - Decimal(_inmin))
     return _outmin + ((data - _inmin) * float(scale)).astype(as_dtype)
-
-
-def convert_to_scaled(arr: NDArray,
-                      as_dtype,
-                      data_range:None|tuple=None) -> NDArray:
-    """Converts a data array to desired as_type and
-    scales the array by the maximum value in the dtype of the input array or provided data_range if provided
-
-    ..warning::
-      Only use this function if you want to rescale an `np.uintX` array
-      to the range [0,1].
-
-      This function converts and then rescales the provided array to the
-      fraction of its own dtype range or `data_range` with `as_dtype` setting
-      the inital dtype conversion.
-      The rescale is then done with np.divide and, as such, the retuned array
-      might not necessarily be of dtype `as_dtype`:
-
-      Use `convert_to_dtype` form more control of the rescaling.
-
-    Parameters
-    ----------
-    arr: input numpy NDArray
-    as_dtype: desired data type to convert to (e.g. np.float)
-    data_range: provide a range of intput array as tuple (e.g. (0, 1)
-    """
-    if data_range is None:
-        _max, _min = dtype_range(arr.dtype)
-    else:
-        if len(data_range) != 2:
-            raise ValueError(f"data_range must be of length 2 (e.g. (0,1), but is {len(data_range)}")
-        _min, _max = data_range
-    scale = _max - _min
-    return np.divide(arr.astype(as_dtype), scale)
 
 
 def aggregated_selector(masks:list[NDArray], logic:str='all')->NDArray:
@@ -401,7 +389,7 @@ def aggregated_selector(masks:list[NDArray], logic:str='all')->NDArray:
 def reduced_mask(array:NDArray,
                 nodata=0,
                 logic:str='all',):
-    """Computes a mask based on the value of serveral bands
+    """Computes a mask based on the value of several bands
 
     Parameters
     ----------

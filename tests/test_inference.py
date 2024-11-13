@@ -22,6 +22,61 @@ from .conftest import ALL_MAPS, get_file
 
 
 @ALL_MAPS
+def test_extract_predictor_data(datafiles,
+                                create_blurred_tif,
+                                create_blurred_tif_float):
+    """Make sure the predictor data is extraced as expected.
+
+    This includes a proper type conversion and resacling, if needed.
+    """
+    blurred_source = lbio_.Source(path=create_blurred_tif)
+    predictors = blurred_source.get_bands()
+    # choose the write mask
+    for pred in predictors:
+        pred.set_mask_reader(use='source')
+    # get predictor data as float
+    pred_float = lbinf.extract_predictor_data(*predictors, window=None, as_dtype=np.float64)
+    assert np.max(pred_float) <= 1.0
+    assert np.min(pred_float) >= 0.0
+    # as uint 8
+    pred_uint = lbinf.extract_predictor_data(*predictors, window=None, as_dtype=np.uint8)
+    assert np.max(pred_uint) <= 255
+    assert np.min(pred_uint) >= 0
+    if np.max(pred_float) >= 2/255:
+        assert np.max(pred_uint) > 1
+    # make sure the conversion works as expected
+    np.testing.assert_equal(
+        np.array(pred_float),
+        lbhelp.convert_to_dtype(np.array(pred_uint), as_dtype=np.float64)
+    )
+    print('====')
+    # ###
+    # now the same with input data of type float
+    # ###
+    blurred_source = lbio_.Source(path=create_blurred_tif_float)
+    predictors = blurred_source.get_bands()
+    # choose the write mask
+    for pred in predictors:
+        pred.set_mask_reader(use='source')
+    # write out predictor matrix as float
+    pred_float = lbinf.extract_predictor_data(*predictors, window=None, as_dtype=np.float64)
+    assert np.max(pred_float) <= 1.0
+    assert np.min(pred_float) >= 0.0
+    # as uint 8
+    pred_uint = lbinf.extract_predictor_data(*predictors, window=None, as_dtype=np.uint8)
+    assert np.max(pred_uint) <= 255
+    assert np.min(pred_uint) >= 0
+    if np.max(pred_float) >= 2/255:
+        assert np.max(pred_uint) > 1
+    # make sure the conversion works as expected
+    np.testing.assert_allclose(
+        np.array(pred_float),
+        lbhelp.convert_to_dtype(np.array(pred_uint), as_dtype=np.float64),
+        atol=1/255  # to makes sure no float > uint conversion is picked up
+    )
+
+
+@ALL_MAPS
 def test_preparation(datafiles, create_blurred_tif):
     """Test the preparation of predictors based on a response matrix
     """
