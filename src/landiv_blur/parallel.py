@@ -1184,9 +1184,15 @@ def compute_mask(source: str | Source,
         Allowed strings are:
         - `"any"`: Masekd will be each cell for which any of the bands matches the nodata value
         - `"all"`: Masked will be each cell for which all of the bands match the nodata value
-        If a callable is provided it takes the data of a window (3D array if multiple
-        bands are present, 2D otherwise) and must return a 2D array of
-        np.uint8 with 0 for invalid pixels and any value > 0 for valid ones
+
+        ..note::
+
+            We might, at some point in the future, allow callables here.
+
+            If a callable is provided it takes the data of a window (3D array if multiple
+            bands are present, 2D otherwise) and must return a 2D array of
+            np.uint8 with 0 for invalid pixels and any value > 0 for valid ones
+
     block_size: tuple of int
         Size (width, height) in #pixel of the block that a single job processes
     bands:

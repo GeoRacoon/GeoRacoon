@@ -409,14 +409,17 @@ def reduced_mask(array:NDArray,
         3D array holding multiple bands of map data
     logic:
         Allowed strings are:
-        - `"any"`: Masekd will be each cell for which any of the bands matches the nodata value
+        - `"any"`: Masked will be each cell for which any of the bands matches the nodata value
         - `"all"`: Masked will be each cell for which all of the bands match the nodata value
     """
     if logic=='any':
         _logic = np.logical_and
     else:
         _logic = np.logical_or
-    return _logic.reduce(array=array!=nodata, axis=0).astype(np.uint8)
+    if np.isnan(nodata):
+        return _logic.reduce(array=~np.isnan(array), axis=0).astype(np.uint8)
+    else:
+        return _logic.reduce(array=array!=nodata, axis=0).astype(np.uint8)
 
 def count_contribution(data:NDArray,
                        selector:NDArray[np.bool_],
