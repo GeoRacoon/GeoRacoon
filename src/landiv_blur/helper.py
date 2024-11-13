@@ -114,7 +114,11 @@ def check_units(*sources):
     units = []
     for source in sources:
         with rio.open(source) as src:
-            units.append(src.profile['crs'].linear_units.lower())
+            crs = src.profile['crs']
+            if crs is not None:
+                units.append(src.profile['crs'].linear_units.lower())
+            else:
+                units.append(None)
             if len(set(units)) != 1:
                 raise TypeError(f"{source=} has linear units {units[-1]}, "
                                 "which is different from the other(s) "
@@ -128,7 +132,7 @@ def check_crs(*sources):
     crss = []
     for source in sources:
         with rio.open(source) as src:
-            crss.append(str(src.profile['crs']))
+            crss.append(str(src.profile.get('crs', None)))
             if len(set(crss)) != 1:
                 raise TypeError(f"{source=} has crs {crss[-1]}, which is "
                                 f"different from the other(s) ({crss[0]})")

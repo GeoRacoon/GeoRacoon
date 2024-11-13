@@ -13,6 +13,45 @@ from landiv_blur.exceptions import (
 from .conftest import ALL_MAPS, get_file
 
 @ALL_MAPS
+def test_Band_operations(datafiles):
+    """Cover some basic operations on Band objects
+    """
+    test_file = datafiles / 'band_ops_test.tif'
+    b1_tags = dict(category=1)
+    width = 8
+    height = 12
+    profile = {
+        "count": 3,
+        "width": width, "height": height,
+        "dtype": np.float64,
+        "transform": rasterio.Affine(1, 0, 0, 0, 1, 0)
+    }
+    band = Band(source=Source(test_file), bidx=1, tags=b1_tags)
+    band.init_source(profile=profile, overwrite=True)
+    band.export_tags()
+    # create some data
+    init_data = np.full(shape=(height, width), fill_value=0.0)
+    band.set_data(init_data)
+    # adding some 
+    add_data = np.full(shape=(height, width), fill_value=0.0)
+    add_data[2:4, 2:4] = 1
+    adding_band = Band(source=Source(test_file), bidx=2)
+    adding_band.set_data(add_data)
+    band.add(adding_band)
+    np.testing.assert_equal(band.get_data(), add_data)
+    band.subtract(adding_band)
+    np.testing.assert_equal(band.get_data(), init_data)
+    # with another band
+    test_file_2 = datafiles / 'band_ops_test_2.tif'
+    band_out = Band(source=Source(test_file_2), bidx=1, tags=b1_tags)
+    band_out.init_source(profile=profile, overwrite=True)
+    band_out.export_tags()
+    band.add(adding_band, out_band=band_out)
+    np.testing.assert_equal(band_out.get_data(), add_data)
+    # orig band should still be the same
+    np.testing.assert_equal(band.get_data(), init_data)
+
+@ALL_MAPS
 def test_Band_tagging(datafiles):
     test_file = datafiles / 'test.tif'
     b1_tags_0 = dict(category=1)

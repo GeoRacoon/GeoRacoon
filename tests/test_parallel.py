@@ -1036,3 +1036,53 @@ def test_compute_weights(datafiles):
                                     drop_linear_dependent_predictors=True)
     print(result)
     assert set([k for k in result['linear_dependent'].keys()]) == set([p for p in pred_sample_dep if p != pred_sample_zero])
+
+
+@ALL_MAPS
+def test_model_output(datafiles, create_blurred_tif):
+    """Test the parallelized model prediction calculation.
+    """
+    blurred_source = lbio_.Source(path=create_blurred_tif)
+    predictors = blurred_source.get_bands()
+    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    lbio.coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
+    resp_source = lbio_.Source(path=ndvi_map)
+    resp_profile = resp_source.import_profile()
+    resp_profile['count'] = 1
+    print('computing weights')
+    optimal_weights = lbpara.compute_weights(response=ndvi_map,
+                                    predictors=predictors,
+                                    block_size=(500, 500),
+                                    include_intercept=False,
+                                    sanitize_predictors=True,
+                                    drop_linear_dependent_predictors=True)
+    print(f'{optimal_weights=}')
+    print('done!')
+    # perform the computation in parallel 
+    model_output_file = str(datafiles / 'model_out.tif')
+    verbose=True
+    block_size = (500, 400)
+    params = dict()
+    print('Compute the model prediction')
+    model_out = lbpara.compute_model(
+        predictors=predictors,
+        optimal_weights=optimal_weights,
+        output_file=model_output_file,
+        block_size=block_size,
+        profile=resp_profile,
+        verbose=verbose,
+        **params)
+    print('done!')
+    # compute it "manually"
+    model_data = np.full(shape=(resp_profile['height'],
+                                resp_profile['width']),
+                         fill_value=0.0,
+                         dtype=np.float64)
+    for pred in predictors:
+        model_data += optimal_weights[pred] * pred.get_data()
+
+    model_source = lbio_.Source(model_out)
+    model_band = model_source.get_band(bidx=1)
+    # make sure we get the same
+    np.testing.assert_allclose(model_band.get_data(), model_data)
+

@@ -475,6 +475,59 @@ class Band:
                 )
         print("###")
 
+    def _pair_operation(self, pair_op: Callable, band, out_band=None, **op_kwargs):
+        """Internal method for performing operations on data arrays
+        """
+        self.source.check_compatibility(band.source)
+        if out_band is None:
+            out_band = self
+        bidx = self.get_bidx()
+        other_bidx = band.get_bidx()
+        with self.source.open(mode='r') as src:
+            with out_band.data_writer() as write:
+                with band.source.open() as src_to_add:
+                    for _ji, window, in src.block_windows(bidx):
+                        data = src.read(bidx, window=window)
+                        other = src_to_add.read(other_bidx, window=window)
+                        write(pair_op(data, other, **op_kwargs), window=window)
+
+    def add(self, band, out_band:None|Band=None, **add_kwargs):
+        """Add another band to this one
+
+        This performs the numpy.add operation between the data of the two bands
+        and stores the resulting data back in the source of this band.
+
+        Parameters
+        ----------
+        bans:
+          A band object to add
+        out_band:
+          Optional destination band to store the data in.
+          If not provided, then self is used.
+        """
+        return self._pair_operation(pair_op=np.add, band=band,
+                                    out_band=out_band, **add_kwargs)
+
+    def subtract(self, band, out_band:None|Band=None, **add_kwargs):
+        """Subtract another band from this one
+
+        This performs the numpy.add operation with the data of this band
+        and the negative version of the data form the other band
+        and stores the resulting data back in the source of this band.
+
+        Parameters
+        ----------
+        bans:
+          A band object to subtract
+        out_band:
+          Optional destination band to store the data in.
+          If not provided, then self is used.
+        """
+        def _subtract(data1, data2, **kwargs):
+            return np.add(data1, (-1)*data2, **kwargs)
+        return self._pair_operation(pair_op=_subtract, band=band,
+                                    out_band=out_band, **add_kwargs)
+
     def export_tags(self, match:str|list|None=None):
         """Write the defined tags to the band
 
@@ -802,11 +855,15 @@ class Band:
             yield partial(_mock_all, mask_reader=src.read_masks)
 
 
-    def set_data(self, data:NDArray, **kwargs):
+    def set_data(self, data:NDArray, overwrite=False, **kwargs):
         """Write out the data from a band
         """
         # with self.source.open(mode='w', **kwargs) as src:
-        with self.data_writer(mode='w', **kwargs) as write:
+        if self.source.exists and not overwrite:
+            mode = 'r+'
+        else:
+            mode = 'w'
+        with self.data_writer(mode=mode, **kwargs) as write:
             write(data)
 
     def load_block(self,
