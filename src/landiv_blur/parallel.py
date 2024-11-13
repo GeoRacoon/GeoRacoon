@@ -2152,9 +2152,8 @@ def compute_weights(response: str | Band,
     print("Check linear dependency...")
     # Check rank deficiency of matrix
     rank_def_cols = check_rank_deficiency(tpX)
-    
+
     if rank_def_cols:
-        drop_linear_dependent_predictors = False
         if drop_linear_dependent_predictors:
             # TODO: implement this here (see description in docstring above)
             print("ATTENTION: This function is not implemented yet")
