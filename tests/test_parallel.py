@@ -855,42 +855,23 @@ def test_apply_filter(datafiles):
         np.testing.assert_equal(b_twostep.get_data(), b_single.get_data())
 
 @ALL_MAPS
-def test_interaction_parallel_computation(datafiles):
+def test_interaction_parallel_computation(datafiles, create_blurred_tif):
     """Compare whether parallel and single compute_interaction give the same result
     TODO: only tested for uint8 and interactions of n=2 (test more)
     """
-    landcover_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    lct_source = lbio_.Source(path=landcover_map_tif)
-    categories = [1, 2, 3, 4, 5, 6, 7, 8]
-    diameter = 1000  # 1km
-    blur_params = dict(
-        sigma=(0.5 * diameter / 3) / 100,  # 100=scale in pixel
-        truncate=3)
-    blurred_tif = lbpara.extract_categories(
-        source=lct_source,
-        categories=categories,
-        output_file=str(datafiles / 'blur_out.tif'),
-        img_filter=lbf_gauss.gaussian,
-        filter_params=blur_params,
-        blur_as_int=True,
-        block_size=(500, 500),
-        compress=True,
-        output_params=dict(
-            dtype=np.uint8
-        ),
-    )
-    out_source = lbio_.Source(path=blurred_tif)
-
+    out_source = lbio_.Source(path=create_blurred_tif)
+    categories = [b.tags['category'] for b in out_source.get_bands()]
     # Pairs
     all_possible_pairs = [list(x) for x in itertools.combinations(categories, r=2)]
     test_pair = random.choice(all_possible_pairs)
 
     # Interaction (parallel)
     para_interaction_tif = lbpara.compute_interaction(source=out_source,
-                                                      output_file=str(datafiles / 'blur_out.tif'),
+                                                      output_file=str(datafiles / 'interact_out.tif'),
                                                       block_size=(500, 500),
                                                       categories=test_pair,
-                                                      blur_params=blur_params,
+                                                      blur_params=dict(
+                                                          sigma=(0.5 * 5000 / 3) / 100, truncate=3), # irrelevant f test
                                                       interaction_as_ubyte=True,
                                                       standardize=True,
                                                       normed=True,
@@ -909,48 +890,27 @@ def test_interaction_parallel_computation(datafiles):
     np.testing.assert_array_equal(para_interaction_data, interaction_data)
 
 @ALL_MAPS
-def test_get_XT_X_dependency(datafiles):
+def test_get_XT_X_dependency(datafiles, create_blurred_tif):
     """Test wether rank deficiency is captured when layers would be linear dependent
     """
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    lbio.coregister_raster(ndvi_map, landcover_map, output=str(ndvi_map)) # rescale to 100m
-    lct_source = lbio_.Source(path=landcover_map)
-    categories = random.sample([1, 2, 3, 4, 5, 6, 7, 8], 4)
-    diameter = 1000  # 1km
-    blur_params = dict(
-        sigma=(0.5 * diameter / 3) / 100,  # 100=scale in pixel
-        truncate=3)
-    blurred_tif = lbpara.extract_categories(
-        source=lct_source,
-        categories=categories,
-        output_file=str(datafiles / 'blur_out.tif'),
-        img_filter=lbf_gauss.gaussian,
-        filter_params=blur_params,
-        blur_as_int=True,
-        block_size=(500, 500),
-        compress=True,
-        output_params=dict(
-            dtype=np.uint8
-        ),
-    )
-    blur_source = lbio_.Source(path=blurred_tif)
-    predictors = [blur_source.get_band(category=c) for c in categories]
+    blur_source = lbio_.Source(path=create_blurred_tif)
+    predictors = blur_source.get_bands()
 
+    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    lbio.coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
+
+    # Generally it should be empty (as there is no linear dependency by nature)
     result = lbpara.get_XT_X_dependency(response=ndvi_map,
                                         predictors=predictors,
                                         block_size=(500, 500),
                                         include_intercept=False)
-    # Generally it should be empty (as there is no linear dependency by nature)
     assert result == dict()
 
     # Modify one band (to be linear dependent of other)
     pred_sample = random.sample(predictors, 2)
     ref_array = pred_sample[0].get_data()
-    with rio.open(blurred_tif, mode='r+') as dst:
+    with rio.open(blur_source.path, mode='r+') as dst:
         dst.write(ref_array, indexes=pred_sample[1].get_bidx())
-
-    np.testing.assert_array_equal(ref_array, pred_sample[1].get_data())
 
     result_issue = lbpara.get_XT_X_dependency(response=ndvi_map,
                                               predictors=predictors,
@@ -958,6 +918,60 @@ def test_get_XT_X_dependency(datafiles):
                                               include_intercept=False)
     print(f"{pred_sample=}, {result_issue=}")
     assert set(pred_sample) == set([k for k, v in result_issue.items()])
+
+
+@ALL_MAPS
+def test_compute_weights(datafiles, create_blurred_tif):
+    """Test compute weights for different issues:
+        1) normal
+        2) with rank deficiency and all zero column
+    """
+    blur_source = lbio_.Source(path=create_blurred_tif)
+    predictors = blur_source.get_bands()
+
+    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    lbio.coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
+
+    lbpara.compute_mask(blur_source, block_size=(500, 500))
+    for p in predictors:
+        p.set_mask_reader(use="source")
+
+    # 1) Normal test
+    beta_weights = lbpara.compute_weights(response=ndvi_map,
+                                    predictors=predictors,
+                                    block_size=(500, 500),
+                                    include_intercept=False)
+    assert set(predictors) == set([k for k in beta_weights.keys()])
+
+    # 2)
+    # 2.1) Linear dependency
+    print('Create dependend bands')
+    # Modify one band (to be linear dependent of other)
+    pred_sample_dep = random.sample(predictors, 2)
+    ref_array = pred_sample_dep[0].get_data()
+    with rio.open(blur_source.path, mode='r+') as dst:
+        for i in range(1, 2):
+            dst.write(ref_array, indexes=pred_sample_dep[i].get_bidx())
+
+    # 2.2) All zero band
+    print('Create all-zero band')
+    # This should get cought by sanitize predictors
+    pred_sample_zero = random.sample([p for p in predictors if p not in pred_sample_dep], 1)
+    zero_array = np.zeros(ref_array.shape)
+    with rio.open(blur_source.path, mode='r+') as dst:
+        dst.write(zero_array, indexes=pred_sample_zero[0].get_bidx())
+
+    # 2.3) Run test
+    # The All-Zero band should be cauthg by the sanitize
+    beta_weights = lbpara.compute_weights(response=ndvi_map,
+                                    predictors=predictors,
+                                    block_size=(500, 500),
+                                    include_intercept=False,
+                                    limit_contribution=0,
+                                    sanitize_predictors=True,
+                                    return_linear_dependent_predictors=True)
+    assert set(beta_weights) == set(pred_sample_dep)
+    assert all(['Linear dependent column' == b for b in beta_weights.values()])
 
 
 @ALL_MAPS
