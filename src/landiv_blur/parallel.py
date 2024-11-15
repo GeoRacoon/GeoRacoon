@@ -2239,10 +2239,10 @@ def compute_weights(response: str | Band,
                     limit_contribution:float=0.0,
                     no_data: Union[int,float]=0.0,
                     sanitize_predictors:bool=False,
-                    drop_linear_dependent_predictors:bool=False,
+                    return_linear_dependent_predictors:bool=False,
                     verbose:bool=False,
                     **params
-                    ) -> dict[Band, float]:
+                    ) -> dict[Band, float] | dict[Band, str] | None:
     """Compute the optimal weight in a multiple linear regression
 
     Parameters
@@ -2277,13 +2277,11 @@ def compute_weights(response: str | Band,
         contributing not a single data-point should be removed automatically.
         By default this values is set to `False` which raises an exception
         if a predictor ends up contributing nothing.
-    drop_linear_dependent_predictors:
+    return_linear_dependent_predictors:
         Determines if predictors that end up being linearly dependent from each other,
-        should be dropped before inverting the (XT @ X) matrix.
-        If true all predictors from the rank deficiency test will be dropped except for
-        the first one in the list.
-        To keep the information on what was dropped, the predictors will later be appended to the beta result.
-        Note: all-zero columns will always all be dropped when this parameter is set to true.
+        should be returned as a dictionary ({Band: "type of dependency"}
+        This will stop the fitting process - therefore no fit is performed.
+        If this parameter is not set, the funciton return None
 
     **params:
         Optional arguments:
@@ -2318,6 +2316,7 @@ def compute_weights(response: str | Band,
     _vals = np.unique(selector)
     if len(_vals) == 1:
         if _vals[0] == False:  # if not _vals[0] is less explicit
+            # TODO: remove None as output and raise error or warning
             print(f"WARNING: no pixels to fit, selector masks all pixels")
             return None
 
@@ -2363,32 +2362,14 @@ def compute_weights(response: str | Band,
     rank_def = check_rank_deficiency(tpX)
 
     if rank_def:
-        rank_def_pred = {predictors[k]: v for k, v in rank_def.items()}
-        print(f"WARNING: Rank deficiency detected due to predictors: {rank_def_pred}")
-
-        if drop_linear_dependent_predictors:
-            rank_def_grouped = check_rank_deficiency(tpX, return_by_issue_type=True)
-            rank_def_cols = rank_def_grouped["linear_dependent"]
-            all_zero_cols = rank_def_grouped["all_zero"]
-
-            # drop all dependent ones -1 (to have rank deficiency eliminated)
-            to_drop = sorted(rank_def_cols[1:] + all_zero_cols)
-            for axis in range(2):
-                tpX = np.delete(tpX, to_drop, axis=axis)
-
-            pred_to_drop = [predictors[k] for k in to_drop]
-            drop_str = ''
-            for p in pred_to_drop:
-                drop_str += f"- {p}\n"
-            print(f"Dropping the following predictors:\n{drop_str}\n")
-
-            predictors = [pred for pred in predictors if pred not in pred_to_drop]
-
-            if tpX.shape != (len(predictors), len(predictors)):
-                raise ValueError(f"Matrix dimensions {tpX.shape=} do not correspond to {len(predictors)=}")
+        linear_dependent_predictors = {predictors[k]: v for k, v in rank_def.items()}
+        if return_linear_dependent_predictors:
+            print(f"WARNING: Rank deficiency detected returning affected predictors")
+            return linear_dependent_predictors
         else:
+            # TODO: remove None as output and raise error or warning
             print(f"WARNING: matrix not invertible - Rank deficiency detected",
-                  f"{rank_def_pred=}")
+                  f"{linear_dependent_predictors=}")
             return None
 
     print("Inverting X.T @ X...")
@@ -2397,15 +2378,6 @@ def compute_weights(response: str | Band,
     # print("#####\n#####\n#####")
 
     print("Calculate Y @ X.T @ y (optimal weights)...")
-    # TODO: Do we have to calculate the selector again here??
-    # Because if we do - we would need to put that above in the exception
-    # However, I feel that we may be able to skip calculating selectors again - which would give us the opportunity
-    # That intiallys in XT @ X we included the predictors to be dropped and later we still use the same selector
-    # So we consider them but drop them
-    # TODO: Other Option:
-    # we may just hand back the rank deficiency dictionary above (under else statement) and allow the user to go back
-    # and recalculate everything with the predictors of choice removed
-
     betas_dict = get_optimal_betas(*predictors,
                                    Y=Y,
                                    response=response,
@@ -2415,8 +2387,4 @@ def compute_weights(response: str | Band,
                                    as_dtype=as_dtype,
                                    view_size=block_size_params["get_optimal_betas"],
                                    **params)
-    if rank_def:
-        if drop_linear_dependent_predictors:
-            betas_dict["linear_dependent"] = rank_def_pred
-
     return betas_dict
