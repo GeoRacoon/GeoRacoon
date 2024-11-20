@@ -30,7 +30,7 @@ from .helper import (view_to_window,
                      reduced_mask,
                      aggregated_selector,
                      check_compatibility,
-                     check_rank_deficiency)
+                     check_rank_deficiency, convert_to_dtype)
 from .timing import TimedTask
 from .plotting import plot_entropy
 from .processing import view_blurred, view_entropy, view_filtered, view_interaction
@@ -1203,7 +1203,9 @@ def compute_model(predictors: Collection[Band],
                   optimal_weights: dict | None,
                   output_file: str,
                   block_size: tuple[int, int],
+                  predicotrs_as_dtype: None=None,
                   profile: dict | None = None,
+                  selector: NDArray[np.bool_] | None = None,
                   verbose: bool = False,
                   **params):
     """Create a tif file with the model prediction values from a fitted model.
@@ -1218,10 +1220,15 @@ def compute_model(predictors: Collection[Band],
         Path to where the model result should be written to
     block_size: tuple of int
         Size (width, height) in #pixel of the block that a single job processes
+    predicotrs_as_dtype:
+        Datatype to convert predictor input to (e.g. np.float32) this will rescale them to [0, 1],
+        which is used in the compute weights function.
     profile:
         The profile to use for the newly created output tif.
         By default the profile is copied from the first source of the
         bredictor bands, updating the count to 1.
+    selector:
+        A numpy boolean array to use as a selector for (masking) the processing of the model.
     verbose:
         Print out processing steps
     **params:
@@ -1265,6 +1272,8 @@ def compute_model(predictors: Collection[Band],
     for view in inner_views:
         bparams = dict(view=view,
                        predictors=predictors,
+                       predicotrs_as_dtype=predicotrs_as_dtype,
+                       selector=selector,
                        optimal_weights=optimal_weights,)
         block_params.append(bparams)
 
@@ -1685,13 +1694,22 @@ def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
         optimal_weights = params.pop('optimal_weights')
         # for the interaction only the inner view is needed
         view = params.get('view')
+        window = view_to_window(view)
+        selector = params.get('selector')
+        predictors_as_dtype = params.get('predictors_as_dtype')
         width = view[2]
         height = view[3]
         # start with an all zero map
-        model_data = np.full(shape=(height, width), fill_value=0.0,
-                             dtype=np.float64)
+        model_data = np.zeros(shape=(height, width), dtype=np.float32)
+
+        if selector is not None:
+            _selector = selector[window.toslices()]
+            model_data[~_selector] = np.nan
+
         for pred in predictors:
             block_data = pred.load_block(view=view)['data']
+            if predictors_as_dtype is not None:
+                block_data = convert_to_dtype(block_data, as_dtype=predictors_as_dtype)
             # add each predictor data layer multiplied by its weight
             model_data += optimal_weights[pred] * block_data
         output = dict(

@@ -987,11 +987,10 @@ def test_model_output(datafiles, create_blurred_tif):
     resp_profile['count'] = 1
     print('computing weights')
     optimal_weights = lbpara.compute_weights(response=ndvi_map,
-                                    predictors=predictors,
-                                    block_size=(500, 500),
-                                    include_intercept=False,
-                                    sanitize_predictors=True,
-                                    drop_linear_dependent_predictors=True)
+                                            predictors=predictors,
+                                            block_size=(500, 500),
+                                            include_intercept=False,
+                                            sanitize_predictors=True)
     print(f'{optimal_weights=}')
     print('done!')
     # perform the computation in parallel 
@@ -1013,7 +1012,7 @@ def test_model_output(datafiles, create_blurred_tif):
     model_data = np.full(shape=(resp_profile['height'],
                                 resp_profile['width']),
                          fill_value=0.0,
-                         dtype=np.float64)
+                         dtype=np.float32)
     for pred in predictors:
         model_data += optimal_weights[pred] * pred.get_data()
 
