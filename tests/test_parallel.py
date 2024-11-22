@@ -9,16 +9,12 @@ import itertools
 import random
 import rasterio as rio
 
-from rasterio.plot import show as rioshow
-
 from landiv_blur import helper as lbhelp
 from landiv_blur import io as lbio
 from landiv_blur import io_ as lbio_
 from landiv_blur import processing as lbproc
 from landiv_blur import prepare as lbprep
 from landiv_blur import inference as lbinf
-from landiv_blur.filters import gaussian as lbf_gauss
-
 from landiv_blur import parallel as lbpara
 from landiv_blur.filters import gaussian as lbf_gauss
 
@@ -1020,4 +1016,110 @@ def test_model_output(datafiles, create_blurred_tif):
     model_band = model_source.get_band(bidx=1)
     # make sure we get the same
     np.testing.assert_allclose(model_band.get_data(), model_data)
+
+
+@ALL_MAPS
+def test_calculate_rmse(datafiles, create_blurred_tif):
+    """Test the parallelized RSME calculation.
+      """
+    block_size = (500, 500)
+    blurred_source = lbio_.Source(path=create_blurred_tif)
+    predictors = blurred_source.get_bands()
+    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    lbio.coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
+    resp_source = lbio_.Source(path=ndvi_map)
+    resp_profile = resp_source.import_profile()
+    resp_profile['count'] = 1
+
+    # Masks (important for latter model fitting)
+    for p in predictors:
+        p.set_mask_reader(use="source")
+    lbpara.compute_mask(source=resp_source, nodata=np.nan, block_size=block_size)
+
+    # Comupte selector (else the data does not overlap)
+    print('Calculate Selector')
+    selector = lbpara.prepare_selector(resp_source.get_band(bidx=1), *predictors,
+                                       block_size=block_size)
+
+    print('computing weights')
+    optimal_weights = lbpara.compute_weights(response=ndvi_map,
+                                             predictors=predictors,
+                                             block_size=block_size,
+                                             as_dtype=np.float64,
+                                             include_intercept=False,
+                                             sanitize_predictors=True)
+    print(f'{optimal_weights=}')
+    print('done!')
+    # perform the computation in parallel
+    model_output_file = str(datafiles / 'model_out.tif')
+    verbose = False
+    params = dict()
+    print('Compute the model prediction')
+    model_out = lbpara.compute_model(
+        predictors=predictors,
+        predictors_as_dtype=np.float64,
+        optimal_weights=optimal_weights,
+        output_file=model_output_file,
+        block_size=block_size,
+        profile=resp_profile,
+        verbose=verbose,
+        **params)
+
+    # make sure we get the same
+    ndvi_band = resp_source.get_band(bidx=1)
+    model_band = lbio_.Source(path=model_out).get_band(bidx=1)
+    ndvi_array = ndvi_band.get_data()
+    model_array = model_band.get_data()
+
+    # Selector
+    ndvi_array[~selector] = np.nan
+    model_array[~selector] = np.nan
+
+    # -- - -- - -- - -- - -- - -- - -- - -- - -- - -- - -- - -- - -- - -- -
+    # NOTE: Test results are very bad (weird) due to blurring border around CH
+    # plot images for better understanding
+
+    # RMSE
+    residuals = np.subtract(ndvi_array, model_array)
+    residuals_pw = np.power(residuals, 2)
+    n = np.count_nonzero(~np.isnan(residuals_pw))
+    ssr = np.nansum(residuals_pw)
+    rmse_manual = np.sqrt((ssr / n))
+    print(f"{rmse_manual=}")
+
+    rmse = lbpara.calculate_rmse(response=ndvi_band,
+                                 model=model_band,
+                                 selector=selector,
+                                 block_size=block_size,)
+    print(f'{rmse=}')
+    np.testing.assert_almost_equal(rmse, rmse_manual, decimal=6)
+
+    # R2
+    y_mean = np.nanmean(ndvi_array)
+    diff_mean = np.subtract(ndvi_array, y_mean)
+    diff_mean_pw = np.power(diff_mean, 2)
+    sst = np.nansum(diff_mean_pw)
+    r2_manual = 1 - (ssr / sst)
+    print(f"{r2_manual=}")
+
+    r2 = lbpara.calculate_r2(response=ndvi_band,
+                             model=model_band,
+                             selector=selector,
+                             block_size=block_size,)
+    print(f'{r2=}')
+    np.testing.assert_almost_equal(r2, r2_manual, decimal=6)
+
+    # Some Plotting to check whether this is accurate
+    # fig, ax = plt.subplots(nrows=1, ncols=3)
+    # ax[0].imshow(ndvi_array)
+    # ax[1].imshow(model_array)
+    # ax[2].imshow(selector)
+    #
+    # fig2, ax2 = plt.subplots(nrows=1, ncols=2)
+    # scale_min = min(np.nanmin(residuals), np.nanmin(diff_mean))
+    # scale_max = max(np.nanmax(residuals), np.nanmax(diff_mean))
+    # ax2[0].imshow(residuals, vmin=scale_min, vmax=scale_max)
+    # ax2[1].imshow(diff_mean, vmin=scale_min, vmax=scale_max)
+    # plt.show()
+
 
