@@ -87,7 +87,7 @@ def create_blurred_tif(datafiles):
     _ = filter_params.pop('diameter')
     blurred_tif = extract_categories(
         source=lct_source,
-        categories=[1,2,3,4,5],
+        categories=[1,3,4,5,6],
         output_file=blur_out,
         img_filter=gaussian,
         filter_params=filter_params,
@@ -124,7 +124,7 @@ def create_blurred_tif_float(datafiles):
     _ = filter_params.pop('diameter')
     blurred_tif = extract_categories(
         source=lct_source,
-        categories=[1,2,3,4,5],
+        categories=[1,3,4,5,6],
         output_file=blur_out,
         img_filter=gaussian,
         filter_params=filter_params,

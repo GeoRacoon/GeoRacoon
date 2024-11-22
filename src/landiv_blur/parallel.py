@@ -1203,7 +1203,7 @@ def compute_model(predictors: Collection[Band],
                   optimal_weights: dict | None,
                   output_file: str,
                   block_size: tuple[int, int],
-                  predicotrs_as_dtype: None=None,
+                  predictors_as_dtype: None=None,
                   profile: dict | None = None,
                   selector: NDArray[np.bool_] | None = None,
                   verbose: bool = False,
@@ -1220,7 +1220,7 @@ def compute_model(predictors: Collection[Band],
         Path to where the model result should be written to
     block_size: tuple of int
         Size (width, height) in #pixel of the block that a single job processes
-    predicotrs_as_dtype:
+    predictors_as_dtype:
         Datatype to convert predictor input to (e.g. np.float32) this will rescale them to [0, 1],
         which is used in the compute weights function.
     profile:
@@ -1243,7 +1243,6 @@ def compute_model(predictors: Collection[Band],
     # get all source files
     sources = tuple(set(pred.source.path for pred in predictors))
     check_compatibility(*sources)
-
 
     # Handle the output profile
     if profile is None:
@@ -1272,7 +1271,7 @@ def compute_model(predictors: Collection[Band],
     for view in inner_views:
         bparams = dict(view=view,
                        predictors=predictors,
-                       predicotrs_as_dtype=predicotrs_as_dtype,
+                       predictors_as_dtype=predictors_as_dtype,
                        selector=selector,
                        optimal_weights=optimal_weights,)
         block_params.append(bparams)
@@ -2406,3 +2405,252 @@ def compute_weights(response: str | Band,
                                    view_size=block_size_params["get_optimal_betas"],
                                    **params)
     return betas_dict
+
+
+def block_ssr(params: dict, ssr_parts: list):
+    """Partialy calculate the Sum of Squares for the Residuals (SSR)
+    """
+
+    response = params.pop("response")
+    model = params.pop("model")
+    selector = params.pop("selector")
+    view = params.get('view')
+    window = view_to_window(view)
+
+    # Get data from window
+    response_data = response.get_data(window=window)
+    model_data = model.get_data(window=window)
+
+    # Selector application
+    _selector = selector[window.toslices()]
+    response_data[~_selector] = np.nan
+    model_data[~_selector] = np.nan
+
+    # Calculate Residuals and aggregate them
+    residuals = np.subtract(response_data, model_data)
+    residuals_pwr = np.power(residuals, 2)
+    return ssr_parts.append((np.nansum(residuals_pwr), np.count_nonzero(~np.isnan(residuals_pwr))))
+
+
+def block_sst(params: dict, sst_parts: list):
+    """Partialy calculate the Sum of Squares Total (SST)
+    """
+    #TODO: maybe reduce redundancy between this function an the one above (ssr)
+
+    response = params.pop("response")
+    y_mean = params.pop("y_mean")
+    selector = params.pop("selector")
+    view = params.get('view')
+    window = view_to_window(view)
+
+    # Get data from window
+    response_data = response.get_data(window=window)
+
+    # Selector application
+    _selector = selector[window.toslices()]
+    response_data[~_selector] = np.nan
+
+    # Calculate Residuals and aggregate them
+    diff_mean = np.subtract(response_data, y_mean)
+    diff_pwr = np.power(diff_mean, 2)
+    return sst_parts.append((np.nansum(diff_pwr), np.count_nonzero(~np.isnan(diff_pwr))))
+
+
+def calculate_rmse(response: str | Band,
+                   model: str | Band,
+                   selector: NDArray[np.bool_],
+                   block_size: Union[dict[str, tuple[int, int]], tuple[int, int]],
+                   verbose: bool = False,
+                   **params):
+    """Compute the Root mean square error (RSME) based on a predicted model and original response data.
+     The formula for RMSE is:
+
+        RMSE = sqrt(Σ((prediction_i - actual_i)²) / n)
+
+    Note: Prepare masks accordingly for model and response file, a selector will be calculated based on those.
+       Parameters
+    ----------
+    response:
+        Band object or path to tif file of response data used for computing optimal weights.
+    model:
+        Band object or path to tif file of model prediction data derived from optimal weights.
+    selector:
+        Boolean numpy array to mask response and model by. This is key to only use areas of interest where goodness of
+        fit wants to be estimated. The user is responsible for choosing such accordingly.
+    block_size:
+        Size (width, height) in #pixel of the block that a single job processes
+    verbose:
+        Trigger verbose output.
+    **params:
+        Optional arguments:
+        - `nbr_cpus` (int): how many CPUs should be used (by default the number
+          of available CPUs minus one will be used.
+        - `start_method` (str): Determines how the workers should start a
+          process. Accepted are 'spawn', 'fork' or 'forkserver'.
+    """
+
+    if not isinstance(response, Band):
+        response = Band(source=Source(path=response),bidx=1)
+    if not isinstance(model, Band):
+        model = Band(source=Source(path=model), bidx=1)
+
+    # Check compatibility
+    response.source.check_compatibility(model.source)
+
+    src_profile = response.source.import_profile()
+    width = int(src_profile.get('width'))
+    height = int(src_profile.get('height'))
+
+    # Parameter for the individual jobs
+    _, inner_views = create_views(view_size=block_size,
+                                  border=(0, 0),
+                                  size=(width, height))
+    block_params = []
+    for view in inner_views:
+        bparams = dict(view=view,
+                       response=response,
+                       selector=selector,
+                       model=model,)
+        block_params.append(bparams)
+
+
+    manager = Manager()
+    ssr_parts = manager.list()
+    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
+    assert start_method in MPC_STARTER_METHODS
+
+    # get number of cpu's
+    nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
+    if verbose:
+        print(f"using {nbr_cpus=}")
+    with get_context(start_method).Pool(nbr_cpus) as pool:
+
+        # start the block calculation processing
+        all_jobs = []
+        for pparams in block_params:
+            all_jobs.append(pool.apply_async(block_ssr,
+                                             (pparams, ssr_parts)))
+        # collect results
+        job_timers = []
+        for job in all_jobs:
+            job_timers.append(job.get())
+        pool.close()
+        pool.join()
+
+    # Aggregate results
+    # TODO: this can be calcualted nicer (maybe use sth else than
+    total_ssr = sum(res[0] for res in ssr_parts)
+    total_n = sum(res[1] for res in ssr_parts)
+    rmse = np.sqrt(total_ssr / total_n)
+    return rmse
+
+
+def calculate_r2(response: str | Band,
+                 model: str | Band,
+                 selector: NDArray[np.bool_],
+                 block_size: Union[dict[str, tuple[int, int]], tuple[int, int]],
+                 verbose: bool = False,
+                 **params):
+    """Compute the Coefficient of Determination (R2) based on a predicted model and original response data.
+    The formula for R2 is:
+        R^2 = 1 - (SS_res / SS_tot)
+    Where:
+        - SS_res is the sum of squares of residuals:
+            SS_res = Σ(y_i - f_i)^2
+            where y_i are the observed values, and f_i are the predicted values.
+        - SS_tot is the total sum of squares:
+            SS_tot = Σ(y_i - ȳ)^2
+            where ȳ is the mean of the observed values.
+
+    Note: Prepare masks accordingly for model and response file, a selector will be calculated based on those.
+    ----------
+    response:
+        Band object or path to tif file of response data used for computing optimal weights.
+    model:
+        Band object or path to tif file of model prediction data derived from optimal weights.
+    selector:
+        Boolean numpy array to mask response and model by. This is key to only use areas of interest where goodness of
+        fit wants to be estimated. The user is responsible for choosing such accordingly.
+    block_size:
+        Size (width, height) in #pixel of the block that a single job processes
+    verbose:
+        Trigger verbose output.
+    **params:
+        Optional arguments:
+        - `nbr_cpus` (int): how many CPUs should be used (by default the number
+          of available CPUs minus one will be used.
+        - `start_method` (str): Determines how the workers should start a
+          process. Accepted are 'spawn', 'fork' or 'forkserver'.
+    """
+
+    if not isinstance(response, Band):
+        response = Band(source=Source(path=response),bidx=1)
+    if not isinstance(model, Band):
+        model = Band(source=Source(path=model), bidx=1)
+
+    # Check compatibility
+    response.source.check_compatibility(model.source)
+
+    src_profile = response.source.import_profile()
+    width = int(src_profile.get('width'))
+    height = int(src_profile.get('height'))
+
+    # Parameter for the individual jobs
+    _, inner_views = create_views(view_size=block_size,
+                                  border=(0, 0),
+                                  size=(width, height))
+
+    # Calculate overall mean of response (needed for SST)
+    # TODO: this has not been parallelized (but we can as well of course)
+    total_sum = 0
+    total_n = 0
+    for view in inner_views:
+        window = view_to_window(view)
+        response_data = response.get_data(window=window)
+        _selector = selector[window.toslices()]
+        response_data[~_selector] = np.nan
+        total_sum += np.nansum(response_data)
+        total_n += np.count_nonzero(~np.isnan(response_data))
+    y_mean = total_sum / total_n
+
+    # Block parameters
+    block_params = []
+    for view in inner_views:
+        bparams = dict(view=view,
+                       response=response,
+                       model=model,
+                       selector=selector,
+                       y_mean=y_mean)
+        block_params.append(bparams)
+
+    manager = Manager()
+    ssr_parts = manager.list()
+    sst_parts = manager.list()
+    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
+    assert start_method in MPC_STARTER_METHODS
+
+    # get number of cpu's
+    nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
+    if verbose:
+        print(f"using {nbr_cpus=}")
+    with get_context(start_method).Pool(nbr_cpus) as pool:
+
+        # start the block calculation processing
+        all_jobs = []
+        for pparams in block_params:
+            all_jobs.append(pool.apply_async(block_ssr,
+                                             (pparams, ssr_parts)))
+            all_jobs.append(pool.apply_async(block_sst,
+                                             (pparams, sst_parts)))
+        # collect results
+        job_timers = []
+        for job in all_jobs:
+            job_timers.append(job.get())
+        pool.close()
+        pool.join()
+
+    # Aggregate results
+    total_ssr = sum(res[0] for res in ssr_parts)
+    total_sst = sum(res[0] for res in sst_parts)
+    r2 = 1 - (total_ssr / total_sst)
+    return r2
