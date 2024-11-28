@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import os
 import glob
-from re import match
-from numpy import mat
 import rasterio
 
 
