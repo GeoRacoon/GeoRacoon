@@ -1,4 +1,5 @@
 import pytest
+import os
 import rasterio as rio
 import numpy as np
 from skimage.filters import gaussian
@@ -230,25 +231,56 @@ def test_tif_compression(datafiles):
         get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     )
     for file in test_data:
-        file_tagged = lbio.outfile_suffix(file, "tagged")
+        # decompress it
+        file_decompressed = lbio.compress_tif(file, compression=None)
+        decompressed_size = os.path.getsize(file_decompressed)
+        # compress it
+        file_compressed = lbio.compress_tif(file_decompressed)
+        compressed_size = os.path.getsize(file_compressed)
+        assert decompressed_size > compressed_size
+        # decompress it again
+        file_re_decompressed = lbio.compress_tif(file_compressed, compression=None)
+        re_decompressed_size = os.path.getsize(file_re_decompressed)
+        assert decompressed_size == re_decompressed_size
+
+
+@ALL_MAPS
+def test_compression_tagging(datafiles):
+    """Test whether compression transfers all tags corerctly
+    """
+    test_data = (
+        get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles),
+        get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    )
+    dataset_tags = dict(
+        ds_tag='test'
+    )
+    for file in test_data:
+        orig_file_tagged = lbio.outfile_suffix(file, "orig_tagged")
         # create file copy with tags
         target = {}
         with rio.open(file) as src:
             profile = src.profile
-            with rio.open(file_tagged, 'w', **profile) as dst:
+            with rio.open(orig_file_tagged, 'w', **profile) as dst:
+                lbio.set_tags(dst, **dataset_tags)
                 for bidx in range(1, src.count + 1):
                     dst.write(src.read(bidx), bidx)
                     lbio.set_tags(dst, bidx, category=np.random.randint(low=0, high=255))
                     target[bidx] = lbio.get_tags(src=dst, bidx=bidx)
+        file_tagged = lbio.outfile_suffix(file, "tagged")
+        # uncompress it
+        file_tagged = lbio.compress_tif(orig_file_tagged, compression=None)
 
         # compress file and check if tags match
         file_compress = lbio.compress_tif(file_tagged)
         test = {}
         with rio.open(file_compress) as src:
+            dataset_tags_copied = lbio.get_tags(src=src)
             for bidx in range(1, src.count + 1):
                 tags = lbio.get_tags(src=src, bidx=bidx)
                 test[bidx] = tags
 
+        assert dataset_tags_copied == dataset_tags
         assert len(target) == len(test)
         assert target == test
 
