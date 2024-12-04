@@ -750,28 +750,39 @@ def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_m
     return output
 
 
-def compress_tif(source, output=None):
+def compress_tif(source, output:str|None=None, compression:str|None='lzw'):
     """Compress tif file with LZW compression
 
     Parameters
     ----------
     source: str
       The path to the tif file you want to compress
+    output:
+      Optional path to output file.
+      If not set, the resulting file will inherit the filename from `source` and get
+      a `_compress` appended to the filename.
+      If compression is `'none'`, i.e. no compression the appendix will be '_decompressed'
 
     Returns
     -------
     str:
       The name of the compressed file
     """
+    if compression is None:
+        compression = 'none'
     if output is None:
-        output = outfile_suffix(source, "compress")
+        if compression != 'none':
+            output = outfile_suffix(source, "compress")
+        else:
+            output = outfile_suffix(source, "decompressed")
 
     with rasterio.Env():
         with rasterio.open(source) as src:
             profile = src.profile
-            profile.update(compress="lzw")
+            profile.update(compress=compression)
 
             with rasterio.open(output, 'w', **profile) as dst:
+                set_tags(src=dst, bidx=None, **get_tags(src=src, bidx=None))
                 for i in range(1, src.count + 1):
                     array = src.read(i)
                     dst.write(array, i)
