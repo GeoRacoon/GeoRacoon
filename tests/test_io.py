@@ -242,6 +242,11 @@ def test_tif_compression(datafiles):
         file_re_decompressed = lbio.compress_tif(file_compressed, compression=None)
         re_decompressed_size = os.path.getsize(file_re_decompressed)
         assert decompressed_size == re_decompressed_size
+        # replace file:
+        _ = lbio.compress_tif(file_re_decompressed, output=file_re_decompressed)
+        replaced_size = os.path.getsize(file_re_decompressed)
+        # make sure the original file changed
+        assert replaced_size < re_decompressed_size
 
 
 @ALL_MAPS

@@ -224,10 +224,20 @@ def nodata_mask_band(source, nodata=None):
                 src.write_mask(msk, window=window)
 
 
-def outfile_suffix(filename, suffix):
+def outfile_suffix(filename, suffix, separator:str='_'):
     """Insert suffix into filename and hand back basename_suffix.extension"""
     base, ext = os.path.splitext(filename)
-    return f"{base}_{suffix}{ext}"
+    return f"{base}{separator}{suffix}{ext}"
+
+def strip_suffix(filename:str, separator:str='_'):
+    """Removes the last suffix from the name (i.e. the last part separated by '_')
+    """
+    base, ext = os.path.splitext(filename)
+    if separator in filename:
+        _base = separator.join(filename.split(separator)[:-1])
+    else:
+        _base = base
+    return f"{_base}{ext}"
 
 def output_filename(base_name: str, out_type: str, blur_params: dict):
     """Construct the filename for the specific output type.

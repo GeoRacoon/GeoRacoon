@@ -770,11 +770,15 @@ def compress_tif(source, output:str|None=None, compression:str|None='lzw'):
     """
     if compression is None:
         compression = 'none'
+    overwrite = False
     if output is None:
         if compression != 'none':
             output = outfile_suffix(source, "compress")
         else:
             output = outfile_suffix(source, "decompressed")
+    elif output == source:
+        overwrite = True
+        output = outfile_suffix(source, 'tmp')
 
     with rasterio.Env():
         with rasterio.open(source) as src:
@@ -790,4 +794,8 @@ def compress_tif(source, output:str|None=None, compression:str|None='lzw'):
                     set_tags(dst, bidx=i, **tags)
                     band_names = src.descriptions[(i - 1)]
                     dst.set_band_description(i, band_names)
+    if overwrite:
+        os.remove(source)
+        os.rename(src=output, dst=source)
+        output = source
     return output

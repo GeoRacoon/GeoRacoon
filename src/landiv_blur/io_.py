@@ -348,12 +348,14 @@ class Source:
                 )
         return midx
 
-    def compress(self, output=None):
+    def compress(self, output:str|None=None, compression:str|None='lzw', keep_original:bool=False):
         uncompressed = self.path
         # create a compressed file
-        self.path = Path(compress_tif(str(self.path), output=output))
+        self.path = Path(compress_tif(str(self.path),
+                                      output=output,
+                                      compression=compression))
         # remove uncompressed file:
-        if uncompressed != self.path:
+        if not keep_original and uncompressed != self.path:
             os.remove(uncompressed)
 
     def check_compatibility(self, *sources: Source):
