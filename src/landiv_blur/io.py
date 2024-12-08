@@ -788,8 +788,9 @@ def compress_tif(source, output:str|None=None, compression:str|None='lzw'):
             with rasterio.open(output, 'w', **profile) as dst:
                 set_tags(src=dst, bidx=None, **get_tags(src=src, bidx=None))
                 for i in range(1, src.count + 1):
-                    array = src.read(i)
-                    dst.write(array, i)
+                    for ji, window in src.block_windows(i):
+                        array = src.read(i, window=window)
+                        dst.write(array, i, window=window)
                     tags = get_tags(src, bidx=i)
                     set_tags(dst, bidx=i, **tags)
                     band_names = src.descriptions[(i - 1)]
