@@ -354,8 +354,8 @@ def convert_to_dtype(data: NDArray,
             _inmax, _inmin = dtype_range(in_dtype)
     else:
         # we convert to float since Decimal cannot handle np.uintX
-        _inmax = float(np.max(in_range))
-        _inmin = float(np.min(in_range))
+        _inmax = float(np.nanmax(in_range))
+        _inmin = float(np.nanmin(in_range))
     # now the output dtype
     if out_range is None:
         if np.issubdtype(as_dtype, np.floating):
@@ -364,8 +364,8 @@ def convert_to_dtype(data: NDArray,
             _outmax, _outmin = dtype_range(as_dtype)
     else:
         # we convert to float since Decimal cannot handle np.uintX
-        _outmax = float(np.max(out_range))
-        _outmin = float(np.min(out_range))
+        _outmax = float(np.nanmax(out_range))
+        _outmin = float(np.nanmin(out_range))
     scale = (Decimal(_outmax) - Decimal(_outmin)) / \
             (Decimal(_inmax) - Decimal(_inmin))
     return _outmin + ((data - _inmin) * float(scale)).astype(as_dtype)
