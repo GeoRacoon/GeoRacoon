@@ -365,6 +365,7 @@ def get_filtered_categories(data:NDArray,
 
 def compute_entropy(data_arrays: Sequence[NDArray],
                     normed:bool=True,
+                    max_entropy_categories:int|None=None,
                     output_dtype:type|None=np.uint8,
                     **entropy_params)->NDArray:
     """Per cell entropy computed over a series of data arrays
@@ -375,9 +376,11 @@ def compute_entropy(data_arrays: Sequence[NDArray],
       A series of data arrays to stack and compute the per-cell entropy for
     normed:
       Determines if the values in the provided arrays should be normed or not.
+    max_entropy_categories:
+      If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
+      Same as the output_dtype, this argument is ignored if `normed=False`.
     output_dtype:
       Set the data-type of the resulting `np.array`
-
       ..Note::
         This argument is ignored if `normed=False`.
 
@@ -402,7 +405,10 @@ def compute_entropy(data_arrays: Sequence[NDArray],
     _stacked = np.stack(data_arrays, axis=2)
     entropy_array = entropy(_stacked, axis=2, **entropy_params)
     if normed:
-        max_entropy = get_max_entropy(len(data_arrays))
+        if max_entropy_categories is None:
+            max_entropy = get_max_entropy(len(data_arrays))
+        else:
+            max_entropy = get_max_entropy(max_entropy_categories)
         entropy_array = entropy_array / max_entropy
         if output_dtype:
             _max, _ = dtype_range(output_dtype)
@@ -485,6 +491,7 @@ def compute_interaction(data_arrays: Sequence[NDArray],
 def get_entropy(data:NDArray,
                 categories:Collection|None=None,
                 normed:bool=False,
+                max_entropy_categories:int|None=None,
                 img_filter:Callable|None=None,
                 output_dtype:type|None=None,
                 filter_params:dict|None=None,
@@ -509,6 +516,9 @@ def get_entropy(data:NDArray,
       Determine whether or not the entropy should be normalized.
       If set to `True` each cell is normed by the maximal entropy value
       possible, i.e. `entropy(np.ones(len(categories)))`.
+    max_entropy_categories:
+      If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
+      This argument is ignored if `normed=False`.
     output_dtype:
       The data-type to use for the returned array.
 
@@ -539,6 +549,7 @@ def get_entropy(data:NDArray,
     entropy_params = entropy_params or dict()
     return compute_entropy(data_arrays=tuple(blurred_categories.values()),
                            normed=normed,
+                           max_entropy_categories=max_entropy_categories,
                            output_dtype=output_dtype, **entropy_params)
 
 def view_blurred(source:str,
@@ -616,6 +627,7 @@ def view_blurred(source:str,
 def  view_entropy(category_arrays:dict[int, NDArray],
                   view:tuple[int,int,int,int],
                   normed:bool = True,
+                  max_entropy_categories: int|None = None,
                   output_dtype:type|None = np.uint8):
     """Return a per-cell entropy computed from the per category arrays.
 
@@ -631,6 +643,8 @@ def  view_entropy(category_arrays:dict[int, NDArray],
       A series of data arrays to stack and compute the per-cell entropy for
     view:
       defining the view of the data arrays to consider
+    normed:
+    max_entropy_categories:
     output_dtype:
       Set the data-type of the returned array.
 
@@ -639,6 +653,7 @@ def  view_entropy(category_arrays:dict[int, NDArray],
     entropy_array = compute_entropy(
         data_arrays=tuple(category_arrays.values()),
         normed=normed,
+        max_entropy_categories=max_entropy_categories,
         output_dtype=output_dtype,
     )
     return dict(data=entropy_array, view=view)

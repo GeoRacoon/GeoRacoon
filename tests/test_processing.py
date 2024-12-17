@@ -129,6 +129,10 @@ def test_entropy_normalization_conversion(datafiles):
     normed_entropy_data = lbproc.get_entropy(data, categories=categories,
                                               normed=True,
                                               img_filter=gaussian)
+    normed_set_maximum_entropy_data = lbproc.get_entropy(data, categories=categories,
+                                                normed=True,
+                                                max_entropy_categories=(len(categories) * 2),
+                                                img_filter=gaussian)
     rescaled_entropy_data = lbproc.get_entropy(data, categories=categories,
                                                 normed=True,
                                                 output_dtype=np.uint8,
@@ -138,8 +142,11 @@ def test_entropy_normalization_conversion(datafiles):
            'Maximal entropy is exceeded'
     assert np.nanmax(normed_entropy_data) == \
            np.nanmax(entropy_data)/max_entropy, 'Normalization is faulty'
+    assert np.nanmax(normed_set_maximum_entropy_data) <= \
+           np.nanmax(entropy_data)/ lbproc.get_max_entropy(len(categories)*2)
     assert np.nanmax(rescaled_entropy_data) <= 255
     assert rescaled_entropy_data.dtype == np.uint8
+
 
 @ALL_MAPS
 def test_interaction_computation(datafiles):
