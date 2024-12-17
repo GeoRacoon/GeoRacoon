@@ -715,6 +715,40 @@ class Band:
         else:
             return count
 
+
+    def get_min_max(self, no_data:Union[int,float], selector:NDArray|None=None):
+        """Get the minimum and maximum values in a band
+        Parameters
+        ----------
+        selector:
+          A boolean array in the same shape as the data stored in the band
+        no_data:
+          Value of a cell considered as invalid value.
+        """
+        if selector is None:
+            self.source.import_profile()
+            height = self.source.profile['height']
+            width = self.source.profile['width']
+            selector = np.full(shape=(height, width), fill_value=True)
+
+        bidx = self.get_bidx()
+        _min = []
+        _max = []
+        with self.source.open() as src:
+            for _ji, window, in src.block_windows(bidx):
+                data = src.read(bidx, window=window)
+                wdw_selector = selector[window.toslices()]
+                valid_mask = wdw_selector & (data != no_data)
+                valid_data = data[valid_mask]
+                if valid_data.size > 0:
+                    _min.append(np.nanmin(valid_data))
+                    _max.append(np.nanmax(valid_data))
+
+        if _min and _max:
+            return min(_min), max(_max)
+        else:
+            return None
+
     @contextmanager
     def data_writer(self, match:str|list|None=None, **kwargs):
         """

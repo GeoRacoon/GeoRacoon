@@ -29,10 +29,12 @@ def test_Band_operations(datafiles):
     band = Band(source=Source(test_file), bidx=1, tags=b1_tags)
     band.init_source(profile=profile, overwrite=True)
     band.export_tags()
+
     # create some data
     init_data = np.full(shape=(height, width), fill_value=0.0)
     band.set_data(init_data)
-    # adding some 
+
+    # adding some
     add_data = np.full(shape=(height, width), fill_value=0.0)
     add_data[2:4, 2:4] = 1
     adding_band = Band(source=Source(test_file), bidx=2)
@@ -41,6 +43,19 @@ def test_Band_operations(datafiles):
     np.testing.assert_equal(band.get_data(), add_data)
     band.subtract(adding_band)
     np.testing.assert_equal(band.get_data(), init_data)
+
+    # min max test
+    mm_data = np.random.rand(height, width)
+    mm_data[2:3, 1:4] = 0
+    mm_data[4, 4] = np.nan
+    mm_min = np.nanmin(mm_data[mm_data>0])
+    mm_max = np.nanmax(mm_data[mm_data>0])
+    mm_band = Band(source=Source(test_file), bidx=3)
+    mm_band.set_data(mm_data)
+    is_min, is_max = mm_band.get_min_max(no_data=0)
+    assert mm_min == is_min
+    assert mm_max == is_max
+
     # with another band
     test_file_2 = datafiles / 'band_ops_test_2.tif'
     band_out = Band(source=Source(test_file_2), bidx=1, tags=b1_tags)
