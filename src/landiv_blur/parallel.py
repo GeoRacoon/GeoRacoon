@@ -887,6 +887,7 @@ def compute_entropy(source: str | Source,
                     categories: list | None = None,
                     entropy_as_ubyte: bool = True,
                     normed: bool = True,
+                    max_entropy_categories: int | None = None,
                     plot_pdf_preview: bool = True,
                     verbose: bool = False,
                     **params):
@@ -910,6 +911,9 @@ def compute_entropy(source: str | Source,
         Should the entropy be normalized and returned as ubyte?
     normed:
         If the entropy should be normalized
+    max_entropy_categories:
+      If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
+      Same as the output_dtype, this argument is ignored if `normed=False`.
     plot_pdf_preview:
         Whether a preview (.pdf) plot of the result should be generated
     verbose:
@@ -988,6 +992,7 @@ def compute_entropy(source: str | Source,
                        categories=categories,
                        inner_view=inner_view,
                        normed=normed,
+                       max_entropy_categories=max_entropy_categories,
                        entropy_as_ubyte=entropy_as_ubyte, )
         block_params.append(bparams)
 
@@ -1759,10 +1764,12 @@ def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
 
         entropy_as_ubyte = params.pop('entropy_as_ubyte', False)
         normed = params.pop('normed', True)
+        max_entropy_categories = params.pop('max_entropy_categories', None)
         entropy_params = dict(
+            category_arrays=blurred_data,
             view=view,
             normed=normed,
-            category_arrays=blurred_data,
+            max_entropy_categories=max_entropy_categories,
             output_dtype=np.uint8 if entropy_as_ubyte else None,
         )
         # This would return the entropy data
