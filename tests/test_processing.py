@@ -3,6 +3,7 @@ from skimage.filters import gaussian
 from scipy.stats import entropy
 import itertools
 import random
+import pytest
 
 from landiv_blur import io as lbio
 from landiv_blur import processing as lbproc
@@ -114,6 +115,39 @@ def test_filter_data(datafiles):
                                            filter_output_range=[0.,1.],
                                            output_dtype=np.uint8)
         np.testing.assert_equal(data, filtered_data)
+
+@ALL_MAPS
+def test_filter_data_float(datafiles):
+    """Make sure that filter works with floats (continous) data as well
+    """
+    ch_f_map_tif = get_file(pattern="Switzerland_area_frac_*.tif", datafiles=datafiles)
+    diameter = 10000  # 10km
+    scale = 1000  # meter per pixel
+    truncate = 3  # after 3 sigma
+    real_sigma = 0.5 * diameter / truncate
+    filter_params=dict(
+        sigma=real_sigma / scale,  # in pixel,
+        truncate=truncate
+    )
+    ch_f_data = lbio.load_map(ch_f_map_tif)['data']  # this will automatically take the first band (okay here)
+    # First without replacint NaN values (so the image will be cropped)
+    with pytest.warns(UserWarning) as record:
+        filtered_data = lbproc.filter_data(data=ch_f_data,
+                                           img_filter=gaussian,
+                                           filter_params=filter_params,
+                                           output_dtype=np.float32)
+        assert str(record[0].message).startswith("Raster array has NaN")
+    # Check that the nan's have been 'eating up area'
+    assert np.isnan(filtered_data).sum() >= np.isnan(ch_f_data).sum()
+
+    # Second replace the NaNs with 0s
+    filtered_data = lbproc.filter_data(data=ch_f_data,
+                                       img_filter=gaussian,
+                                       replace_nan_with=0,
+                                       filter_params=filter_params,
+                                       output_dtype=np.float32)
+    # Check that the nan's have been 'eating up area'
+    assert np.isnan(filtered_data).sum() == np.isnan(ch_f_data).sum()
 
 @ALL_MAPS
 def test_entropy_normalization_conversion(datafiles):

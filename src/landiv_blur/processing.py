@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Callable
 from collections.abc import Callable, Collection, Sequence
+import warnings
 
 import numpy as np
 from numpy.typing import NDArray
@@ -224,6 +225,7 @@ def view_data(source:Source|str,
 
 
 def filter_data(data:NDArray,
+                replace_nan_with: Union[int, float] | None = None,
                 img_filter=None,
                 filter_output_range:Collection|None=(0.,1.),
                 filter_params:dict|None=None,
@@ -236,6 +238,9 @@ def filter_data(data:NDArray,
     ----------
     data: np.array
       A 2D numpy array
+
+    replace_nan_with:
+      Replace nan values in `data` with the provided value
 
     img_filter: callable
       a filter function to apply on the np.array
@@ -267,6 +272,16 @@ def filter_data(data:NDArray,
     np.array:
       Resulting data array
     """
+    # check if nan exists
+    # TODO: move this out of this function
+    if np.isnan(np.sum(data)) and replace_nan_with is None:
+        warnings.warn(f"Raster array has NaN - this will crop areas where the given function encounters NaNs. "
+                      f"If needed: Set a replacement value for NaNs ({replace_nan_with=})")
+    # create a mask for NaN values (for restoring later)
+    nan_mask = np.isnan(data)
+    # replace nan with a provided value
+    if replace_nan_with is not None:
+        data = np.nan_to_num(data, nan=replace_nan_with)
     # apply the filter if one is chosen
     if img_filter is not None:
         filter_params = filter_params or dict()
@@ -279,6 +294,9 @@ def filter_data(data:NDArray,
                                  as_dtype=output_dtype,
                                  in_range=filter_output_range,
                                  out_range=output_range)
+    # restore NaNs to original positions (if possible)
+    if np.issubdtype(_data.dtype, np.floating):
+        _data[nan_mask] = np.nan
     return _data
 
 def view_filtered(source:Source|str,
@@ -287,6 +305,7 @@ def view_filtered(source:Source|str,
                   data_in_range:None|NDArray|Collection=None,
                   data_output_dtype:type|None=np.uint8,
                   data_output_range:None|NDArray|Collection=None,
+                  replace_nan_with: Union[int, float] | None = None,
                   img_filter=None,
                   filter_params:dict|None=None,
                   filter_output_range:Collection|None=(0., 1.),
@@ -307,6 +326,7 @@ def view_filtered(source:Source|str,
     for band, data_view in data_views.items():
         _filtered_data = filter_data(
                 data=data_view['data'],
+                replace_nan_with=replace_nan_with,
                 img_filter=img_filter,
                 filter_params=filter_params,
                 filter_output_range=filter_output_range,

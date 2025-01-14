@@ -692,6 +692,7 @@ def apply_filter(source: str | Source,
                  data_in_range:None|NDArray|Collection=None,
                  data_output_dtype:type|None=np.uint8,
                  data_output_range:None|NDArray|Collection=None,
+                 replace_nan_with: Union[int, float] | None = None,
                  img_filter=None,
                  filter_params:dict|None=None,
                  filter_output_range:Collection|None=(0.,1.),
@@ -726,6 +727,9 @@ def apply_filter(source: str | Source,
     data_output_range:
       an array or list from which min and max will be used as limits loaded
       data if its data type is changed
+    replace_nan_with:
+      Replace nan values in the source with the provided value.
+      Avoid having areas 'cropped' due to NaN replacement - yet effects filter output.
     img_filter: Callable
         A filter function that can be applied to the data. See e.g.
         skimage.filter.gaussian
@@ -815,6 +819,7 @@ def apply_filter(source: str | Source,
                        data_in_range=data_in_range,
                        data_output_dtype=data_output_dtype,
                        data_output_range=data_output_range,
+                       replace_nan_with=replace_nan_with,
                        img_filter=img_filter,
                        filter_params=filter_params,
                        filter_output_range=filter_output_range,
