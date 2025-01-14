@@ -17,10 +17,12 @@ FIXTURE_DIR = os.path.abspath(os.path.join(
 ))
 lct_map = os.path.join(FIXTURE_DIR, 'testing', 'landcover',
                  'Switzerland_CLC_2012_reclass8.tif')
+lct_float_map = os.path.join(FIXTURE_DIR, 'testing', 'landcover',
+                 'Switzerland_area_frac_grid_1km_CGLS_2015.tif')
 landiv_map = os.path.join(FIXTURE_DIR, 'testing', 'ndvi',
                  'Switzerland_NDVI_binning_2015.tif')
 
-ALL_MAPS = pytest.mark.datafiles(lct_map, landiv_map)
+ALL_MAPS = pytest.mark.datafiles(lct_map, lct_float_map, landiv_map)
 
 
 def get_file(pattern:str, datafiles):
