@@ -206,34 +206,6 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif):
 
     lct_source = lbio_.Source(path=landcover_map)
     ndvi_source = lbio_.Source(path=ndvi_map)
-    # # ###
-    # # Parameter for blurring
-    # blur_out = str(datafiles / 'blur_out.tif')
-    # ndvi_map = test_data[1]
-    # categories = [1, 2, 3, 4, 5]
-    # img_filter = lbf_gauss.gaussian
-    # diameter = 5000  # this is in meter
-    # scale = 100  # meter per pixel
-    # truncate = 3
-    # _diameter = diameter / scale
-    # blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
-    # filter_params = blur_params.copy()
-    # _ = filter_params.pop('diameter')
-    # view_size = (500, 400)
-    # blur_as_int = True
-    # # ###
-    # # compute the blurred bands
-    # blurred_tif = lbpara.extract_categories(
-    #     source=lct_source,
-    #     categories=categories,
-    #     output_file=blur_out,
-    #     img_filter=img_filter,
-    #     filter_params=filter_params,
-    #     blur_as_int=blur_as_int,
-    #     block_size=view_size,
-    #     compress = True
-    # )
-    # blurred_source = lbio_.Source(path=blurred_tif)
     blurred_source = lbio_.Source(path=create_blurred_tif)
     # set the mask
     lbpara.compute_mask(source=blurred_source, block_size=(500, 500), nodata=0, logic='all')

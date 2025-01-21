@@ -109,7 +109,9 @@ def get_category_data(data:NDArray,
                       category:int | list[int],
                       img_filter:Callable|None=None,
                       filter_params:dict|None=None,
+                      filter_output_range:tuple|None=None,
                       output_dtype:type|None=None,
+                      output_range:tuple|None=None,
                       as_dtype:type=np.uint8)->NDArray:
     """Return the data of a single category, optionally after applying a filter
 
@@ -131,8 +133,12 @@ def get_category_data(data:NDArray,
       skimage.filter.gaussian
     filter_params:
       Parameter to pass to the filter callable
+    filter_output_range:
+      Optional tuple to pass the output range of the applied filter
     output_dtype:
       Set the data-type of the resulting image
+    output_range:
+      Optional tuple to overwrite the [min,max] range of the output dtype.
 
       ..Note::
         This can be particularly useful if you apply an image filter.
@@ -156,11 +162,12 @@ def get_category_data(data:NDArray,
     _data = select_category(data, category, as_dtype=as_dtype)
     filter_params = filter_params or dict()
     # apply the image filter if provided
-    if img_filter:
-        _data = _apply_filter(_data, img_filter, **filter_params)
-        # convert to the desired output type
-        if output_dtype:
-            _data = convert_to_dtype(data=_data, as_dtype=output_dtype, )
+    _data = filter_data(data=_data,
+                        img_filter=img_filter,
+                        filter_params=filter_params,
+                        filter_output_range=filter_output_range,
+                        output_dtype=output_dtype,
+                        output_range=output_range)
     return _data
 
 def view_data(source:Source|str,
@@ -227,11 +234,12 @@ def view_data(source:Source|str,
 def filter_data(data:NDArray,
                 replace_nan_with: Union[int, float] | None = None,
                 img_filter=None,
-                filter_output_range:Collection|None=(0.,1.),
+                filter_output_range:tuple|None=None,
                 filter_params:dict|None=None,
                 output_dtype:type|None=np.uint8,
                 output_range:tuple|None=None,
                 )->NDArray:
+    # TODO: remove all default arguments!
     """Applies a filter to an `np.array`
 
     Parameters
@@ -289,6 +297,9 @@ def filter_data(data:NDArray,
     else:
         _data = data
     # convert to the desired output type
+    if np.issubdtype(_data.dtype, np.floating):
+        if filter_output_range is None:
+            filter_output_range = (0.0, 1.0)
     if output_dtype is not None:
         _data = convert_to_dtype(data=_data,
                                  as_dtype=output_dtype,
@@ -343,6 +354,8 @@ def get_filtered_categories(data:NDArray,
                             categories: None|Collection=None,
                             img_filter:None|Callable=None,
                             output_dtype:type|None=np.uint8,
+                            output_range:tuple|None=None,
+                            filter_output_range:tuple|None=None,
                             filter_params:dict|None=None)->dict[int, NDArray]:
     """Extract each category into a separate `np.array` and apply an image filter
 
@@ -378,7 +391,10 @@ def get_filtered_categories(data:NDArray,
         _data = get_category_data(data=data, category=category,
                                   img_filter=img_filter,
                                   filter_params=filter_params,
-                                  output_dtype=output_dtype)
+                                  filter_output_range=filter_output_range,
+                                  output_dtype=output_dtype,
+                                  output_range=output_range,
+                                  )
         all_categories[category] = _data
     return all_categories
 
@@ -386,7 +402,8 @@ def get_filtered_categories(data:NDArray,
 def compute_entropy(data_arrays: Sequence[NDArray],
                     normed:bool=True,
                     max_entropy_categories:int|None=None,
-                    output_dtype:type|None=np.uint8,
+                    output_dtype:type|None=None,
+                    output_range:tuple|None=None,
                     **entropy_params)->NDArray:
     """Per cell entropy computed over a series of data arrays
 
@@ -410,6 +427,11 @@ def compute_entropy(data_arrays: Sequence[NDArray],
         With `output_dtype=np.uint8` entropy values are mapped to the range [0, 255]
         and an array of type `np.uint8` is returned with a considerably smaller
         memory footprint.
+    output_range:
+      Set the output range for the resulting `np.array`
+
+      ..Note::
+        This argument is ignored if `normed=False`.
 
     **entropy_params:
       You might add further keyword arguments that will be passed to
@@ -425,14 +447,30 @@ def compute_entropy(data_arrays: Sequence[NDArray],
     _stacked = np.stack(data_arrays, axis=2)
     entropy_array = entropy(_stacked, axis=2, **entropy_params)
     if normed:
+        if np.issubdtype(output_dtype, np.floating) and output_range is None:
+            output_range = (0.0, 1.0)  # use the normalization range [0, 1] for float output by default
         if max_entropy_categories is None:
             max_entropy = get_max_entropy(len(data_arrays))
         else:
             max_entropy = get_max_entropy(max_entropy_categories)
-        entropy_array = entropy_array / max_entropy
-        if output_dtype:
-            _max, _ = dtype_range(output_dtype)
-            entropy_array = (entropy_array * _max).astype(output_dtype)
+        # We normalize the entropy by setting the in_range accordingly
+        entropy_array = convert_to_dtype(data=entropy_array,
+                                         as_dtype=output_dtype,  # None will lead to keeping the data type
+                                         in_range=[0.0, max_entropy],
+                                         out_range=output_range)
+    else:
+        if output_dtype is not None:
+            warnings.warn(
+                f"Calculating the entropy with {normed=} ignores "
+                f"{output_dtype=} and will return unconverted output of the "
+                "entropy function!"
+            )
+        if output_range is not None:
+            warnings.warn(
+                f"Calculating the entropy with {normed=} ignores "
+                f"{output_range=} as a non-normalized entropy value is not "
+                "bounded and can thus not be mapped to a data range."
+            )
     return entropy_array
 
 
@@ -441,7 +479,7 @@ def compute_interaction(data_arrays: Sequence[NDArray],
                         standardize:bool=False,
                         normed:bool=True,
                         output_dtype:type|None=np.uint8)->NDArray:
-    """Per cell interaction computed over a series of data arrays
+    r"""Per cell interaction computed over a series of data arrays
     For 'float' inputs:
         .. math::
             LC_i \times LC_j
@@ -514,8 +552,10 @@ def get_entropy(data:NDArray,
                 max_entropy_categories:int|None=None,
                 img_filter:Callable|None=None,
                 output_dtype:type|None=None,
+                output_range:tuple|None=None,
                 filter_params:dict|None=None,
-                entropy_params:dict|None=None)->NDArray:
+                entropy_params:dict|None=None,
+                **params)->NDArray:
     """Compute the Shannon entropy per cell directly from a 2D array of categorical data
 
 
@@ -545,6 +585,11 @@ def get_entropy(data:NDArray,
       ..note::
 
         This argument is only taken into account if `normed=True`.
+    output_range:
+      The data-range to use for the returned array.
+
+      ..note::
+        This argument is only taken into account if `normed=True`.
 
     img_filter:
       A filter function that can be applied to the data. See e.g.
@@ -561,16 +606,26 @@ def get_entropy(data:NDArray,
       A `np.array` with identical shape as the elements in `data_arrays` holding the
       per-cell entropy
     """
+    # TODO: This function does not allow the set `output_dtype` of
+    # `get_filtered_categories`
+    # > Change call signature to
+    #   `get_entropy(blur_params:dict, entropy_params:dict,...)`
     filter_params = filter_params or dict()
+    filter_output_range = params.pop('filter_output_range', None)
+    blur_output_dtype = params.pop('blur_output_dtype', None)
     blurred_categories = get_filtered_categories(data=data,
                                                  categories=categories,
                                                  img_filter=img_filter,
+                                                 filter_output_range=filter_output_range,
+                                                 output_dtype=blur_output_dtype,
                                                  filter_params=filter_params)
     entropy_params = entropy_params or dict()
     return compute_entropy(data_arrays=tuple(blurred_categories.values()),
                            normed=normed,
                            max_entropy_categories=max_entropy_categories,
-                           output_dtype=output_dtype, **entropy_params)
+                           output_dtype=output_dtype,
+                           output_range=output_range,
+                           **entropy_params)
 
 def view_blurred(source:str,
                  view:tuple[int,int,int,int],
@@ -578,7 +633,9 @@ def view_blurred(source:str,
                  categories:Collection|None,
                  img_filter:Callable,
                  filter_params:dict = dict(),
+                 filter_output_range:tuple|None=None,
                  output_dtype:type|None = np.uint8,
+                 output_range:tuple|None=None,
                  **tags):
 
     """Uses a tif file with categorical data to compute blurred binary arrays
@@ -615,6 +672,14 @@ def view_blurred(source:str,
         this data type.
 
         See `get_category_data` for further details.
+    output_range:
+      Optional argument to set an output range of the filter method.
+
+      ..Note::
+        If not provided and the filter method produces data of any float type,
+        hen the output range is assumed to be `[0, 1]` and values outside this
+        range will be set to the closer limit (e.g. `1.2` will become `1` and
+        becomes `0.0`)).
 
     **tags:
       Arbitrary number of keyword arguments to describe the band to select.    
@@ -633,7 +698,9 @@ def view_blurred(source:str,
         categories=categories,
         img_filter=img_filter,
         filter_params=filter_params,
-        output_dtype=output_dtype
+        filter_output_range=filter_output_range,
+        output_dtype=output_dtype,
+        output_range=output_range,
     )
     # get the relative view
     for category, data in blurred_categories.items():
@@ -648,7 +715,8 @@ def  view_entropy(category_arrays:dict[int, NDArray],
                   view:tuple[int,int,int,int],
                   normed:bool = True,
                   max_entropy_categories: int|None = None,
-                  output_dtype:type|None = np.uint8):
+                  output_dtype:type|None = None,
+                  output_range:tuple|None=None):
     """Return a per-cell entropy computed from the per category arrays.
 
     ..Note::
@@ -669,12 +737,16 @@ def  view_entropy(category_arrays:dict[int, NDArray],
       Set the data-type of the returned array.
 
       See `compute_entropy` for further details
+    max_entropy_categories:
+      If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
+      This argument is ignored if `normed=False`.
     """
     entropy_array = compute_entropy(
         data_arrays=tuple(category_arrays.values()),
         normed=normed,
         max_entropy_categories=max_entropy_categories,
         output_dtype=output_dtype,
+        output_range=output_range,
     )
     return dict(data=entropy_array, view=view)
 
@@ -714,8 +786,12 @@ def get_entropy_view(source:str,
                      categories: Collection,
                      img_filter,
                      filter_params:dict=dict(),
-                     entropy_as_ubyte: bool = False,
-                     blur_as_int: bool = False,
+                     max_entropy_categories:int|None=None,
+                     blur_as_int:bool|None=None,
+                     filter_output_range:tuple|None=None,
+                     blur_output_dtype:type|None=None,
+                     output_dtype:type|None=None,
+                     output_range:tuple|None=None,
                      normed:bool=True,
                      **tags):
     """Returns the entropy for some categories over a view from a tif file
@@ -723,19 +799,31 @@ def get_entropy_view(source:str,
     ..Warning::
       This function is deprecated and should not be used
 
+    Parameters
+    ----------
+    max_entropy_categories:
+      If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
+      This argument is ignored if `normed=False`.
+
+    output_range:
+      The data-range to use for the returned array.
+
+      ..note::
+        This argument is only taken into account if `normed=True`.
     **tags:
       Arbitrary number of keyword arguments to describe the band to select.    
 
       See `io.load_block` for further details.
     """
-    if blur_as_int:
-        blur_output_dtype = np.uint8
+    warnings.warn("This function is deprecated and will be removed",
+                  category=DeprecationWarning)
+    if blur_as_int is None:
+        assert blur_output_dtype is not None
     else:
-        blur_output_dtype = np.float64
-    if entropy_as_ubyte:
-        entropy_output_dtype = np.uint8
-    else:
-        entropy_output_dtype = np.float64
+        if blur_as_int:
+            blur_output_dtype = np.uint8
+        else:
+            blur_output_dtype = np.float64
 
     blurred_data = view_blurred(
         source=source,
@@ -744,6 +832,7 @@ def get_entropy_view(source:str,
         categories=categories,
         img_filter=img_filter,
         filter_params=filter_params,
+        filter_output_range=filter_output_range,
         output_dtype=blur_output_dtype,
         **tags
     )
@@ -751,7 +840,10 @@ def get_entropy_view(source:str,
 
     entropy_view = view_entropy(category_arrays=blurred_data['data'],
                                 view=blurred_data['view'],
-                                output_dtype=entropy_output_dtype,
-                                normed=normed)
+                                output_dtype=output_dtype,
+                                output_range=output_range,
+                                normed=normed,
+                                max_entropy_categories=max_entropy_categories,
+                                )
     entropy_view['view'] = blurred_data['view']
     return entropy_view

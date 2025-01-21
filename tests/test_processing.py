@@ -156,28 +156,62 @@ def test_entropy_normalization_conversion(datafiles):
     map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     map_data = lbio.load_map(map_tif)
     data = map_data['data']
+    blur_output_dtype = np.uint8  # convert the blurred data to uint8 before
     categories = lbproc.get_categories(data)
-    entropy_data = lbproc.get_entropy(data, categories=categories,
-                                       normed=False,
-                                       img_filter=gaussian)
-    normed_entropy_data = lbproc.get_entropy(data, categories=categories,
-                                              normed=True,
-                                              img_filter=gaussian)
-    normed_set_maximum_entropy_data = lbproc.get_entropy(data, categories=categories,
+
+    max_entropy = lbproc.get_max_entropy(len(categories))
+    print(f'{max_entropy=}')
+
+    with pytest.warns(expected_warning=UserWarning, match='bounded'):
+        entropy_data = lbproc.get_entropy(data=data,
+                                          categories=categories,
+                                          normed=False,
+                                          output_range=(0,1),  # this should lead to a warning
+                                          img_filter=gaussian,
+                                          blur_output_dtype=blur_output_dtype,
+                                          )
+
+    assert np.nanmax(entropy_data) <= max_entropy, \
+           'Maximal entropy is exceeded'
+
+    with pytest.warns(expected_warning=UserWarning, match='unconverted'):
+        entropy_data = lbproc.get_entropy(data=data,
+                                          categories=categories,
+                                          normed=False,
+                                          output_dtype=np.uint8,  # this should lead to a warning
+                                          img_filter=gaussian,
+                                          blur_output_dtype=blur_output_dtype,
+                                          )
+    print(f"{np.nanmax(entropy_data)=}")
+    print(f"{np.nanmin(entropy_data)=}")
+    normed_entropy_data = lbproc.get_entropy(data=data, categories=categories,
+                                             normed=True,
+                                             img_filter=gaussian,
+                                             blur_output_dtype=blur_output_dtype,
+                                             )
+
+    print(f"{np.nanmax(normed_entropy_data)=}")
+    print(f"{np.nanmin(normed_entropy_data)=}")
+    assert np.nanmax(normed_entropy_data) == \
+           np.nanmax(entropy_data)/max_entropy, 'Normalization is faulty'
+
+    normed_set_maximum_entropy_data = lbproc.get_entropy(data=data, categories=categories,
                                                 normed=True,
                                                 max_entropy_categories=(len(categories) * 2),
-                                                img_filter=gaussian)
+                                                img_filter=gaussian,
+                                                blur_output_dtype=blur_output_dtype,
+                                                         )
+    assert np.nanmax(normed_set_maximum_entropy_data) <= \
+           np.nanmax(entropy_data)/ lbproc.get_max_entropy(len(categories)*2)
+
     rescaled_entropy_data = lbproc.get_entropy(data, categories=categories,
                                                 normed=True,
                                                 output_dtype=np.uint8,
-                                                img_filter=gaussian)
-    max_entropy = lbproc.get_max_entropy(len(categories))
-    assert np.nanmax(entropy_data) <= max_entropy, \
-           'Maximal entropy is exceeded'
-    assert np.nanmax(normed_entropy_data) == \
-           np.nanmax(entropy_data)/max_entropy, 'Normalization is faulty'
-    assert np.nanmax(normed_set_maximum_entropy_data) <= \
-           np.nanmax(entropy_data)/ lbproc.get_max_entropy(len(categories)*2)
+                                                img_filter=gaussian,
+                                                blur_output_dtype=blur_output_dtype,
+                                               )
+    print(f"{np.nanmax(rescaled_entropy_data)=}")
+    print(f"{np.nanmin(rescaled_entropy_data)=}")
     assert np.nanmax(rescaled_entropy_data) <= 255
     assert rescaled_entropy_data.dtype == np.uint8
 

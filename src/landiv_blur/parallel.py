@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import math
+import warnings
 from typing import Any, Dict
 from collections.abc import Callable, Collection
 
@@ -137,7 +138,7 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
                                category=band)
                     # NOTE: we might want keep the description unchanged:
                     dst.set_band_description(bidx, f'LC_{band}')
-                # print(f"Wrote out bands for blurred block {inner_view=}")
+                print(f"Wrote out bands for blurred block {inner_view=}")
                 timer.new_lab()
         # print(f"\n\n########\n\nProfile")
 
@@ -427,9 +428,44 @@ def process_masks(task: Callable,
 
 def combine_entropy_blocks(output_params: dict,
                            entropy_q: Queue):
-    """Listen to queue (entropy_q) and write computed block to single file
-    """
+    """Listen to queue (entropy_q) and write computed blocks to a single file.
 
+    This function continuously listens to a queue for entropy blocks and writes
+    them to a specified output file.
+    It initializes the output file based on the provided parameters and handles
+    the writing of data until a termination signal is received.
+
+    Parameters
+    ----------
+    output_params : dict
+        A dictionary containing parameters for output configuration.
+        Expected keys include:
+        - 'output_dtype': The data type of the output.
+        - 'output_file': The path to the output file where data will be written.
+        - 'profile': A dictionary containing additional profile settings for the output.
+        - 'out_band': (optional) An instance of a Band object for managing output;
+          if not provided, a new Band will be created.
+
+    entropy_q : Queue
+        A queue from which entropy blocks are read. Each item in the queue
+        is expected to be a dictionary containing:
+        - 'signal': A control signal (e.g., "kill" to terminate the process).
+        - 'data': The actual data block to be written to the output file.
+        - 'view': Metadata related to the data block, used for windowing during writing.
+
+    Returns
+    -------
+    TimedTask
+        An instance of TimedTask that tracks the duration of the operation.
+        This can be used for performance monitoring or logging purposes.
+
+    Notes
+    -----
+    The function will block while waiting for items in the queue and will
+    terminate gracefully when a "kill" signal is received.
+    It is important to ensure that the queue is properly managed to avoid
+    deadlocks or resource leaks.
+    """
     with TimedTask() as timer:
         output_dtype = output_params.pop('output_dtype')
         output_file = output_params.pop('output_file')
@@ -462,7 +498,7 @@ def combine_entropy_blocks(output_params: dict,
                 view = copy(output.pop('view'))
                 w = view_to_window(view)
                 write(data, window=w)
-                print(f"Wrote out entropy block {view=}")
+                # print(f"Wrote out entropy block {view=}")
                 timer.new_lab()
     return timer
 
@@ -533,7 +569,7 @@ def extract_categories(source: str | Source,
                        img_filter: None|Callable,
                        filter_params: dict,
                        block_size: tuple[int, int],
-                       blur_as_int: bool = True,
+                       output_dtype: type|None = np.uint8,
                        output_params:None|dict = None,
                        verbose: bool = False,
                        **params):
@@ -555,8 +591,9 @@ def extract_categories(source: str | Source,
       Parameter to pass to the filter callable
     block_size:
         Size (width, height) in #pixel of the block that a single job processes
-    blur_as_int:
-        If the blurred category arrays should be converted to `np.uint8`
+    output_dtype:
+      Set the data type of the blurred categories that are returned.
+      Default is `np.unit8`
     output_params:
         Keyword arguments for the output file:
         nodata:
@@ -569,19 +606,51 @@ def extract_categories(source: str | Source,
     verbose:
         Print out processing step infos
     **params:
-        Optional arguments for the multiprocessing:
+        Optional arguments
 
-        nbrcpu: int
-          The number of cpu's to use. If not set then then the available number
-          of threads -1 are used.
-        start_method: str
-          Starting method for multiprocessing jobs
+        - Data conversion:
+          filter_output_range: tuple
+            Specify the data range expected as output from the applied filter.
+
+            If you expect floats as output but want to set a different range
+            than `[0, 1]`, specify it with this parameter.
+
+            ..note::
+              Consider setting this if you encounter warning messages issued
+              by the `convert_to_dtype` function.
+          output_range: tuple
+            Optionally specify the range into which the filter ouput should be
+            mapped into.
+
+            ..note::
+              In most cases you do not need to adapt this value!
+
+        - For the multiprocessing:
+          nbrcpu: int
+            The number of cpu's to use. If not set then then the available number
+            of threads -1 are used.
+          start_method: str
+            Starting method for multiprocessing jobs
 
     Returns
     -------
     output_file:
        Path to the resulting tif file
     """
+    # handle deprecated parameters
+    blur_as_int = params.pop('blur_as_int', None)
+    if blur_as_int is not None:
+        if blur_as_int:
+            output_dtype = np.uint8
+        else:
+            output_dtype = np.float64
+        warnings.warn("The parameter `blur_as_int` is deprecated, use "
+                      f"`output_dtype` instead!\nUsing {blur_as_int=} leads to "
+                      f"{output_dtype=}",
+                      category=DeprecationWarning)
+    # ---
+    filter_output_range = params.pop('filter_output_range', None)
+    output_range = params.pop('output_range', None)
     print(f'extract_categories - {source=}, {categories=}')
     if isinstance(source, str):
         source = Source(path=source)
@@ -606,10 +675,10 @@ def extract_categories(source: str | Source,
     # prepare output params
     if output_params is None:
         output_params = dict()
-    if blur_as_int:
-        output_params['dtype'] = np.uint8
-    else:
-        output_params['dtype'] = np.float64
+
+    if output_dtype is None:
+        raise ValueError("Please provide output dtype: None given")
+    output_params['dtype'] = output_dtype
 
     blur_output_params = dict(
         profile=profile,
@@ -632,7 +701,9 @@ def extract_categories(source: str | Source,
                        categories=categories,
                        img_filter=img_filter,
                        filter_params=filter_params,
-                       blur_as_int=blur_as_int, )
+                       filter_output_range=filter_output_range,
+                       output_dtype=output_dtype,
+                       output_range=output_range)
         block_params.append(bparams)
 
     # ###
@@ -1862,20 +1933,23 @@ def block_filter(params: dict, blur_q: Queue) -> TimedTask:
       inner_view: tuple
         (x, y, width, height) defining the usable part of the block, i.e.
         without the borders
-      blur_as_int: bool
-        If the blurred category arrays should be converted to `np.uint8`.
+      output_dtype:
+        Set the data type of the blurred categories that are returned, default np.uint8
+      output_range:
+        The data range the output will be mapped to (when converting to `output_dtype`)
       img_filter: Callable
         A filter function that can be applied to the data. See e.g.
         skimage.filter.gaussian
       filter_params:
         Parameter to pass to the filter callable, `img_filter`
+      filter_output_range:
+        Optionally specify the output range the filter method can produce
       
     blur_q: multiprocessing.Queue
       The queue to push the multi-band blurred land-cover types maps through
     """
     with TimedTask() as timer:
         # this is only needed for the entropy part below
-        blur_as_int = params.pop('blur_as_int')
         blur_params = dict(
             source=params.get('source'),
             view=params.get('view'),
@@ -1883,7 +1957,9 @@ def block_filter(params: dict, blur_q: Queue) -> TimedTask:
             categories=params.get('categories'),
             img_filter=params.get('img_filter'),
             filter_params=params.get('filter_params'),
-            output_dtype=np.uint8 if blur_as_int else np.float64,
+            filter_output_range=params.get('filter_output_range'),
+            output_dtype=params.get('output_dtype'),
+            output_range=params.get('output_range'),
         )
         _ = runner_call(
             blur_q,
@@ -1909,9 +1985,6 @@ def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedT
         to process inner_view: tuple
         (x, y, width, height) defining the usable part of the block, i.e.
         without the borders
-      blur_as_int: bool
-        If the blurred category arrays should be converted to `np.uint8` before
-        computing the entropy.
       img_filter: Callable
         A filter function that can be applied to the data. See e.g.
         skimage.filter.gaussian
@@ -1922,16 +1995,32 @@ def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedT
 
       entropy_as_ubyte: bool, Default=False
         Should the entropy be normalized and returned as ubyte?
-
+      blur_output_dtype: type, Default=None
+        Sets the data type to which the blurred data should be
+        converte before calculating the entropy
+      filter_output_range: tuple|None, Default=None
+        Sets the data range the filter function (when blurring)
+        maximally has.
     entropy_q: multiprocessing.Queue
       The queue to push the entropy maps through
     blur_q: multiprocessing.Queue
       The queue to push the multi-band blurred land-cover types maps through
     """
+    # handle deprecated parameters
+    blur_as_int = params.pop('blur_as_int', None)
+    if blur_as_int is not None:
+        if blur_as_int:
+            params['blur_output_dtype'] = np.uint8
+        else:
+            params['blur_output_dtype'] = np.float64
+        warnings.warn("The parameter `blur_as_int` is deprecated, use "
+                      f"`output_dtype` instead!\nUsing {blur_as_int=} leads to "
+                      f"{params['output_dtype']=}",
+                      category=DeprecationWarning)
+    # ---
     with TimedTask() as timer:
         # this is only needed for the entropy part below
         view = params.get('view')
-        blur_as_int = params.pop('blur_as_int')
         blur_params = dict(
             source=params.get('source'),
             view=view,
@@ -1939,7 +2028,8 @@ def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedT
             categories=params.get('categories'),
             img_filter=params.get('img_filter'),
             filter_params=params.get('filter_params'),
-            output_dtype=np.uint8 if blur_as_int else np.float64,
+            output_dtype=params.get('blur_output_dtype'),
+            filter_output_range=params.get('filter_output_range')
         )
         blurred_view = runner_call(
             blur_q,

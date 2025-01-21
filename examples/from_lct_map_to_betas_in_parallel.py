@@ -44,8 +44,7 @@ _diameter = diameter / scale
 truncate = 3  # property of the gaussian filter
 block_size = (500, 400)  # how big of a block schould a single job handle
                          # (in pixels)
-output_dtype = np.uint8  # data type to use for the entropy array
-blur_as_int = True
+blur_output_dtype = np.uint8  # data type to use for computing the entropy array
 blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
 filter_params = dict(sigma=blur_params['sigma'], truncate=blur_params['truncate'])
 # now we can start with generating the blurred layers
@@ -56,7 +55,7 @@ blurred_tif = lbpara.extract_categories(
     output_file=blurred_tif,
     img_filter=lb_filter.gaussian,  # which filter function to apply
     filter_params=filter_params,
-    blur_as_int=blur_as_int,
+    output_dtype=blur_output_dtype,
     block_size=block_size,
     compress = True
 )

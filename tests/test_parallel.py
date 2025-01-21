@@ -17,6 +17,7 @@ from landiv_blur import prepare as lbprep
 from landiv_blur import inference as lbinf
 from landiv_blur import parallel as lbpara
 from landiv_blur.filters import gaussian as lbf_gauss
+from landiv_blur.helper import rasterio_to_numpy_dtype
 
 from .conftest import ALL_MAPS, get_file
 
@@ -77,7 +78,6 @@ def test_blur_recombination(datafiles):
         )
         blur_output_params = dict(
             profile=profile,
-            as_int=True,
             output_file=blur_output_file,
             dtype=output_dtype
         )
@@ -87,12 +87,14 @@ def test_blur_recombination(datafiles):
                                                  size=(width, height))
         block_params = []
         for view, inner_view in zip(views, inner_views):
-            bparams = dict(source=ch_map_tif,
-                           view=view,
-                           inner_view=inner_view,
-                           categories=[category],
-                           img_filter=img_filter,
-                           output_dtype=output_dtype,)
+            bparams = dict(
+                source=ch_map_tif,
+                view=view,
+                inner_view=inner_view,
+                categories=[category],
+                img_filter=img_filter,
+                output_dtype=output_dtype,
+            )
             block_params.append(bparams)
         manager = mproc.Manager()
         blur_q = manager.Queue()
@@ -163,14 +165,15 @@ def test_entropy_recombination(datafiles):
     _diameter = diameter / scale
     truncate = 3  # property of the gaussian filter
     view_size = (500, 400)
-    output_dtype = np.uint8  # data type to use for the entropy array
-    blur_as_int = True
-    entropy_as_ubyte = True
+    filter_output_range = (0.0, 1.0)  # full range of data the filter can produce
+    blur_output_dtype = np.uint8  # blurred maps will be saved in this format
+    output_dtype=np.uint8
     normed = True
     blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
     min_border = lbf_gauss.compatible_border_size(sigma=blur_params['sigma'],
                                                   truncate=truncate)
     border = (50, 50)
+    print(f"{min_border=}, {border=}")
     # load the data
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ch_map = lbio.load_map(ch_map_tif, indexes=1)
@@ -180,18 +183,25 @@ def test_entropy_recombination(datafiles):
     height = profile['height']
     # we will save each category separately
     profile['count'] = 1
-    profile['dtype'] = np.uint8
+    profile['dtype'] = output_dtype
     # get the categories
     categories = lbproc.get_categories(ch_data)
+    max_entropy_categories = len(categories)
     # we partially evaluate the guassian filter to make sure it gets
     # identical parameter everywhere
     # we do not need to pass the diameter to the filter function
     _ = blur_params.pop('diameter')
     img_filter = partial(lbf_gauss.gaussian, **blur_params)
-    entropy_data = lbproc.get_entropy(ch_data, categories=categories,
-                                      normed=normed,
-                                      img_filter=img_filter,
-                                      output_dtype=output_dtype)
+    entropy_data = lbproc.get_entropy(
+        data=ch_data,
+        categories=categories,
+        max_entropy_categories=max_entropy_categories,
+        normed=normed,
+        img_filter=img_filter,
+        blur_output_dtype=blur_output_dtype,
+        filter_output_range=filter_output_range,
+        output_dtype=output_dtype
+    )
     # use multiprocessing and blur block by block
     # first set the parameters for the recombintion task
     entropy_output_file = lbhelp.output_filename(
@@ -202,7 +212,6 @@ def test_entropy_recombination(datafiles):
     entropy_output_params = dict(
         profile=profile,
         output_dtype=output_dtype,
-        as_ubyte=True,
         output_file=entropy_output_file,
         count=len(categories)
     )
@@ -212,14 +221,18 @@ def test_entropy_recombination(datafiles):
                                              size=(width, height))
     block_params = []
     for view, inner_view in zip(views, inner_views):
-        bparams = dict(source=ch_map_tif,
-                       categories=categories,
-                       view=view,
-                       inner_view=inner_view,
-                       img_filter=img_filter,
-                       entropy_as_ubyte=entropy_as_ubyte,
-                       normed=normed,
-                       blur_as_int=blur_as_int, )
+        bparams = dict(
+            source=ch_map_tif,
+            categories=categories,
+            max_entropy_categories=max_entropy_categories,
+            normed=normed,
+            img_filter=img_filter,
+            blur_output_dtype=blur_output_dtype,
+            filter_output_range=filter_output_range,
+            output_dtype=output_dtype,
+            view=view,
+            inner_view=inner_view,
+        )
         block_params.append(bparams)
     manager = mproc.Manager()
     entropy_q = manager.Queue()
@@ -273,6 +286,8 @@ def test_entropy_recombination(datafiles):
     # plt.savefig(f'{datafiles}/entropy_recombined.png')
     # plt.imshow(entropy_recomb_data - entropy_data)
     # plt.savefig(f'{datafiles}/entropy_diff.png')
+    print(f"{entropy_data.dtype=}")
+    print(f"{entropy_recomb_data.dtype=}")
     np.testing.assert_array_equal(
         entropy_data,
         entropy_recomb_data,
@@ -292,9 +307,8 @@ def test_extract_categories(datafiles):
     # check nodata handling
     # creat an output file (with changed nodata)
     to_types = [np.float32, np.int16, np.uint8]
-    as_ints = [False, True, True]
     nodatas = [np.nan, 0, None]
-    for nodata, to_type, as_int in zip(nodatas, to_types, as_ints):
+    for nodata, to_type in zip(nodatas, to_types):
         tmp_map = str(datafiles / 'bands_out.tif')
         tmp_source = lbio_.Source(path=tmp_map)
         tmp_profile = source_profile.copy()
@@ -320,7 +334,7 @@ def test_extract_categories(datafiles):
             output_file=str(datafiles / 'blur_out.tif'),
             img_filter=lbf_gauss.gaussian,
             filter_params=filter_params,
-            blur_as_int=as_int,
+            output_dtype=to_type,
             block_size=(500, 500),
             compress = True,
             output_params = dict(
@@ -332,6 +346,8 @@ def test_extract_categories(datafiles):
         out_profile = out_source.import_profile()
         print(f"{out_profile=}")
         np.testing.assert_equal(out_profile['nodata'], nodata)
+        # We need to map GDAL to numpy datatypes
+        np.testing.assert_equal(rasterio_to_numpy_dtype(out_profile['dtype']), to_type)
 
 
 @ALL_MAPS
@@ -367,7 +383,7 @@ def test_parallel_transposed_prod(datafiles):
         output_file=blur_out,
         img_filter=lbf_gauss.gaussian,
         filter_params=filter_params,
-        blur_as_int=True,
+        output_dtype=np.uint8,
         block_size=(500, 500),
         compress = True
     )
@@ -536,8 +552,7 @@ def test_entropy_2_step(datafiles):
     truncate = 3  # property of the gaussian filter
     view_size = (500, 400)
     output_dtype = np.uint8  # data type to use for the entropy array
-    blur_as_int = True
-    entropy_as_ubyte = True
+    blur_output_dtype = np.uint8
     normed = True
     blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
     min_border = lbf_gauss.compatible_border_size(sigma=blur_params['sigma'],
@@ -572,7 +587,6 @@ def test_entropy_2_step(datafiles):
     entropy_output_params = dict(
         profile=profile,
         output_dtype=output_dtype,
-        as_ubyte=True,
         output_file=entropy_output_file,
         count=len(categories)
     )
@@ -584,15 +598,16 @@ def test_entropy_2_step(datafiles):
     _ = filter_params.pop('diameter')
     block_params = []
     for view, inner_view in zip(views, inner_views):
-        bparams = dict(source=ch_map_tif,
+        bparams = dict(
+                source=ch_map_tif,
                        categories=categories,
                        view=view,
                        inner_view=inner_view,
                        img_filter=img_filter,
                        filter_params=filter_params,
-                       entropy_as_ubyte=entropy_as_ubyte,
+                       output_dtype=output_dtype,
                        normed=normed,
-                       blur_as_int=blur_as_int, )
+                       blur_output_dtype=blur_output_dtype,)
         block_params.append(bparams)
     manager = mproc.Manager()
     entropy_q = manager.Queue()
@@ -638,7 +653,7 @@ def test_entropy_2_step(datafiles):
         output_file=blur_out,
         img_filter=img_filter,
         filter_params=filter_params,
-        blur_as_int=blur_as_int,
+        output_dtype=blur_output_dtype,
         block_size=view_size,
         compress = True
     )
@@ -663,7 +678,8 @@ def test_entropy_2_step(datafiles):
         output_file=entropy_out,
         block_size=view_size,
         blur_params=blur_params.copy(),
-        categories=categories, entropy_as_ubyte=entropy_as_ubyte,
+        categories=categories,
+        output_dtype=output_dtype,
         normed=normed,
     )
 
@@ -708,7 +724,7 @@ def test_reduced_mask(datafiles):
     blur_out = str(datafiles / 'blur_out.tif')
     # create the blurred bands
     img_filter = lbf_gauss.gaussian
-    blur_as_int = True
+    output_dtype = np.uint8
     diameter = 5000  # this is in meter
     scale = 100  # meter per pixel
     truncate = 3
@@ -724,7 +740,7 @@ def test_reduced_mask(datafiles):
         output_file=blur_out,
         img_filter=img_filter,
         filter_params=filter_params,
-        blur_as_int=blur_as_int,
+        output_dtype=output_dtype,
         block_size=view_size,
         compress=True
     )
@@ -810,7 +826,7 @@ def test_apply_filter(datafiles):
         output_file=blur_single,
         img_filter=img_filter,
         filter_params=filter_params,
-        blur_as_int=True,
+        output_dtype=np.uint8,
         block_size=block_size,
         compress=True
     )
@@ -822,7 +838,7 @@ def test_apply_filter(datafiles):
         output_file=bands_out,
         img_filter=None,
         filter_params=filter_params,
-        blur_as_int=True,
+        output_dtype=np.uint8,
         block_size=block_size,
         verbose=True,
         compress=True
