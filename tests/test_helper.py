@@ -2,6 +2,9 @@ import pytest
 
 import numpy as np
 import random
+
+from landiv_blur import io as lbio
+from landiv_blur import processing as lbproc
 from landiv_blur.helper import (
     match_all,
     match_any,
@@ -9,6 +12,8 @@ from landiv_blur.helper import (
     convert_to_dtype,
     check_rank_deficiency
 )
+
+from .conftest import ALL_MAPS, get_file
 
 def test_matching():
     """Make sure our matching functions work as expected
@@ -74,11 +79,11 @@ def test_count_contrib():
     # now only 2 out of the unmased should be there
     assert counts == 0
 
-def test_convert_to_dtype():
+def test_convert_to_dtype_basics():
     """
     """
     # array containing min and max of uint8
-    a = np.array([[1,2,2],[3,0.,2], [20,128.,255.]], dtype=np.uint8)
+    a = np.array([[2,4,4],[3,0.,2], [20,128.,255.]], dtype=np.uint8)
     b = convert_to_dtype(data=a, as_dtype=np.uint16)
     assert np.max(b) == np.iinfo(np.uint16).max
     assert np.min(b) == np.iinfo(np.uint16).min
@@ -93,6 +98,63 @@ def test_convert_to_dtype():
     e = convert_to_dtype(data=d, as_dtype=np.uint8, in_range=[0,1])
     np.testing.assert_equal(e, a)
 
+    # simply rescale [0,1] to [0,0.5] - doubling it should bring us back
+    c_scaled = convert_to_dtype(c, out_range=[0, 0.5])
+    np.testing.assert_equal(c, 2*c_scaled)
+
+
+def test_convert_to_dtype_range_handling():
+    """Make sure input data is handled properly
+    """
+    # floats within [0, 1] should get input range [0, 1] range
+    # converting to float with out range [0,1] thus should not change anything
+    a = np.array([[0,0,0],[0.5, 0.5, 0.5], [1,1,1]], dtype=np.float64)
+    a_converted = convert_to_dtype(data=a, as_dtype=np.float64,
+                              out_range=[0.0, 1.0])
+    np.testing.assert_equal(a, a_converted)
+    # now exceed the in range [0, 1] a tiny bit we should trigger the full float
+    # input range.
+    # the full float range as input map all values close to 0 to the center
+    # of the out-range, thus 0.5 for [0,1]
+    a_wrong = a.copy()
+    a_wrong[2][2] += 0.00000000000001
+    with pytest.warns(match='full range'):  # make sure we get a warning
+        a_converted = convert_to_dtype(data=a_wrong, as_dtype=np.float64,
+                                out_range=[0.0, 1.0])
+    # values close to the center of the float range (0)
+    a_misconversion = np.full(a.shape, 0.5)
+    np.testing.assert_allclose(a_misconversion, a_converted)
+    # now set input range explicitly and expect a waring and a correction
+    # after the correction we should have lost the small increment on a[2][2]
+    # thus a_converted should match a and no longer a_wrong
+    with pytest.warns(match='extends'):  # make sure we get a warning
+        a_converted = convert_to_dtype(data=a_wrong, as_dtype=np.float64,
+                                in_range=[0,1],
+                                out_range=[0.0, 1.0])
+    # Note: this also makes sure we did not edit the input data
+    np.testing.assert_equal(a, a_converted)
+    with pytest.raises(AssertionError):
+        np.testing.assert_equal(a_wrong, a_converted)
+
+
+
+@ALL_MAPS
+def test_convert_to_dtype_real_range_handling(datafiles):
+    """Make sure datatypes are properly converted
+    """
+    ch_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_data = lbio.load_map(ch_tif)['data']
+    ch_range = np.nanmin(ch_data), np.nanmax(ch_data)
+    print(ch_range)
+
+    lctypes = lbproc.get_categories(ch_data)
+    sigma = 10
+    truncate = 3
+    params = dict(
+        sigma=sigma,
+        truncate=truncate
+    )
+    # TODO
 
 def test_rank_deficiency():
     """Test some examples to identify rank deficiency

@@ -93,7 +93,8 @@ def create_blurred_tif(datafiles):
         output_file=blur_out,
         img_filter=gaussian,
         filter_params=filter_params,
-        blur_as_int=True,
+        # TODO: we should set filter_output_range
+        output_dtype=np.uint8,
         block_size=(500, 500),
         compress = True
     )
@@ -130,7 +131,8 @@ def create_blurred_tif_float(datafiles):
         output_file=blur_out,
         img_filter=gaussian,
         filter_params=filter_params,
-        blur_as_int=False,
+        # TODO: we should set filter_output_range
+        output_dtype=np.float64,
         block_size=(500, 500),
         compress = True
     )

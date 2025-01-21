@@ -31,6 +31,7 @@ Note
 
 """
 from __future__ import annotations
+import warnings
 import multiprocessing as mproc
 import rasterio as rio
 import numpy as np
@@ -56,7 +57,7 @@ def get_lct_heterogeneity(source: str,
                           block_size: tuple[int, int],
                           blur_params: dict,
                           categories: list | None = None,
-                          blur_as_int: bool = True,
+                          blur_output_dtype: type = np.uint8,
                           entropy_as_ubyte: bool = True,
                           **params):
     """Compute the entropy-based heterogeneity from a map of land cover types.
@@ -77,12 +78,23 @@ def get_lct_heterogeneity(source: str,
     blur_params : dict
         Parameters for the Gaussian blur. It must contain at least either
         `diameter` or `sigma` in a in meters or any other measure of distance.
-    blur_as_int:
-        If the blurred category arrays should be converted to `np.uint8` before
-        computing the entropy.
+    blur_output_dtype:
+      Set the data type of the blurred categories before computing the entropy.
+      Default is `np.unit8`
     entropy_as_ubyte:
         Should the entropy be normalized and returned as ubyte?
     """
+    # handle deprecated parameters
+    blur_as_int = params.pop('blur_as_int', None)
+    if blur_as_int is not None:
+        if blur_as_int:
+            blur_output_dtype = np.uint8
+        else:
+            blur_output_dtype = np.float64
+        warnings.warn("The parameter `blur_as_int` is deprecated, use "
+                      f"`blur_output_dtype` instead!\nUsing {blur_as_int=} leads to "
+                      f"{blur_output_dtype=}",
+                      category=DeprecationWarning)
     # ###
     # prepare the input for the blocks
     # ###
@@ -112,17 +124,12 @@ def get_lct_heterogeneity(source: str,
     border = lbf_gauss.compatible_border_size(sigma=psigma, truncate=truncate)
     print(f"The resulting border size is {border=} pixels")
     # TODO:
-    # check and replace/remove blur_as_int
     # set the filename of the output file
     blur_output_file = lbhelp.output_filename(
         base_name=output_file,
         out_type='blurred',
         blur_params=blur_params
     )
-    if blur_as_int:
-        blur_output_dtype = np.uint8
-    else:
-        blur_output_dtype = rio.float64
 
     # now let's prepare the output parameters:
     if categories is None:
@@ -163,6 +170,7 @@ def get_lct_heterogeneity(source: str,
         sigma=psigma,
         truncate=blur_params['truncate'],
     )
+    filter_output_range = (0.0, 1.0)  # for gaussian filter
     for view, inner_view in zip(views, inner_views):
         bparams = dict(source=source,
                        categories=categories,
@@ -171,7 +179,9 @@ def get_lct_heterogeneity(source: str,
                        img_filter=lbf_gauss.gaussian,
                        filter_params=filter_params,
                        entropy_as_ubyte=entropy_as_ubyte,
-                       blur_as_int=blur_as_int,)
+                       blur_output_dtype=blur_output_dtype,
+                       filter_output_range=filter_output_range,
+                       )
         block_params.append(bparams)
 
     # ###
@@ -280,6 +290,10 @@ def main():
     truncate = inargs.pop('truncate')
     entropy_ubyte = inargs.pop('entropy_ubyte')
     blur_int = inargs.pop('blur_int')
+    if blur_int:
+        blur_output_dtype = np.uint8
+    else:
+        blur_output_dtype = np.float64
     nbrcpu = inargs.pop('nbrcpu')
     bwidth = inargs.pop('bwidth')
     bheight = inargs.pop('bheight')
@@ -296,7 +310,7 @@ def main():
         blur_params=dict(diameter=diameter, sigma=sigma, truncate=truncate),
         output_file=output_file,
         entropy_as_ubyte=entropy_ubyte,
-        blur_as_int=blur_int,
+        blur_output_dtype=blur_output_dtype,
         nbrcpu=nbrcpu,
         compress=compr
     )

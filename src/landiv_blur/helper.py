@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import json
+import warnings
 
 import numpy as np
 import rasterio as rio
@@ -312,7 +313,7 @@ def dtype_range(dtype)->tuple[int|float, int|float]:
 
 
 def convert_to_dtype(data: NDArray,
-                     as_dtype,
+                     as_dtype:None|type|np._dtype=None,
                      in_range:None|NDArray|Collection=None,
                      out_range:None|NDArray|Collection=None)->NDArray:
     """Converts data to as_dtype and optionally rescales it.
@@ -335,6 +336,9 @@ def convert_to_dtype(data: NDArray,
     ----------
     data: input numpy NDArray
     as_dtype: desired data type to convert to (e.g. np.float64)
+        If not provided then at least the `out_range` needs to be set in
+        which case the data type remains unchanges, but the data is
+        rescaled.
     in_range:
         an array or list from which min and max will be used as input range
 
@@ -347,17 +351,33 @@ def convert_to_dtype(data: NDArray,
     """
     in_dtype = data.dtype
 
+    data_min, data_max = np.nanmin(data), np.nanmax(data)
+
+    cut = False
+
     if in_range is None:
-        if np.issubdtype(in_dtype, np.floating) and np.nanmin(data) >= 0.0 and np.nanmax(data) <= 1.0:
+        if np.issubdtype(in_dtype, np.floating) and data_min >= 0.0 and data_max <= 1.0:
             _inmax, _inmin = 1.0, 0.0
         else:
+            # TODO: It would actually make sense to raise a warning directly in the user-method
+            #      (extract_categories and block_heterogenity (unused?) for parallelized and
+            #      get_filtered_categories for single threaded), as convert_to_dtype is in most cases called internally.
+            if np.issubdtype(in_dtype, np.floating): 
+                warnings.warn(f"Converting the full range of `{ in_dtype }` to `{ as_dtype }`. "
+                              "If this is not what you want, specify the input range with `in_range`.")
             _inmax, _inmin = dtype_range(in_dtype)
     else:
         # we convert to float since Decimal cannot handle np.uintX
         _inmax = float(np.nanmax(in_range))
         _inmin = float(np.nanmin(in_range))
+        if data_min < _inmin or data_max > _inmax:
+            warnings.warn(f"The data-range [{data_min}, {data_max}] extends "
+                          f"over the chose input range [{_inmin}, {_inmax}].\n"
+                          "Exceeding values will be replaced by the limit values")
+            cut = True
     # now the output dtype
     if out_range is None:
+        assert as_dtype is not None, f"{out_range=} and {as_dtype=} cannot both be unset!"
         if np.issubdtype(as_dtype, np.floating):
             _outmax, _outmin = 1.0, 0.0
         else:
@@ -366,9 +386,20 @@ def convert_to_dtype(data: NDArray,
         # we convert to float since Decimal cannot handle np.uintX
         _outmax = float(np.nanmax(out_range))
         _outmin = float(np.nanmin(out_range))
+        
+        if as_dtype is None:
+            # We simply rescale the data
+            as_dtype = data.dtype
     scale = (Decimal(_outmax) - Decimal(_outmin)) / \
             (Decimal(_inmax) - Decimal(_inmin))
-    return _outmin + ((data - _inmin) * float(scale)).astype(as_dtype)
+
+    out_data = np.array(_outmin).astype(as_dtype) + ((data - _inmin) * float(scale)).astype(as_dtype)
+
+    if cut:
+        out_data[out_data<_outmin] = _outmin
+        out_data[out_data>_outmax] = _outmax
+
+    return out_data
 
 
 def aggregated_selector(masks:list[NDArray], logic:str='all')->NDArray:
@@ -493,3 +524,22 @@ def check_rank_deficiency(array, return_by_issue_type: bool=False) -> dict[int, 
                     all_zero=[z for z in all_zero_cols.keys()])
     else:
         return {**rank_deficient_cols, **all_zero_cols}
+
+
+def rasterio_to_numpy_dtype(rasterio_dtype):
+    """
+    Map Rasterio actual data types to NumPy data types.
+
+    Rasterio types like rasterio.dtypes.int16, rasterio.dtypes.float32
+    are mapped to their NumPy equivalents.
+    """
+    dtype_mapping = {
+        rio.dtypes.int16: np.int16,
+        rio.dtypes.int32: np.int32,
+        rio.dtypes.uint8: np.uint8,
+        rio.dtypes.uint16: np.uint16,
+        rio.dtypes.uint32: np.uint32,
+        rio.dtypes.float32: np.float32,
+        rio.dtypes.float64: np.float64,
+    }
+    return dtype_mapping.get(rasterio_dtype, None)
