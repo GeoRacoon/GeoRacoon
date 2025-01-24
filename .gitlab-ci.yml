@@ -42,14 +42,10 @@ build-package:
     # - docker
     - linux
   script:
-    - 'pip install build'  # todo fix the version!
+    - 'pip install build'
     - "python3 -m build"
-  artifacts:
-    paths:
-    - dist
 
-
-first-test:
+unit-tests:
   stage: test    # Only starts when the job in the build stage succeedes 
   tags:
     # - docker
@@ -57,11 +53,9 @@ first-test:
   needs: ["build-package",]
   script:
     - 'source ./.venv/bin/activate'
-    - 'pip install -r requirements.txt'
-    - 'pip install -r tests/requirements.txt'  # this installs packages downstream as well, not ideal
-    - 'pip install dist/*.whl'  # install the package
-    - 'python -m pytest -vvv --cov=landiv_blur'
-    - 'coverage xml'
+    - 'pip install -e .[testing]'
+    - 'python -m pytest --cov=landiv_blur'
+    - 'coverage xml --include=src/**'
   artifacts:
     reports:
       coverage_report:
@@ -75,7 +69,7 @@ pages:
     # - docker 
     - linux
   needs: 
-    - "first-test"
+    - "unit-tests"
     - "build-package"
   script:
     - 'source ./.venv/bin/activate'

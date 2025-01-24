@@ -9,7 +9,11 @@ from landiv_blur import processing as lbproc
 from landiv_blur.filters import _filters
 from landiv_blur.filters import _get_kernel_diam
 from landiv_blur.filters import _get_kernel_size
-from landiv_blur.filters.gaussian import gaussian, compatible_border_size
+from landiv_blur.filters.gaussian import (
+    gaussian,
+    compatible_border_size
+)
+from landiv_blur.filters import bpgaussian
 
 from .conftest import ALL_MAPS, get_file
 
@@ -99,3 +103,29 @@ def test_border_checking():
                                             truncate=t)
                 assert blurred[center + bs[1] + 1, center] == 0
 
+
+def test_border_preserving_filter():
+    """Test the border preserving gaussian filter method
+    """
+    size = 18
+    block = 8
+    value = 0.4
+    filter_params = dict(
+        sigma=1,
+        truncate=3
+    )
+    # create a block of `value` surrounded by np.nan's applying the bpgaussian
+    # should lead to an identical map, as the pixels in the border region should
+    # get an adapted sum-of-weights leading to only account for the pixels of
+    # value `value` in the weighted average.
+    ones_nan = np.full((size,size), np.nan)
+    _start_idx = (size - block) // 2
+    ones_nan[_start_idx:_start_idx+block, _start_idx:_start_idx+block] = value
+    print(ones_nan)
+    blurred_ones_nan = gaussian(ones_nan, **filter_params)
+    with pytest.raises(AssertionError):
+        np.testing.assert_equal(blurred_ones_nan, ones_nan)
+    print(blurred_ones_nan)
+    bpblurred_ones_nan = bpgaussian(ones_nan, **filter_params)
+    print(bpblurred_ones_nan)
+    np.testing.assert_allclose(bpblurred_ones_nan, ones_nan)

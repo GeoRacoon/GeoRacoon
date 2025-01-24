@@ -6,6 +6,8 @@ This module provides various functions to facilitate the usage of
 import numpy as np
 from skimage.filters import gaussian
 
+from numpy.typing import NDArray
+
 from .. import ap
 
 # we abstract the specific filter so that wie can to:
@@ -79,3 +81,63 @@ def compatible_border_size(sigma:float|int, border:tuple[int, int]|None=None,
     else:
         bs = (ks + 1,) * 2
     return bs   
+
+
+def bpgaussian(data:NDArray, **filter_params)->NDArray:
+    """Applies a border-preserving Gaussian filter
+
+    The approach considers a Gaussian blur to be a weighted average over
+    all pixels within the kernel diameter with the weight being given by
+    the Gaussian function.
+    Pixels close to `np.nan` values should simply "ignore" `np.nan` pixels
+    and perform the weighted average over all non-`np.nan` pixels within
+    the Gaussian kernel.
+    This can be achieved with a normal Gaussian filter in a three step process:
+
+    1. Perform a Gaussian filter on the data with `np.nan` substituted by
+       the neutral element in terms of addition, i.e. 0.0.
+       This leads to a weighted average that is not properly normalized as
+       the former `np.nan` pixels do not contribute to the value, but are
+       considered in the normalizing sum of the weights.
+    2. To properly normalize all pixels, create a binary array in the same shape
+       as `data` with `np.nan` values becoming `0` and all other pixels `1`.
+       Apply the same Gaussian filter to this binary array which results in an
+       array holding the sum of weights for the weighted average.
+    3. Dividing the blurred array from point 1. by the sum-of-weights array form
+       step 2 results in a properly normalized weighted average and thus a blurred
+       version of the input data with preserved borders.
+
+
+    Parameters
+    ----------
+    data:
+      Array to apply the Gaussian filter on.
+    filter_params:
+      Parametrization of the Gaussian filter.
+      
+      sigma:
+        Standard deviation for Gaussian kernel
+      truncate:
+        Number of standard deviation after which the filter is truncated
+
+      See `skimage.filters.gaussian` for further parameters
+
+    """
+    # ###
+    # 1.
+    # ###
+    # Substitute `np.nan`s with 0.0 and apply filter
+    _data_nonnan = np.where(np.isnan(data), 0.0, data)
+    _data_nonnan_blurred = gaussian(image=_data_nonnan, **filter_params)
+    # ###
+    # 2.
+    # ###
+    _data_binary = np.where(np.isnan(data), 0.0, 1.0)
+    _data_binary_blurred = gaussian(image=_data_binary, **filter_params)
+    # ###
+    # 3.
+    # ###
+    _blurred_data = np.divide(_data_nonnan_blurred, _data_binary_blurred,
+                             out=np.full(data.shape, np.nan),
+                             where=~np.isnan(data))
+    return _blurred_data
