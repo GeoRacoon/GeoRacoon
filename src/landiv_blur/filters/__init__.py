@@ -12,6 +12,7 @@ available as `gaussian`.
 """
 
 from .gaussian import gaussian as _gauss_filter
+from .gaussian import bpgaussian
 from .gaussian import get_kernel_diameter as _gauss_get_kd
 from .gaussian import get_kernel_size as _gauss_get_ks
 
