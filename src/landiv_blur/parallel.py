@@ -566,9 +566,9 @@ def runner_call(queue: Queue[Any],
 def extract_categories(source: str | Source,
                        categories: list,
                        output_file: str,
-                       img_filter: None|Callable,
-                       filter_params: dict,
                        block_size: tuple[int, int],
+                       img_filter: None|Callable=None,
+                       filter_params: dict|None=None,
                        output_dtype: type|None = np.uint8,
                        output_params:None|dict = None,
                        verbose: bool = False,
@@ -585,10 +585,19 @@ def extract_categories(source: str | Source,
     output_file:
       The path to write the resulting data to
     img_filter:
-      a filter function that can be applied to the data. See e.g.
+      An optional filter function that can be applied to the data. See e.g.
       skimage.filter.gaussian
+
+      .. note::
+        If `img_filter` is not set `filter_params` is ignored.
+
     filter_params:
-      Parameter to pass to the filter callable
+      Parameter to pass to the filter callable.
+
+      .. note::
+        This argument is mandatory if `img_filter` is provided and ignored
+        otherwise.
+
     block_size:
         Size (width, height) in #pixel of the block that a single job processes
     output_dtype:
@@ -603,6 +612,7 @@ def extract_categories(source: str | Source,
 
           .. note::
             This overwrites `output_dtype`, which will me deprecated in the future
+
     verbose:
         Print out processing step infos
     **params:
@@ -615,14 +625,14 @@ def extract_categories(source: str | Source,
             If you expect floats as output but want to set a different range
             than `[0, 1]`, specify it with this parameter.
 
-            ..note::
+            .. note::
               Consider setting this if you encounter warning messages issued
               by the `convert_to_dtype` function.
           output_range: tuple
             Optionally specify the range into which the filter ouput should be
             mapped into.
 
-            ..note::
+            .. note::
               In most cases you do not need to adapt this value!
 
         - For the multiprocessing:
@@ -665,7 +675,10 @@ def extract_categories(source: str | Source,
         print("The chosen source tif has a dimension of:"
             f"\n\t{width=}\n\t{height=}")
         print(f"The block size without border is {block_size=} pixels")
-    border = compatible_border_size(**filter_params)
+    if img_filter is None:  # no filter means blocks with 0 transition region
+        border = (0, 0)
+    else:
+        border = compatible_border_size(**filter_params)
     if verbose:
         print(f"The resulting border size is {border=} pixels")
 
@@ -725,7 +738,7 @@ def extract_categories(source: str | Source,
         # start the block processing
         all_jobs = []
         for bparams in block_params:
-            all_jobs.append(pool.apply_async(block_filter,
+            all_jobs.append(pool.apply_async(block_category_extraction,
                                              (bparams, blur_q)))
         # collect results
         job_timers = []
@@ -792,7 +805,7 @@ def apply_filter(source: str | Source,
       Set the data type that the input data should be converted to before
       applying the the filter
 
-      ..note::
+      .. note::
         If provided, the loaded data will be rescaled to the range of
         this data type or `out_range` (if provided).
     data_output_range:
@@ -1428,7 +1441,7 @@ def compute_mask(source: str | Source,
         - `"any"`: Masekd will be each cell for which any of the bands matches the nodata value
         - `"all"`: Masked will be each cell for which all of the bands match the nodata value
 
-        ..note::
+        .. note::
 
             We might, at some point in the future, allow callables here.
 
@@ -1916,8 +1929,14 @@ def block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
     return timer
 
 
-def block_filter(params: dict, blur_q: Queue) -> TimedTask:
-    """Per block (i.e. view) heterogeneity measure based on entropy
+def block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
+    """Per block (i.e. view) category extraction and filter application
+
+    This is a wrapper function to process a selection of a (pot. large)
+    tif file and push the results into a multiprocessing queue for
+    aggregation.
+    The method creates individual layers for each category in a band of
+    categorical data and optionally apply an filter callable.
 
     Parameters
     ----------
@@ -2063,7 +2082,7 @@ def get_XT_X(response: str | Band,
              ) -> np.ndarray:
     """Calculate X.T @ X in parallel directly from view of the predictor data
 
-    ..Note::
+    .. note::
       `response` is only used to get the correct dimension of the data
 
     Parameters
