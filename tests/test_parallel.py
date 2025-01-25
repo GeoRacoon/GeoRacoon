@@ -304,6 +304,33 @@ def test_extract_categories(datafiles):
     source_profile = lct_source.import_profile()
     source_band = lct_source.get_band(bidx=1)
     print(f"{source_profile=}")
+    # extract categories without applying a filter
+    to_type=np.uint8
+    categories = [1,2,3,4,5]
+    category_tif = lbpara.extract_categories(
+        source=lct_source,
+        categories=categories,
+        output_file=str(datafiles / 'category_out.tif'),
+        output_dtype=to_type,
+        block_size=(500, 500),
+        compress = True,
+        output_params = dict(
+            nodata=0,
+            dtype=to_type
+        ),
+    )
+    category_source = lbio_.Source(category_tif)
+    assert len(category_source.get_bands()) == len(categories)
+    source_data = source_band.get_data()
+    for cat in categories:
+        # check for each category whether the extraction
+        # is identical to the real data
+        cat_band = category_source.get_band(category=cat)
+        cat_data = cat_band.get_data()
+        _cat_data = np.where(cat_data == 255, 1, 0)
+        _category_data = np.where(source_data==cat, 1, 0)
+        np.testing.assert_equal(_cat_data, _category_data)
+
     # check nodata handling
     # creat an output file (with changed nodata)
     to_types = [np.float32, np.int16, np.uint8]
