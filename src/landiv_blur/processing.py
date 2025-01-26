@@ -15,7 +15,7 @@ from .prepare import get_view, relative_view
 
 def select_category(data:NDArray,
                     category: int | list[int],
-                    as_dtype: type = np.uint8,
+                    as_dtype: type|str = "uint8",
                     limits: tuple | None = None):
     """Filter for particular category or categories
 
@@ -44,10 +44,14 @@ def select_category(data:NDArray,
     np.array:
       Matrix of type `as_dtype` in the same shape of `data`
     """
+    if isinstance(as_dtype, str):
+        _as_dtype = np.dtype(as_dtype)
+    else:
+        _as_dtype = as_dtype
     if limits:
         _is, _is_not = limits
     else:
-        _is, _is_not = map(as_dtype, dtype_range(as_dtype))
+        _is, _is_not = map(lambda x: np.array(x).astype(_as_dtype), dtype_range(_as_dtype))
 
     if isinstance(category, int):
         _selected = [category,]
@@ -110,9 +114,9 @@ def get_category_data(data:NDArray,
                       img_filter:Callable|None=None,
                       filter_params:dict|None=None,
                       filter_output_range:tuple|None=None,
-                      output_dtype:type|None=None,
+                      output_dtype:type|str|None=None,
                       output_range:tuple|None=None,
-                      as_dtype:type=np.uint8)->NDArray:
+                      as_dtype:type|str="uint8")->NDArray:
     """Return the data of a single category, optionally after applying a filter
 
     ..Note::
@@ -145,7 +149,7 @@ def get_category_data(data:NDArray,
 
         For example, a Gaussian filter returns a map of type `np.float64` with
         values in $[0, 1]$.
-        With `output_dtype=np.uint8` these values are mapped to the range [0, 255]
+        With `output_dtype="uint8"` these values are mapped to the range [0, 255]
         and an array of type `np.uint8` is returned with a considerably smaller
         memory footprint.
 
@@ -174,7 +178,7 @@ def view_data(source:Source|str,
               bands: list[Band|int]|None,
               view:tuple[int,int,int,int],
               in_range:None|NDArray|Collection,
-              output_dtype:type|None,
+              output_dtype:type|str|None,
               output_range:None|NDArray|Collection,
               ):
 
@@ -236,7 +240,7 @@ def filter_data(data:NDArray,
                 img_filter=None,
                 filter_output_range:tuple|None=None,
                 filter_params:dict|None=None,
-                output_dtype:type|None=np.uint8,
+                output_dtype:type|str|None="uint8",
                 output_range:tuple|None=None,
                 )->NDArray:
     # TODO: remove all default arguments!
@@ -269,7 +273,7 @@ def filter_data(data:NDArray,
         This can be used to map to the range `[0,1]` for `floats`:
 
         ```python
-            `output_dtype=np.float64`
+            `output_dtype="float64"`
             `output_range=(0.0, 1.0)`
         ```
     filter_params:
@@ -314,13 +318,13 @@ def view_filtered(source:Source|str,
                   view:tuple[int,int,int,int],
                   inner_view:tuple[int,int,int,int],
                   data_in_range:None|NDArray|Collection=None,
-                  data_output_dtype:type|None=np.uint8,
+                  data_output_dtype:type|str|None="uint8",
                   data_output_range:None|NDArray|Collection=None,
                   replace_nan_with: Union[int, float] | None = None,
                   img_filter=None,
                   filter_params:dict|None=None,
                   filter_output_range:Collection|None=(0., 1.),
-                  output_dtype:type|None=np.uint8,
+                  output_dtype:type|str|None="uint8",
                   output_range:tuple|None=None,
                   bands: list[Band|int]|None = None,
                   ):
@@ -353,7 +357,7 @@ def view_filtered(source:Source|str,
 def get_filtered_categories(data:NDArray,
                             categories: None|Collection=None,
                             img_filter:None|Callable=None,
-                            output_dtype:type|None=np.uint8,
+                            output_dtype:type|str|None="uint8",
                             output_range:tuple|None=None,
                             filter_output_range:tuple|None=None,
                             filter_params:dict|None=None)->dict[int, NDArray]:
@@ -402,7 +406,7 @@ def get_filtered_categories(data:NDArray,
 def compute_entropy(data_arrays: Sequence[NDArray],
                     normed:bool=True,
                     max_entropy_categories:int|None=None,
-                    output_dtype:type|None=None,
+                    output_dtype:type|str|None=None,
                     output_range:tuple|None=None,
                     **entropy_params)->NDArray:
     """Per cell entropy computed over a series of data arrays
@@ -424,7 +428,7 @@ def compute_entropy(data_arrays: Sequence[NDArray],
         scipy.stats.entropy returns data of type `np.float64` which might consume
         a considerable amount of memory, when applied to larger arrays.
 
-        With `output_dtype=np.uint8` entropy values are mapped to the range [0, 255]
+        With `output_dtype="uint8"` entropy values are mapped to the range [0, 255]
         and an array of type `np.uint8` is returned with a considerably smaller
         memory footprint.
     output_range:
@@ -447,7 +451,11 @@ def compute_entropy(data_arrays: Sequence[NDArray],
     _stacked = np.stack(data_arrays, axis=2)
     entropy_array = entropy(_stacked, axis=2, **entropy_params)
     if normed:
-        if np.issubdtype(output_dtype, np.floating) and output_range is None:
+        if isinstance(output_dtype, str):
+            _output_dtype = np.dtype(output_dtype)
+        else:
+            _output_dtype = output_dtype
+        if np.issubdtype(_output_dtype, np.floating) and output_range is None:
             output_range = (0.0, 1.0)  # use the normalization range [0, 1] for float output by default
         if max_entropy_categories is None:
             max_entropy = get_max_entropy(len(data_arrays))
@@ -455,7 +463,7 @@ def compute_entropy(data_arrays: Sequence[NDArray],
             max_entropy = get_max_entropy(max_entropy_categories)
         # We normalize the entropy by setting the in_range accordingly
         entropy_array = convert_to_dtype(data=entropy_array,
-                                         as_dtype=output_dtype,  # None will lead to keeping the data type
+                                         as_dtype=_output_dtype,  # None will lead to keeping the data type
                                          in_range=[0.0, max_entropy],
                                          out_range=output_range)
     else:
@@ -475,10 +483,10 @@ def compute_entropy(data_arrays: Sequence[NDArray],
 
 
 def compute_interaction(data_arrays: Sequence[NDArray],
-                        input_dtype: type|None=np.uint8,
+                        input_dtype: type|str|None=np.uint8,
                         standardize:bool=False,
                         normed:bool=True,
-                        output_dtype:type|None=np.uint8)->NDArray:
+                        output_dtype:type|str|None=np.uint8)->NDArray:
     r"""Per cell interaction computed over a series of data arrays
     For 'float' inputs:
         .. math::
@@ -513,6 +521,9 @@ def compute_interaction(data_arrays: Sequence[NDArray],
 
     # define rescaling based on input type
     if input_dtype:
+        if isinstance(input_dtype, str):
+            input_dtype = np.dtype(input_dtype)
+
         _max_scale, _ = dtype_range(input_dtype)
         if np.issubdtype(input_dtype, np.floating):
             _max_scale = 1
@@ -534,6 +545,8 @@ def compute_interaction(data_arrays: Sequence[NDArray],
         max_interaction = 1 / len(data_arrays)**len(data_arrays)
         interaction_array = interaction_array / max_interaction
         if output_dtype:
+            if isinstance(output_dtype, str):
+                output_dtype = np.dtype(output_dtype)
             _max, _ = dtype_range(output_dtype)
             if np.issubdtype(output_dtype, np.floating):
                 _max = 1
@@ -551,7 +564,7 @@ def get_entropy(data:NDArray,
                 normed:bool=False,
                 max_entropy_categories:int|None=None,
                 img_filter:Callable|None=None,
-                output_dtype:type|None=None,
+                output_dtype:type|str|None=None,
                 output_range:tuple|None=None,
                 filter_params:dict|None=None,
                 entropy_params:dict|None=None,
@@ -634,7 +647,7 @@ def view_blurred(source:str,
                  img_filter:Callable,
                  filter_params:dict = dict(),
                  filter_output_range:tuple|None=None,
-                 output_dtype:type|None = np.uint8,
+                 output_dtype:type|str|None = "uint8",
                  output_range:tuple|None=None,
                  **tags):
 
@@ -715,7 +728,7 @@ def  view_entropy(category_arrays:dict[int, NDArray],
                   view:tuple[int,int,int,int],
                   normed:bool = True,
                   max_entropy_categories: int|None = None,
-                  output_dtype:type|None = None,
+                  output_dtype:type|str|None = None,
                   output_range:tuple|None=None):
     """Return a per-cell entropy computed from the per category arrays.
 
@@ -753,10 +766,10 @@ def  view_entropy(category_arrays:dict[int, NDArray],
 
 def view_interaction(category_arrays:dict[int, NDArray],
                      view:tuple[int,int,int,int],
-                     input_dtype: type|None = np.uint8,
+                     input_dtype: type|str|None = np.uint8,
                      standardize: bool = False,
                      normed:bool = True,
-                     output_dtype:type|None = np.uint8):
+                     output_dtype:type|str|None = np.uint8):
     """Return a per-cell interaction computed from the per category arrays.
 
     Parameters
@@ -789,8 +802,8 @@ def get_entropy_view(source:str,
                      max_entropy_categories:int|None=None,
                      blur_as_int:bool|None=None,
                      filter_output_range:tuple|None=None,
-                     blur_output_dtype:type|None=None,
-                     output_dtype:type|None=None,
+                     blur_output_dtype:type|str|None=None,
+                     output_dtype:type|str|None=None,
                      output_range:tuple|None=None,
                      normed:bool=True,
                      **tags):
@@ -821,9 +834,9 @@ def get_entropy_view(source:str,
         assert blur_output_dtype is not None
     else:
         if blur_as_int:
-            blur_output_dtype = np.uint8
+            blur_output_dtype = "uint8"
         else:
-            blur_output_dtype = np.float64
+            blur_output_dtype = "float64"
 
     blurred_data = view_blurred(
         source=source,

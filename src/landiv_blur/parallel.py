@@ -105,6 +105,8 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
     """
     with TimedTask() as timer:
         dtype = output_params.pop('dtype')
+        if isinstance(dtype, str):
+            dtype = np.dtype(dtype)
         output_file = output_params.pop('output_file')
         # print(f"{output_file=}")
         # print(f"{dtype=}")
@@ -468,6 +470,8 @@ def combine_entropy_blocks(output_params: dict,
     """
     with TimedTask() as timer:
         output_dtype = output_params.pop('output_dtype')
+        if isinstance(output_dtype, str):
+            output_dtype = np.dtype(output_dtype)
         output_file = output_params.pop('output_file')
         # print(f"{output_file=}")
         # print(f"{output_dtype=}")
@@ -569,7 +573,7 @@ def extract_categories(source: str | Source,
                        block_size: tuple[int, int],
                        img_filter: None|Callable=None,
                        filter_params: dict|None=None,
-                       output_dtype: type|None = np.uint8,
+                       output_dtype: type|str|None = 'uint8',
                        output_params:None|dict = None,
                        verbose: bool = False,
                        **params):
@@ -602,7 +606,7 @@ def extract_categories(source: str | Source,
         Size (width, height) in #pixel of the block that a single job processes
     output_dtype:
       Set the data type of the blurred categories that are returned.
-      Default is `np.unit8`
+      Default is `"unit8"`
     output_params:
         Keyword arguments for the output file:
         nodata:
@@ -651,9 +655,9 @@ def extract_categories(source: str | Source,
     blur_as_int = params.pop('blur_as_int', None)
     if blur_as_int is not None:
         if blur_as_int:
-            output_dtype = np.uint8
+            output_dtype = "uint8"
         else:
-            output_dtype = np.float64
+            output_dtype = "float64"
         warnings.warn("The parameter `blur_as_int` is deprecated, use "
                       f"`output_dtype` instead!\nUsing {blur_as_int=} leads to "
                       f"{output_dtype=}",
@@ -1060,9 +1064,9 @@ def compute_entropy(source: str | Source,
     )
 
     if entropy_as_ubyte:
-        entropy_output_dtype = np.uint8
+        entropy_output_dtype = "uint8"
     else:
-        entropy_output_dtype = rio.float64
+        entropy_output_dtype = "float64"
     entropy_output_params = dict(
         input_bands=input_bands,
         # blur_params=blur_params,
@@ -1859,7 +1863,7 @@ def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
             view=view,
             normed=normed,
             max_entropy_categories=max_entropy_categories,
-            output_dtype=np.uint8 if entropy_as_ubyte else None,
+            output_dtype="uint8" if entropy_as_ubyte else None,
         )
         # This would return the entropy data
         _ = runner_call(
@@ -2014,7 +2018,7 @@ def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedT
 
       entropy_as_ubyte: bool, Default=False
         Should the entropy be normalized and returned as ubyte?
-      blur_output_dtype: type, Default=None
+      blur_output_dtype: type|str|None, Default=None
         Sets the data type to which the blurred data should be
         converte before calculating the entropy
       filter_output_range: tuple|None, Default=None
@@ -2029,9 +2033,9 @@ def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedT
     blur_as_int = params.pop('blur_as_int', None)
     if blur_as_int is not None:
         if blur_as_int:
-            params['blur_output_dtype'] = np.uint8
+            params['blur_output_dtype'] = "uint8"
         else:
-            params['blur_output_dtype'] = np.float64
+            params['blur_output_dtype'] = "float64"
         warnings.warn("The parameter `blur_as_int` is deprecated, use "
                       f"`output_dtype` instead!\nUsing {blur_as_int=} leads to "
                       f"{params['output_dtype']=}",
@@ -2061,7 +2065,7 @@ def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedT
         entropy_params = dict(
             category_arrays=blured_data,
             view=view,
-            output_dtype=np.uint8 if entropy_as_ubyte else None,
+            output_dtype="uint8" if entropy_as_ubyte else None,
         )
         # This would return the entropy data
         _ = runner_call(

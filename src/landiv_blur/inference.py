@@ -375,7 +375,7 @@ def prepare_predictors(response: str | Band,
 
 def extract_predictor_data(*predictors: Band,
                            window: Window | None,
-                           as_dtype: type,
+                           as_dtype: type|str,
                            **conversion_params
                            ):
     """Extract the data form the predictors
@@ -410,7 +410,7 @@ def transposed_product(predictors: Collection[Band],
                        view: tuple[int, int, int, int] | None,
                        selector: NDArray,
                        include_intercept: bool = False,
-                       as_dtype=np.float64
+                       as_dtype:str|type="float64"
                        ):
     """Extracts the selector of the predictor data in the provided view.
 
@@ -506,7 +506,7 @@ def partial_X(predictors: Collection[Band],
               window: Window | None,
               selector: NDArray,
               include_intercept: bool,
-              as_dtype):
+              as_dtype:type|str):
     """Generate (a partial) predictor matrix, $`X`$.
 
     If `window` is provided then only the specified selection will
@@ -556,7 +556,7 @@ def get_optimal_weights_source(Y: NDArray,
                                view: tuple[int, int, int, int] | None,
                                selector,
                                include_intercept: bool = False,
-                               as_dtype=np.float64
+                               as_dtype="float64"
                                ) -> dict[Band, float]:
     r"""Calculate the optimal weights directly from predictors and the inverse of
     the transposed product, Y.

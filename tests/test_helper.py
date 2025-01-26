@@ -82,7 +82,7 @@ def test_count_contrib():
 def test_convert_to_dtype_basics():
     """
     """
-    # array containing min and max of uint8
+    # array containing min and max of uint16
     a = np.array([[2,4,4],[3,0.,2], [20,128.,255.]], dtype=np.uint8)
     b = convert_to_dtype(data=a, as_dtype=np.uint16)
     assert np.max(b) == np.iinfo(np.uint16).max
@@ -101,6 +101,18 @@ def test_convert_to_dtype_basics():
     # simply rescale [0,1] to [0,0.5] - doubling it should bring us back
     c_scaled = convert_to_dtype(c, out_range=[0, 0.5])
     np.testing.assert_equal(c, 2*c_scaled)
+
+    # using strings to set the dtype
+    dtype_str = 'float64'
+    d = convert_to_dtype(data=a, as_dtype=dtype_str, out_range=(0,1))
+    # convert back to uint8
+    a_reconv = convert_to_dtype(data=d, in_range=(0,1), as_dtype='uint8')
+    np.testing.assert_equal(a, a_reconv)
+    # expecting a TypeError error with badly formatted string
+    dtype_str_broken = 'foat64'
+    with pytest.raises(TypeError, match=dtype_str_broken):
+        d = convert_to_dtype(data=a, as_dtype=dtype_str_broken, out_range=(0,1))
+
 
 
 def test_convert_to_dtype_range_handling():

@@ -57,7 +57,7 @@ def get_lct_heterogeneity(source: str,
                           block_size: tuple[int, int],
                           blur_params: dict,
                           categories: list | None = None,
-                          blur_output_dtype: type = np.uint8,
+                          blur_output_dtype: type|str = "uint8",
                           entropy_as_ubyte: bool = True,
                           **params):
     """Compute the entropy-based heterogeneity from a map of land cover types.
@@ -80,7 +80,8 @@ def get_lct_heterogeneity(source: str,
         `diameter` or `sigma` in a in meters or any other measure of distance.
     blur_output_dtype:
       Set the data type of the blurred categories before computing the entropy.
-      Default is `np.unit8`
+      For the available options checkout `np.dtype`.
+      Default is `"unit8"`
     entropy_as_ubyte:
         Should the entropy be normalized and returned as ubyte?
     """
@@ -88,9 +89,9 @@ def get_lct_heterogeneity(source: str,
     blur_as_int = params.pop('blur_as_int', None)
     if blur_as_int is not None:
         if blur_as_int:
-            blur_output_dtype = np.uint8
+            blur_output_dtype = "uint8"
         else:
-            blur_output_dtype = np.float64
+            blur_output_dtype = "float64"
         warnings.warn("The parameter `blur_as_int` is deprecated, use "
                       f"`blur_output_dtype` instead!\nUsing {blur_as_int=} leads to "
                       f"{blur_output_dtype=}",
@@ -151,9 +152,9 @@ def get_lct_heterogeneity(source: str,
     )
 
     if entropy_as_ubyte:
-        entropy_output_dtype = np.uint8
+        entropy_output_dtype = "uint8"
     else:
-        entropy_output_dtype = rio.float64
+        entropy_output_dtype = "float64"
     entropy_output_params = dict(
         blur_params=blur_params,
         profile=profile,
@@ -291,9 +292,9 @@ def main():
     entropy_ubyte = inargs.pop('entropy_ubyte')
     blur_int = inargs.pop('blur_int')
     if blur_int:
-        blur_output_dtype = np.uint8
+        blur_output_dtype = "uint8"
     else:
-        blur_output_dtype = np.float64
+        blur_output_dtype = "float64"
     nbrcpu = inargs.pop('nbrcpu')
     bwidth = inargs.pop('bwidth')
     bheight = inargs.pop('bheight')
