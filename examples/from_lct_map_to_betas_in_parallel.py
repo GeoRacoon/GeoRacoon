@@ -44,7 +44,7 @@ _diameter = diameter / scale
 truncate = 3  # property of the gaussian filter
 block_size = (500, 400)  # how big of a block schould a single job handle
                          # (in pixels)
-blur_output_dtype = np.uint8  # data type to use for computing the entropy array
+blur_output_dtype = "uint8"  # data type to use for computing the entropy array
 blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
 filter_params = dict(sigma=blur_params['sigma'], truncate=blur_params['truncate'])
 # now we can start with generating the blurred layers

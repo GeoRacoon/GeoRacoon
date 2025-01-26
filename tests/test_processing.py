@@ -18,7 +18,7 @@ def test_select_category():
     # Create a random matrix with integers in [1, 8]
     rand_map = np.random.randint(8, size=(100, 200)) + 1
     category = 4  # the category we want to get
-    dtype = np.float16  # special case, normal would be np.uint8
+    dtype = "float16"  # special case, normal would be np.uint8
     # set the values for a map and a miss
     is_v = np.finfo(dtype).max
     not_v = np.finfo(dtype).min
@@ -106,14 +106,14 @@ def test_filter_data(datafiles):
     lct_blurred = lbproc.get_filtered_categories(ch_data, categories=categories,
                                                  img_filter=gaussian,
                                                  filter_params=filter_params,
-                                                 output_dtype=np.uint8)
-    # compute binary maps first then blur
+                                                 output_dtype="uint8")
+    # compute binary maps first then blu
     lct_binary = lbproc.get_filtered_categories(ch_data, categories=categories)
     for cat, data in lct_blurred.items():
         filtered_data = lbproc.filter_data(data=lct_binary[cat], img_filter=gaussian,
                                            filter_params=filter_params,
-                                           filter_output_range=[0.,1.],
-                                           output_dtype=np.uint8)
+                                           filter_output_range=(0., 1.),
+                                           output_dtype="uint8")
         np.testing.assert_equal(data, filtered_data)
 
 @ALL_MAPS
@@ -135,7 +135,7 @@ def test_filter_data_float(datafiles):
         filtered_data = lbproc.filter_data(data=ch_f_data,
                                            img_filter=gaussian,
                                            filter_params=filter_params,
-                                           output_dtype=np.float32)
+                                           output_dtype="float32")
         assert str(record[0].message).startswith("Raster array has NaN")
     # Check that the nan's have been 'eating up area'
     assert np.isnan(filtered_data).sum() >= np.isnan(ch_f_data).sum()
@@ -145,7 +145,7 @@ def test_filter_data_float(datafiles):
                                        img_filter=gaussian,
                                        replace_nan_with=0,
                                        filter_params=filter_params,
-                                       output_dtype=np.float32)
+                                       output_dtype="float32")
     # Check that the nan's have been 'eating up area'
     assert np.isnan(filtered_data).sum() == np.isnan(ch_f_data).sum()
 
@@ -156,7 +156,7 @@ def test_entropy_normalization_conversion(datafiles):
     map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     map_data = lbio.load_map(map_tif)
     data = map_data['data']
-    blur_output_dtype = np.uint8  # convert the blurred data to uint8 before
+    blur_output_dtype = "uint8"  # convert the blurred data to uint8 before
     categories = lbproc.get_categories(data)
 
     max_entropy = lbproc.get_max_entropy(len(categories))
@@ -178,7 +178,7 @@ def test_entropy_normalization_conversion(datafiles):
         entropy_data = lbproc.get_entropy(data=data,
                                           categories=categories,
                                           normed=False,
-                                          output_dtype=np.uint8,  # this should lead to a warning
+                                          output_dtype="uint8",  # this should lead to a warning
                                           img_filter=gaussian,
                                           blur_output_dtype=blur_output_dtype,
                                           )
@@ -206,7 +206,7 @@ def test_entropy_normalization_conversion(datafiles):
 
     rescaled_entropy_data = lbproc.get_entropy(data, categories=categories,
                                                 normed=True,
-                                                output_dtype=np.uint8,
+                                                output_dtype="uint8",
                                                 img_filter=gaussian,
                                                 blur_output_dtype=blur_output_dtype,
                                                )

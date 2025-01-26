@@ -35,11 +35,11 @@ def test_extract_predictor_data(datafiles,
     for pred in predictors:
         pred.set_mask_reader(use='source')
     # get predictor data as float
-    pred_float = lbinf.extract_predictor_data(*predictors, window=None, as_dtype=np.float64)
+    pred_float = lbinf.extract_predictor_data(*predictors, window=None, as_dtype="float64")
     assert np.max(pred_float) <= 1.0
     assert np.min(pred_float) >= 0.0
     # as uint 8
-    pred_uint = lbinf.extract_predictor_data(*predictors, window=None, as_dtype=np.uint8)
+    pred_uint = lbinf.extract_predictor_data(*predictors, window=None, as_dtype="uint8")
     assert np.max(pred_uint) <= 255
     assert np.min(pred_uint) >= 0
     if np.max(pred_float) >= 2/255:
@@ -47,7 +47,7 @@ def test_extract_predictor_data(datafiles,
     # make sure the conversion works as expected
     np.testing.assert_equal(
         np.array(pred_float),
-        lbhelp.convert_to_dtype(np.array(pred_uint), as_dtype=np.float64)
+        lbhelp.convert_to_dtype(np.array(pred_uint), as_dtype="float64")
     )
     print('====')
     # ###
@@ -59,11 +59,11 @@ def test_extract_predictor_data(datafiles,
     for pred in predictors:
         pred.set_mask_reader(use='source')
     # write out predictor matrix as float
-    pred_float = lbinf.extract_predictor_data(*predictors, window=None, as_dtype=np.float64)
+    pred_float = lbinf.extract_predictor_data(*predictors, window=None, as_dtype="float64")
     assert np.max(pred_float) <= 1.0
     assert np.min(pred_float) >= 0.0
     # as uint 8
-    pred_uint = lbinf.extract_predictor_data(*predictors, window=None, as_dtype=np.uint8)
+    pred_uint = lbinf.extract_predictor_data(*predictors, window=None, as_dtype="uint8")
     assert np.max(pred_uint) <= 255
     assert np.min(pred_uint) >= 0
     if np.max(pred_float) >= 2/255:
@@ -71,7 +71,7 @@ def test_extract_predictor_data(datafiles,
     # make sure the conversion works as expected
     np.testing.assert_allclose(
         np.array(pred_float),
-        lbhelp.convert_to_dtype(np.array(pred_uint), as_dtype=np.float64),
+        lbhelp.convert_to_dtype(np.array(pred_uint), as_dtype="float64"),
         atol=1/255  # to makes sure no float > uint conversion is picked up
     )
 
@@ -235,7 +235,7 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif):
     transprodX = lbinf.transposed_product(predictors,
                                           view=None,
                                           selector=selector,
-                                          as_dtype=np.float64)
+                                          as_dtype="float64")
 
     # print(f"\n{tpX=}\n{transprodX=}\n")
     np.testing.assert_allclose(tpX, transprodX, rtol=1e-06)
@@ -253,7 +253,7 @@ def test_transposed_prod_blurred_example_data(datafiles, create_blurred_tif):
     view = None  # use the full maps
     include_intercept = True
     verbose = True
-    as_dtype = np.float64
+    as_dtype = "float64"
     sigma = 10
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
@@ -345,7 +345,7 @@ def test_optimal_beta(datafiles, create_blurred_tif):
                                            view=None,
                                            include_intercept=isetup,
                                            selector=selector,
-                                           as_dtype=np.float64)
+                                           as_dtype="float64")
         Y_col = np.linalg.inv(tpX_col)
         betas_col = lbinf.get_optimal_weights_source(Y=Y,
                                                      response=response,
@@ -353,7 +353,7 @@ def test_optimal_beta(datafiles, create_blurred_tif):
                                                      view=None,
                                                      include_intercept=isetup,
                                                      selector=selector,
-                                                     as_dtype=np.float64)
+                                                     as_dtype="float64")
         # print(f"{Y=}, {Y_col=}")
         np.testing.assert_allclose(Y, Y_col, rtol=1e-06)
         np.testing.assert_allclose(betas, list(betas_col.values()), rtol=1e-05)

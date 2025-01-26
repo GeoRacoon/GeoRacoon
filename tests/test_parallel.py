@@ -34,7 +34,7 @@ def test_blur_recombination(datafiles):
     _diameter = diameter / scale
     truncate = 3  # property of the gaussian filter
     view_size = (500, 400)
-    output_dtype = np.uint8  # data type to use for the blurred arrays
+    output_dtype = "uint8"  # data type to use for the blurred arrays
     blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
     min_border = lbf_gauss.compatible_border_size(sigma=blur_params['sigma'],
                                                   truncate=truncate)
@@ -166,8 +166,8 @@ def test_entropy_recombination(datafiles):
     truncate = 3  # property of the gaussian filter
     view_size = (500, 400)
     filter_output_range = (0.0, 1.0)  # full range of data the filter can produce
-    blur_output_dtype = np.uint8  # blurred maps will be saved in this format
-    output_dtype=np.uint8
+    blur_output_dtype = "uint8"  # blurred maps will be saved in this format
+    output_dtype = "uint8"
     normed = True
     blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
     min_border = lbf_gauss.compatible_border_size(sigma=blur_params['sigma'],
@@ -183,7 +183,7 @@ def test_entropy_recombination(datafiles):
     height = profile['height']
     # we will save each category separately
     profile['count'] = 1
-    profile['dtype'] = output_dtype
+    profile['dtype'] = np.dtype(output_dtype)
     # get the categories
     categories = lbproc.get_categories(ch_data)
     max_entropy_categories = len(categories)
@@ -305,18 +305,18 @@ def test_extract_categories(datafiles):
     source_band = lct_source.get_band(bidx=1)
     print(f"{source_profile=}")
     # extract categories without applying a filter
-    to_type=np.uint8
+    to_dtype="uint8"
     categories = [1,2,3,4,5]
     category_tif = lbpara.extract_categories(
         source=lct_source,
         categories=categories,
         output_file=str(datafiles / 'category_out.tif'),
-        output_dtype=to_type,
+        output_dtype=to_dtype,
         block_size=(500, 500),
         compress = True,
         output_params = dict(
             nodata=0,
-            dtype=to_type
+            dtype=to_dtype
         ),
     )
     category_source = lbio_.Source(category_tif)
@@ -333,14 +333,14 @@ def test_extract_categories(datafiles):
 
     # check nodata handling
     # creat an output file (with changed nodata)
-    to_types = [np.float32, np.int16, np.uint8]
+    to_dtypes = ["float32", "int16", "uint8"]
     nodatas = [np.nan, 0, None]
-    for nodata, to_type in zip(nodatas, to_types):
+    for nodata, to_dtype in zip(nodatas, to_dtypes):
         tmp_map = str(datafiles / 'bands_out.tif')
         tmp_source = lbio_.Source(path=tmp_map)
         tmp_profile = source_profile.copy()
         tmp_profile['nodata'] = nodata
-        tmp_profile['dtype'] = to_type
+        tmp_profile['dtype'] = to_dtype
         tmp_source.profile = tmp_profile
         tmp_source.init_source(overwrite=True)
         # sanity check for Source.init_source resp. Source.open
@@ -350,7 +350,7 @@ def test_extract_categories(datafiles):
 
         tmp_band = lbio_.Band(source=tmp_source, bidx=1)
         # write out data as 
-        tmp_band.set_data(source_band.get_data().astype(to_type))
+        tmp_band.set_data(source_band.get_data().astype(to_dtype))
         filter_params = dict(
             sigma = 100,
             truncate = 3
@@ -361,12 +361,12 @@ def test_extract_categories(datafiles):
             output_file=str(datafiles / 'blur_out.tif'),
             img_filter=lbf_gauss.gaussian,
             filter_params=filter_params,
-            output_dtype=to_type,
+            output_dtype=to_dtype,
             block_size=(500, 500),
             compress = True,
             output_params = dict(
                 nodata=nodata,
-                dtype=to_type
+                dtype=to_dtype
             ),
         )
         out_source = lbio_.Source(path=blurred_tif)
@@ -374,7 +374,8 @@ def test_extract_categories(datafiles):
         print(f"{out_profile=}")
         np.testing.assert_equal(out_profile['nodata'], nodata)
         # We need to map GDAL to numpy datatypes
-        np.testing.assert_equal(rasterio_to_numpy_dtype(out_profile['dtype']), to_type)
+        assert out_profile['dtype'] == to_dtype
+        #np.testing.assert_equal(rasterio_to_numpy_dtype(out_profile['dtype']), to_dtype)
 
 
 @ALL_MAPS

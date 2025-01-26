@@ -23,7 +23,7 @@ def test_Band_operations(datafiles):
     profile = {
         "count": 3,
         "width": width, "height": height,
-        "dtype": np.float64,
+        "dtype": "float64",
         "transform": rasterio.Affine(1, 0, 0, 0, 1, 0)
     }
     band = Band(source=Source(test_file), bidx=1, tags=b1_tags)
@@ -73,7 +73,7 @@ def test_Band_tagging(datafiles):
     profile = {
         "count": 3,
         "width": 10, "height": 10,
-        "dtype": np.float64,
+        "dtype": "float64",
         "transform": rasterio.Affine(1, 0, 0, 0, 1, 0)
     }
     with rio.open(test_file, 'w+', **profile) as src:

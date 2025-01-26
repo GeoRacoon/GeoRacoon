@@ -297,8 +297,10 @@ def dtype_range(dtype)->tuple[int|float, int|float]:
       Be sure to convert them back into `dtype` if needed!
 
     """
+    if isinstance(dtype, str):
+        dtype = np.dtype(dtype)
     # avoid issues of object not callable from rasterio
-    if hasattr(dtype, 'type'):
+    elif hasattr(dtype, 'type'):
         dtype = dtype.type
     try:
         _max = int(np.iinfo(dtype).max)
@@ -313,7 +315,7 @@ def dtype_range(dtype)->tuple[int|float, int|float]:
 
 
 def convert_to_dtype(data: NDArray,
-                     as_dtype:None|type|np._dtype=None,
+                     as_dtype:None|type|np._dtype|str=None,
                      in_range:None|NDArray|Collection=None,
                      out_range:None|NDArray|Collection=None)->NDArray:
     """Converts data to as_dtype and optionally rescales it.
@@ -349,6 +351,10 @@ def convert_to_dtype(data: NDArray,
       an array or list from which min and max will be used as limits for the
       output
     """
+    # convert to numpy dtype is string was provided
+    if isinstance(as_dtype, str):
+        as_dtype = np.dtype(as_dtype)
+
     in_dtype = data.dtype
 
     data_min, data_max = np.nanmin(data), np.nanmax(data)
@@ -378,6 +384,7 @@ def convert_to_dtype(data: NDArray,
     # now the output dtype
     if out_range is None:
         assert as_dtype is not None, f"{out_range=} and {as_dtype=} cannot both be unset!"
+
         if np.issubdtype(as_dtype, np.floating):
             _outmax, _outmin = 1.0, 0.0
         else:
