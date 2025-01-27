@@ -380,7 +380,9 @@ def process_masks(task: Callable,
                   task_params: dict,
                   read_params: dict,
                   open_params: dict,
-                  aggr_q: Queue) -> TimedTask:
+                  aggr_q: Queue,
+                  extra_masking_band:Band|None=None,
+                  ) -> TimedTask:
     """Processes a section of the mask for each band
 
     This is a general purpose function that can be used to process a large .tif
@@ -405,7 +407,10 @@ def process_masks(task: Callable,
         Keyword arguments that are passed to the reader method of the `source` object
     aggr_q: 
         The queue this job will put the output of the callable `task` into
-        
+    extra_masking_band:
+        Optional `io_.Band` object that is treated as a rasterio mask, i.e. values equal to 0
+        .. warning::
+          This Band is treated as a mask itself, its own mask is ignored.
 
     Returns
     -------
@@ -420,6 +425,11 @@ def process_masks(task: Callable,
             with mask_reader(**open_params) as read_mask:
                 _mask = read_mask(window=window, **read_params)
                 masks.append(_mask)
+        # add the data from the extra masking band as an additional mask
+        if extra_masking_band is not None:
+            with extra_masking_band.data_reader() as read:
+                extra_mask = read(window=window)
+            masks.append(extra_mask)
         _ = runner_call(callback=task,
                         params=dict(masks=masks, **task_params),
                         queue=aggr_q,
@@ -1556,6 +1566,7 @@ def compute_mask(source: str | Source,
 
 def prepare_selector(*bands: Band,
                      block_size: tuple[int, int],
+                     extra_masking_band: Band|None=None,
                      verbose=False,
                      **params) -> NDArray:
     """Compute a boolean selector from masks of the provided `io_.Band` objects
@@ -1567,6 +1578,8 @@ def prepare_selector(*bands: Band,
         A collection of strings or `io_.Band` object the specify which bands to use
     block_size:
         Size (width, height) in #pixel of the block that a single job processes
+    extra_masking_band: Optional `io_.Band` object thas is treated as a rasterio mask, i.e. values equal to 0
+      will be masked.
     verbose:
         Print out processing step infos
     **params:
@@ -1608,6 +1621,7 @@ def prepare_selector(*bands: Band,
             task_params=dict(logic='all'),
             open_params=dict(mode='r'),
             read_params=dict(),
+            extra_masking_band=extra_masking_band,
         )
         block_params.append(bparams)
     # ###
@@ -2427,11 +2441,13 @@ def compute_weights(response: str | Band,
 
     **params:
         Optional arguments:
-
+        - `extra_masking_band` (NDArray|None): An additional Band object to be used
+          directly as a mask (i.e. all cells of value 0 are masked).
         - `nbr_cpus` (int): how many CPUs should be used (by default the number
           of available CPUs minus one will be used.
         - `start_method` (str): Determines how the workers should start a
           process. Accepted are 'spawn', 'fork' or 'forkserver'.
+
     """
     # if block sizes are provided as dictionary - some pre-check on input is desired - else
     block_size_params = dict(prepare_selector=None, get_XT_X=None, get_optimal_betas=None)
@@ -2452,6 +2468,7 @@ def compute_weights(response: str | Band,
                                 *predictors,
                                 block_size=block_size_params["prepare_selector"],
                                 verbose=verbose,
+                                extra_masking_band=params.get('extra_masking_band', None),
                                 **params)
 
     # If selector is empty (meaning all is FALSE) - no need to proceed

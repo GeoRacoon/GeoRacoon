@@ -104,6 +104,7 @@ def enrich_selector(selector: NDArray,
 
 def prepare_selector(response: str | Band,
                      *predictors: Band,
+                     extra_masking_band: Band|None=None,
                      verbose=False) -> NDArray:
     """Creates a boolean selector based on the masks of response and predictors
 
@@ -119,6 +120,8 @@ def prepare_selector(response: str | Band,
     *predictors:
       An arbitrary number of `io_.Band` objects each specifying one or several
       predictors.
+    extra_masking_band: Optional `io_.Band` object that is treated as a rasterio mask, i.e. values equal to 0
+      will be masked.
     verbose: Default: False
       If the method should print runtime info
 
@@ -144,6 +147,16 @@ def prepare_selector(response: str | Band,
         print("\nResponse data:")
         data_pixels = usable_pixels_count(selector)
         usable_pixels_info(all_pixels, data_pixels)
+    # now handle the extra mask band
+    if extra_masking_band is not None:
+        extra_selector = to_numpy_selector(extra_masking_band.get_data())
+        # combine with logical and, as only both True should lea to True
+        selector = np.logical_and(selector, extra_selector)
+        if verbose:
+            print("\nResponse data after extra masking:")
+            data_pixels = usable_pixels_count(selector)
+            usable_pixels_info(all_pixels, data_pixels)
+
     # first we get all the masks to compute an overall mask
     aggr_selector = enrich_selector(selector, *predictors, verbose=verbose)
 

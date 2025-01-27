@@ -86,6 +86,19 @@ class Source:
     @property
     def exists(self)->bool:
         return self.path.is_file()
+
+    @property
+    def shape(self)->tuple:
+        """Return the numpy shape of the data stored in this Source
+
+        .. note::
+          Requesting the shape will synchronize the profile with the data
+          written on disk.
+        """
+        self.import_profile()
+        height = self.profile['height']
+        width = self.profile['width']
+        return (height, width)
     
     def get_tags(self, bidx:int)->dict:
         with self.open(mode='r') as src:
@@ -677,6 +690,13 @@ class Band:
         with self.source.open(mode='r', **okwargs) as src:
             data = src.read(indexes=self.source.get_bidx(band=self), **kwargs)
         return data
+
+    @property
+    def shape(self):
+        """Get the np.array shape of this band
+        """
+        return self.source.shape
+
 
     def count_valid_pixels(self, selector:NDArray|None, no_data:Union[int,float],
                            limit_count:int=0):

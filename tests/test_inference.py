@@ -240,6 +240,56 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif):
     # print(f"\n{tpX=}\n{transprodX=}\n")
     np.testing.assert_allclose(tpX, transprodX, rtol=1e-06)
 
+@ALL_MAPS
+def test_extra_masking_band(datafiles, create_blurred_tif):
+    """Assert that the extra masing band is included correctly
+    """
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+
+    # scale it down to 100x100m (from 30x30)
+    ndvi_map = str(datafiles / 'lct_coreged.tif')
+    lbio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+    blurred_source = lbio_.Source(path=create_blurred_tif)
+    # set the mask
+    lbpara.compute_mask(source=blurred_source, block_size=(500, 500), nodata=0, logic='all')
+    # create the inputs
+    response = lbio_.Band(source=lbio_.Source(path=ndvi_map))
+    predictors = blurred_source.get_bands()
+    # Each band should use the dataset mask:
+    for pred_band in predictors:
+        pred_band.set_mask_reader(use='source')
+
+    # Create extra masking band
+    resp_profile = response.source.import_profile()
+    tmp_map = str(datafiles / 'extra_mask_band.tif')
+    tmp_source = lbio_.Source(path=tmp_map)
+    tmp_profile = resp_profile.copy()
+    tmp_profile['nodata'] = 0
+    tmp_profile['dtype'] = np.uint8 
+    tmp_source.profile = tmp_profile
+    tmp_source.init_source(overwrite=True)
+    extra_masking_band = lbio_.Band(source=tmp_source, bidx=1)
+    # write out data as (mask all)
+    extra_mask_data = np.full(shape=response.shape, fill_value=0, dtype=np.uint8)
+    extra_masking_band.set_data(data=extra_mask_data)
+    selector = lbinf.prepare_selector(
+        response,
+        *predictors,
+        extra_masking_band=extra_masking_band)
+    assert True not in np.unique(selector).tolist()
+    # extra mask none and check that it has no influence
+    extra_mask_data = np.full(shape=response.shape, fill_value=255, dtype=np.uint8)
+    extra_masking_band.set_data(data=extra_mask_data)
+    selector_wo = lbinf.prepare_selector(
+        response,
+        *predictors,)
+    selector = lbinf.prepare_selector(
+        response,
+        *predictors,
+        extra_masking_band=extra_masking_band)
+    np.testing.assert_equal(selector, selector_wo)
+
 
 @ALL_MAPS
 def test_transposed_prod_blurred_example_data(datafiles, create_blurred_tif):
