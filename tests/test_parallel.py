@@ -295,6 +295,75 @@ def test_entropy_recombination(datafiles):
     )
 
 @ALL_MAPS
+def test_prepare_selector_parallel(datafiles, create_blurred_tif):
+    """`parallel.prepare_selector` is equivalent to `inference.prepare_selector`
+    """
+    block_size = (500, 500)
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+
+    # scale it down to 100x100m (from 30x30)
+    ndvi_map = str(datafiles / 'lct_coreged.tif')
+    lbio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+    blurred_source = lbio_.Source(path=create_blurred_tif)
+    # set the mask
+    lbpara.compute_mask(source=blurred_source, block_size=block_size, nodata=0, logic='all')
+    # create the inputs
+    response = lbio_.Band(source=lbio_.Source(path=ndvi_map))
+    predictors = blurred_source.get_bands()
+    # Each band should use the dataset mask:
+    for pred_band in predictors:
+        pred_band.set_mask_reader(use='source')
+
+    # without the extra masking band, both should lead to the same result
+    selector_wo = lbinf.prepare_selector(
+        response,
+        *predictors,)
+    selector_parallel_wo = lbpara.prepare_selector(
+        response,
+        *predictors,
+        block_size=block_size,
+    )
+    np.testing.assert_equal(selector_wo, selector_parallel_wo)
+    # Create extra masking band
+    resp_profile = response.source.import_profile()
+    tmp_map = str(datafiles / 'extra_mask_band.tif')
+    tmp_source = lbio_.Source(path=tmp_map)
+    tmp_profile = resp_profile.copy()
+    tmp_profile['nodata'] = 0
+    tmp_profile['dtype'] = np.uint8 
+    tmp_source.profile = tmp_profile
+    tmp_source.init_source(overwrite=True)
+    extra_masking_band = lbio_.Band(source=tmp_source, bidx=1)
+    # write out data as (mask all)
+    extra_mask_data = np.full(shape=response.shape, fill_value=0, dtype=np.uint8)
+    extra_masking_band.set_data(data=extra_mask_data)
+    selector = lbinf.prepare_selector(
+        response,
+        *predictors,
+        extra_masking_band=extra_masking_band)
+    selector_parallel = lbpara.prepare_selector(
+        response,
+        *predictors,
+        block_size=block_size,
+        extra_masking_band=extra_masking_band,
+    )
+    np.testing.assert_equal(selector, selector_parallel)
+    # extra mask none and check that it has no influence
+    extra_mask_data = np.full(shape=response.shape, fill_value=255, dtype=np.uint8)
+    extra_masking_band.set_data(data=extra_mask_data)
+    selector = lbinf.prepare_selector(
+        response,
+        *predictors,
+        extra_masking_band=extra_masking_band)
+    selector_para = lbpara.prepare_selector(
+        response,
+        *predictors,
+        block_size=block_size,
+        extra_masking_band=extra_masking_band)
+    np.testing.assert_equal(selector,selector_para)
+
+@ALL_MAPS
 def test_extract_categories(datafiles):
     """Make sure the extract categories works as expected
     """
@@ -985,7 +1054,7 @@ def test_compute_weights(datafiles, create_blurred_tif):
 
     # 2)
     # 2.1) Linear dependency
-    print('Create dependend bands')
+    print('Create dependent bands')
     # Modify one band (to be linear dependent of other)
     pred_sample_dep = random.sample(predictors, 2)
     ref_array = pred_sample_dep[0].get_data()
@@ -995,14 +1064,14 @@ def test_compute_weights(datafiles, create_blurred_tif):
 
     # 2.2) All zero band
     print('Create all-zero band')
-    # This should get cought by sanitize predictors
+    # This should get caught by sanitize predictors
     pred_sample_zero = random.sample([p for p in predictors if p not in pred_sample_dep], 1)
     zero_array = np.zeros(ref_array.shape)
     with rio.open(blur_source.path, mode='r+') as dst:
         dst.write(zero_array, indexes=pred_sample_zero[0].get_bidx())
 
     # 2.3) Run test
-    # The All-Zero band should be cauthg by the sanitize
+    # The All-Zero band should be caught by the sanitize
     beta_weights = lbpara.compute_weights(response=ndvi_map,
                                     predictors=predictors,
                                     block_size=(500, 500),
