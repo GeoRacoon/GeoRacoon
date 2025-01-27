@@ -2464,11 +2464,12 @@ def compute_weights(response: str | Band,
                         bidx=1)
 
     print("Creating selector...")
+    extra_masking_band = params.pop("extra_masking_band", None)
     selector = prepare_selector(response,
                                 *predictors,
                                 block_size=block_size_params["prepare_selector"],
                                 verbose=verbose,
-                                extra_masking_band=params.get('extra_masking_band', None),
+                                extra_masking_band=extra_masking_band,
                                 **params)
 
     # If selector is empty (meaning all is FALSE) - no need to proceed
