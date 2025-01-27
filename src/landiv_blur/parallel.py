@@ -2503,6 +2503,7 @@ def compute_weights(response: str | Band,
                                     *predictors,
                                     block_size=block_size_params["prepare_selector"],
                                     verbose=verbose,
+                                    extra_masking_band=extra_masking_band,
                                     **params)
         # NOTE: We do not need to check_predictor_consistency again sine
         #       removing the predictor leads to at least the same valid
