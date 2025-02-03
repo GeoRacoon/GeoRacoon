@@ -817,11 +817,12 @@ def apply_filter(source: str | Source,
         input data
     data_output_dtype:
       Set the data type that the input data should be converted to before
-      applying the the filter
+      applying the filter
 
       .. note::
         If provided, the loaded data will be rescaled to the range of
         this data type or `out_range` (if provided).
+
     data_output_range:
       an array or list from which min and max will be used as limits loaded
       data if its data type is changed
@@ -836,7 +837,7 @@ def apply_filter(source: str | Source,
     filter_output_range:
       The range of values the applied filter function can return
     output_dtype:
-        Data type into which the output of the filer function will be converted
+        Data type into which the output of the filter function will be converted
     output_nodata:
         Set what value should be used as nodata value in the output file
         Default: None
@@ -1308,13 +1309,15 @@ def compute_interaction(source: str | Source,
 
 
 def compute_model(predictors: Collection[Band],
-                  optimal_weights: dict | None,
+                  optimal_weights: dict[dict]|dict | None,
                   output_file: str,
                   block_size: tuple[int, int],
-                  predictors_as_dtype: None=None,
+                  predictors_as_dtype: str|type|None=None,
                   profile: dict | None = None,
                   selector: NDArray[np.bool_] | None = None,
+                  selector_band: Band|None=None,
                   verbose: bool = False,
+                  predictor_params:dict|None=None,
                   **params):
     """Create a tif file with the model prediction values from a fitted model.
 
@@ -1323,7 +1326,13 @@ def compute_model(predictors: Collection[Band],
     predictors:
         Collection predictors used in the multiple linar regression.
     optimal_weights:
-        Holding for each predictor the optimal weight
+        Holding for each predictor the optimal weight.
+        If a `selector_band` is provided, then it must hold for each
+        categorical value (key) a dictionary with the optimal weights per
+        predictor.
+
+        _See `selector_band` parameter for more details._
+
     output_file:
         Path to where the model result should be written to
     block_size: tuple of int
@@ -1331,12 +1340,30 @@ def compute_model(predictors: Collection[Band],
     predictors_as_dtype:
         Datatype to convert predictor input to (e.g. np.float32) this will rescale them to [0, 1],
         which is used in the compute weights function.
+
+        .. warning::
+        This is going to be replaced by `predictor_params['as_dtype']`
+
     profile:
         The profile to use for the newly created output tif.
         By default the profile is copied from the first source of the
         bredictor bands, updating the count to 1.
+
     selector:
-        A numpy boolean array to use as a selector for (masking) the processing of the model.
+        A selector array to use to selectively calculate the model prediction.
+
+        If a boolean array is provided then it is applied to (inverted) mask:
+        only pixels that result to `True` are calculated.
+
+        If a categorical array (np.uint8) is provided instead, then it is assumed
+        that the `optimal_weights`  use as a selector for (masking) the processing of the model.
+
+    selector_band:
+        A band object with categorical data.
+
+        If provided, the `optimal_weights` needs to hold for each of the category
+        a dictionary with predictor specific weights.
+
     verbose:
         Print out processing steps
     **params:
@@ -1376,11 +1403,25 @@ def compute_model(predictors: Collection[Band],
                                   border=(0, 0),
                                   size=(width, height))
     block_params = []
+    if predictors_as_dtype is not None:
+        warnings.warn(
+            "Consider using `predictor_params['as_dtype']` rather than "
+            "specifying `predictors_as_dtype` directly!",
+            category=DeprecationWarning
+        )
+    if predictor_params is None:
+        predictor_params = dict()
+    predictors_as_dtype = predictor_params.get('as_dtype', predictors_as_dtype)
+    predictors_in_range = predictor_params.get('in_range', None)
+    predictors_out_range = predictor_params.get('out_range', None)
     for view in inner_views:
         bparams = dict(view=view,
                        predictors=predictors,
                        predictors_as_dtype=predictors_as_dtype,
+                       predictors_in_range=predictors_in_range,
+                       predictors_out_range=predictors_out_range,
                        selector=selector,
+                       selector_band=selector_band,
                        optimal_weights=optimal_weights,)
         block_params.append(bparams)
 
@@ -1783,7 +1824,7 @@ def check_predictor_consistency(predictors: Collection[Band],
 def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
     """Per block (i.e. view) model prediction for a fitted regression
 
-    The created view is alwasy returned as np.float64
+    The created view is always returned as np.float64
 
     Parameters
     ----------
@@ -1800,6 +1841,7 @@ def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
     job_out_q: multiprocessing.Queue
       The queue to push the block data to
     """
+    out_dtype = np.float64
     with TimedTask() as timer:
         predictors = params.pop('predictors')
         optimal_weights = params.pop('optimal_weights')
@@ -1807,22 +1849,45 @@ def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
         view = params.get('view')
         window = view_to_window(view)
         selector = params.get('selector')
+        selector_band = params.get('selector_band')
         predictors_as_dtype = params.get('predictors_as_dtype')
+        predictors_in_range = params.get('predictors_in_range')
+        predictors_out_range = params.get('predictors_out_range')
         width = view[2]
         height = view[3]
         # start with an all zero map
-        model_data = np.zeros(shape=(height, width), dtype=np.float32)
+        model_data = np.zeros(shape=(height, width), dtype=out_dtype)
 
         if selector is not None:
             _selector = selector[window.toslices()]
             model_data[~_selector] = np.nan
 
-        for pred in predictors:
-            block_data = pred.load_block(view=view)['data']
-            if predictors_as_dtype is not None:
-                block_data = convert_to_dtype(block_data, as_dtype=predictors_as_dtype)
-            # add each predictor data layer multiplied by its weight
-            model_data += optimal_weights[pred] * block_data
+        if selector_band is not None:
+            selector_data = selector_band.load_block(view=view)['data']
+            selectors = np.unique(selector_data,).tolist()
+            if np.nan in selectors:
+                selectors.remove(np.nan)
+        else:
+            # just pretend that optimal weights is expressed for some dummy selector
+            selectors = [0,]
+            selector_data = np.zeros_like(model_data, dtype=np.uint8)
+            optimal_weights = {0: optimal_weights}
+
+        for select in selectors:
+            _opt_weights = optimal_weights[select]
+            _selector = np.where(selector_data==select, True, False)
+            for pred in predictors:
+                block_data = pred.load_block(view=view)['data']
+                if predictors_as_dtype is not None:
+                    block_data = convert_to_dtype(
+                        block_data,
+                        as_dtype=predictors_as_dtype,
+                        in_range=predictors_in_range,
+                        out_range=predictors_out_range
+                    )
+                # add each predictor data layer multiplied by its weight
+                if pred in _opt_weights:
+                    model_data += np.where(_selector, _opt_weights[pred] * block_data, 0)
         output = dict(
             data=model_data,
             view=view

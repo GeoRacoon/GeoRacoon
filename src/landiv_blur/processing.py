@@ -6,6 +6,7 @@ import warnings
 import numpy as np
 from numpy.typing import NDArray
 from scipy.stats import entropy
+from skimage.filters import gaussian
 
 from .helper import dtype_range, convert_to_dtype
 from .io import load_block, get_bands
@@ -287,8 +288,9 @@ def filter_data(data:NDArray,
     # check if nan exists
     # TODO: move this out of this function
     if np.isnan(np.sum(data)) and replace_nan_with is None:
-        warnings.warn(f"Raster array has NaN - this will crop areas where the given function encounters NaNs. "
-                      f"If needed: Set a replacement value for NaNs ({replace_nan_with=})")
+        if img_filter == gaussian:  # only warn for gaussian
+            warnings.warn(f"Raster array has NaN - this will crop areas where the given function encounters NaNs. "
+                        f"If needed: Set a replacement value for NaNs ({replace_nan_with=})")
     # create a mask for NaN values (for restoring later)
     nan_mask = np.isnan(data)
     # replace nan with a provided value
