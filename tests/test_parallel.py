@@ -1121,7 +1121,7 @@ def test_model_output(datafiles, create_blurred_tif):
     model_data = np.full(shape=(resp_profile['height'],
                                 resp_profile['width']),
                          fill_value=0.0,
-                         dtype=np.float32)
+                         dtype=np.float64)
     for pred in predictors:
         model_data += optimal_weights[pred] * pred.get_data()
 
