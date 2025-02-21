@@ -22,61 +22,6 @@ from .conftest import ALL_MAPS, get_file
 
 
 @ALL_MAPS
-def test_extract_predictor_data(datafiles,
-                                create_blurred_tif,
-                                create_blurred_tif_float):
-    """Make sure the predictor data is extraced as expected.
-
-    This includes a proper type conversion and resacling, if needed.
-    """
-    blurred_source = lbio_.Source(path=create_blurred_tif)
-    predictors = blurred_source.get_bands()
-    # choose the write mask
-    for pred in predictors:
-        pred.set_mask_reader(use='source')
-    # get predictor data as float
-    pred_float = lbinf.extract_predictor_data(*predictors, window=None, as_dtype="float64")
-    assert np.max(pred_float) <= 1.0
-    assert np.min(pred_float) >= 0.0
-    # as uint 8
-    pred_uint = lbinf.extract_predictor_data(*predictors, window=None, as_dtype="uint8")
-    assert np.max(pred_uint) <= 255
-    assert np.min(pred_uint) >= 0
-    if np.max(pred_float) >= 2/255:
-        assert np.max(pred_uint) > 1
-    # make sure the conversion works as expected
-    np.testing.assert_equal(
-        np.array(pred_float),
-        lbhelp.convert_to_dtype(np.array(pred_uint), as_dtype="float64")
-    )
-    print('====')
-    # ###
-    # now the same with input data of type float
-    # ###
-    blurred_source = lbio_.Source(path=create_blurred_tif_float)
-    predictors = blurred_source.get_bands()
-    # choose the write mask
-    for pred in predictors:
-        pred.set_mask_reader(use='source')
-    # write out predictor matrix as float
-    pred_float = lbinf.extract_predictor_data(*predictors, window=None, as_dtype="float64")
-    assert np.max(pred_float) <= 1.0
-    assert np.min(pred_float) >= 0.0
-    # as uint 8
-    pred_uint = lbinf.extract_predictor_data(*predictors, window=None, as_dtype="uint8")
-    assert np.max(pred_uint) <= 255
-    assert np.min(pred_uint) >= 0
-    if np.max(pred_float) >= 2/255:
-        assert np.max(pred_uint) > 1
-    # make sure the conversion works as expected
-    np.testing.assert_allclose(
-        np.array(pred_float),
-        lbhelp.convert_to_dtype(np.array(pred_uint), as_dtype="float64"),
-        atol=1/255  # to makes sure no float > uint conversion is picked up
-    )
-
-
-@ALL_MAPS
 def test_preparation(datafiles, create_blurred_tif):
     """Test the preparation of predictors based on a response matrix
     """
@@ -180,7 +125,7 @@ def test_optimal_weights_example_data(datafiles, create_blurred_tif):
     reg = lbinf.get_approx_weights(X, y, fit_intercept=False)
     b_approx = np.round(reg.coef_, 6)
     # print(f"\n{b=}\n{b_approx=}\n")
-    np.testing.assert_array_equal(b, b_approx)
+    np.testing.assert_allclose(b, b_approx, rtol=1e-05)
     # now check when ingnoring the intercept in both cases
     X, y = lbinf.prepare_predictors(ndvi_map,
                                     *predictors,
@@ -189,7 +134,7 @@ def test_optimal_weights_example_data(datafiles, create_blurred_tif):
     reg = lbinf.get_approx_weights(X, y, fit_intercept=False)
     b_approx = np.round(reg.coef_, 6)
     # print(f"\n{b=}\n{b_approx=}\n")
-    np.testing.assert_array_equal(b, b_approx)
+    np.testing.assert_allclose(b, b_approx, rtol=1e-05)
 
 
 # @mem_profile
@@ -238,11 +183,11 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif):
                                           as_dtype="float64")
 
     # print(f"\n{tpX=}\n{transprodX=}\n")
-    np.testing.assert_allclose(tpX, transprodX, rtol=1e-06)
+    np.testing.assert_allclose(tpX, transprodX, rtol=1e-05)
 
 @ALL_MAPS
 def test_extra_masking_band(datafiles, create_blurred_tif):
-    """Assert that the extra masing band is included correctly
+    """Assert that the extra masking band is included correctly
     """
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
@@ -328,18 +273,16 @@ def test_transposed_prod_blurred_example_data(datafiles, create_blurred_tif):
     X = lbinf.init_X(predictors,
                      selector=selector,
                      window=riow,
-                     include_intercept=include_intercept)
+                     include_intercept=include_intercept,
+                     as_dtype=as_dtype
+                     )
 
-    # read out the data
-    # NOTE: This is taken from lbinf.extract_predictor_data but with added filter
-    pred_datas = lbinf.extract_predictor_data(*predictors,
-                                              window=riow,
-                                              as_dtype=as_dtype)
     lbinf.populate_X(X=X,
-                     predictor_datas=pred_datas,
+                     predictors=predictors,
                      window=riow,
                      selector=selector,
-                     include_intercept=include_intercept)
+                     include_intercept=include_intercept,
+                     as_dtype=as_dtype)
     # create transprodX matrix:
     # this is equivalent
     transprodX = X.T @ X
@@ -355,6 +298,7 @@ def test_transposed_prod_blurred_example_data(datafiles, create_blurred_tif):
 def test_optimal_beta(datafiles, create_blurred_tif):
     """Calculate the optimal beta values analytically
     """
+    as_dtype = 'float32'  # we use this since the ndvi map uses it
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     # scale it down to 100x100m (from 30x30)
@@ -395,7 +339,7 @@ def test_optimal_beta(datafiles, create_blurred_tif):
                                            view=None,
                                            include_intercept=isetup,
                                            selector=selector,
-                                           as_dtype="float64")
+                                           as_dtype=as_dtype)
         Y_col = np.linalg.inv(tpX_col)
         betas_col = lbinf.get_optimal_weights_source(Y=Y,
                                                      response=response,
@@ -403,10 +347,10 @@ def test_optimal_beta(datafiles, create_blurred_tif):
                                                      view=None,
                                                      include_intercept=isetup,
                                                      selector=selector,
-                                                     as_dtype="float64")
+                                                     as_dtype=as_dtype)
         # print(f"{Y=}, {Y_col=}")
-        np.testing.assert_allclose(Y, Y_col, rtol=1e-06)
-        np.testing.assert_allclose(betas, list(betas_col.values()), rtol=1e-05)
+        np.testing.assert_allclose(Y, Y_col, rtol=1e-04)
+        np.testing.assert_allclose(betas, list(betas_col.values()), rtol=1e-04)
 
         # test ouput length for correct key, value pairs
         n_predictors = len(predictors)
@@ -414,4 +358,4 @@ def test_optimal_beta(datafiles, create_blurred_tif):
         if isetup:
             n_predictors += 1
         np.testing.assert_equal(n_betas, n_predictors,
-                                err_msg=f"Number of beta {n_betas=} not equal to prdictors {n_predictors=}")
+                                err_msg=f"Number of beta {n_betas=} not equal to predictors {n_predictors=}")

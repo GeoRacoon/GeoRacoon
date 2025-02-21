@@ -171,7 +171,8 @@ def prepare_selector(response: str | Band,
 def init_X(predictors: Collection[Band],
            selector: NDArray,
            window: Window | None,
-           include_intercept: bool) -> NDArray:
+           include_intercept: bool,
+           as_dtype:type|str) -> NDArray:
     """Initiates the matrix X with the appropriate width and height
 
     Parameters
@@ -207,15 +208,16 @@ def init_X(predictors: Collection[Band],
     if include_intercept:
         nbr_cols += 1
     # create emtpy predictor array
-    return np.zeros((nbr_rows, nbr_cols), np.float64)
+    return np.zeros((nbr_rows, nbr_cols), dtype=np.dtype(as_dtype))
 
 
 def populate_X(X: NDArray,
-               predictor_datas: list[NDArray],
+               predictors: Collection[Band],
+               as_dtype: type|str,
                window: Window | None,
                selector: NDArray,
                include_intercept: bool):
-    """Adds column per predictor_datas with selector applied in the window view
+    """Adds column per predictor with selector applied in the window view
 
     ...Note::
       $X$ is updated in place.
@@ -223,7 +225,10 @@ def populate_X(X: NDArray,
     Parameters
     ----------
     X:
-     ....
+      Initiated np.NDArray which will hold the data of each predictor in a
+      separate column.
+    predictors:
+      An arbitrary number of `io_.Band` objects each specifying a predictor
     predictor_datas:
       List of arrays each being used as a predictor
     selector: np.array
@@ -242,15 +247,23 @@ def populate_X(X: NDArray,
       Determine if the predictor matrix should also contain an extra column of
       1's at the end, which is needed if also the intercepts should be fitted.
     """
+    # Create a window
     if window is not None:
         _selector = selector[window.toslices()]
     else:
         _selector = selector
+
+    for i, predictor in enumerate(predictors):
+        with predictor.data_reader() as read:
+            pred_data = read(window=window)
+            # perform type conversion without any rescaling
+            
+            pred_data_converted = convert_to_dtype(pred_data, as_dtype=as_dtype,
+                                                   in_range=None, out_range=None)
+
+            X[:, i] = pred_data_converted[_selector].reshape(1, -1)
+
         # apply the mask and populate X
-    for i, data in enumerate(predictor_datas):
-        # reshape to (-1,1)
-        # hstack to predictor array
-        X[:, i] = data[_selector].reshape(1, -1)
     # attach intercept column (of 1s) if chosen
     if include_intercept:
         X[:, -1] = 1.0
@@ -261,7 +274,7 @@ def prepare_predictors(response: str | Band,
                        view: tuple[int, int, int, int] | None = None,
                        include_intercept=True,
                        verbose: bool = False):
-    r"""Generates and returns the parameters for a multiple linear regressio
+    r"""Generates and returns the parameters for a multiple linear regression
 
     The parameters returned are $X$ and $\vec{y}$ from the multiple linear
     regression:
@@ -277,14 +290,15 @@ def prepare_predictors(response: str | Band,
     Since some of the predictor data might also have missing values, we
     iterate once over all predictor data and add pixels with missing values
     to the mask.
-    In doing so we avoid including pixels with incomplete informaiton into the
+    In doing so we avoid including pixels with incomplete information into the
     regression analysis.
 
     In doing so we can reduce the amount of pixel to include in the multiple
     linear regression analysis, therefore, reducing the size of the response
-    vector, leading ot a denser but smaller predictor matrix.
+    vector, leading to a denser but smaller predictor matrix.
     
-    ..Note::
+    .. note::
+
       This function returns an InferenceError if some predictor is invalid.
       
       An invalid predictor can happen if it is a linear combination of the
@@ -295,9 +309,9 @@ def prepare_predictors(response: str | Band,
 
       - If a predictor, after applying the final selector, contains only 0's
       - If a predictor consists of categorical data (i.e. a 2D array that
-        categorizes each pixel) with each selected pixel alwasy belonging
+        categorizes each pixel) with each selected pixel always belonging
         to a category (i.e. no unselected categories or unselected are masked
-        - see details for `prepictors` argument) and `include_intercept` is
+        - see details for `predictors` argument) and `include_intercept` is
         set to True.
 
     Parameters
@@ -306,15 +320,29 @@ def prepare_predictors(response: str | Band,
       Either a `.io_.Band` object or a string that specifies the path to a map
       (.tif file) that holds the response data.
 
-      ..Note::
-        If a string is provided then the response must be stored in a
-        single band.
+      .. note::
+
+        If a string is provided then the response must be stored in a single
+        band.
+
     *predictors:
-      An arbitrary number of either `io_.Band` objects or strings sepcifying one
+      An arbitrary number of either `io_.Band` objects or strings specifying one
       or several predictors.
 
       If a string is provided then it is treated as the path to a `tif` file
       and **all** bands in the file are added as individual predictor each.
+
+      .. warning::
+
+        Predictor data is converted to the same data type as the response
+        before fitting.
+        However, **no rescaling is performed**.
+
+        Thus with a response of type `float` and a predictor of type 'uint8'
+        the `uint8` values are simple converted to floats (e.g. 255 > 255.0)
+
+        **Rescaling the predictor data must be done separately beforehand!**
+        
     view:
       An optional tuple (x, y, width, height) defining the view of the predictors
       and response data to consider.
@@ -339,7 +367,7 @@ def prepare_predictors(response: str | Band,
     # make sure the Source profile is updated
     response_profile = response.source.import_profile()
     response_dtype = response_profile['dtype']
-    # make sure the predicotrs are bands
+    # make sure the predictors are bands
     _predictors = []
     for pred in predictors:
         if not isinstance(pred, Band):
@@ -371,52 +399,16 @@ def prepare_predictors(response: str | Band,
     X = init_X(_predictors,
                selector=aggr_selector,
                window=riow,
-               include_intercept=include_intercept)
+               include_intercept=include_intercept,
+               as_dtype=response_dtype)
 
-    # loop again over the predictors to extract data
-    pred_datas = extract_predictor_data(*_predictors,
-                                        window=riow,
-                                        as_dtype=response_dtype)
-    populate_X(X=X, predictor_datas=pred_datas, window=riow,
-               selector=aggr_selector, include_intercept=include_intercept)
+    populate_X(X=X, predictors=_predictors, window=riow, selector=aggr_selector,
+               include_intercept=include_intercept, as_dtype=response_dtype)
     # return predictor matrix and the response vector
     y = partial_response(response=response,
                          window=riow,
                          selector=aggr_selector)
     return X, y
-
-
-def extract_predictor_data(*predictors: Band,
-                           window: Window | None,
-                           as_dtype: type|str,
-                           **conversion_params
-                           ):
-    """Extract the data form the predictors
-
-    Parameters
-    ----------
-    *predictors:
-      An arbitrary number of `io_.Band` objects each specifying a predictor
-    window:
-      Limits the data array to a specific window
-    as_dtype:
-      The data type to represent each category in if a categorical predictor
-      is present
-    **conversion_params:
-        Optional arguments to handle data type conversion
-
-        See `helper.convert_to_dtype` for details.
-
-    """
-    # Create a window
-    pred_datas = []
-    for predictor in predictors:
-        with predictor.data_reader() as read:
-            pred_data = read(window=window)
-            pred_data_scaled = convert_to_dtype(pred_data, as_dtype=as_dtype,
-                                                **conversion_params)
-            pred_datas.append(pred_data_scaled)
-    return pred_datas
 
 
 def transposed_product(predictors: Collection[Band],
@@ -523,8 +515,8 @@ def partial_X(predictors: Collection[Band],
     """Generate (a partial) predictor matrix, $`X`$.
 
     If `window` is provided then only the specified selection will
-    be read out from the predicotrs which allows to use this method
-    when partially processing the prodictors.
+    be read out from the predictors which allows to use this method
+    when partially processing the predictors.
 
     Parameters
     ----------
@@ -534,9 +526,11 @@ def partial_X(predictors: Collection[Band],
       Limits the data array to a specific window. The window is converted to a
       `slice` with `window.toslices()`.
 
-      ..Note::
+      .. note::
+
         The intended purpose of this argument is to allow to process only parts
         of the predictors in the case of a parallelized approach.
+
     selector: np.array
         a `np.bool_` array to select usable cells in a numpy 2D array
     include_intercept:
@@ -550,16 +544,14 @@ def partial_X(predictors: Collection[Band],
     X = init_X(predictors,
                selector=selector,
                window=window,
-               include_intercept=include_intercept)
-    # read out the data
-    pred_datas = extract_predictor_data(*predictors,
-                                        window=window,
-                                        as_dtype=as_dtype)
-    populate_X(X=X,
-               predictor_datas=pred_datas,
+               include_intercept=include_intercept,
+               as_dtype=as_dtype,
+               )
+    populate_X(X=X, predictors=predictors,
                window=window,
                selector=selector,
-               include_intercept=include_intercept)
+               include_intercept=include_intercept,
+               as_dtype=as_dtype)
     return X
 
 

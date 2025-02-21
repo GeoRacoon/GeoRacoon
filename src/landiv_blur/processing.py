@@ -12,6 +12,7 @@ from .helper import dtype_range, convert_to_dtype
 from .io import load_block, get_bands
 from .io_ import Source, Band
 from .prepare import get_view, relative_view
+from .filters import bpgaussian
 
 
 def select_category(data:NDArray,
@@ -115,12 +116,13 @@ def get_category_data(data:NDArray,
                       img_filter:Callable|None=None,
                       filter_params:dict|None=None,
                       filter_output_range:tuple|None=None,
-                      output_dtype:type|str|None=None,
+                      as_dtype:type|str|None=None,
                       output_range:tuple|None=None,
-                      as_dtype:type|str="uint8")->NDArray:
+                      data_as_dtype:type|str="uint8")->NDArray:
     """Return the data of a single category, optionally after applying a filter
 
-    ..Note::
+    .. note::
+
       If no image filter is provided then either `as_type` or `output_dtype`
       must be set to the data type the output array should be in.
 
@@ -145,7 +147,8 @@ def get_category_data(data:NDArray,
     output_range:
       Optional tuple to overwrite the [min,max] range of the output dtype.
 
-      ..Note::
+      .. note::
+
         This can be particularly useful if you apply an image filter.
 
         For example, a Gaussian filter returns a map of type `np.float64` with
@@ -154,7 +157,7 @@ def get_category_data(data:NDArray,
         and an array of type `np.uint8` is returned with a considerably smaller
         memory footprint.
 
-    as_dtype:
+    data_as_dtype:
       The data-type of the `np.array` that will encode the category prior to
       applying the (optional) filter.
 
@@ -164,14 +167,14 @@ def get_category_data(data:NDArray,
         sense to change it to `np.uint16`.
     """
     # strip the category/categories
-    _data = select_category(data, category, as_dtype=as_dtype)
+    _data = select_category(data, category, as_dtype=data_as_dtype)
     filter_params = filter_params or dict()
     # apply the image filter if provided
     _data = filter_data(data=_data,
                         img_filter=img_filter,
                         filter_params=filter_params,
                         filter_output_range=filter_output_range,
-                        output_dtype=output_dtype,
+                        as_dtype=as_dtype,
                         output_range=output_range)
     return _data
 
@@ -179,7 +182,7 @@ def view_data(source:Source|str,
               bands: list[Band|int]|None,
               view:tuple[int,int,int,int],
               in_range:None|NDArray|Collection,
-              output_dtype:type|str|None,
+              as_dtype:type|str|None,
               output_range:None|NDArray|Collection,
               ):
 
@@ -200,7 +203,7 @@ def view_data(source:Source|str,
       defines the view of the data array to update
     in_range:
         an array or list from which min and max will be used as input range
-    output_dtype:
+    as_dtype:
       Set the data type of the arrays that are returned.
 
       ..note::
@@ -222,14 +225,14 @@ def view_data(source:Source|str,
     elif any(isinstance(band, int) for band in bands):
         bands = [band if isinstance(band, Band) else source.get_band(bidx=band)
                  for band in bands]
-    print(f"{bands=}")
+    # print(f"{bands=}")
     data_views = dict()
     for band in bands:
         result = band.load_block(view=view, scaling_params=None)
         data = result.pop('data')
-        if output_dtype is not None:
+        if as_dtype is not None:
             data = convert_to_dtype(data=data,
-                                    as_dtype=output_dtype,
+                                    as_dtype=as_dtype,
                                     in_range=in_range,
                                     out_range=output_range)
         data_views[band] = dict(data=data, view=view)
@@ -237,11 +240,11 @@ def view_data(source:Source|str,
 
 
 def filter_data(data:NDArray,
-                replace_nan_with: Union[int, float] | None = None,
+                replace_nan_with: int|float|None = None,
                 img_filter=None,
                 filter_output_range:tuple|None=None,
                 filter_params:dict|None=None,
-                output_dtype:type|str|None="uint8",
+                as_dtype:type|str|None=None,
                 output_range:tuple|None=None,
                 )->NDArray:
     # TODO: remove all default arguments!
@@ -260,21 +263,21 @@ def filter_data(data:NDArray,
 
       See e.g. skimage.filter.gaussian
 
-    output_dtype:
+    as_dtype:
       Specify what data type to use for the returned data.
 
     filter_output_range:
-      Optional tuple to pass the output range of the applied filter
+      Optional tuple to specify the data range returned by the filter
 
     output_range:
-      Optional tuple to overwrite the [min,max] range of the output
-      dtype.
+      Optional tuple to specify the data range into which the data returend
+      by the filter should be rescaled into.
 
       ..note::
         This can be used to map to the range `[0,1]` for `floats`:
 
         ```python
-            `output_dtype="float64"`
+            `as_dtype="float64"`
             `output_range=(0.0, 1.0)`
         ```
     filter_params:
@@ -289,8 +292,10 @@ def filter_data(data:NDArray,
     # TODO: move this out of this function
     if np.isnan(np.sum(data)) and replace_nan_with is None:
         if img_filter == gaussian:  # only warn for gaussian
-            warnings.warn(f"Raster array has NaN - this will crop areas where the given function encounters NaNs. "
-                        f"If needed: Set a replacement value for NaNs ({replace_nan_with=})")
+            warnings.warn(
+                f"Raster array has NaN - this will crop areas where the given "
+                "function encounters NaNs. If needed: Set a replacement value "
+                f"for NaNs ({replace_nan_with=})")
     # create a mask for NaN values (for restoring later)
     nan_mask = np.isnan(data)
     # replace nan with a provided value
@@ -298,19 +303,38 @@ def filter_data(data:NDArray,
         data = np.nan_to_num(data, nan=replace_nan_with)
     # apply the filter if one is chosen
     if img_filter is not None:
+        if filter_output_range is None and as_dtype is not None:
+            warnings.warn(
+                f"We are applying the filter {img_filter} and convert the "
+                f"resulting output to {as_dtype} without knowing the range of "
+                "the data produced by the filter. Rescaling to another data "
+                "type is likely to produce unexpected results if the input "
+                "range is unknown (e.g. if the filter outputs floats then the "
+                "entire range of float is used as input range, which is not "
+                "what you want if the filter produces values only in the range "
+                "[0, 1], for example. Please set the filter output range with "
+                "`filter_output_range` to avoid unpleasant surprises."
+            )
         filter_params = filter_params or dict()
+        if img_filter in (gaussian, bpgaussian):
+            if np.issubdtype(data.dtype, np.integer) and \
+            filter_params.get('preserve_range', None) is None:
+                # the gaussian filter will rescale the input
+                warnings.warn(
+                    "A gaussian filter will be applied to data of type int. "
+                    "The gaussian filter will first rescale the data to "
+                    "floats ([0,1] for uints and [-1,1] for ints), thus the "
+                    "output will be of a different data type and scale. "
+                    "To avoid this set `filter_params['preserve_range']=True`"
+                )
         _data = _apply_filter(data, img_filter, **filter_params)
     else:
         _data = data
-    # convert to the desired output type
-    if np.issubdtype(_data.dtype, np.floating):
-        if filter_output_range is None:
-            filter_output_range = (0.0, 1.0)
-    if output_dtype is not None:
-        _data = convert_to_dtype(data=_data,
-                                 as_dtype=output_dtype,
-                                 in_range=filter_output_range,
-                                 out_range=output_range)
+    # now we convert and optionally rescale
+    _data = convert_to_dtype(data=_data,
+                             as_dtype=as_dtype,
+                             in_range=filter_output_range,
+                             out_range=output_range)
     # restore NaNs to original positions (if possible)
     if np.issubdtype(_data.dtype, np.floating):
         _data[nan_mask] = np.nan
@@ -320,15 +344,16 @@ def view_filtered(source:Source|str,
                   view:tuple[int,int,int,int],
                   inner_view:tuple[int,int,int,int],
                   data_in_range:None|NDArray|Collection=None,
-                  data_output_dtype:type|str|None="uint8",
+                  data_as_dtype:type|str|None=None,
                   data_output_range:None|NDArray|Collection=None,
-                  replace_nan_with: Union[int, float] | None = None,
-                  img_filter=None,
+                  replace_nan_with: int|float|None = None,
+                  img_filter:Callable|None=None,
                   filter_params:dict|None=None,
-                  filter_output_range:Collection|None=(0., 1.),
-                  output_dtype:type|str|None="uint8",
+                  filter_output_range:tuple|None=None,
+                  as_dtype:type|str|None=None,
                   output_range:tuple|None=None,
                   bands: list[Band|int]|None = None,
+                  selector_band: Band | None = None,
                   ):
     """Extracts and possibly converts a view from the source file
 
@@ -337,18 +362,48 @@ def view_filtered(source:Source|str,
                            bands=bands,
                            view=view,
                            in_range=data_in_range,
-                           output_dtype=data_output_dtype,
+                           as_dtype=data_as_dtype,
                            output_range=data_output_range)
+
+    if selector_band is not None:
+        selector_data = selector_band.load_block(view=view)['data']
+        selectors = np.unique(selector_data, ).tolist()
+        if np.nan in selectors:
+            selectors.remove(np.nan)
+    else:
+        selectors = [0, ]
+        selector_data = np.zeros(shape=(view[3], view[2]), dtype=np.uint8)
+
+    # get output data type for final output - to use for filtered aggregation later
+    if isinstance(as_dtype, str):
+        _as_dtype = np.dtype(as_dtype)
+    else:
+        _as_dtype = as_dtype
+
     filtered_datas = {}
     for band, data_view in data_views.items():
-        _filtered_data = filter_data(
-                data=data_view['data'],
-                replace_nan_with=replace_nan_with,
-                img_filter=img_filter,
-                filter_params=filter_params,
-                filter_output_range=filter_output_range,
-                output_dtype=output_dtype,
-                output_range=output_range)
+        # We need to use the same no data for the filtering as defined in the views
+        # TODO: we could also get this nodata from checking data_as_dtype
+        _nodata = 0
+        dv_dtype = data_view['data'].dtype
+        if np.issubdtype(dv_dtype, np.floating):
+            _nodata = np.nan
+
+        _filtered_data = np.zeros(shape=(view[3], view[2]), dtype=_as_dtype)
+
+        for select in selectors:
+            _selector = np.where(selector_data==select, True, False)
+            select_data_view = np.where(_selector, data_view['data'], _nodata)
+
+            _part_filtered_data = filter_data(
+                    data=select_data_view,
+                    replace_nan_with=replace_nan_with,
+                    img_filter=img_filter,
+                    filter_params=filter_params,
+                    filter_output_range=filter_output_range,
+                    as_dtype=as_dtype,
+                    output_range=output_range)
+            _filtered_data += np.where(_selector, _part_filtered_data, 0)
         # only keep the inner view
         filtered_datas[band.get_bidx()] = np.copy(
             get_view(_filtered_data,
@@ -398,7 +453,7 @@ def get_filtered_categories(data:NDArray,
                                   img_filter=img_filter,
                                   filter_params=filter_params,
                                   filter_output_range=filter_output_range,
-                                  output_dtype=output_dtype,
+                                  as_dtype=output_dtype,
                                   output_range=output_range,
                                   )
         all_categories[category] = _data
@@ -408,7 +463,7 @@ def get_filtered_categories(data:NDArray,
 def compute_entropy(data_arrays: Sequence[NDArray],
                     normed:bool=True,
                     max_entropy_categories:int|None=None,
-                    output_dtype:type|str|None=None,
+                    as_dtype:type|str|None=None,
                     output_range:tuple|None=None,
                     **entropy_params)->NDArray:
     """Per cell entropy computed over a series of data arrays
@@ -419,25 +474,38 @@ def compute_entropy(data_arrays: Sequence[NDArray],
       A series of data arrays to stack and compute the per-cell entropy for
     normed:
       Determines if the values in the provided arrays should be normed or not.
+
+      .. note::
+
+        If `normed=False` then the entropy is not rescaled before it is
+        returned.
+
     max_entropy_categories:
       If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
-      Same as the output_dtype, this argument is ignored if `normed=False`.
-    output_dtype:
+      Same as the `as_dtype`, this argument is ignored if `normed=False`.
+
+    as_dtype:
+
       Set the data-type of the resulting `np.array`
-      ..Note::
-        This argument is ignored if `normed=False`.
+
+      .. note::
+
+        In most cases you want to use this argument only if `normed=True`
+        (the default).
 
         scipy.stats.entropy returns data of type `np.float64` which might consume
         a considerable amount of memory, when applied to larger arrays.
 
-        With `output_dtype="uint8"` entropy values are mapped to the range [0, 255]
-        and an array of type `np.uint8` is returned with a considerably smaller
-        memory footprint.
+        With `as_dtype="uint8"` and `normed=True` entropy values are mapped to
+        the range [0, 255] and an array of type `np.uint8` is returned with a
+        considerably smaller memory footprint.
+        
     output_range:
       Set the output range for the resulting `np.array`
 
       ..Note::
-        This argument is ignored if `normed=False`.
+        This argument is ignored if `normed=False` as the entropy is not
+        bounded.
 
     **entropy_params:
       You might add further keyword arguments that will be passed to
@@ -452,35 +520,45 @@ def compute_entropy(data_arrays: Sequence[NDArray],
     # calculate the entropy
     _stacked = np.stack(data_arrays, axis=2)
     entropy_array = entropy(_stacked, axis=2, **entropy_params)
+    in_dtype = entropy_array.dtype
+
+    if isinstance(as_dtype, str):
+        _as_dtype = np.dtype(as_dtype)
+    else:
+        _as_dtype = as_dtype
+
     if normed:
-        if isinstance(output_dtype, str):
-            _output_dtype = np.dtype(output_dtype)
-        else:
-            _output_dtype = output_dtype
-        if np.issubdtype(_output_dtype, np.floating) and output_range is None:
-            output_range = (0.0, 1.0)  # use the normalization range [0, 1] for float output by default
         if max_entropy_categories is None:
             max_entropy = get_max_entropy(len(data_arrays))
         else:
             max_entropy = get_max_entropy(max_entropy_categories)
         # We normalize the entropy by setting the in_range accordingly
-        entropy_array = convert_to_dtype(data=entropy_array,
-                                         as_dtype=_output_dtype,  # None will lead to keeping the data type
-                                         in_range=[0.0, max_entropy],
-                                         out_range=output_range)
+        if np.issubdtype(_as_dtype, np.floating) and output_range is None:
+            # use the normalization range [0, 1] for float output by default
+            output_range = (0.0, 1.0)
+        input_range=[0.0, max_entropy],
     else:
-        if output_dtype is not None:
-            warnings.warn(
-                f"Calculating the entropy with {normed=} ignores "
-                f"{output_dtype=} and will return unconverted output of the "
-                "entropy function!"
-            )
         if output_range is not None:
             warnings.warn(
                 f"Calculating the entropy with {normed=} ignores "
                 f"{output_range=} as a non-normalized entropy value is not "
                 "bounded and can thus not be mapped to a data range."
             )
+        if as_dtype is not None and str(in_dtype) != str(as_dtype):
+            # we do not normalize but convert
+            warnings.warn(
+                f"The computed entropy will be converted from {str(in_dtype)} "
+                f"to {as_dtype} without rescaling. If this is not what you "
+                "want set the `output_range` parameter."
+            )
+        output_range = None
+        input_range = None
+
+    # convert (an rescale if normed)
+    entropy_array = convert_to_dtype(data=entropy_array,
+                                     as_dtype=_as_dtype,
+                                     in_range=input_range,
+                                     out_range=output_range)
     return entropy_array
 
 
@@ -566,10 +644,11 @@ def get_entropy(data:NDArray,
                 normed:bool=False,
                 max_entropy_categories:int|None=None,
                 img_filter:Callable|None=None,
-                output_dtype:type|str|None=None,
+                as_dtype:type|str|None=None,
                 output_range:tuple|None=None,
                 filter_params:dict|None=None,
                 entropy_params:dict|None=None,
+                filter_output_range:tuple|None=None,
                 **params)->NDArray:
     """Compute the Shannon entropy per cell directly from a 2D array of categorical data
 
@@ -594,7 +673,7 @@ def get_entropy(data:NDArray,
     max_entropy_categories:
       If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
       This argument is ignored if `normed=False`.
-    output_dtype:
+    as_dtype:
       The data-type to use for the returned array.
 
       ..note::
@@ -621,12 +700,11 @@ def get_entropy(data:NDArray,
       A `np.array` with identical shape as the elements in `data_arrays` holding the
       per-cell entropy
     """
-    # TODO: This function does not allow the set `output_dtype` of
+    # TODO: This function does not allow the set `as_dtype` of
     # `get_filtered_categories`
     # > Change call signature to
     #   `get_entropy(blur_params:dict, entropy_params:dict,...)`
     filter_params = filter_params or dict()
-    filter_output_range = params.pop('filter_output_range', None)
     blur_output_dtype = params.pop('blur_output_dtype', None)
     blurred_categories = get_filtered_categories(data=data,
                                                  categories=categories,
@@ -638,7 +716,7 @@ def get_entropy(data:NDArray,
     return compute_entropy(data_arrays=tuple(blurred_categories.values()),
                            normed=normed,
                            max_entropy_categories=max_entropy_categories,
-                           output_dtype=output_dtype,
+                           as_dtype=as_dtype,
                            output_range=output_range,
                            **entropy_params)
 
@@ -760,7 +838,7 @@ def  view_entropy(category_arrays:dict[int, NDArray],
         data_arrays=tuple(category_arrays.values()),
         normed=normed,
         max_entropy_categories=max_entropy_categories,
-        output_dtype=output_dtype,
+        as_dtype=output_dtype,
         output_range=output_range,
     )
     return dict(data=entropy_array, view=view)

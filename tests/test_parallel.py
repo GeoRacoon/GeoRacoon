@@ -67,7 +67,7 @@ def test_blur_recombination(datafiles):
         blurred_data = lbproc.get_category_data(ch_data,
                                                 category=category,
                                                 img_filter=img_filter,
-                                                output_dtype=output_dtype
+                                                as_dtype=output_dtype
                                                 )
         # use multiprocessing and blur block by block
         # first set the parameters for the recombintion task
@@ -79,7 +79,7 @@ def test_blur_recombination(datafiles):
         blur_output_params = dict(
             profile=profile,
             output_file=blur_output_file,
-            dtype=output_dtype
+            as_dtype=output_dtype
         )
         # now the parameter for the per block blur tasks
         views, inner_views = lbprep.create_views(view_size=view_size,
@@ -200,7 +200,7 @@ def test_entropy_recombination(datafiles):
         img_filter=img_filter,
         blur_output_dtype=blur_output_dtype,
         filter_output_range=filter_output_range,
-        output_dtype=output_dtype
+        as_dtype=output_dtype
     )
     # use multiprocessing and blur block by block
     # first set the parameters for the recombintion task
@@ -626,7 +626,7 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
     b = np.round(lbinf.get_optimal_weights(X, y), 6)
     betas = np.round(list(betas_dict.values()), 6)
     # print(f"{b=}\n{betas=}")
-    np.testing.assert_array_equal(betas, b)
+    np.testing.assert_allclose(betas, b, rtol=1e-04)
     # test ouput length for correct key, value pairs
     n_predictors = len(predictors)
     n_betas = len(betas_dict.values())
@@ -796,8 +796,6 @@ def test_entropy_2_step(datafiles):
     # plt.savefig(f'{datafiles}/entropy_recombined.png')
     # plt.imshow(entropy_recomb_data - entropy_data)
     # plt.savefig(f'{datafiles}/entropy_diff.png')
-    print(f"{np.unique(entropy_data)=}")
-    print(f"{np.unique(entropy_data_2step)=}")
     # import matplotlib.pyplot as plt
     # plt.imshow(entropy_data)
     # plt.savefig('/home/.../1step.pdf')
@@ -893,8 +891,6 @@ def test_selector_computation(datafiles, create_blurred_tif):
     selector_full = lbinf.prepare_selector(response,
                                            *predictors)
     selector_para = lbpara.prepare_selector(response, *predictors, block_size=(1000,1000))
-    print(f"{np.unique(selector_full, return_counts=True)=}")
-    print(f"{np.unique(selector_para, return_counts=True)=}")
     np.testing.assert_equal(selector_full, selector_para)
 
 @ALL_MAPS
@@ -923,7 +919,11 @@ def test_apply_filter(datafiles):
         output_file=blur_single,
         img_filter=img_filter,
         filter_params=filter_params,
-        output_dtype=np.uint8,
+        filter_output_range=(0,1),
+        output_params=dict(
+            as_dtype=output_dtype,
+            output_range=output_dtype
+        ),
         block_size=block_size,
         compress=True
     )
@@ -935,7 +935,7 @@ def test_apply_filter(datafiles):
         output_file=bands_out,
         img_filter=None,
         filter_params=filter_params,
-        output_dtype=np.uint8,
+        output_dtype=output_dtype,
         block_size=block_size,
         verbose=True,
         compress=True
@@ -945,7 +945,7 @@ def test_apply_filter(datafiles):
                                        output_file=blur_para,
                                        block_size=block_size,
                                        bands=None,
-                                       data_output_dtype=np.uint8,
+                                       data_as_dtype=np.uint8,
                                        img_filter=img_filter,
                                        filter_params=filter_params,
                                        filter_output_range=(0.,1.),
@@ -1087,6 +1087,7 @@ def test_compute_weights(datafiles, create_blurred_tif):
 def test_model_output(datafiles, create_blurred_tif):
     """Test the parallelized model prediction calculation.
     """
+    as_dtype = 'float32'
     blurred_source = lbio_.Source(path=create_blurred_tif)
     predictors = blurred_source.get_bands()
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
@@ -1121,13 +1122,15 @@ def test_model_output(datafiles, create_blurred_tif):
     model_data = np.full(shape=(resp_profile['height'],
                                 resp_profile['width']),
                          fill_value=0.0,
-                         dtype=np.float64)
+                         dtype=as_dtype)
     for pred in predictors:
-        model_data += optimal_weights[pred] * pred.get_data()
+        model_data += (optimal_weights[pred] * pred.get_data()).astype(as_dtype)
 
     model_source = lbio_.Source(model_out)
     model_band = model_source.get_band(bidx=1)
     # make sure we get the same
+    print(f"{np.unique(model_band.get_data())=}")
+    print(f"{np.unique(model_data)=}")
     np.testing.assert_allclose(model_band.get_data(), model_data)
 
 

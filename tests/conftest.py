@@ -72,6 +72,7 @@ def get_example_data(bands=1, size=(240, 180)):
 def create_blurred_tif(datafiles):
     """Create blurred single land-cover type layers in uint8 format
     """
+    as_dtype = 'uint8'
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     test_data = list(datafiles.iterdir())
@@ -86,6 +87,7 @@ def create_blurred_tif(datafiles):
     _diameter = diameter / scale
     blur_params = get_blur_params(diameter=_diameter, truncate=truncate)
     filter_params = blur_params.copy()
+    filter_params['preserve_range'] = False
     _ = filter_params.pop('diameter')
     blurred_tif = extract_categories(
         source=lct_source,
@@ -93,8 +95,10 @@ def create_blurred_tif(datafiles):
         output_file=blur_out,
         img_filter=gaussian,
         filter_params=filter_params,
-        # TODO: we should set filter_output_range
-        output_dtype=np.uint8,
+        filter_output_range=(0,1),
+        output_params=dict(
+            as_dtype=as_dtype,
+        ),
         block_size=(500, 500),
         compress = True
     )
@@ -103,7 +107,6 @@ def create_blurred_tif(datafiles):
     view_size = (500, 400)
     compute_mask(source=blurr_source, block_size=view_size, logic='all')
     # ###
-    print(f"{blurr_source.import_profile()=}")
     return blurred_tif
 
 @pytest.fixture(scope="function")  # is function scope since datafiles is too
@@ -124,6 +127,7 @@ def create_blurred_tif_float(datafiles):
     _diameter = diameter / scale
     blur_params = get_blur_params(diameter=_diameter, truncate=truncate)
     filter_params = blur_params.copy()
+    filter_params['preserve_range'] = False
     _ = filter_params.pop('diameter')
     blurred_tif = extract_categories(
         source=lct_source,
@@ -131,8 +135,11 @@ def create_blurred_tif_float(datafiles):
         output_file=blur_out,
         img_filter=gaussian,
         filter_params=filter_params,
-        # TODO: we should set filter_output_range
-        output_dtype=np.float64,
+        filter_output_range=(0,1),
+        output_params=dict(
+            as_dtype='float64',
+            output_range=(0, 1),
+        ),
         block_size=(500, 500),
         compress = True
     )

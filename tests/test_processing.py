@@ -78,8 +78,11 @@ def test_single_category_filter(datafiles):
                                                  img_filter=gaussian,
                                                  filter_params=dict(
                                                      sigma=sigma,
-                                                     truncate=truncate
-                                                 ))
+                                                     truncate=truncate,
+                                                     preserve_range=False,
+                                                 ),
+                                                 filter_output_range=(0,1),
+                                                 )
     for _, data in lct_blurred.items():
         assert np.nanmax(data) >= 0.1
 
@@ -100,20 +103,23 @@ def test_filter_data(datafiles):
     sigma = real_sigma / scale  # in pixel
     filter_params=dict(
         sigma=sigma,
-        truncate=truncate
+        truncate=truncate,
+        preserve_range=False,
     )
     # compute in one go
     lct_blurred = lbproc.get_filtered_categories(ch_data, categories=categories,
                                                  img_filter=gaussian,
                                                  filter_params=filter_params,
+                                                 filter_output_range=(0, 1),
                                                  output_dtype="uint8")
     # compute binary maps first then blu
     lct_binary = lbproc.get_filtered_categories(ch_data, categories=categories)
+
     for cat, data in lct_blurred.items():
         filtered_data = lbproc.filter_data(data=lct_binary[cat], img_filter=gaussian,
                                            filter_params=filter_params,
                                            filter_output_range=(0., 1.),
-                                           output_dtype="uint8")
+                                           as_dtype="uint8")
         np.testing.assert_equal(data, filtered_data)
 
 @ALL_MAPS
@@ -125,9 +131,11 @@ def test_filter_data_float(datafiles):
     scale = 1000  # meter per pixel
     truncate = 3  # after 3 sigma
     real_sigma = 0.5 * diameter / truncate
+    filter_output_range = (0, 1)
     filter_params=dict(
         sigma=real_sigma / scale,  # in pixel,
-        truncate=truncate
+        truncate=truncate,
+        preserve_range=False,
     )
     ch_f_data = lbio.load_map(ch_f_map_tif)['data']  # this will automatically take the first band (okay here)
     # First without replacint NaN values (so the image will be cropped)
@@ -135,7 +143,10 @@ def test_filter_data_float(datafiles):
         filtered_data = lbproc.filter_data(data=ch_f_data,
                                            img_filter=gaussian,
                                            filter_params=filter_params,
-                                           output_dtype="float32")
+                                           filter_output_range=filter_output_range,
+                                           as_dtype="float32",
+                                           output_range=(0,1)
+                                           )
         assert str(record[0].message).startswith("Raster array has NaN")
     # Check that the nan's have been 'eating up area'
     assert np.isnan(filtered_data).sum() >= np.isnan(ch_f_data).sum()
@@ -145,7 +156,10 @@ def test_filter_data_float(datafiles):
                                        img_filter=gaussian,
                                        replace_nan_with=0,
                                        filter_params=filter_params,
-                                       output_dtype="float32")
+                                       filter_output_range=filter_output_range,
+                                       as_dtype="float32",
+                                       output_range=(0, 1)
+                                       )
     # Check that the nan's have been 'eating up area'
     assert np.isnan(filtered_data).sum() == np.isnan(ch_f_data).sum()
 
@@ -159,34 +173,58 @@ def test_entropy_normalization_conversion(datafiles):
     blur_output_dtype = "uint8"  # convert the blurred data to uint8 before
     categories = lbproc.get_categories(data)
 
+    filter_output_range = (0, 1)
+    filter_params = dict(
+        preserve_range=False
+    )
+
     max_entropy = lbproc.get_max_entropy(len(categories))
     print(f'{max_entropy=}')
 
     with pytest.warns(expected_warning=UserWarning, match='bounded'):
+        # without normalization we cannot set the output_range (as we have not
+        # fixed input range > unbounded).
         entropy_data = lbproc.get_entropy(data=data,
                                           categories=categories,
                                           normed=False,
                                           output_range=(0,1),  # this should lead to a warning
                                           img_filter=gaussian,
+                                          filter_params=filter_params,
                                           blur_output_dtype=blur_output_dtype,
+                                          filter_output_range=filter_output_range,
                                           )
 
     assert np.nanmax(entropy_data) <= max_entropy, \
            'Maximal entropy is exceeded'
 
-    with pytest.warns(expected_warning=UserWarning, match='unconverted'):
-        entropy_data = lbproc.get_entropy(data=data,
-                                          categories=categories,
-                                          normed=False,
-                                          output_dtype="uint8",  # this should lead to a warning
-                                          img_filter=gaussian,
-                                          blur_output_dtype=blur_output_dtype,
-                                          )
+    with pytest.warns(expected_warning=UserWarning, match='without rescaling'):
+        # we convert but do not normalize > no rescaling possible, only type 
+        # conversion
+        _= lbproc.get_entropy(data=data,
+                              categories=categories,
+                              normed=False,
+                              as_dtype="uint8",  # this should lead to a warning
+                              img_filter=gaussian,
+                              filter_params=filter_params,
+                              blur_output_dtype=blur_output_dtype,
+                              filter_output_range=filter_output_range,)
+
+    entropy_data = lbproc.get_entropy(data=data,
+                                     categories=categories,
+                                     normed=False,
+                                     as_dtype="float64",
+                                     img_filter=gaussian,
+                                     filter_params=filter_params,
+                                     blur_output_dtype=blur_output_dtype,
+                                     filter_output_range=filter_output_range,
+                                     )
     print(f"{np.nanmax(entropy_data)=}")
     print(f"{np.nanmin(entropy_data)=}")
     normed_entropy_data = lbproc.get_entropy(data=data, categories=categories,
                                              normed=True,
                                              img_filter=gaussian,
+                                             filter_params=filter_params,
+                                             filter_output_range=filter_output_range,
                                              blur_output_dtype=blur_output_dtype,
                                              )
 
@@ -195,20 +233,26 @@ def test_entropy_normalization_conversion(datafiles):
     assert np.nanmax(normed_entropy_data) == \
            np.nanmax(entropy_data)/max_entropy, 'Normalization is faulty'
 
-    normed_set_maximum_entropy_data = lbproc.get_entropy(data=data, categories=categories,
-                                                normed=True,
-                                                max_entropy_categories=(len(categories) * 2),
-                                                img_filter=gaussian,
-                                                blur_output_dtype=blur_output_dtype,
-                                                         )
+    normed_set_maximum_entropy_data = lbproc.get_entropy(
+        data=data,
+        categories=categories,
+        normed=True,
+        max_entropy_categories=(len(categories) * 2),
+        img_filter=gaussian,
+        filter_params=filter_params,
+        filter_output_range=filter_output_range,
+        blur_output_dtype=blur_output_dtype,
+    )
     assert np.nanmax(normed_set_maximum_entropy_data) <= \
            np.nanmax(entropy_data)/ lbproc.get_max_entropy(len(categories)*2)
 
     rescaled_entropy_data = lbproc.get_entropy(data, categories=categories,
-                                                normed=True,
-                                                output_dtype="uint8",
-                                                img_filter=gaussian,
-                                                blur_output_dtype=blur_output_dtype,
+                                               normed=True,
+                                               as_dtype="uint8",
+                                               img_filter=gaussian,
+                                               filter_params=filter_params,
+                                               filter_output_range=filter_output_range,
+                                               blur_output_dtype=blur_output_dtype,
                                                )
     print(f"{np.nanmax(rescaled_entropy_data)=}")
     print(f"{np.nanmin(rescaled_entropy_data)=}")
