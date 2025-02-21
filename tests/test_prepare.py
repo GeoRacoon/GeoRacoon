@@ -180,12 +180,13 @@ def test_lct_coverage(datafiles):
                                                             sigma=sigma,
                                                             truncate=truncate
                                                         ),
-                                                        output_dtype=np.uint8
+                                                        output_dtype='uint8',
+                                                        filter_output_range=(0,1),
                                                         )
     entropy_data = lbproc.compute_entropy(
         data_arrays=tuple(blurred_categories.values()),
         normed=True,
-        output_dtype=np.uint8
+        as_dtype=np.uint8
     )
     for lct in lcts:
         # print(f"{lct=}")
@@ -195,10 +196,12 @@ def test_lct_coverage(datafiles):
                                                 sigma=sigma,
                                                 truncate=truncate
                                             ),
-                                            output_dtype=np.uint8)
+                                            filter_output_range=(0,1),
+                                            as_dtype='uint8')
         # print(f"\t{lct_data.dtype=}")
         # print(f"\t{lct_data.shape=}")
         # print(f"\t{np.unique(lct_data)=}")
+        print(f"{np.unique(lct_data)=}")
         haslct = np.where(lct_data != 0, 1, haslct)
         vals, counts = np.unique(haslct, return_counts=True)
         # print(f"\t{vals=}")

@@ -84,22 +84,42 @@ def test_convert_to_dtype_basics():
     """
     # array containing min and max of uint16
     a = np.array([[2,4,4],[3,0.,2], [20,128.,255.]], dtype=np.uint8)
+    # no rescaling since no range is given
     b = convert_to_dtype(data=a, as_dtype=np.uint16)
-    assert np.max(b) == np.iinfo(np.uint16).max
-    assert np.min(b) == np.iinfo(np.uint16).min
+    assert np.max(b) == np.iinfo(np.uint8).max
+    assert np.min(b) == np.iinfo(np.uint8).min
+    # now using uint16 as output range
+    b_scaled = convert_to_dtype(data=a, as_dtype=np.uint16, out_range='uint16')
+    assert np.max(b_scaled) == np.iinfo(np.uint16).max
+    assert np.min(b_scaled) == np.iinfo(np.uint16).min
+    # convert and scale to custom range
     c = convert_to_dtype(data=a, as_dtype=np.float32, out_range=[0,1])
     assert np.max(c) == 1
     assert np.min(c) == 0
     # rescale a float in [0,1] to a float in [0,1] > do nothing
-    d = convert_to_dtype(data=c, as_dtype=np.float32, in_range=[0,1],
-                         out_range=[0,1])
+    d = convert_to_dtype(data=c, as_dtype='float32')
     np.testing.assert_equal(c, d)
-    # convert a float back to an uint
-    e = convert_to_dtype(data=d, as_dtype=np.uint8, in_range=[0,1])
-    np.testing.assert_equal(e, a)
+    # rescale float to float with identical range > do noting
+    d_scaled = convert_to_dtype(data=c, as_dtype=np.float32, in_range=[0,1],
+                         out_range=[0,1])
+    np.testing.assert_equal(c, d_scaled)
+    # convert and scale a float back to an uint8 full range
+    print(f"{c=}")
+
+    # d_scaled should be all 0 only where c==1, we get 1
+    d_expect = np.zeros_like(d_scaled)
+    d_expect[c==1] = 1
+    e_scaled = convert_to_dtype(data=d, as_dtype=np.uint8, in_range=[0,1])
+    np.testing.assert_equal(e_scaled, a)
+    # convert without scaling
+    e = convert_to_dtype(data=d, as_dtype=np.uint8)
+    # converting [0,1] to uint8 gives 0 unless the value is 1
+    e_expect = np.zeros_like(d)
+    e_expect[d==1] = 1
+    np.testing.assert_equal(e, e_expect)
 
     # simply rescale [0,1] to [0,0.5] - doubling it should bring us back
-    c_scaled = convert_to_dtype(c, out_range=[0, 0.5])
+    c_scaled = convert_to_dtype(c, in_range=[0, 1], out_range=[0, 0.5])
     np.testing.assert_equal(c, 2*c_scaled)
 
     # using strings to set the dtype
@@ -114,39 +134,25 @@ def test_convert_to_dtype_basics():
         d = convert_to_dtype(data=a, as_dtype=dtype_str_broken, out_range=(0,1))
 
 
-
 def test_convert_to_dtype_range_handling():
     """Make sure input data is handled properly
     """
-    # floats within [0, 1] should get input range [0, 1] range
-    # converting to float with out range [0,1] thus should not change anything
+    # floats scaled form [0,1] to  [0, 1] range should not change anything
     a = np.array([[0,0,0],[0.5, 0.5, 0.5], [1,1,1]], dtype=np.float64)
-    a_converted = convert_to_dtype(data=a, as_dtype=np.float64,
-                              out_range=[0.0, 1.0])
+    a_converted = convert_to_dtype(data=a, as_dtype=np.float64, in_range=[0,1],
+                                   out_range=[0.0, 1.0])
     np.testing.assert_equal(a, a_converted)
-    # now exceed the in range [0, 1] a tiny bit we should trigger the full float
-    # input range.
-    # the full float range as input map all values close to 0 to the center
-    # of the out-range, thus 0.5 for [0,1]
-    a_wrong = a.copy()
-    a_wrong[2][2] += 0.00000000000001
+    # we want to emit a warning is something is converted to the full float range
     with pytest.warns(match='full range'):  # make sure we get a warning
-        a_converted = convert_to_dtype(data=a_wrong, as_dtype=np.float64,
-                                out_range=[0.0, 1.0])
-    # values close to the center of the float range (0)
-    a_misconversion = np.full(a.shape, 0.5)
-    np.testing.assert_allclose(a_misconversion, a_converted)
-    # now set input range explicitly and expect a waring and a correction
-    # after the correction we should have lost the small increment on a[2][2]
-    # thus a_converted should match a and no longer a_wrong
-    with pytest.warns(match='extends'):  # make sure we get a warning
+        a_converted = convert_to_dtype(data=a, as_dtype=np.float64,
+                                in_range=[0.0, 1.0])
+    a_wrong = a.copy()
+    # this should be scaled properly
+    a_wrong[2][2] += 0.01
+    with pytest.warns(match='exceeds'):  # make sure we get a warning
         a_converted = convert_to_dtype(data=a_wrong, as_dtype=np.float64,
                                 in_range=[0,1],
                                 out_range=[0.0, 1.0])
-    # Note: this also makes sure we did not edit the input data
-    np.testing.assert_equal(a, a_converted)
-    with pytest.raises(AssertionError):
-        np.testing.assert_equal(a_wrong, a_converted)
 
 
 

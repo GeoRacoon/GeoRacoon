@@ -5,10 +5,9 @@ of filters on a tif
 """
 from __future__ import annotations
 
-import os
 import math
 import warnings
-from typing import Any, Dict
+from typing import Any
 from collections.abc import Callable, Collection
 
 from copy import copy
@@ -31,18 +30,22 @@ from .helper import (view_to_window,
                      reduced_mask,
                      aggregated_selector,
                      check_compatibility,
-                     check_rank_deficiency, convert_to_dtype)
+                     check_rank_deficiency,
+                     convert_to_dtype)
 from .timing import TimedTask
 from .plotting import plot_entropy
-from .processing import view_blurred, view_entropy, view_filtered, view_interaction
-from .prepare import create_views, get_blur_params, update_view
-from .filters.gaussian import (img_filter,
-                               gaussian,
-                               compatible_border_size)
+from .processing import (
+    view_blurred,
+    view_entropy,
+    view_filtered,
+    view_interaction
+)
+from .prepare import create_views, update_view
+from .filters.gaussian import compatible_border_size
 from .inference import (
     transposed_product,
     get_optimal_weights_source)
-from .io import set_tags, write_band, compress_tif
+from .io import write_band
 from .exceptions import InvalidPredictorError
 
 
@@ -60,6 +63,7 @@ def combine_views(output_params: dict,
         profile = output_params.pop('profile')
         out_band = output_params.pop('band')
         out_tag = output_params.pop('tags')
+        verbose = output_params.get('verbose', False)
         if out_band is None:
             out_band = Band(source=Source(path=output_file),
                             bidx=1,
@@ -75,18 +79,19 @@ def combine_views(output_params: dict,
                 signal = output.get('signal', None)
                 if signal:
                     if signal == "kill":
-                        print(f"\n\nClosing: {out_band.source.path}\n\n")
+                        if verbose:
+                            print(f"\n\nClosing: {out_band.source.path}\n\n")
                         break
                 data = output.pop('data')
                 view = copy(output.pop('view'))
                 w = view_to_window(view)
                 write(data, window=w)
-                print(f"Wrote out block {view=}")
+                if verbose:
+                    print(f"Wrote out block {view=}")
                 timer.new_lab()
     return timer
 
 
-# TODO: this needs adaptation once !36 is merged (using tags instead of indexes)
 def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
     """Listen to queue (blur_q) and write blurred blocks to a single file
 
@@ -104,17 +109,18 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
         Can report the duration of the task
     """
     with TimedTask() as timer:
-        dtype = output_params.pop('dtype')
-        if isinstance(dtype, str):
-            dtype = np.dtype(dtype)
+        as_dtype = output_params.pop('as_dtype')
+        if isinstance(as_dtype, str):
+            as_dtype = np.dtype(as_dtype)
         output_file = output_params.pop('output_file')
         # print(f"{output_file=}")
         # print(f"{dtype=}")
         profile = output_params.pop('profile')
-        profile['dtype'] = dtype
+        profile['dtype'] = as_dtype
         # overwrite the profile if explicitely provided:
         profile['nodata'] = output_params.pop('nodata', profile.get('nodata', None))
         profile['count'] = output_params.get('count', profile['count'])
+        verbose = output_params.get('verbose', False)
         with rio.open(output_file, 'w', **profile) as dst:
             while True:
                 output = blur_q.get()
@@ -136,11 +142,12 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
                     # NOTE: downside of this is that we set the tags
                     #       every time, unfortunately, in the FINALIZE_TASK
                     #       we do not have the bidx 
-                    write_band(src=dst, bidx=bidx, data=data, window=w,
+                    write_band(src=dst, bidx=bidx, data=data.astype(as_dtype), window=w,
                                category=band)
                     # NOTE: we might want keep the description unchanged:
                     dst.set_band_description(bidx, f'LC_{band}')
-                print(f"Wrote out bands for blurred block {inner_view=}")
+                if verbose:
+                    print(f"Wrote out bands for blurred block {inner_view=}")
                 timer.new_lab()
         # print(f"\n\n########\n\nProfile")
 
@@ -531,6 +538,7 @@ def combine_interaction_blocks(output_params: dict,
         profile['dtype'] = output_dtype
         out_band = output_params.pop('out_band', None)
         out_tag = output_params.pop('output_tag', dict(category='interaction'))
+        verbose = output_params.get('verbose', False)
         if out_band is None:
             out_band = Band(source=Source(path=output_file),
                             bidx=1,
@@ -549,13 +557,15 @@ def combine_interaction_blocks(output_params: dict,
                 signal = output.get('signal', None)
                 if signal:
                     if signal == "kill":
-                        print(f"\n\nClosing: {out_band.source.path}\n\n")
+                        if verbose:
+                            print(f"\n\nClosing: {out_band.source.path}\n\n")
                         break
                 data = output.pop('data')
                 view = copy(output.pop('view'))
                 w = view_to_window(view)
                 write(data, window=w)
-                print(f"Wrote out interaction block {view=}")
+                if verbose:
+                    print(f"Wrote out interaction block {view=}")
                 timer.new_lab()
     return timer
 
@@ -583,8 +593,9 @@ def extract_categories(source: str | Source,
                        block_size: tuple[int, int],
                        img_filter: None|Callable=None,
                        filter_params: dict|None=None,
-                       output_dtype: type|str|None = 'uint8',
+                       output_dtype: type|str|None=None,
                        output_params:None|dict = None,
+                       filter_output_range:tuple|None=None,
                        verbose: bool = False,
                        **params):
     """Load per-category maps from resource, apply a filter and export.
@@ -614,18 +625,37 @@ def extract_categories(source: str | Source,
 
     block_size:
         Size (width, height) in #pixel of the block that a single job processes
+
     output_dtype:
       Set the data type of the blurred categories that are returned.
-      Default is `"unit8"`
+      
+      .. warning::
+        
+        This parameter is deprecated, please use `output_params['as_dtype']`
+        instead.
+
     output_params:
         Keyword arguments for the output file:
         nodata:
           Value to be used as nodata value (if not provided `None` is used)
-        dtype:
+        as_dtype:
           Data type into which the output of the filer function will be converted
 
           .. note::
             This overwrites `output_dtype`, which will me deprecated in the future
+
+        output_range: tuple
+          Specify the range into which the filter output should be mapped.
+
+     filter_output_range: tuple
+       Specify the data range expected as output from the applied filter.
+
+       If you expect floats as output but want to set a different range
+       than `[0, 1]`, specify it with this parameter.
+
+       .. note::
+         Consider setting this if you encounter warning messages issued
+         by the `convert_to_dtype` function.
 
     verbose:
         Print out processing step infos
@@ -633,21 +663,9 @@ def extract_categories(source: str | Source,
         Optional arguments
 
         - Data conversion:
-          filter_output_range: tuple
-            Specify the data range expected as output from the applied filter.
-
-            If you expect floats as output but want to set a different range
-            than `[0, 1]`, specify it with this parameter.
-
-            .. note::
-              Consider setting this if you encounter warning messages issued
-              by the `convert_to_dtype` function.
+              
           output_range: tuple
-            Optionally specify the range into which the filter ouput should be
-            mapped into.
-
-            .. note::
-              In most cases you do not need to adapt this value!
+            Specify the range into which the filter output should be mapped.
 
         - For the multiprocessing:
           nbrcpu: int
@@ -661,21 +679,36 @@ def extract_categories(source: str | Source,
     output_file:
        Path to the resulting tif file
     """
+    if output_params is None:
+        output_params = dict()
     # handle deprecated parameters
     blur_as_int = params.pop('blur_as_int', None)
     if blur_as_int is not None:
         if blur_as_int:
-            output_dtype = "uint8"
+            output_params['as_dtype'] = "uint8"
         else:
-            output_dtype = "float64"
+            output_params['as_dtype'] = "float64"
         warnings.warn("The parameter `blur_as_int` is deprecated, use "
-                      f"`output_dtype` instead!\nUsing {blur_as_int=} leads to "
-                      f"{output_dtype=}",
+                      f"`output_params['as_dtype']` instead!\nUsing "
+                      f"{blur_as_int=} leads to "
+                      f"{output_params['as_dtype']=}",
+                      category=DeprecationWarning)
+
+    if output_dtype is not None:
+        output_params['as_dtype'] = output_dtype
+        warnings.warn("The parameter `output_dtype` is deprecated, use "
+                      f"`output_params['as_dtype']` instead!\nUsing "
+                      f"{output_dtype=} leads to "
+                      f"{output_params['as_dtype']=}",
                       category=DeprecationWarning)
     # ---
-    filter_output_range = params.pop('filter_output_range', None)
-    output_range = params.pop('output_range', None)
-    print(f'extract_categories - {source=}, {categories=}')
+    if img_filter is not None and filter_output_range is None:
+        warnings.warn(
+            "It is strongly encouraged to set `filter_output_range` if you are "
+            f"using the filter {img_filter}."
+        )
+    if verbose:
+        print(f'extract_categories - {source=}, {categories=}')
     if isinstance(source, str):
         source = Source(path=source)
     with source.open() as src:
@@ -699,13 +732,6 @@ def extract_categories(source: str | Source,
     # now let's prepare the output parameters:
     count = len(categories)
 
-    # prepare output params
-    if output_params is None:
-        output_params = dict()
-
-    if output_dtype is None:
-        raise ValueError("Please provide output dtype: None given")
-    output_params['dtype'] = output_dtype
 
     blur_output_params = dict(
         profile=profile,
@@ -729,8 +755,8 @@ def extract_categories(source: str | Source,
                        img_filter=img_filter,
                        filter_params=filter_params,
                        filter_output_range=filter_output_range,
-                       output_dtype=output_dtype,
-                       output_range=output_range)
+                       as_dtype=output_params['as_dtype'],
+                       output_range=output_params.get('output_range', None))
         block_params.append(bparams)
 
     # ###
@@ -788,7 +814,7 @@ def apply_filter(source: str | Source,
                  block_size: tuple[int, int],
                  bands: list[Band] | None = None,
                  data_in_range:None|NDArray|Collection=None,
-                 data_output_dtype:type|None=np.uint8,
+                 data_as_dtype:type|None=np.uint8,
                  data_output_range:None|NDArray|Collection=None,
                  replace_nan_with: Union[int, float] | None = None,
                  img_filter=None,
@@ -796,6 +822,7 @@ def apply_filter(source: str | Source,
                  filter_output_range:Collection|None=(0.,1.),
                  output_dtype:type|None=np.uint8,
                  output_range:tuple|None=None,
+                 selector_band: Band | None = None,
                  verbose: bool = False,
                  output_params:None|dict = None,
                  **params
@@ -815,7 +842,7 @@ def apply_filter(source: str | Source,
     data_in_range:
         an array or list from which min and max will be used as range of the
         input data
-    data_output_dtype:
+    data_as_dtype:
       Set the data type that the input data should be converted to before
       applying the filter
 
@@ -854,6 +881,10 @@ def apply_filter(source: str | Source,
 
           .. note::
             This overwrites `output_dtype`, which will me deprecated in the future
+    selector_band:
+        A band object with categorical data which will be used as a mask for iterative performance of the blurring.
+        If provided, the blurring will be done for each categorical data. Use border preserving gaussian filter to
+        avoid removing borders between categorical datas of selector_band
 
     verbose:
         Print out processing step infos
@@ -883,10 +914,13 @@ def apply_filter(source: str | Source,
         source = sources.pop()
 
     # prepare output params
+    # TODO: we should get rid of either output_params['dtype'] or output_dtype as a user input option
     if output_params is None:
         output_params = dict()
-    if output_dtype is not None:
-        output_params['dtype'] = output_dtype
+    _out_dtype = output_params.get('as_dtype', None)
+    if _out_dtype is not None and _out_dtype != output_dtype:
+        raise ValueError(f"Provided two different output dtypes: {output_params['as_dtype']=} and {output_dtype=}")
+    output_params['as_dtype'] = output_dtype
 
     # we pass indexes
     indexes = [band.get_bidx() for band in bands]
@@ -894,6 +928,10 @@ def apply_filter(source: str | Source,
     border = compatible_border_size(**filter_params)
     if verbose:
         print(f"The resulting border size is {border=} pixels")
+
+    # we need to set nodata to None if input is different dtype than output and input has Nodata e.g. nan to unit8
+    # TODO: we can use the rasterio to numpy mapping to check whether input is same as output dtype - else set to None
+    output_params['nodata'] = None
 
     # set the parameter for the resulting file
     blur_output_params = dict(
@@ -916,14 +954,15 @@ def apply_filter(source: str | Source,
                        view=view,
                        inner_view=inner_view,
                        data_in_range=data_in_range,
-                       data_output_dtype=data_output_dtype,
+                       data_as_dtype=data_as_dtype,
                        data_output_range=data_output_range,
                        replace_nan_with=replace_nan_with,
                        img_filter=img_filter,
                        filter_params=filter_params,
                        filter_output_range=filter_output_range,
-                       output_dtype=output_dtype,
+                       as_dtype=output_dtype,
                        output_range=output_range,
+                       selector_band=selector_band,
                        )
         block_params.append(bparams)
     # ###
@@ -949,7 +988,6 @@ def apply_filter(source: str | Source,
         # start the block processing
         all_jobs = []
         for bparams in block_params:
-
             all_jobs.append(pool.apply_async(
                 func=runner_call,
                 kwds=dict(queue=blur_q,
@@ -1317,7 +1355,6 @@ def compute_model(predictors: Collection[Band],
                   selector: NDArray[np.bool_] | None = None,
                   selector_band: Band|None=None,
                   verbose: bool = False,
-                  predictor_params:dict|None=None,
                   **params):
     """Create a tif file with the model prediction values from a fitted model.
 
@@ -1336,18 +1373,23 @@ def compute_model(predictors: Collection[Band],
     output_file:
         Path to where the model result should be written to
     block_size: tuple of int
-        Size (width, height) in #pixel of the block that a single job processes
+        Size (width, height) in #pixel of the block that a single job
+        processes.
     predictors_as_dtype:
-        Datatype to convert predictor input to (e.g. np.float32) this will rescale them to [0, 1],
-        which is used in the compute weights function.
+        Datatype to convert predictor input to (e.g. np.float32) prior to
+        computing their contribution.
 
-        .. warning::
-        This is going to be replaced by `predictor_params['as_dtype']`
+        .. note::
+
+          Only a type conversion is supported prior to computing the predictors
+          contribution.
+          Rescaling of a predictor needs to happen in a separate step
+          beforehand.
 
     profile:
         The profile to use for the newly created output tif.
         By default the profile is copied from the first source of the
-        bredictor bands, updating the count to 1.
+        predictor bands, updating the count to 1.
 
     selector:
         A selector array to use to selectively calculate the model prediction.
@@ -1384,6 +1426,9 @@ def compute_model(predictors: Collection[Band],
         profile = Source(path=sources[0]).import_profile()
         profile['count'] = 1
 
+    # make sure to get the data output type from the profile
+    as_dtype = profile.get('dtype')
+
     # Note: with profile one could provide invalid dimensions
     height = profile['height']
     width = profile['width']
@@ -1403,26 +1448,15 @@ def compute_model(predictors: Collection[Band],
                                   border=(0, 0),
                                   size=(width, height))
     block_params = []
-    if predictors_as_dtype is not None:
-        warnings.warn(
-            "Consider using `predictor_params['as_dtype']` rather than "
-            "specifying `predictors_as_dtype` directly!",
-            category=DeprecationWarning
-        )
-    if predictor_params is None:
-        predictor_params = dict()
-    predictors_as_dtype = predictor_params.get('as_dtype', predictors_as_dtype)
-    predictors_in_range = predictor_params.get('in_range', None)
-    predictors_out_range = predictor_params.get('out_range', None)
     for view in inner_views:
         bparams = dict(view=view,
                        predictors=predictors,
                        predictors_as_dtype=predictors_as_dtype,
-                       predictors_in_range=predictors_in_range,
-                       predictors_out_range=predictors_out_range,
                        selector=selector,
                        selector_band=selector_band,
-                       optimal_weights=optimal_weights,)
+                       optimal_weights=optimal_weights,
+                       as_dtype=as_dtype,
+                       )
         block_params.append(bparams)
 
 
@@ -1824,8 +1858,6 @@ def check_predictor_consistency(predictors: Collection[Band],
 def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
     """Per block (i.e. view) model prediction for a fitted regression
 
-    The created view is always returned as np.float64
-
     Parameters
     ----------
     params: dict
@@ -1838,10 +1870,11 @@ def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
         A collection of _io.Band objects that were used as predictors
       optimal_weights: dict
         Provides the optimal weight for each predictor
+      as_dtype: str
+        The data type to use for the returned data
     job_out_q: multiprocessing.Queue
       The queue to push the block data to
     """
-    out_dtype = np.float64
     with TimedTask() as timer:
         predictors = params.pop('predictors')
         optimal_weights = params.pop('optimal_weights')
@@ -1851,12 +1884,11 @@ def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
         selector = params.get('selector')
         selector_band = params.get('selector_band')
         predictors_as_dtype = params.get('predictors_as_dtype')
-        predictors_in_range = params.get('predictors_in_range')
-        predictors_out_range = params.get('predictors_out_range')
+        as_dtype = params.get('as_dtype')
         width = view[2]
         height = view[3]
-        # start with an all zero map
-        model_data = np.zeros(shape=(height, width), dtype=out_dtype)
+        # start with an all zero map and in the correct data type
+        model_data = np.zeros(shape=(height, width), dtype=as_dtype)
 
         if selector is not None:
             _selector = selector[window.toslices()]
@@ -1882,12 +1914,12 @@ def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
                     block_data = convert_to_dtype(
                         block_data,
                         as_dtype=predictors_as_dtype,
-                        in_range=predictors_in_range,
-                        out_range=predictors_out_range
+                        in_range=None, out_range=None
                     )
                 # add each predictor data layer multiplied by its weight
                 if pred in _opt_weights:
-                    model_data += np.where(_selector, _opt_weights[pred] * block_data, 0)
+                    # add the contributions of each predictor in the final output dtype
+                    model_data += np.where(_selector, (_opt_weights[pred] * block_data).astype(as_dtype), 0)
         output = dict(
             data=model_data,
             view=view
@@ -2035,8 +2067,8 @@ def block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
       inner_view: tuple
         (x, y, width, height) defining the usable part of the block, i.e.
         without the borders
-      output_dtype:
-        Set the data type of the blurred categories that are returned, default np.uint8
+      as_dtype:
+        Set the data type of the blurred categories that are returned.
       output_range:
         The data range the output will be mapped to (when converting to `output_dtype`)
       img_filter: Callable
@@ -2060,7 +2092,9 @@ def block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
             img_filter=params.get('img_filter'),
             filter_params=params.get('filter_params'),
             filter_output_range=params.get('filter_output_range'),
-            output_dtype=params.get('output_dtype'),
+            # TODO: we need to consistently use `as_dtype` for the
+            #       data type of  returned data
+            output_dtype=params.get('as_dtype'),
             output_range=params.get('output_range'),
         )
         _ = runner_call(

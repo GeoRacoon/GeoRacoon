@@ -288,7 +288,7 @@ def usable_pixels_count(selector):
         return 0
 
 
-def dtype_range(dtype)->tuple[int|float, int|float]:
+def dtype_range(dtype:type|str)->tuple[int|float, int|float]:
     """Get the range of the specified dtype
 
     ..warning::
@@ -317,8 +317,39 @@ def dtype_range(dtype)->tuple[int|float, int|float]:
 def convert_to_dtype(data: NDArray,
                      as_dtype:None|type|np._dtype|str=None,
                      in_range:None|NDArray|Collection=None,
-                     out_range:None|NDArray|Collection=None)->NDArray:
-    """Converts data to as_dtype and optionally rescales it.
+                     out_range:None|NDArray|Collection|str|type=None)->NDArray:
+    """Converts data to `as_dtype` and optionally rescales it.
+
+    Rescaling is done only if at least one of of the ranges is explicitly set.
+    If only `in_range` is set then the input range is scaled to the full range
+    of the output output data type, `ad_dtype`.
+    This behaviour is typically wanted when converting some floating typed data
+    in a limited range, e.g. [0, 1] to unsigned integer, e.g. `uint8`, thus
+    mapping the range [0,1] to [0, 255].
+
+    In case only `out_range` is set, the full data type range of the input
+    data is mapped to the provided `out_range`.
+    This is typically used if converting from a "limited" range, like `uint8`
+    to a floating data type.
+
+    Examples:
+    >>> # simple conversion, no rescalingm
+    >>> y_data = np.array([0, 0.5, 1.], dtype=np.float64)
+    >>> convert_to_dtype(my_data, as_dtype='uint8')
+    array([0, 0, 1], dtype=uint8)
+    >>> # conversion with rescaling specifying in_range only 
+    >>> new_data = convert_to_dtype(my_data, as_dtype='uint8', in_range=(0,1))
+    >>> new_data
+    array([  0, 127, 255], dtype=uint8)
+    >>> # convert with scaling specifying out_range only 
+    >>> convert_to_dtype(data=new_data, as_dtype='float64', out_range=[-1, 1])
+    array([-1.        , -0.00392157,  1.        ])
+    >>> # only scaling, keeping data type
+    >>> convert_to_dtype(data=my_data, in_range=[0,1], out_range=[-1, 1])
+    array([-1.,  0.,  1.])
+    >>> # scaling with data type as range
+    >>> convert_to_dtype(data=my_data, in_range=[0,1], as_dtype='uint16', out_range='uint8')
+    array([  0, 127, 255], dtype=uint16)
 
     ..note::
 
@@ -349,7 +380,9 @@ def convert_to_dtype(data: NDArray,
           use its min an max for scaling
     out_range:
       an array or list from which min and max will be used as limits for the
-      output
+      output.
+      Alternatively, a data type can be specified, in which case the data
+      will be scaled to the full range of the specified data type
     """
     # convert to numpy dtype is string was provided
     if isinstance(as_dtype, str):
@@ -357,54 +390,64 @@ def convert_to_dtype(data: NDArray,
 
     in_dtype = data.dtype
 
-    data_min, data_max = np.nanmin(data), np.nanmax(data)
-
-    cut = False
-
-    if in_range is None:
-        if np.issubdtype(in_dtype, np.floating) and data_min >= 0.0 and data_max <= 1.0:
-            _inmax, _inmin = 1.0, 0.0
+    rescale = False
+    if in_range is not None:
+        rescale = True
+        if isinstance(in_range, (str, type)):
+            # we have a data type
+            _inmax, _inmin = dtype_range(in_range)
         else:
-            # TODO: It would actually make sense to raise a warning directly in the user-method
-            #      (extract_categories and block_heterogenity (unused?) for parallelized and
-            #      get_filtered_categories for single threaded), as convert_to_dtype is in most cases called internally.
-            if np.issubdtype(in_dtype, np.floating): 
-                warnings.warn(f"Converting the full range of `{ in_dtype }` to `{ as_dtype }`. "
-                              "If this is not what you want, specify the input range with `in_range`.")
+            _inmax = float(np.nanmax(in_range))
+            _inmin = float(np.nanmin(in_range))
+    else:
+        # us the full rang of input data type if scaling should be done
+        _inmax, _inmin = dtype_range(in_dtype)
+
+    if out_range is not None:
+        if not rescale:
+            # use the full range in case
             _inmax, _inmin = dtype_range(in_dtype)
-    else:
-        # we convert to float since Decimal cannot handle np.uintX
-        _inmax = float(np.nanmax(in_range))
-        _inmin = float(np.nanmin(in_range))
-        if data_min < _inmin or data_max > _inmax:
-            warnings.warn(f"The data-range [{data_min}, {data_max}] extends "
-                          f"over the chose input range [{_inmin}, {_inmax}].\n"
-                          "Exceeding values will be replaced by the limit values")
-            cut = True
-    # now the output dtype
-    if out_range is None:
-        assert as_dtype is not None, f"{out_range=} and {as_dtype=} cannot both be unset!"
-
-        if np.issubdtype(as_dtype, np.floating):
-            _outmax, _outmin = 1.0, 0.0
+        rescale = True
+        if isinstance(out_range, (str, type)):
+            # we have a data type
+            _outmax, _outmin = dtype_range(out_range)
         else:
-            _outmax, _outmin = dtype_range(as_dtype)
+            _outmax = float(np.nanmax(out_range))
+            _outmin = float(np.nanmin(out_range))
+    elif rescale:
+        # no output range but rescale due to input range
+        # use the full range of output data type if scaling should be done
+        _outmax, _outmin = dtype_range(as_dtype)
+
+    if rescale:
+        # we rescale
+        if out_range is None and np.issubdtype(as_dtype, np.floating):
+            # we are about to map something to the full float range, this is rather
+            # unlikely done on purpose
+            warnings.warn(
+                f"You are about to rescale data of type '{in_dtype}' in range "
+                f"[{_inmin}, {_inmax}] to the full range of '{as_dtype}'. "
+                "Consider specifying `out_range` to avoid this."
+            )
+        # first get the scaling factor
+        scale = (Decimal(_outmax) - Decimal(_outmin)) / \
+                (Decimal(_inmax) - Decimal(_inmin))
+        # now rescale
+        out_data = np.array(_outmin).astype(as_dtype) + ((data - _inmin) * float(scale)).astype(as_dtype)
+
+        outmax = float(np.nanmax(out_data))
+        outmin = float(np.nanmin(out_data))
+        if outmax > _outmax or outmin < outmin:
+            warnings.warn(
+                f"The rescaled data (range [{outmin}, {outmax}]), exceeds the "
+                f"determined output range [{_outmin}, {_outmax}]. "
+                "If this is unwanted make sure that the input data does not "
+                "exceed the `in_range`."
+            )
+
     else:
-        # we convert to float since Decimal cannot handle np.uintX
-        _outmax = float(np.nanmax(out_range))
-        _outmin = float(np.nanmin(out_range))
-        
-        if as_dtype is None:
-            # We simply rescale the data
-            as_dtype = data.dtype
-    scale = (Decimal(_outmax) - Decimal(_outmin)) / \
-            (Decimal(_inmax) - Decimal(_inmin))
-
-    out_data = np.array(_outmin).astype(as_dtype) + ((data - _inmin) * float(scale)).astype(as_dtype)
-
-    if cut:
-        out_data[out_data<_outmin] = _outmin
-        out_data[out_data>_outmax] = _outmax
+        # we simply change the data type - no rescaling
+        out_data = data.astype(as_dtype)
 
     return out_data
 
