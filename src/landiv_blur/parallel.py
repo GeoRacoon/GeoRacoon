@@ -120,6 +120,9 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
         # overwrite the profile if explicitely provided:
         profile['nodata'] = output_params.pop('nodata', profile.get('nodata', None))
         profile['count'] = output_params.get('count', profile['count'])
+        # check for Bigtiff
+        if output_params.pop('bigtiff', False):
+            profile['BIGTIFF'] = 'YES'
         verbose = output_params.get('verbose', False)
         with rio.open(output_file, 'w', **profile) as dst:
             while True:
@@ -640,6 +643,9 @@ def extract_categories(source: str | Source,
           Value to be used as nodata value (if not provided `None` is used)
         as_dtype:
           Data type into which the output of the filer function will be converted
+        bigtiff:
+          Boolean whether to create a BIGTIFF file or not, for files larger than 4 GB
+          TODO: (see apply_filter - on question to make this standard)
 
           .. note::
             This overwrites `output_dtype`, which will me deprecated in the future
@@ -878,7 +884,11 @@ def apply_filter(source: str | Source,
           Value to be used as nodata value (if not provided `None` is used)
         dtype:
           Data type into which the output of the filer function will be converted
-
+        bigtiff:
+          Boolean whether to create a BIGTIFF file or not, for files larger than 4 GB
+          TODO: We can think about either making this standard or allowing for the rasteiro implementation from GDAL:
+             https://rasterio.readthedocs.io/en/latest/topics/image_options.html
+             YET then we need to capitalize the input and it needs to perfectly match the lettering
           .. note::
             This overwrites `output_dtype`, which will me deprecated in the future
     selector_band:
