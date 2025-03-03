@@ -167,6 +167,7 @@ def test_filter_data_float(datafiles):
 def test_entropy_normalization_conversion(datafiles):
     """Test the normalization of the entropy along with casting to unsigned int
     """
+    # TODO: these tests become a bit unnecessary as get_entropy should be removed
     map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     map_data = lbio.load_map(map_tif)
     data = map_data['data']
@@ -279,7 +280,8 @@ def test_interaction_computation(datafiles):
                                                         img_filter=gaussian,
                                                         filter_params=dict(
                                                             sigma=(0.5 * diameter / truncate) / scale,  # in pixel
-                                                            truncate=truncate),
+                                                            truncate=truncate,
+                                                            preserve_range=True),
                                                         output_dtype=test_dtype)
     # Pairs
     # TODO: write a better test here (it still fails for i >= 3
