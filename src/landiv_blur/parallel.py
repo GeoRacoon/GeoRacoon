@@ -534,6 +534,8 @@ def combine_interaction_blocks(output_params: dict,
 
     with TimedTask() as timer:
         output_dtype = output_params.pop('output_dtype')
+        if isinstance(output_dtype, str):
+            output_dtype = np.dtype(output_dtype)
         output_file = output_params.pop('output_file')
         # print(f"{output_file=}")
         # print(f"{output_dtype=}")
@@ -1037,7 +1039,8 @@ def compute_entropy(source: str | Source,
                     block_size: tuple[int, int],
                     blur_params: dict,  # TODO: is only used to format output_file
                     categories: list | None = None,
-                    entropy_as_ubyte: bool = True,
+                    output_dtype: type | str | None = None,
+                    output_range: tuple | None = None, # TODO: Do we want to infer for np.integer? (see compute entropy)
                     normed: bool = True,
                     max_entropy_categories: int | None = None,
                     plot_pdf_preview: bool = True,
@@ -1059,8 +1062,13 @@ def compute_entropy(source: str | Source,
     blur_params : dict
         Parameters for the Gaussian blur. It must contain at least either
         `diameter` or `sigma` in a in meters or any other measure of distance.
-    entropy_as_ubyte:
-        Should the entropy be normalized and returned as ubyte?
+    output_dtype:
+      Set the data type of the entropy file that is returned.
+    output_range:
+      an array or list from which min and max will be used as limits for the
+      returned output.
+      By default if `output_dtype` is provided and of type np.floating it will be set to [0, 1], if of type np.integer
+      to the min max of possible dtype e.g. uin8 [0, 255]
     normed:
         If the entropy should be normalized
     max_entropy_categories:
@@ -1078,7 +1086,6 @@ def compute_entropy(source: str | Source,
           of threads -1 are used.
         start_method: str
           Starting method for multiprocessing jobs
-    
 
     Returns
     -------
@@ -1121,16 +1128,28 @@ def compute_entropy(source: str | Source,
         out_type='entropy',
         blur_params=blur_params
     )
+    # handle deprecated parameters
+    entropy_as_ubyte = params.pop('entropy_as_ubyte', None)
+    if entropy_as_ubyte is not None:
+        if entropy_as_ubyte:
+            output_dtype = "uint8"
+        else:
+            output_dtype = "float64"
+        warnings.warn("The parameter `entropy_as_ubyte` is deprecated, use "
+                      f"`output_dtype` instead!\nUsing "
+                      f"{entropy_as_ubyte=} leads to "
+                      f"{output_dtype=}",
+                      category=DeprecationWarning)
+    if output_dtype is None:
+        output_dtype = np.uint8
+        warnings.warn("No `output_dtype` provided for result!\nUsing "
+                      f"{output_dtype=} default instead")
 
-    if entropy_as_ubyte:
-        entropy_output_dtype = "uint8"
-    else:
-        entropy_output_dtype = "float64"
     entropy_output_params = dict(
         input_bands=input_bands,
         # blur_params=blur_params,
         profile=profile,
-        output_dtype=entropy_output_dtype,
+        output_dtype=output_dtype,
         output_file=entropy_output_file,
         output_tags=dict(category='entropy'),
     )
@@ -1143,9 +1162,10 @@ def compute_entropy(source: str | Source,
         bparams = dict(input_bands=input_bands,
                        categories=categories,
                        inner_view=inner_view,
+                       output_dtype=output_dtype,
+                       output_range=output_range,
                        normed=normed,
-                       max_entropy_categories=max_entropy_categories,
-                       entropy_as_ubyte=entropy_as_ubyte, )
+                       max_entropy_categories=max_entropy_categories,)
         block_params.append(bparams)
 
     # ###
@@ -1209,7 +1229,8 @@ def compute_interaction(source: str | Source,
                         block_size: tuple[int, int],
                         blur_params: dict,  # TODO: is only used to format output_file
                         categories: list | None = None,
-                        interaction_as_ubyte: bool = True,
+                        output_dtype: type | str | None = None,
+                        output_range: tuple | None = None,
                         standardize: bool = False,
                         normed: bool = True,
                         verbose: bool = False,
@@ -1226,6 +1247,13 @@ def compute_interaction(source: str | Source,
     categories: list
         Specify which of the land-cover types to use as categories.
         If not provided then all the land-cover types are used.
+    output_dtype:
+      Set the data type of the interaction file that is returned.
+    output_range:
+      an array or list from which min and max will be used as limits for the
+      returned output.
+      By default if `output_dtype` is provided and of type np.floating it will be set to [0, 1], if of type np.integer
+      to the min max of possible dtype e.g. uin8 [0, 255]
     block_size: tuple of int
         Size (width, height) in #pixel of the block that a single job processes
     blur_params : dict
@@ -1280,15 +1308,27 @@ def compute_interaction(source: str | Source,
         out_type='interaction',
         blur_params=blur_params
     )
+    # handle deprecated parameters
+    interaction_as_ubyte = params.pop('interaction_as_ubyte', None)
+    if interaction_as_ubyte is not None:
+        if interaction_as_ubyte:
+            output_dtype = "uint8"
+        else:
+            output_dtype = "float64"
+        warnings.warn("The parameter `interaction_as_ubyte` is deprecated, use "
+                      f"`output_dtype` instead!\nUsing "
+                      f"{interaction_as_ubyte=} leads to "
+                      f"{output_dtype=}",
+                      category=DeprecationWarning)
+    if output_dtype is None:
+        output_dtype = np.uint8
+        warnings.warn("No `output_dtype` provided for result!\nUsing "
+                      f"{output_dtype=} default instead")
 
-    if interaction_as_ubyte:
-        interaction_output_dtype = np.uint8
-    else:
-        interaction_output_dtype = rio.float64
     interaction_output_params = dict(
         input_bands=input_bands,
         profile=profile,
-        output_dtype=interaction_output_dtype,
+        output_dtype=output_dtype,
         output_file=interaction_output_file,
         output_tags=dict(category='interaction'),
     )
@@ -1302,9 +1342,10 @@ def compute_interaction(source: str | Source,
                        categories=categories,
                        input_dtype=input_dtype,
                        inner_view=inner_view,
+                       output_dtype=output_dtype,
+                       output_range=output_range,
                        standardize=standardize,
-                       normed=normed,
-                       interaction_as_ubyte=interaction_as_ubyte, )
+                       normed=normed,)
         block_params.append(bparams)
 
     # ###
@@ -1976,7 +2017,8 @@ def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
             bidx = band.get_bidx(match='category')
             blurred_data[bidx] = band.get_data(window=window)
 
-        entropy_as_ubyte = params.pop('entropy_as_ubyte', False)
+        output_dtype = params.pop('output_dtype')
+        output_range = params.pop('output_range')
         normed = params.pop('normed', True)
         max_entropy_categories = params.pop('max_entropy_categories', None)
         entropy_params = dict(
@@ -1984,7 +2026,8 @@ def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
             view=view,
             normed=normed,
             max_entropy_categories=max_entropy_categories,
-            output_dtype="uint8" if entropy_as_ubyte else None,
+            output_dtype=output_dtype,
+            output_range=output_range,
         )
         # This would return the entropy data
         _ = runner_call(
@@ -2034,6 +2077,8 @@ def block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
             blurred_data[bidx] = band.get_data(window=window)
 
         input_dtype = params.pop('input_dtype', None)
+        output_dtype = params.pop('output_dtype')
+        output_range = params.pop('output_range')
         standardize = params.pop('standardize', False)
         normed = params.pop('normed', True)
         interaction_as_ubyte = params.pop('interaction_as_ubyte', False)
@@ -2043,7 +2088,8 @@ def block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
             standardize=standardize,
             normed=normed,
             category_arrays=blurred_data,
-            output_dtype=np.uint8 if interaction_as_ubyte else None,
+            output_dtype=output_dtype,
+            output_range=output_range,
         )
         # This would return the interaction data
         _ = runner_call(

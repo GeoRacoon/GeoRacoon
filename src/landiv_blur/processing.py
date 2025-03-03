@@ -536,6 +536,12 @@ def compute_entropy(data_arrays: Sequence[NDArray],
         if np.issubdtype(_as_dtype, np.floating) and output_range is None:
             # use the normalization range [0, 1] for float output by default
             output_range = (0.0, 1.0)
+        elif np.issubdtype(_as_dtype, np.integer) and output_range is None:
+            # TODO: we should decide whether we want this for entropy - but if normed I feel it helps with usability
+            #       useres will not want to sset this if they use uint8 I guess
+            # use the general possible range for Integers
+            _intmax, _intmin = dtype_range(_as_dtype)
+            output_range = (_intmin, _intmax)
         input_range=[0.0, max_entropy],
     else:
         if output_range is not None:
@@ -563,10 +569,12 @@ def compute_entropy(data_arrays: Sequence[NDArray],
 
 
 def compute_interaction(data_arrays: Sequence[NDArray],
-                        input_dtype: type|str|None=np.uint8,
+                        input_dtype: type|str|None=None,
                         standardize:bool=False,
                         normed:bool=True,
-                        output_dtype:type|str|None=np.uint8)->NDArray:
+                        output_dtype:type|str|None=None,
+                        output_range: tuple | None = None,
+                        **interaction_params)->NDArray:
     r"""Per cell interaction computed over a series of data arrays
     For 'float' inputs:
         .. math::
@@ -603,7 +611,6 @@ def compute_interaction(data_arrays: Sequence[NDArray],
     if input_dtype:
         if isinstance(input_dtype, str):
             input_dtype = np.dtype(input_dtype)
-
         _max_scale, _ = dtype_range(input_dtype)
         if np.issubdtype(input_dtype, np.floating):
             _max_scale = 1
@@ -809,7 +816,7 @@ def  view_entropy(category_arrays:dict[int, NDArray],
                   normed:bool = True,
                   max_entropy_categories: int|None = None,
                   output_dtype:type|str|None = None,
-                  output_range:tuple|None=None):
+                  output_range:tuple|None = None):
     """Return a per-cell entropy computed from the per category arrays.
 
     ..Note::
@@ -849,7 +856,8 @@ def view_interaction(category_arrays:dict[int, NDArray],
                      input_dtype: type|str|None = np.uint8,
                      standardize: bool = False,
                      normed:bool = True,
-                     output_dtype:type|str|None = np.uint8):
+                     output_dtype: type | str | None = None,
+                     output_range: tuple | None = None):
     """Return a per-cell interaction computed from the per category arrays.
 
     Parameters
@@ -869,6 +877,7 @@ def view_interaction(category_arrays:dict[int, NDArray],
         standardize=standardize,
         normed=normed,
         output_dtype=output_dtype,
+        output_range=output_range,
     )
     return dict(data=interaction_array, view=view)
 
