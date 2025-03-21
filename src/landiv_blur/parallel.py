@@ -1415,6 +1415,8 @@ def compute_model(predictors: Collection[Band],
         Collection predictors used in the multiple linar regression.
     optimal_weights:
         Holding for each predictor the optimal weight.
+        If weights include a key named "intercept",
+        this will be used as the intercept (beta0) for the model prediction.
         If a `selector_band` is provided, then it must hold for each
         categorical value (key) a dictionary with the optimal weights per
         predictor.
@@ -1959,6 +1961,8 @@ def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
         for select in selectors:
             _opt_weights = optimal_weights[select]
             _selector = np.where(selector_data==select, True, False)
+            if 'intercept' in _opt_weights:
+                model_data += np.where(_selector, _opt_weights['intercept'], 0)
             for pred in predictors:
                 block_data = pred.load_block(view=view)['data']
                 if predictors_as_dtype is not None:
@@ -2675,7 +2679,12 @@ def compute_weights(response: str | Band,
 
     print("Check linear dependency...")
     # Check rank deficiency of matrix
-    rank_def = check_rank_deficiency(tpX)
+    _check_tpX = tpX.copy()
+    if include_intercept:
+        # if intercept fitted
+        # we don't want to check it for lin dependency (its the last column always - see XT X)
+        _check_tpX = _check_tpX[:, :-1]
+    rank_def = check_rank_deficiency(_check_tpX)
 
     if rank_def:
         linear_dependent_predictors = {predictors[k]: v for k, v in rank_def.items()}
