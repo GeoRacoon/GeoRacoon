@@ -542,6 +542,7 @@ def project_to(source, reference, output=None, nodata=None)->str | None:
 
 
 def clip_to_bounds(source, reference, output=None):
+    # TODO: not_needed
     """Clip raster to bounding box of reference raster
 
     Parameters
@@ -674,6 +675,7 @@ def buffer_geometries_metric(geom_geoseries, buffer_meter, source_crs):
 
 
 def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_meter=None):
+    # TODO: not_needed
     """Clip raster file to eco-region boundary (vector-data) for given eco-region number
 
     Parameters
