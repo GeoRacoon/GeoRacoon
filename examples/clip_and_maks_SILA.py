@@ -5,6 +5,8 @@ import rasterio
 from landiv_blur import io as lbio
 from landiv_blur.helper import nodata_mask_band
 
+# TODO: this entire script can go - we can delete this file
+
 # We want to clip one map with the bounding box of a reference map.
 data_path = '../data'
 ndvi_map_to_clip = '32U_E5_NDVI_5bins_2014_2016_sos100_eos298.tif'
