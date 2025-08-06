@@ -55,6 +55,7 @@ MPC_STARTER_METHODS = ['spawn', 'fork', 'forkserver']
 
 def combine_views(output_params: dict,
                   job_out_q: Queue):
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Listens to a queue and writes provided view into a file
     """
 
@@ -93,6 +94,7 @@ def combine_views(output_params: dict,
 
 
 def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
+    # TODO: is_needed - needs_work - is_tested (partially) - usedin_processing
     """Listen to queue (blur_q) and write blurred blocks to a single file
 
     Parameters
@@ -158,6 +160,7 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
 
 
 def combine_matrices(output_q: Queue) -> tuple[NDArray | None, tuple]:
+    # TODO: is_needed - no_work - is_tested (partially) - usedin_linfit
     """Adding up matrices that hold partial sums
 
     Parameters
@@ -194,6 +197,7 @@ def combine_matrices(output_q: Queue) -> tuple[NDArray | None, tuple]:
 
 
 def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Filling up a matrix
 
     Parameters
@@ -229,6 +233,7 @@ def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
 
 
 def partial_transposed_product(params: dict, output_q: Queue):
+    # TODO: is_needed - no_work - is_tested (partially) - usedin_linfit
     """Run `.inference.transposed_product` in parallel
 
     Parameters
@@ -251,6 +256,7 @@ def partial_transposed_product(params: dict, output_q: Queue):
 
 
 def partial_optimal_betas(params: dict, output_q: Queue):
+    # TODO: is_needed - no_work - is_tested (partially) - usedin_linfit
     """Runs .inference.get_optimal_weights_source in parallel
 
     Parameters
@@ -274,6 +280,7 @@ def partial_optimal_betas(params: dict, output_q: Queue):
 
 
 def data_writer(writer: Callable, writer_params: dict, aggr_q: Queue) -> TimedTask:
+    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Write out data using the context manager `writer`
 
     This function can be used with the various context managers defined
@@ -318,6 +325,7 @@ def process_band_count_valid(band: Band,
                              selector:NDArray[np.bool_],
                              no_data:Union[int,float],
                              limit_count:int):
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     with TimedTask() as timer:
         valid = band.count_valid_pixels(selector=selector,
                                         no_data=no_data,
@@ -333,6 +341,7 @@ def process_block(task: Callable,
                   read_params: dict,
                   open_params: dict,
                   out_q: Queue) -> TimedTask:
+    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Processes a section of the data in the source file.
 
     This is a general purpose function that can be used to process a large .tif
@@ -393,6 +402,7 @@ def process_masks(task: Callable,
                   aggr_q: Queue,
                   extra_masking_band:Band|None=None,
                   ) -> TimedTask:
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Processes a section of the mask for each band
 
     This is a general purpose function that can be used to process a large .tif
@@ -450,6 +460,7 @@ def process_masks(task: Callable,
 
 def combine_entropy_blocks(output_params: dict,
                            entropy_q: Queue):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Listen to queue (entropy_q) and write computed blocks to a single file.
 
     This function continuously listens to a queue for entropy blocks and writes
@@ -529,6 +540,7 @@ def combine_entropy_blocks(output_params: dict,
 
 def combine_interaction_blocks(output_params: dict,
                                interaction_q: Queue):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Listen to queue (interaction_q) and write computed block to single file
     """
 
@@ -579,6 +591,7 @@ def runner_call(queue: Queue[Any],
                 callback: Callable,
                 params: dict,
                 wrapper: Callable | None = None):
+    # TODO: is_needed - no_work - is_tested - usedin_both
     """Put the results of callback using parameter into the queue
 
     If provided `wrapper(callback(**params))` is put into the queue.
@@ -591,7 +604,7 @@ def runner_call(queue: Queue[Any],
         queue.put(output)
     return output
 
-
+# TODO: check how much extract_categories and apply_filter are redundant
 def extract_categories(source: str | Source,
                        categories: list,
                        output_file: str,
@@ -603,6 +616,8 @@ def extract_categories(source: str | Source,
                        filter_output_range:tuple|None=None,
                        verbose: bool = False,
                        **params):
+    # TODO: Not entirely sure if this is really needed
+    # TODO: is_needed ? - needs_work - is_tested - usedin_processing
     """Load per-category maps from resource, apply a filter and export.
 
     Parameters
@@ -835,6 +850,7 @@ def apply_filter(source: str | Source,
                  output_params:None|dict = None,
                  **params
                  )->str:
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """
     Parameters
     ----------
@@ -1046,6 +1062,7 @@ def compute_entropy(source: str | Source,
                     plot_pdf_preview: bool = True,
                     verbose: bool = False,
                     **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Compute the entropy-based heterogeneity from several category bands
 
     Parameters
@@ -1235,6 +1252,7 @@ def compute_interaction(source: str | Source,
                         normed: bool = True,
                         verbose: bool = False,
                         **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Compute the interaction-strength from heterogeneity from several category bands in a pairwise,
     tree-way-interaction, four-way-interaction.... manner
 
@@ -1407,6 +1425,7 @@ def compute_model(predictors: Collection[Band],
                   selector_band: Band|None=None,
                   verbose: bool = False,
                   **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Create a tif file with the model prediction values from a fitted model.
 
     Parameters
@@ -1569,6 +1588,7 @@ def compute_mask(source: str | Source,
                  bands: list[Band] | None = None,
                  verbose: bool = False,
                  **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Compute the mask of a dataset in parallel and write it it out to the file
 
     Parameters
@@ -1697,6 +1717,7 @@ def prepare_selector(*bands: Band,
                      extra_masking_band: Band|None=None,
                      verbose=False,
                      **params) -> NDArray:
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Compute a boolean selector from masks of the provided `io_.Band` objects
 
 
@@ -1806,6 +1827,7 @@ def check_predictor_consistency(predictors: Collection[Band],
                                 sanitize:bool=False,
                                 verbose:bool=False,
                                 **params)->Collection[Band]:
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Check if with the selector all the predictors still contain data
 
     Parameters
@@ -1909,6 +1931,7 @@ def check_predictor_consistency(predictors: Collection[Band],
 
 
 def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Per block (i.e. view) model prediction for a fitted regression
 
     Parameters
@@ -1984,6 +2007,7 @@ def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
 
 
 def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Per block (i.e. view) heterogeneity measure based on entropy
 
     Parameters
@@ -2043,6 +2067,7 @@ def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
 
 
 def block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Per block (i.e. view) interaction measure based on given categories
 
     Parameters
@@ -2105,6 +2130,7 @@ def block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
 
 
 def block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Per block (i.e. view) category extraction and filter application
 
     This is a wrapper function to process a selection of a (pot. large)
@@ -2166,6 +2192,7 @@ def block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
 
 
 def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedTask:
+    # TODO: is_needed (not sure) - needs_work - not_tested - usedin_processing
     """Per block (i.e. view) heterogeneity measure based on entropy
 
     Parameters
@@ -2257,6 +2284,7 @@ def get_XT_X(response: str | Band,
              verbose: bool = False,
              **mpc_params
              ) -> np.ndarray:
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Calculate X.T @ X in parallel directly from view of the predictor data
 
     .. note::
@@ -2359,6 +2387,7 @@ def get_optimal_betas(*predictors: Band | str,
                       as_dtype=np.float64,
                       **mpc_params
                       ):
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """
     """
     print(f'get_optimal_betas - {response=}, {predictors=}')
@@ -2445,6 +2474,7 @@ def get_XT_X_dependency(response: str | Band,
                         verbose:bool=False,
                         **params
                         ) -> dict[Band, str]:
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Test for linear dependency of columsn (before using other functions to fit the MLR)
 
     Parameters
@@ -2558,6 +2588,7 @@ def compute_weights(response: str | Band,
                     verbose:bool=False,
                     **params
                     ) -> dict[Band, float] | dict[Band, str] | None:
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Compute the optimal weight in a multiple linear regression
 
     Parameters
@@ -2716,6 +2747,7 @@ def compute_weights(response: str | Band,
 
 
 def block_ssr(params: dict, ssr_parts: list):
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Partialy calculate the Sum of Squares for the Residuals (SSR)
     """
 
@@ -2741,6 +2773,7 @@ def block_ssr(params: dict, ssr_parts: list):
 
 
 def block_sst(params: dict, sst_parts: list):
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Partialy calculate the Sum of Squares Total (SST)
     """
     #TODO: maybe reduce redundancy between this function an the one above (ssr)
@@ -2770,6 +2803,7 @@ def calculate_rmse(response: str | Band,
                    block_size: Union[dict[str, tuple[int, int]], tuple[int, int]],
                    verbose: bool = False,
                    **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Compute the Root mean square error (RSME) based on a predicted model and original response data.
      The formula for RMSE is:
 
@@ -2859,6 +2893,7 @@ def calculate_r2(response: str | Band,
                  block_size: Union[dict[str, tuple[int, int]], tuple[int, int]],
                  verbose: bool = False,
                  **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Compute the Coefficient of Determination (R2) based on a predicted model and original response data.
     The formula for R2 is:
         R^2 = 1 - (SS_res / SS_tot)
