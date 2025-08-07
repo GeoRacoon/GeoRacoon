@@ -34,6 +34,7 @@ from .io_ import Source, Band
 
 
 def to_numpy_selector(rasterio_mask: NDArray) -> NDArray:
+    # TODO: is_needed - no_work - not_tested - usedin_both
     """Converts rasterio mask (e.g. `read_masks(band)`) into a `numpy.bool_'
 
     ..Note::
@@ -57,6 +58,7 @@ def to_numpy_selector(rasterio_mask: NDArray) -> NDArray:
 def enrich_selector(selector: NDArray,
                     *predictors: Band,
                     verbose: bool = False) -> NDArray:
+    # TODO: is_needed - no_work - not_tested - usedin_both
     """Complete the selector with the masks extracted from the pridictors
 
     Parameters
@@ -106,6 +108,7 @@ def prepare_selector(response: str | Band,
                      *predictors: Band,
                      extra_masking_band: Band|None=None,
                      verbose=False) -> NDArray:
+    # TODO: is_needed - no_work - is_tested - usedin_both
     """Creates a boolean selector based on the masks of response and predictors
 
     The selector is a np.array of type np.bool_ indicating which well can be
@@ -173,6 +176,7 @@ def init_X(predictors: Collection[Band],
            window: Window | None,
            include_intercept: bool,
            as_dtype:type|str) -> NDArray:
+    # TODO: is_needed - no_work - is_tested - usedin_linfit
     """Initiates the matrix X with the appropriate width and height
 
     Parameters
@@ -217,6 +221,7 @@ def populate_X(X: NDArray,
                window: Window | None,
                selector: NDArray,
                include_intercept: bool):
+    # TODO: is_needed - no_work - is_tested - usedin_linfit
     """Adds column per predictor with selector applied in the window view
 
     ...Note::
@@ -274,6 +279,7 @@ def prepare_predictors(response: str | Band,
                        view: tuple[int, int, int, int] | None = None,
                        include_intercept=True,
                        verbose: bool = False):
+    # TODO: is_needed - no_work - is_tested - usedin_linfit
     r"""Generates and returns the parameters for a multiple linear regression
 
     The parameters returned are $X$ and $\vec{y}$ from the multiple linear
@@ -417,6 +423,7 @@ def transposed_product(predictors: Collection[Band],
                        include_intercept: bool = False,
                        as_dtype:str|type="float64"
                        ):
+    # TODO: is_needed - no_work - is_tested - usedin_linfit
     """Extracts the selector of the predictor data in the provided view.
 
     Parameters
@@ -457,6 +464,7 @@ def transposed_product(predictors: Collection[Band],
 
 
 def get_optimal_weights(X, y):
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     r"""Compute the optimal weight of a multiple linear regression.
 
     The multiple linear regression is defined by the equation:
@@ -484,6 +492,7 @@ def get_optimal_weights(X, y):
 def partial_response(response: str | Band,
                      window: Window | None,
                      selector: NDArray):
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Returns the window view of the response data after applying the selector
 
     Parameters
@@ -512,6 +521,7 @@ def partial_X(predictors: Collection[Band],
               selector: NDArray,
               include_intercept: bool,
               as_dtype:type|str):
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Generate (a partial) predictor matrix, $`X`$.
 
     If `window` is provided then only the specified selection will
@@ -563,6 +573,7 @@ def get_optimal_weights_source(Y: NDArray,
                                include_intercept: bool = False,
                                as_dtype="float64"
                                ) -> dict[Band, float]:
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     r"""Calculate the optimal weights directly from predictors and the inverse of
     the transposed product, Y.
 
@@ -624,6 +635,7 @@ def get_optimal_weights_source(Y: NDArray,
 def get_approx_weights(X: NDArray,
                        y: NDArray,
                        fit_intercept: bool = False) -> LinearRegression:
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     r"""Numerical optimization to determine weights in a mlt. lin. regression.
 
     The multiple linear regression is defined by the equation:
