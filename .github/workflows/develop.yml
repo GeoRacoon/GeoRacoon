@@ -6,12 +6,12 @@ jobs:
   unit-tests:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     
     - name: Set up Python 3.9
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v5
       with:
         python-version: 3.9
     
@@ -29,13 +29,13 @@ jobs:
         coverage xml --include=src/**
     
     - name: Upload coverage report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       with:
         name: coverage-report
         path: coverage.xml
     
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: actions/upload-artifact@v5
       with:
         file: ./coverage.xml
         flags: unittests
