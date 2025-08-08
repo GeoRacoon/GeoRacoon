@@ -1,3 +1,6 @@
+# not_needed (though might be helpful) 
+# needs_work (docstring missing)
+# not_tested
 import numpy as np
 import rasterio as rio
 from rasterio.windows import from_bounds
@@ -9,6 +12,10 @@ from .io import load_block
 
 
 def read_clip(source:str, clipping, **tags):
+    # not_needed (though might be helpful) 
+    # needs_work (better doc - address TODO or remove)
+    # not_tested
+    # -
     """Read out the `clipping` map area from `source`
 
     ..note::
@@ -49,6 +56,10 @@ def mask_relative(source:str,
                   masking:Any,
                   no_value:Any=np.nan,
                   **tags):
+    # not_needed (though might be helpful) 
+    # needs_work (better doc)
+    # not_tested
+    # -
     """Mask source map where a band from the masker map has a specific value
 
     Parameters
