@@ -9,6 +9,7 @@ from .io import load_block
 
 
 def read_clip(source:str, clipping, **tags):
+    # TODO: not_needed (I guess)
     """Read out the `clipping` map area from `source`
 
     ..note::
@@ -49,6 +50,7 @@ def mask_relative(source:str,
                   masking:Any,
                   no_value:Any=np.nan,
                   **tags):
+    # TODO: not_needed (I guess)
     """Mask source map where a band from the masker map has a specific value
 
     Parameters

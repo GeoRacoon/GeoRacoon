@@ -15,6 +15,7 @@ from .. import ap
 img_filter = gaussian
 
 def get_kernel_diameter(sigma, **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Compute the kernel diameter in number of cells
 
     Parameters
@@ -44,6 +45,7 @@ def get_kernel_diameter(sigma, **params):
 
 
 def get_kernel_size(sigma, **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Return the distance from center to boarder of a Gaussian kernel
     """
     return int(0.5 * (get_kernel_diameter(sigma, **params) - 1))
@@ -51,6 +53,7 @@ def get_kernel_size(sigma, **params):
 
 def compatible_border_size(sigma:float|int, border:tuple[int, int]|None=None,
                            **params)->tuple[int,int]:
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Assert that the border size is compatible with the specified parameter
 
     This method asserts that the kernel size determined by `sigma` and further
@@ -84,6 +87,7 @@ def compatible_border_size(sigma:float|int, border:tuple[int, int]|None=None,
 
 
 def bpgaussian(data:NDArray, **filter_params)->NDArray:
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Applies a border-preserving Gaussian filter
 
     The approach considers a Gaussian blur to be a weighted average over

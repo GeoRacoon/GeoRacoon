@@ -9,6 +9,7 @@ from .plotting import (
     plot_entropy_full
 )
 
+# TODO: discuss what we want here
 
 def main_cli():
     """Command line entry point.

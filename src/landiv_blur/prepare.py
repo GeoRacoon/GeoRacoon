@@ -11,6 +11,7 @@ import math
 def overhead_fraction(nbr_blocks:int,
                       border:int,
                       size:tuple[int,int])->float:
+    # TODO: not_needed - no_work - not_tested
     """Compute the fraction of area that is processed multiple times.
 
     This function reports the relation between pixels that are processed
@@ -44,6 +45,7 @@ def overhead_fraction(nbr_blocks:int,
 def update_views(data:NDArray,
                  views:list[tuple[int,int,int,int]],
                  blocks:list[ArrayLike])->None:
+    # TODO: not_needed
     """Update the data array with a sequence of views.
 
     Note that the updates are applied in order of the provided list from first
@@ -67,6 +69,7 @@ def update_views(data:NDArray,
 def update_view(data:NDArray,
                 view:tuple[int,int,int,int],
                 block:ArrayLike)->None:
+    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Update a view from the data array with a block
 
     ..Note::
@@ -92,6 +95,7 @@ def update_view(data:NDArray,
 def create_views(view_size:tuple[int, int],
                  border:tuple[int, int],
                  size:tuple[int, int])->tuple[list, ...]:
+    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Returns a set of views on which the filter can be applied independently
 
     Parameters
@@ -235,6 +239,7 @@ def create_views(view_size:tuple[int, int],
 
 
 def get_view(data:NDArray, view:tuple[int,int,int,int])->NDArray:
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Return a view of the data array
 
     ..Note::
@@ -256,6 +261,7 @@ def get_view(data:NDArray, view:tuple[int,int,int,int])->NDArray:
 
 def relative_view(view:tuple[int,int,int,int],
                   inner_view:tuple[int,int,int,int])->tuple[int,int,int,int]:
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Return the `inner_view` relative to `view`
 
     Parameters
@@ -273,6 +279,7 @@ def relative_view(view:tuple[int,int,int,int],
 
 def recombine_blocks(blocks:list[tuple[ArrayLike, tuple[int,int,int,int]]],
                      output:NDArray)->NDArray:
+    # TODO: not_needed
     """Write a sequence of blocks onto an output array
 
     Parameters
@@ -299,6 +306,7 @@ def recombine_blocks(blocks:list[tuple[ArrayLike, tuple[int,int,int,int]]],
 
 
 def get_blur_params(diameter=None, sigma=None, truncate=None):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """
     .. note::
         The default of truncate is 3

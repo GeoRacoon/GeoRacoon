@@ -3,8 +3,11 @@ This module contains various helper functions to process numpy arrays
 """
 import numpy as np
 
+# TODO: should we move both of these somewhere? or bring them together with the helpers (or split the latter a bit)
+
 
 def first_nonzero(data, axis=0, no_value=-1):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Return the first non-zero value along an axis
     """
     mask = data != 0
@@ -12,6 +15,7 @@ def first_nonzero(data, axis=0, no_value=-1):
 
 
 def last_nonzero(data, axis=0, no_value=-1):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Return the last non-zero value along an axis
     """
     mask = data != 0

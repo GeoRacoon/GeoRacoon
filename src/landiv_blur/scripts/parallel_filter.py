@@ -51,6 +51,8 @@ from landiv_blur.parallel import (
 )
 from landiv_blur.io import compress_tif
 
+# TODO: discuss what we want here
+
 def get_lct_heterogeneity(source: str,
                           output_file: str,
                           scale: float,

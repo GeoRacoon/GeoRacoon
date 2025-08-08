@@ -5,6 +5,8 @@ from landiv_blur import prepare as lbprep
 from landiv_blur import io as lbio
 
 
+# TODO: this entire script can go - we can delete this file
+
 # We want to clip one map with the bounding box of a reference map.
 data_path = '../data/'
 map_to_clip_fname = 'ecoregions/gens_v3_recoded.tif'
