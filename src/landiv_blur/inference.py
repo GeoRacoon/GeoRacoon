@@ -51,6 +51,10 @@ def to_numpy_selector(rasterio_mask: NDArray) -> NDArray:
     np.array:
         A 2D array of np.bool_ values indicating what cell can be used.
     """
+    # is_needed
+    # needs_work (make internal)
+    # not_tested (no need)
+    # usedin_linfit
     return np.where(rasterio_mask != 0, True, False)
 
 
@@ -77,6 +81,10 @@ def enrich_selector(selector: NDArray,
     np.array:
         A 2D array of np.bool_ values indicating what cell can be used.
     """
+    # is_needed
+    # needs_work (test, make internal)
+    # not_tested
+    # usedin_linfit
     aggr_selector = np.copy(selector)
     pred_mask_readers = dict()
     for predictor in predictors:
