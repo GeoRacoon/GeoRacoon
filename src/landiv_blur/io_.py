@@ -45,24 +45,44 @@ class Source:
     _mode_reading = ('r', 'r+')
     _mode_default = 'r'
     _modes = _mode_reading + _mode_writing
+    # is_needed
+    # needs_work (docs)
+    # not_tested
+    # usedin_both
 
     def __init__(self, path:str|Path,
                  tags: dict|None=None,
                  profile: dict|None=None,
                  ns: str=NS):
+        # is_needed
+        # needs_work (docs)
+        # not_tested (used in tests)
+        # usedin_both
         self.path = Path(path)
         self.tags = tags or dict()
         self._ns = ns
         self.profile = profile or dict()
 
     def __repr__(self):
+        # is_needed
+        # needs_work (docs - revisit what is printed)
+        # not_tested (no need)
+        # usedin_both
         items = [f"path={str(self.path)}", f"exists: { self.exists }"]
         return "{}({})".format(type(self).__name__, ", ".join(items))
 
     def __hash__(self):
+        # is_needed
+        # no_work
+        # not_tested (no need)
+        # usedin_both
         return hash((self.path, self._ns, *(self.tags.values())))
 
     def __eq__(self, other):
+        # is_needed
+        # needs_work (docs)0
+        # not_tested
+        # usedin_both
         if not isinstance(other, type(self)):
             return NotImplemented
         return (self.path == other.path and self.tags == other.tags and
@@ -77,6 +97,10 @@ class Source:
           If set, the profile property will be updated with the profile fetched
           from the source file.
         """
+        # is_needed
+        # needs_work (better docs)
+        # not_tested (used in tests)
+        # usedin_both
         with self.open(mode='r') as src:
             profile = src.profile
         if update_self:
@@ -85,6 +109,10 @@ class Source:
 
     @property
     def exists(self)->bool:
+        # is_needed
+        # needs_work (make internal, docs)
+        # not_tested
+        # usedin_both
         return self.path.is_file()
 
     @property
