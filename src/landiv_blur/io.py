@@ -43,6 +43,10 @@ from .helper import (
     view_to_window,
     get_scale_factor,
 )
+# is_needed
+# needs_work (module should be moved, needs docs)
+# is_tested (at least partially)
+# usedin_both
 
 # this is our namespace for tags
 NS = 'LANDIV'
@@ -93,6 +97,11 @@ def set_tags(src, bidx:int|None=None, ns:str=NS, **tags):
       The value provided is converted to a string with `helper.serialize`
       before the tag is written to the file.
     """
+    # is_needed
+    # needs_work (should be made internal?)
+    # is_tested
+    # usedin_both (is internal to IO)
+
     if bidx is None:
         bidx = 0
     # serialize the tag values:
@@ -117,6 +126,10 @@ def get_tags(src, bidx:int|None=None, ns:str=NS):
         It is dicouraged to change this value from the default as all tagging
         related methods of this package use the same default namespace.
     """
+    # is_needed
+    # needs_work (should be internal)
+    # is_tested
+    # usedin_both (is internal to IO)
     if bidx is None:
         bidx = 0  # get the tags for the files metadata
     return deserialize(src.tags(bidx=bidx, ns=ns))
@@ -138,6 +151,11 @@ def find_bidxs(src, ns:str=NS, **tags):
       Arbitrary number of keyword arguments that will be compared to the tags
       of the bands in the dataset.
     """
+    # is_needed
+    # neews_work (should be internal)
+    # not_tested
+    # usedin_both (internal to IO)
+
     _tags = sanitize(tags) 
     matching_bidxs = []
     for bidx in src.indexes:
@@ -211,6 +229,11 @@ def get_bidx(src, ns:str=NS, **tags)->None|int:
       Arbitrary number of keyword arguments that will be compared to the tags
       of the bands in the dataset.
     """
+    # is_needed
+    # no_work
+    # not_tested (used in tests)
+    # usedin_both
+
     if 'indexes' in tags or not tags:
         bidx = tags.get('indexes', 1)  # return 1 if nothing is provided
     else:
@@ -261,6 +284,11 @@ def get_bands(source:str, ns:str=NS, **tags)->list[tuple[str,int]]:
       Arbitrary number of keyword arguments that will be compared to the tags
       of each tif file
     """
+    # is_needed
+    # no_work
+    # not_tested (used in tests)
+    # usedin_both
+
     _tags = sanitize(tags)
     _sources = glob.glob(source)
     matches = []
@@ -286,6 +314,10 @@ def load_map(source:str, **tags)->dict:
        Returns the callback of
        `load_block(source=source, view=None, scaling_params=None, **tags)`
     """
+    # is_needed (this is only used in tests)
+    # needs_work
+    # not_tested (used in tests)
+    # usedin_both
     return load_block(source=source, view=None, scaling_params=None, **tags)
 
 
@@ -330,6 +362,10 @@ def load_block(source:str,
        orig_meta: The meta information of the original .tif file
        orig_profile: The profile information of the original .tif file
     """
+    # is_neede
+    # no_work
+    # is_tested
+    # usedin_both
     window=view_to_window(view)
     with rasterio.open(source) as img:
         # TODO: rasterio Window allows using slices. In doing so we could
@@ -396,6 +432,10 @@ def write_band(src:DatasetWriter,
       The value provided is converted to a string with `helper.serialize`
       before the tag is written to the file.
     """
+    # is_needed
+    # no_work
+    # not_tested
+    # usedin_processing
     src.write(data, indexes=bidx, window=window)
     set_tags(src, bidx=bidx, **tags)
 
