@@ -462,6 +462,10 @@ def update_band(src:DatasetWriter,
       Arbitrary number of keyword arguments that will be used to find
       the band to write into
     """
+    # not_needed (could be useful though)
+    # no_work
+    # not_tested
+    # usedin_both (could be)
     try:
         bidx = get_bidx(src=src, **tags)
     except BandSelectionNoMatchError as e:
@@ -500,6 +504,10 @@ def export_to_tif(destination:str,
     **pparams:
         further parameter to be added to the profile
     """
+    # not_needed (could be useful though)
+    # no_work
+    # not_tested
+    # usedin_both (pot.)
     profile = orig_profile.copy()
     # Note: we no longer update the size automatically as for Windows this is
     # not correct, pass height and width explicitly to update via pparams
@@ -538,6 +546,10 @@ def project_to(source, reference, output=None, nodata=None)->str | None:
     str:
       The name of the file that hold the re-projected map
     """
+    # not_needed (used in examples)
+    # no_work
+    # not_tested
+    # usedin_both (potentially)
     with rio.open(reference) as ref:
         dst_crs = str(ref.profile['crs'])
     with rio.open(source) as src:
@@ -598,7 +610,10 @@ def clip_to_bounds(source, reference, output=None):
     str:
       The name of the file that holds clipped map
     """
-
+    # not_needed (used in example only)
+    # no_work
+    # not_tested
+    # usedin_both (potentially)
     if not check_crs_raster(source, reference):
         raise ValueError("Cannot clip by BBOX - projections are not the same.")
 
@@ -643,6 +658,10 @@ def coregister_raster(source, reference, output=None):
     str:
       The name of the file that holds co-registered map
     """
+    # is_needed (in tests only)
+    # no_work
+    # not_tested
+    # usedin_both
 
     if not check_crs_raster(source, reference):
         raise ValueError("Cannot co-register sources - projections are not the same.")
@@ -706,6 +725,10 @@ def buffer_geometries_metric(geom_geoseries, buffer_meter, source_crs):
     GeoSeries object:
       The buffered GeoSeries object
     """
+    # is_needed (internal only)
+    # needs_work (docs)
+    # not_tested
+    # usedin_both (io module)
     geom_utm = geom_geoseries.to_crs(geom_geoseries.estimate_utm_crs())
     geom_buff = geom_utm.buffer(buffer_meter,
                                 resolution=10, cap_style='round', join_style='round')
@@ -735,7 +758,10 @@ def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_m
     str:
       The name of the file that holds eco-region clipped map
     """
-
+    # not_needed (used in example)
+    # no_work
+    # not_tested
+    # usedin_processing
     if output is None:
         output = outfile_suffix(source, "eco-clip")
 
@@ -808,6 +834,10 @@ def compress_tif(source, output:str|None=None, compression:str|None='lzw'):
     str:
       The name of the compressed file
     """
+    # is_needed
+    # needs_work (docs)
+    # is_tested
+    # usedin_processing (part of IO module, could be used in both)
     if compression is None:
         compression = 'none'
     overwrite = False
