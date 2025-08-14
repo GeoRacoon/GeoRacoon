@@ -136,7 +136,7 @@ def bpgaussian(data:NDArray, **filter_params)->NDArray:
 
     """
     # is_needed
-    # no_workj
+    # no_work
     # is_tested
     # usedin_both
 
