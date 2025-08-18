@@ -315,7 +315,7 @@ def load_map(source:str, **tags)->dict:
        `load_block(source=source, view=None, scaling_params=None, **tags)`
     """
     # is_needed (this is only used in tests)
-    # needs_work
+    # needs_work (replace usage with `load_block` and get rid of it)
     # not_tested (used in tests)
     # usedin_both
     return load_block(source=source, view=None, scaling_params=None, **tags)
@@ -362,7 +362,7 @@ def load_block(source:str,
        orig_meta: The meta information of the original .tif file
        orig_profile: The profile information of the original .tif file
     """
-    # is_neede
+    # is_needed
     # no_work
     # is_tested
     # usedin_both
@@ -659,7 +659,7 @@ def coregister_raster(source, reference, output=None):
       The name of the file that holds co-registered map
     """
     # is_needed (in tests only)
-    # no_work
+    # needs_work (format doc)
     # not_tested
     # usedin_both
 
