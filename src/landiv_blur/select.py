@@ -1,3 +1,6 @@
+# not_needed (though might be helpful) 
+# needs_work (docstring missing)
+# not_tested
 import numpy as np
 import rasterio as rio
 from rasterio.windows import from_bounds
@@ -27,6 +30,10 @@ def read_clip(source:str, clipping, **tags):
       See `io.get_bidx` for further details
 
     """
+    # not_needed (though might be helpful) 
+    # needs_work (better doc - address TODO or remove)
+    # not_tested
+    # -
     # make sure we use the same projection
     check_compatibility(source, clipping)
     with rio.open(clipping) as ref:
@@ -71,6 +78,11 @@ def mask_relative(source:str,
       See `io.get_bidx` for further details
 
     """
+    # not_needed (though might be helpful) 
+    # needs_work (better doc)
+    # not_tested
+    # -
+
     # we only need the mask where the source file is
     clipper_data = read_clip(source=masker, clipping=source, **tags)['data']
     # print(f"{clipper_data.shape=}")

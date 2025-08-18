@@ -33,6 +33,10 @@ def overhead_fraction(nbr_blocks:int,
       The total size of the map in number of pixels (width, height)
 
     """
+    # not_needed (thought that might be an interesting measure to have)
+    # no_work
+    # not_tested
+    # usedin_processing
     total_area = size[0] * size[1]
 
     h_overhead = (nbr_blocks - 1) * (2 * border) * size[0]
@@ -86,6 +90,11 @@ def update_view(data:NDArray,
       np.array with the updated values.
 
     """
+    # is_needed
+    # no_work
+    # not_tested (used in test)
+    # usedin_both
+
     # data[slice(view[0], view[0] + view[2]),
     #      slice(view[1], view[1] + view[3])] = block
     data[slice(view[1], view[1] + view[3]),
@@ -118,6 +127,10 @@ def create_views(view_size:tuple[int, int],
       A region is usable if it does not contain any artificial border effects
       that were introduced from splitting up a bigger view into smaller chunks
     """
+    # is_needed
+    # no_work
+    # is_tested
+    # usedin_both
     assert all(len(x) == 2 for x in (view_size, border, size)), \
            f"{len(view_size)=},{len(border)=},{len(size)=} all need to be of "\
            "length 2 (width, height)"
@@ -253,6 +266,11 @@ def get_view(data:NDArray, view:tuple[int,int,int,int])->NDArray:
       tuple (x, y, width, height) defining the view
 
     """
+    # is_needed
+    # not_tested (used in test)
+    # no_work
+    # usedin_processing (maybe both)
+
     # return data[slice(view[0], view[0] + view[2]),
     #             slice(view[1], view[1] + view[3])]
     return data[slice(view[1], view[1] + view[3]),
@@ -271,6 +289,10 @@ def relative_view(view:tuple[int,int,int,int],
     inner_view:
       (x, y, width, height) defining a view 
     """
+    # is_needed
+    # needs_work (better docs)
+    # not_tested (used in tests)
+    # usedin_processing (maybe both)
     return (inner_view[0] - view[0],
             inner_view[1] - view[1],
             inner_view[2],
@@ -300,6 +322,10 @@ def recombine_blocks(blocks:list[tuple[ArrayLike, tuple[int,int,int,int]]],
       The array provided in `output` with the updated blocks
 
     """
+    # not_needed
+    # no_work
+    # not_tested
+    # usedin_both (potentially)
     for data, view in blocks:
         update_view(output, view, block=data)
     return output
@@ -312,6 +338,11 @@ def get_blur_params(diameter=None, sigma=None, truncate=None):
         The default of truncate is 3
 
     """
+    # is_needed
+    # needs_work (docs)
+    # not_tested (used in tests)
+    # usedin_processing
+
     # use default value of 3 for truncate
     truncate = truncate or 3
     if diameter:

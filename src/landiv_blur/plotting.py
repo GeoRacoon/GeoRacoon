@@ -11,6 +11,10 @@ from .processing import (
     get_entropy,
     get_categories
 )
+# not_needed (we need to decide if we want to keep this around)
+# needs_work (doc; define what it should contain; where it should reside)
+# not_tested
+# usedin_both (most likely the io module)
 
 # TODO: The user should be ablre to provide a category: color mapping
 OUT = 'black'

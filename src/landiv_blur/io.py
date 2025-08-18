@@ -43,6 +43,10 @@ from .helper import (
     view_to_window,
     get_scale_factor,
 )
+# is_needed
+# needs_work (module should be moved, needs docs)
+# is_tested (at least partially)
+# usedin_both
 
 # this is our namespace for tags
 NS = 'LANDIV'
@@ -98,6 +102,11 @@ def set_tags(src, bidx:int|None=None, ns:str=NS, **tags):
       The value provided is converted to a string with `helper.serialize`
       before the tag is written to the file.
     """
+    # is_needed
+    # needs_work (should be made internal?)
+    # is_tested
+    # usedin_both (is internal to IO)
+
     if bidx is None:
         bidx = 0
     # serialize the tag values:
@@ -123,6 +132,10 @@ def get_tags(src, bidx:int|None=None, ns:str=NS):
         It is dicouraged to change this value from the default as all tagging
         related methods of this package use the same default namespace.
     """
+    # is_needed
+    # needs_work (should be internal)
+    # is_tested
+    # usedin_both (is internal to IO)
     if bidx is None:
         bidx = 0  # get the tags for the files metadata
     return deserialize(src.tags(bidx=bidx, ns=ns))
@@ -145,6 +158,11 @@ def find_bidxs(src, ns:str=NS, **tags):
       Arbitrary number of keyword arguments that will be compared to the tags
       of the bands in the dataset.
     """
+    # is_needed
+    # neews_work (should be internal)
+    # not_tested
+    # usedin_both (internal to IO)
+
     _tags = sanitize(tags) 
     matching_bidxs = []
     for bidx in src.indexes:
@@ -219,6 +237,11 @@ def get_bidx(src, ns:str=NS, **tags)->None|int:
       Arbitrary number of keyword arguments that will be compared to the tags
       of the bands in the dataset.
     """
+    # is_needed
+    # no_work
+    # not_tested (used in tests)
+    # usedin_both
+
     if 'indexes' in tags or not tags:
         bidx = tags.get('indexes', 1)  # return 1 if nothing is provided
     else:
@@ -270,6 +293,11 @@ def get_bands(source:str, ns:str=NS, **tags)->list[tuple[str,int]]:
       Arbitrary number of keyword arguments that will be compared to the tags
       of each tif file
     """
+    # is_needed
+    # no_work
+    # not_tested (used in tests)
+    # usedin_both
+
     _tags = sanitize(tags)
     _sources = glob.glob(source)
     matches = []
@@ -296,6 +324,10 @@ def load_map(source:str, **tags)->dict:
        Returns the callback of
        `load_block(source=source, view=None, scaling_params=None, **tags)`
     """
+    # is_needed (this is only used in tests)
+    # needs_work (replace usage with `load_block` and get rid of it)
+    # not_tested (used in tests)
+    # usedin_both
     return load_block(source=source, view=None, scaling_params=None, **tags)
 
 
@@ -341,6 +373,10 @@ def load_block(source:str,
        orig_meta: The meta information of the original .tif file
        orig_profile: The profile information of the original .tif file
     """
+    # is_needed
+    # no_work
+    # is_tested
+    # usedin_both
     window=view_to_window(view)
     with rasterio.open(source) as img:
         # TODO: rasterio Window allows using slices. In doing so we could
@@ -408,6 +444,10 @@ def write_band(src:DatasetWriter,
       The value provided is converted to a string with `helper.serialize`
       before the tag is written to the file.
     """
+    # is_needed
+    # no_work
+    # not_tested
+    # usedin_processing
     src.write(data, indexes=bidx, window=window)
     set_tags(src, bidx=bidx, **tags)
 
@@ -435,6 +475,10 @@ def update_band(src:DatasetWriter,
       Arbitrary number of keyword arguments that will be used to find
       the band to write into
     """
+    # not_needed (could be useful though)
+    # no_work
+    # not_tested
+    # usedin_both (could be)
     try:
         bidx = get_bidx(src=src, **tags)
     except BandSelectionNoMatchError as e:
@@ -474,6 +518,10 @@ def export_to_tif(destination:str,
     **pparams:
         further parameter to be added to the profile
     """
+    # not_needed (could be useful though)
+    # no_work
+    # not_tested
+    # usedin_both (pot.)
     profile = orig_profile.copy()
     # Note: we no longer update the size automatically as for Windows this is
     # not correct, pass height and width explicitly to update via pparams
@@ -513,6 +561,10 @@ def project_to(source, reference, output=None, nodata=None)->str | None:
     str:
       The name of the file that hold the re-projected map
     """
+    # not_needed (used in examples)
+    # no_work
+    # not_tested
+    # usedin_both (potentially)
     with rio.open(reference) as ref:
         dst_crs = str(ref.profile['crs'])
     with rio.open(source) as src:
@@ -574,7 +626,10 @@ def clip_to_bounds(source, reference, output=None):
     str:
       The name of the file that holds clipped map
     """
-
+    # not_needed (used in example only)
+    # no_work
+    # not_tested
+    # usedin_both (potentially)
     if not check_crs_raster(source, reference):
         raise ValueError("Cannot clip by BBOX - projections are not the same.")
 
@@ -620,6 +675,10 @@ def coregister_raster(source, reference, output=None):
     str:
       The name of the file that holds co-registered map
     """
+    # is_needed (in tests only)
+    # needs_work (format doc)
+    # not_tested
+    # usedin_both
 
     if not check_crs_raster(source, reference):
         raise ValueError("Cannot co-register sources - projections are not the same.")
@@ -684,6 +743,10 @@ def buffer_geometries_metric(geom_geoseries, buffer_meter, source_crs):
     GeoSeries object:
       The buffered GeoSeries object
     """
+    # is_needed (internal only)
+    # needs_work (docs)
+    # not_tested
+    # usedin_both (io module)
     geom_utm = geom_geoseries.to_crs(geom_geoseries.estimate_utm_crs())
     geom_buff = geom_utm.buffer(buffer_meter,
                                 resolution=10, cap_style='round', join_style='round')
@@ -714,7 +777,10 @@ def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_m
     str:
       The name of the file that holds eco-region clipped map
     """
-
+    # not_needed (used in example)
+    # no_work
+    # not_tested
+    # usedin_processing
     if output is None:
         output = outfile_suffix(source, "eco-clip")
 
@@ -789,6 +855,10 @@ def compress_tif(source, output:str|None=None, compression:str|None='lzw'):
     str:
       The name of the compressed file
     """
+    # is_needed
+    # needs_work (docs)
+    # is_tested
+    # usedin_processing (part of IO module, could be used in both)
     if compression is None:
         compression = 'none'
     overwrite = False
