@@ -31,7 +31,7 @@ jobs:
     - name: Run tests with coverage
       run: |
         source .venv/bin/activate
-        python -m pytest -s -vvv --log-cli-level=INFO --cov=landiv_blur
+        python -m pytest -s -vvv --timeout 10 --cov=landiv_blur
         coverage xml --include=src/**
     
     - name: Upload coverage report
