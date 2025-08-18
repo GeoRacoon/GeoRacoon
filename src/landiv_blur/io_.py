@@ -521,6 +521,10 @@ class Source:
 
 @dataclass
 class Band:
+    # is_needed
+    # needs_work (mostly docs)
+    # is_tested (partially)
+    # usedin_both
     source: Source
     tags: dict = field(default_factory=dict)
     bidx: int|None = None
@@ -529,18 +533,34 @@ class Band:
     _ns = NS
 
     def __repr__(self):
+        # is_needed
+        # needs_work (docs - revisit what is printed)
+        # not_tested (no need)
+        # usedin_both
         items = [f"tags={self.tags}", ]
         return "{}({})".format(type(self).__name__, ", ".join(items))
 
     def __hash__(self):
+        # is_needed
+        # no_work
+        # not_tested (no need)
+        # usedin_both
         return hash((self.bidx, *(self.tags.values())))
             
     @property
     def source_exists(self)->bool:
+        # is_needed (internal only)
+        # needs_work (docs; make internal?)
+        # not_tested
+        # usedin_both (potentially)
         return self.source.exists
 
     @property
     def index_exists(self,)->bool:
+        # is_needed (internally)
+        # needs_work (docs; make internal)
+        # not_tested
+        # usedin_both (io module only)
         i_exists = False
         if self.bidx is None:
             print(f"No index set for {self}")
@@ -550,6 +570,10 @@ class Band:
 
     @property
     def status(self):
+        # not_needed (might be useful?)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (potentially)
         print(f"\n### Status of {self}")
         # check if the resource exist
         print("# Source file")
@@ -617,6 +641,10 @@ class Band:
     def _pair_operation(self, pair_op: Callable, band, out_band=None, **op_kwargs):
         """Internal method for performing operations on data arrays
         """
+        # is_needed (only internally)
+        # needs_work (docs)
+        # not_tested (should be as it is a generic method)
+        # usedin_both (potentially)
         self.source.check_compatibility(band.source)
         if out_band is None:
             out_band = self
@@ -644,6 +672,10 @@ class Band:
           Optional destination band to store the data in.
           If not provided, then self is used.
         """
+        # not_needed (though useful)
+        # no_work
+        # is_tested
+        # usedin_both (potentially)
         return self._pair_operation(pair_op=np.add, band=band,
                                     out_band=out_band, **add_kwargs)
 
@@ -662,6 +694,10 @@ class Band:
           Optional destination band to store the data in.
           If not provided, then self is used.
         """
+        # not_needed (though useful)
+        # no_work
+        # is_tested
+        # usedin_both (potentially)
         def _subtract(data1, data2, **kwargs):
             return np.add(data1, (-1)*data2, **kwargs)
         return self._pair_operation(pair_op=_subtract, band=band,
@@ -692,6 +728,10 @@ class Band:
             If the band has the `bidx` attribute set, `match` will be ignored
 
         """
+        # is_needed
+        # no_work
+        # is_tested
+        # usedin_both
         bidx = self.get_bidx(match=match)
         self.source.set_tags(bidx=bidx, tags=self.tags)
 
@@ -705,6 +745,10 @@ class Band:
           file. `keep=False` will empty the `tags` before fetching them from
           the source.
         """
+        # is_needed (only used in tests)
+        # needs_work (docs)
+        # is_tested
+        # usedin_both
         bidx = self.get_bidx(match=match)
         tags = self.source.get_tags(bidx)
         if keep:
@@ -796,6 +840,10 @@ class Band:
           Specifies the profile of the data set (see `rasterio.profile` for an
           example)
         """
+        # is_needed
+        # needs_work (docs)
+        # not_tested (but used in tests)
+        # usedin_both (potentially)
         self.source.profile.update(profile)
         return self.source.init_source(overwrite=overwrite, **kwargs)
 
@@ -814,6 +862,10 @@ class Band:
           `okwargs`: dict
             These arguments will be passed to the `open` method of the source
         """
+        # is_needed
+        # no_work
+        # is_tested
+        # usedin_both (potentially)
         okwargs = kwargs.pop('okwargs', dict())
         with self.source.open(mode='r', **okwargs) as src:
             data = src.read(indexes=self.source.get_bidx(band=self), **kwargs)
@@ -823,6 +875,10 @@ class Band:
     def shape(self):
         """Get the np.array shape of this band
         """
+        # is_needed (not sure - check)
+        # needs_work (this should be renamed to avoid confusion w np.array.shape
+        # not_tested
+        # usedin_both (potentially, if used at all)
         return self.source.shape
 
 
@@ -841,6 +897,10 @@ class Band:
           returns True/False if the count of valid cells is bigger/smaller than
           this limit value.
         """
+        # is_needed
+        # needs_work (check if definition in helper or io and import here)
+        # is_tested
+        # usedin_both
         if selector is None:
             self.source.import_profile()
             height = self.source.profile['height']
@@ -873,6 +933,10 @@ class Band:
         no_data:
           Value of a cell considered as invalid value.
         """
+        # not_needed (useful?)
+        # no_work
+        # is_tested
+        # usedin_both (potentially)
         if selector is None:
             self.source.import_profile()
             height = self.source.profile['height']
@@ -906,6 +970,10 @@ class Band:
         **kwargs:
           Optional keword arguments that will be passed to `rasterio.io.DatasetWriter.write`
         """
+        # is_needed
+        # needs_work (docs)
+        # not_tested (used in tests)
+        # usedin_both
         mode = kwargs.pop('mode', 'r+' if self.source.exists else 'w')
         bidx = self.get_bidx(match=match)
         with self.source.open(mode=mode, **kwargs) as src:
@@ -920,6 +988,10 @@ class Band:
         **kwargs:
           Optional keword arguments that will be passed to `rasterio.io.DatasetReader.read`
         """
+        # is_needed
+        # needs_work (docs; tests)
+        # not_tested
+        # usedin_both
         mode = kwargs.pop('mode', 'r')
         bidx = self.get_bidx(match=match)
         with self.source.open(mode=mode, **kwargs) as src:
@@ -948,6 +1020,10 @@ class Band:
             containing only `0`s is returend.
             It is likely only useful in some edge-cases
         """
+        # is_needed (only in tests)
+        # needs work(doc)
+        # not_tested (used in tests)
+        # usedin_both (potentially)
         assert use in ['self', 'band', 'source', 'mask_all', 'mask_none'], \
             f'"{use}" is an invalid selector for a mask, options are:' \
             '\n\t- "band": uses the bands own mask (i.e. ' \
@@ -967,6 +1043,10 @@ class Band:
         details.
 
         """
+        # is_needed
+        # needs_work (docs)
+        # is_tested
+        # usedin_both
 
         if self._use_mask is None or self._use_mask == 'self':  # read the band mask
             return self.mask_reader
@@ -998,6 +1078,10 @@ class Band:
           'rasterio.io.DatasetReader.read_masks(indexes=<bidx of self>)`
 
         """
+        # is_needed (only internally)
+        # needs_work (docs; make internal?)
+        # not_tested
+        # usedin_both (potentially)
         mode = kwargs.pop('mode', 'r')
         bidx = self.get_bidx(match=match)
         with self.source.open(mode=mode, **kwargs) as src:
@@ -1026,6 +1110,10 @@ class Band:
           in the array
 
         """
+        # is_needed (only internally)
+        # needs_work (make internal)
+        # not_tested
+        # usedin_both (io module)
         mode = kwargs.pop('mode', 'r')
         bidx = self.get_bidx(match=match)
 
@@ -1042,6 +1130,11 @@ class Band:
     def set_data(self, data:NDArray, overwrite=False, **kwargs):
         """Write out the data from a band
         """
+        # is_needed (tests only)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (io module)
+
         # with self.source.open(mode='w', **kwargs) as src:
         if self.source.exists and not overwrite:
             mode = 'r+'
