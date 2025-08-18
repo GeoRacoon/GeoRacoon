@@ -15,6 +15,7 @@ from .. import ap
 img_filter = gaussian
 
 def get_kernel_diameter(sigma, **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Compute the kernel diameter in number of cells
 
     Parameters
@@ -27,6 +28,10 @@ def get_kernel_diameter(sigma, **params):
           Currently only single values are supported
 
     """
+    # not_needed (but could be useful - keep it!)
+    # no_work
+    # not_tested (used in tests)
+    # usedin_processing (if at all)
     msize = int(10 * sigma)
     # make sure it is odd
     if not msize & 1:
@@ -44,13 +49,19 @@ def get_kernel_diameter(sigma, **params):
 
 
 def get_kernel_size(sigma, **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Return the distance from center to boarder of a Gaussian kernel
     """
+    # is_needed (for tests only)
+    # needs_work (better docstring)
+    # is_tested
+    # usedin_processing
     return int(0.5 * (get_kernel_diameter(sigma, **params) - 1))
 
 
 def compatible_border_size(sigma:float|int, border:tuple[int, int]|None=None,
                            **params)->tuple[int,int]:
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Assert that the border size is compatible with the specified parameter
 
     This method asserts that the kernel size determined by `sigma` and further
@@ -73,6 +84,10 @@ def compatible_border_size(sigma:float|int, border:tuple[int, int]|None=None,
       was provided, the smallest compatible border is returned.
 
     """
+    # is_needed
+    # no_work
+    # is_tested
+    # usedin_processing
     ks = get_kernel_size(sigma=sigma, **params)
     if border:
         assert all(ks <= b for b in border), f"A dimension of {border=} "\
@@ -84,6 +99,7 @@ def compatible_border_size(sigma:float|int, border:tuple[int, int]|None=None,
 
 
 def bpgaussian(data:NDArray, **filter_params)->NDArray:
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Applies a border-preserving Gaussian filter
 
     The approach considers a Gaussian blur to be a weighted average over
@@ -123,6 +139,11 @@ def bpgaussian(data:NDArray, **filter_params)->NDArray:
       See `skimage.filters.gaussian` for further parameters
 
     """
+    # is_needed
+    # no_work
+    # is_tested
+    # usedin_both
+
     # ###
     # 1.
     # ###

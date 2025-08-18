@@ -38,6 +38,8 @@ from .helper import (
 )
 
 
+# TODO: I feel: all is_needed - but needs a bit of work
+
 class Source:
     """Specifies a data source
     """
@@ -45,24 +47,44 @@ class Source:
     _mode_reading = ('r', 'r+')
     _mode_default = 'r'
     _modes = _mode_reading + _mode_writing
+    # is_needed
+    # needs_work (docs)
+    # not_tested
+    # usedin_both
 
     def __init__(self, path:str|Path,
                  tags: dict|None=None,
                  profile: dict|None=None,
                  ns: str=NS):
+        # is_needed
+        # needs_work (docs)
+        # not_tested (used in tests)
+        # usedin_both
         self.path = Path(path)
         self.tags = tags or dict()
         self._ns = ns
         self.profile = profile or dict()
 
     def __repr__(self):
+        # is_needed
+        # needs_work (docs - revisit what is printed)
+        # not_tested (no need)
+        # usedin_both
         items = [f"path={str(self.path)}", f"exists: { self.exists }"]
         return "{}({})".format(type(self).__name__, ", ".join(items))
 
     def __hash__(self):
+        # is_needed
+        # no_work
+        # not_tested (no need)
+        # usedin_both
         return hash((self.path, self._ns, *(self.tags.values())))
 
     def __eq__(self, other):
+        # is_needed
+        # needs_work (docs)0
+        # not_tested
+        # usedin_both
         if not isinstance(other, type(self)):
             return NotImplemented
         return (self.path == other.path and self.tags == other.tags and
@@ -77,6 +99,10 @@ class Source:
           If set, the profile property will be updated with the profile fetched
           from the source file.
         """
+        # is_needed
+        # needs_work (better docs)
+        # not_tested (used in tests)
+        # usedin_both
         with self.open(mode='r') as src:
             profile = src.profile
         if update_self:
@@ -85,6 +111,10 @@ class Source:
 
     @property
     def exists(self)->bool:
+        # is_needed
+        # needs_work (make internal, docs)
+        # not_tested
+        # usedin_both
         return self.path.is_file()
 
     @property
@@ -95,12 +125,20 @@ class Source:
           Requesting the shape will synchronize the profile with the data
           written on disk.
         """
+        # is_needed (not sure - check)
+        # needs_work (this should be renamed to avoid confusion w np.array.shape
+        # not_tested
+        # usedin_both (potentially, if used at all)
         self.import_profile()
         height = self.profile['height']
         width = self.profile['width']
         return (height, width)
     
     def get_tags(self, bidx:int)->dict:
+        # is_needed (noly internally)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (part of IO module)
         with self.open(mode='r') as src:
             tags = get_tags(src=src, bidx=bidx, ns=self._ns)
         return tags
@@ -110,6 +148,10 @@ class Source:
         
         If the tag is not present, None is returned
         """
+        # is_needed
+        # needs_work (docs)
+        # not_tested
+        # usedin_processing (but should be part of the io module)
         t_vals = dict()
         with self.open(mode='r') as src:
             if bidx is None:
@@ -125,11 +167,19 @@ class Source:
         return t_vals
 
     def set_tags(self, bidx:int|None, tags:dict):
+        # is_needed (noly internally)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (part of IO module)
         with self.open(mode='r+') as src:
             set_tags(src=src, bidx=bidx, ns=self._ns, **tags)
 
     @contextmanager
     def mask_reader(self, **kwargs):
+        # is_needed
+        # needs_work (docs)
+        # is_tested
+        # usedin_both
         mode = kwargs.pop('mode', 'r')
         with self.open(mode=mode, **kwargs) as src:
             yield src.dataset_mask
@@ -149,6 +199,10 @@ class Source:
           `okwargs`: dict
             These arguments will be passed to the `open` method of the source
         """
+        # is_needed
+        # no_work
+        # is_tested
+        # usedin_both
         okwargs = kwargs.pop('okwargs', dict())
         with self.mask_reader(mode='r', **okwargs) as dataset_mask:
             mask = dataset_mask(**kwargs)
@@ -156,6 +210,10 @@ class Source:
 
     @contextmanager
     def mask_writer(self, **kwargs):
+        # is_needed
+        # needs_work (docs)
+        # not_tested (used in tests)
+        # usedin_both (part of io)
         mode = kwargs.pop('mode', 'r+')
         with rio.Env(GDAL_TIFF_INTERNAL_MASK=True):
             with self.open(mode=mode, **kwargs) as src:
@@ -171,12 +229,20 @@ class Source:
         window:
             Optional subset to write to
         """
+        # not_needed (useful?)
+        # no_work
+        # not_tested
+        # usedin_both (potentially)
         with self.open(mode='r+') as src:
             src.write_mask(mask_array=mask, window=window)
 
     def init_source(self, overwrite:bool=False, **kwargs):
         """Create or accesses source file
         """
+        # is_needed (only internally for now)
+        # needs_work (docs)
+        # not_tested (but used in tests)
+        # usedin_both (potentially)
         if overwrite or not self.exists:
             with self.open(mode='w', **self.profile, **kwargs) as _:
                 print(f'Initiating empty file\n\t"{self.path}"\n')
@@ -184,6 +250,10 @@ class Source:
     def get_band(self, bidx:int|None=None, **tags)->Band:
         """Find the wanted band and return a related band object
         """
+        # is_needed
+        # needs_work (dcos)
+        # is_tested (though no dedicated test)
+        # usedin_both
         if not self.exists:
             raise SourceNotSavedError(
                 f"{self.path}:\n\tNot present in the filesystem"
@@ -215,6 +285,10 @@ class Source:
     def get_bands(self)->list[Band]:
         """Return a list with all Bands present in the dataset
         """
+        # is_needed
+        # needs_work (dcos)
+        # is_tested (though no dedicated test)
+        # usedin_both
         bands = []
         with self.open(mode='r') as src:
             for bidx in src.indexes:
@@ -231,6 +305,10 @@ class Source:
           If the file is opened in writing mode, the profile is injected
           into rio.open
         """
+        # is_needed (internal only)
+        # no_work
+        # not_tested
+        # usedin_both (potentially)
         mode = kwargs.get('mode', args[0] if len(args) else self._mode_default)
         assert mode in self._modes
         if self.path.suffix in ['.tif', ]:
@@ -255,6 +333,10 @@ class Source:
           Therefore: **the profile needs to be set when calling this method with writing mode!**
 
         """
+        # is_needed
+        # needs_work (docs)
+        # not_tested
+        # usedin_both
         src = self._get_source(*args, **kwargs)
         try:
             yield src
@@ -270,6 +352,10 @@ class Source:
         bands:
             Collection of Band objects.
         """
+        # is_needed
+        # needs_work (docs)
+        # not_tested
+        # usedin_both
         mode = kwargs.pop('mode', 'r')
         if bands is None:
             bands = self.get_bands()
@@ -279,11 +365,19 @@ class Source:
 
     @property
     def band_indexes(self,):
+        # is_needed (only internally)
+        # needs_work (docs, make internal?)
+        # not_tested
+        # usedin_both (potentially)
         with self.open() as src:
             bidxs = src.indexes
         return bidxs
 
     def has_bidx(self, bidx:int)->bool:
+        # is_needed (only internally)
+        # needs_work (docs; make internal?)
+        # not_tested
+        # usedin_both (potentially)
         has_it = False
         with rio.open(self.path, 'r') as src:
             if bidx in src.indexes:
@@ -291,6 +385,10 @@ class Source:
         return has_it
 
     def has_tags(self, tags:dict)->bool:
+        # not_needed (might be useful if working with tags
+        # needs_work (doc)
+        # not_tested
+        # usedin_both (potentially)
         all_tags = []
         with rio.open(self.path, 'r') as src:
             for bidx in src.indexes:
@@ -300,6 +398,10 @@ class Source:
     def find_indexes(self, tags:dict, mode='all')->list:
         """Check if one or several bands have matching tags
         """
+        # is_needed (only internally)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (potentially)
         with self.open() as src:
             if mode=='any':
                 # TODO: match_any was implemented in !41
@@ -309,6 +411,10 @@ class Source:
         return bidxs
 
     def find_index(self, tags:dict)->int|None:
+        # is_needed (only internally)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (potentially)
         midx = None
         matching_bidxs = self.find_indexes(tags=tags, mode='all')
         if len(matching_bidxs) != 1:
@@ -318,6 +424,10 @@ class Source:
         return midx
 
     def has_band(self, band:Band)->int:
+        # not_needed (might be useful if working with tags
+        # needs_work (doc)
+        # not_tested
+        # usedin_both (potentially)
         has_it = False
         if band.bidx is not None:
             has_it = self.has_bidx(band.bidx)
@@ -330,6 +440,10 @@ class Source:
     def get_bidx(self, band:Band)->int|None:
         """Find an specific band to write to in the file
         """
+        # is_needed (only internally)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (potentially
         midx = None
         if band.bidx is not None:
             if self.has_bidx(band.bidx):
@@ -362,6 +476,10 @@ class Source:
         return midx
 
     def compress(self, output:str|None=None, compression:str|None='lzw', keep_original:bool=False):
+        # is_needed
+        # needs_work (docs)
+        # not_tested
+        # usedin_both
         uncompressed = self.path
         # create a compressed file
         self.path = Path(compress_tif(str(self.path),
@@ -377,6 +495,10 @@ class Source:
         See `helper.check_compatibility` for details
 
         """
+        # is_needed
+        # needs_work (docs)
+        # not_tested
+        # usedin_both
         _sources = {self.path,}
         for source in sources:
             _sources.add(source.path)
@@ -390,6 +512,10 @@ class Source:
 
         See `io.load_block` for further details
         """
+        # is_needed (internal only)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (potentially)
         return load_block(source=str(self.path),
                           view=view,
                           scaling_params=scaling_params,
@@ -397,6 +523,10 @@ class Source:
 
 @dataclass
 class Band:
+    # is_needed
+    # needs_work (mostly docs)
+    # is_tested (partially)
+    # usedin_both
     source: Source
     tags: dict = field(default_factory=dict)
     bidx: int|None = None
@@ -405,18 +535,34 @@ class Band:
     _ns = NS
 
     def __repr__(self):
+        # is_needed
+        # needs_work (docs - revisit what is printed)
+        # not_tested (no need)
+        # usedin_both
         items = [f"tags={self.tags}", ]
         return "{}({})".format(type(self).__name__, ", ".join(items))
 
     def __hash__(self):
+        # is_needed
+        # no_work
+        # not_tested (no need)
+        # usedin_both
         return hash((self.bidx, *(self.tags.values())))
             
     @property
     def source_exists(self)->bool:
+        # is_needed (internal only)
+        # needs_work (docs; make internal?)
+        # not_tested
+        # usedin_both (potentially)
         return self.source.exists
 
     @property
     def index_exists(self,)->bool:
+        # is_needed (internally)
+        # needs_work (docs; make internal)
+        # not_tested
+        # usedin_both (io module only)
         i_exists = False
         if self.bidx is None:
             print(f"No index set for {self}")
@@ -426,6 +572,10 @@ class Band:
 
     @property
     def status(self):
+        # not_needed (might be useful?)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (potentially)
         print(f"\n### Status of {self}")
         # check if the resource exist
         print("# Source file")
@@ -493,6 +643,10 @@ class Band:
     def _pair_operation(self, pair_op: Callable, band, out_band=None, **op_kwargs):
         """Internal method for performing operations on data arrays
         """
+        # is_needed (only internally)
+        # needs_work (docs)
+        # not_tested (should be as it is a generic method)
+        # usedin_both (potentially)
         self.source.check_compatibility(band.source)
         if out_band is None:
             out_band = self
@@ -520,6 +674,10 @@ class Band:
           Optional destination band to store the data in.
           If not provided, then self is used.
         """
+        # not_needed (though useful)
+        # no_work
+        # is_tested
+        # usedin_both (potentially)
         return self._pair_operation(pair_op=np.add, band=band,
                                     out_band=out_band, **add_kwargs)
 
@@ -538,6 +696,10 @@ class Band:
           Optional destination band to store the data in.
           If not provided, then self is used.
         """
+        # not_needed (though useful)
+        # no_work
+        # is_tested
+        # usedin_both (potentially)
         def _subtract(data1, data2, **kwargs):
             return np.add(data1, (-1)*data2, **kwargs)
         return self._pair_operation(pair_op=_subtract, band=band,
@@ -568,6 +730,10 @@ class Band:
             If the band has the `bidx` attribute set, `match` will be ignored
 
         """
+        # is_needed
+        # no_work
+        # is_tested
+        # usedin_both
         bidx = self.get_bidx(match=match)
         self.source.set_tags(bidx=bidx, tags=self.tags)
 
@@ -581,6 +747,10 @@ class Band:
           file. `keep=False` will empty the `tags` before fetching them from
           the source.
         """
+        # is_needed (only used in tests)
+        # needs_work (docs)
+        # is_tested
+        # usedin_both
         bidx = self.get_bidx(match=match)
         tags = self.source.get_tags(bidx)
         if keep:
@@ -628,6 +798,10 @@ class Band:
         bidx:
             The index of the band in the source that matches this band
         """
+        # is_needed
+        # no_work
+        # not_tested
+        # usedin_both (potentially)
         failed = ''
         bidx = None
         if self.bidx is not None:
@@ -668,6 +842,10 @@ class Band:
           Specifies the profile of the data set (see `rasterio.profile` for an
           example)
         """
+        # is_needed
+        # needs_work (docs)
+        # not_tested (but used in tests)
+        # usedin_both (potentially)
         self.source.profile.update(profile)
         return self.source.init_source(overwrite=overwrite, **kwargs)
 
@@ -686,6 +864,10 @@ class Band:
           `okwargs`: dict
             These arguments will be passed to the `open` method of the source
         """
+        # is_needed
+        # no_work
+        # is_tested
+        # usedin_both (potentially)
         okwargs = kwargs.pop('okwargs', dict())
         with self.source.open(mode='r', **okwargs) as src:
             data = src.read(indexes=self.source.get_bidx(band=self), **kwargs)
@@ -695,6 +877,10 @@ class Band:
     def shape(self):
         """Get the np.array shape of this band
         """
+        # is_needed (not sure - check)
+        # needs_work (this should be renamed to avoid confusion w np.array.shape
+        # not_tested
+        # usedin_both (potentially, if used at all)
         return self.source.shape
 
 
@@ -713,6 +899,10 @@ class Band:
           returns True/False if the count of valid cells is bigger/smaller than
           this limit value.
         """
+        # is_needed
+        # needs_work (check if definition in helper or io and import here)
+        # is_tested
+        # usedin_both
         if selector is None:
             self.source.import_profile()
             height = self.source.profile['height']
@@ -745,6 +935,10 @@ class Band:
         no_data:
           Value of a cell considered as invalid value.
         """
+        # not_needed (useful?)
+        # no_work
+        # is_tested
+        # usedin_both (potentially)
         if selector is None:
             self.source.import_profile()
             height = self.source.profile['height']
@@ -778,6 +972,10 @@ class Band:
         **kwargs:
           Optional keword arguments that will be passed to `rasterio.io.DatasetWriter.write`
         """
+        # is_needed
+        # needs_work (docs)
+        # not_tested (used in tests)
+        # usedin_both
         mode = kwargs.pop('mode', 'r+' if self.source.exists else 'w')
         bidx = self.get_bidx(match=match)
         with self.source.open(mode=mode, **kwargs) as src:
@@ -792,6 +990,10 @@ class Band:
         **kwargs:
           Optional keword arguments that will be passed to `rasterio.io.DatasetReader.read`
         """
+        # is_needed
+        # needs_work (docs; tests)
+        # not_tested
+        # usedin_both
         mode = kwargs.pop('mode', 'r')
         bidx = self.get_bidx(match=match)
         with self.source.open(mode=mode, **kwargs) as src:
@@ -820,6 +1022,10 @@ class Band:
             containing only `0`s is returend.
             It is likely only useful in some edge-cases
         """
+        # is_needed (only in tests)
+        # needs work(doc)
+        # not_tested (used in tests)
+        # usedin_both (potentially)
         assert use in ['self', 'band', 'source', 'mask_all', 'mask_none'], \
             f'"{use}" is an invalid selector for a mask, options are:' \
             '\n\t- "band": uses the bands own mask (i.e. ' \
@@ -839,6 +1045,10 @@ class Band:
         details.
 
         """
+        # is_needed
+        # needs_work (docs)
+        # is_tested
+        # usedin_both
 
         if self._use_mask is None or self._use_mask == 'self':  # read the band mask
             return self.mask_reader
@@ -870,6 +1080,10 @@ class Band:
           'rasterio.io.DatasetReader.read_masks(indexes=<bidx of self>)`
 
         """
+        # is_needed (only internally)
+        # needs_work (docs; make internal?)
+        # not_tested
+        # usedin_both (potentially)
         mode = kwargs.pop('mode', 'r')
         bidx = self.get_bidx(match=match)
         with self.source.open(mode=mode, **kwargs) as src:
@@ -898,6 +1112,10 @@ class Band:
           in the array
 
         """
+        # is_needed (only internally)
+        # needs_work (make internal)
+        # not_tested
+        # usedin_both (io module)
         mode = kwargs.pop('mode', 'r')
         bidx = self.get_bidx(match=match)
 
@@ -914,6 +1132,11 @@ class Band:
     def set_data(self, data:NDArray, overwrite=False, **kwargs):
         """Write out the data from a band
         """
+        # is_needed (tests only)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (io module)
+
         # with self.source.open(mode='w', **kwargs) as src:
         if self.source.exists and not overwrite:
             mode = 'r+'
@@ -930,6 +1153,10 @@ class Band:
 
         See `io.load_block` for further details
         """
+        # is_needed
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (potentially)
         bidx = self.get_bidx(match=match)
         return self.source.load_block(
                           view=view,

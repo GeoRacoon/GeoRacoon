@@ -11,6 +11,10 @@ from .processing import (
     get_entropy,
     get_categories
 )
+# not_needed (we need to decide if we want to keep this around)
+# needs_work (doc; define what it should contain; where it should reside)
+# not_tested
+# usedin_both (most likely the io module)
 
 # TODO: The user should be ablre to provide a category: color mapping
 OUT = 'black'
@@ -33,7 +37,12 @@ COLORS = [
 DPI = 200
 
 
+# TODO: We should think whether we want to include this afterall in the package. It could be helpfull actully.
+#  --> for now all here is "is_needed"
+
+
 def _get_class_colormap(colors=COLORS):
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Create a custom colormap of the 8 classes we use.
     """
     return ListedColormap(colors)
@@ -45,6 +54,7 @@ def plot_block(source:str,
                scaling_params=dict(),
                fig_params=dict(),
                **tags):
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Plot categorical data and save it to a file.
 
     Parameters
@@ -100,6 +110,7 @@ def plot_categories(source:str,
                     output:str,
                     view:None|tuple[int,int,int,int]=None,
                     **tags):
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Plot categorical data and save it to a file.
 
     Parameters
@@ -123,6 +134,7 @@ def plot_categories(source:str,
 
 
 def show_category(data, category, transform, ax):
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Handles the coloring of a category and calls rio.show
     """
     colors = [OUT, COLORS[category-1]]
@@ -144,6 +156,7 @@ def figure_categories(source:str,
                       categories:list|None=None,
                       fig_params=dict(), scaling_params=dict(),
                       **tags):
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Plot each category on a separate axes
 
     Parameters
@@ -245,6 +258,7 @@ def plot_entropy(source:str,
                  fig_params=dict(),
                  scaling_params=dict(),
                  **tags):
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Plot the entropy in each pixel from a tif file
 
     Parameters
@@ -311,6 +325,7 @@ def plot_entropy_full(source:str,
                       entropy_params:dict|None=None,
                       **tags
                       ):
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Plot the entropy in each pixel after category diffusion
 
     Parameters

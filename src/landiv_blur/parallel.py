@@ -3,6 +3,10 @@ This module contains various helper functions to parallelize the application
 of filters on a tif
 
 """
+# is_needed
+# needs_work (the module is too big!)
+# not_tested (partially)
+# usedin_both (should be split up!)
 from __future__ import annotations
 
 import math
@@ -55,8 +59,13 @@ MPC_STARTER_METHODS = ['spawn', 'fork', 'forkserver']
 
 def combine_views(output_params: dict,
                   job_out_q: Queue):
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Listens to a queue and writes provided view into a file
     """
+    # not_needed (could become a general combiner method - remove for now)
+    # needs_work (docs)
+    # not_tested
+    # usedin_both (potentially
 
     with TimedTask() as timer:
         output_file = output_params.pop('output_file')
@@ -93,6 +102,7 @@ def combine_views(output_params: dict,
 
 
 def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
+    # TODO: is_needed - needs_work - is_tested (partially) - usedin_processing
     """Listen to queue (blur_q) and write blurred blocks to a single file
 
     Parameters
@@ -108,6 +118,11 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
     TimedTask:
         Can report the duration of the task
     """
+    # is_needed
+    # needs_work (docs)
+    # is_tested
+    # usedin_processing
+
     with TimedTask() as timer:
         as_dtype = output_params.pop('as_dtype')
         if isinstance(as_dtype, str):
@@ -158,6 +173,7 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
 
 
 def combine_matrices(output_q: Queue) -> tuple[NDArray | None, tuple]:
+    # TODO: is_needed - no_work - is_tested (partially) - usedin_linfit
     """Adding up matrices that hold partial sums
 
     Parameters
@@ -171,6 +187,11 @@ def combine_matrices(output_q: Queue) -> tuple[NDArray | None, tuple]:
         The first object is the aggregated matrix, the second holds a
         `TimedTask` object that holds information on the duration of this task
     """
+    # is_needed (internally only)
+    # needs_work (docs; make internal)
+    # is_tested (indirectly)
+    # usedin_linfit
+
     out_matrix = None
     with TimedTask() as timer:
         while True:
@@ -194,6 +215,7 @@ def combine_matrices(output_q: Queue) -> tuple[NDArray | None, tuple]:
 
 
 def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Filling up a matrix
 
     Parameters
@@ -213,6 +235,10 @@ def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
         The first object is the filled matrix, the second holds a
         `TimedTask` object that holds information on the duration of this task
     """
+    # is_needed (internally only)
+    # needs_work (docs; make internal)
+    # not_tested
+    # usedin_linfit
     with TimedTask() as timer:
         while True:
             output = aggr_q.get()
@@ -229,6 +255,7 @@ def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
 
 
 def partial_transposed_product(params: dict, output_q: Queue):
+    # TODO: is_needed - no_work - is_tested (partially) - usedin_linfit
     """Run `.inference.transposed_product` in parallel
 
     Parameters
@@ -238,6 +265,10 @@ def partial_transposed_product(params: dict, output_q: Queue):
     output_q:
         The queue this job listens to.
     """
+    # is_needed (internally only)
+    # needs_work (make internal; docs)
+    # is_tested
+    # usedin_linfit
 
     def _wrap(tpX):
         return dict(X=tpX)
@@ -251,6 +282,7 @@ def partial_transposed_product(params: dict, output_q: Queue):
 
 
 def partial_optimal_betas(params: dict, output_q: Queue):
+    # TODO: is_needed - no_work - is_tested (partially) - usedin_linfit
     """Runs .inference.get_optimal_weights_source in parallel
 
     Parameters
@@ -261,6 +293,10 @@ def partial_optimal_betas(params: dict, output_q: Queue):
     output_q:
         The queue this job listens to.
     """
+    # is_needed (internally only)
+    # needs_work (docs; make internal)
+    # not_tested
+    # usedin_linfit
 
     def _wrap(beta_dict):
         return dict(X=list(beta_dict.values()))  # ok for python >= 3.6 (dict keeps order)
@@ -274,6 +310,7 @@ def partial_optimal_betas(params: dict, output_q: Queue):
 
 
 def data_writer(writer: Callable, writer_params: dict, aggr_q: Queue) -> TimedTask:
+    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Write out data using the context manager `writer`
 
     This function can be used with the various context managers defined
@@ -294,6 +331,10 @@ def data_writer(writer: Callable, writer_params: dict, aggr_q: Queue) -> TimedTa
         Can report the duration of the task
 
     """
+    # is_needed (internally_only)
+    # needs_work (make internal; rename io_ has a data_writer method; docs)
+    # not_tested
+    # usedin_both (potentially)
     with TimedTask() as timer:
         with writer(**writer_params) as write:
             while True:
@@ -318,6 +359,11 @@ def process_band_count_valid(band: Band,
                              selector:NDArray[np.bool_],
                              no_data:Union[int,float],
                              limit_count:int):
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
+    # is_needed (inernally only)
+    # needs_work (make internal; docs)
+    # not_tested
+    # usedin_linfit
     with TimedTask() as timer:
         valid = band.count_valid_pixels(selector=selector,
                                         no_data=no_data,
@@ -333,6 +379,7 @@ def process_block(task: Callable,
                   read_params: dict,
                   open_params: dict,
                   out_q: Queue) -> TimedTask:
+    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Processes a section of the data in the source file.
 
     This is a general purpose function that can be used to process a large .tif
@@ -366,6 +413,10 @@ def process_block(task: Callable,
     TimedTask:
         Can report the duration of the task
     """
+    # is_needed (internally only)
+    # needs_work (check if this can be used as general purpose in all paralellizations)
+    # not_tested (should be)
+    # usedin_both (potentially)
     with TimedTask() as timer:
         if not isinstance(source, Source):
             source = Source(path=source)
@@ -393,6 +444,7 @@ def process_masks(task: Callable,
                   aggr_q: Queue,
                   extra_masking_band:Band|None=None,
                   ) -> TimedTask:
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Processes a section of the mask for each band
 
     This is a general purpose function that can be used to process a large .tif
@@ -427,6 +479,10 @@ def process_masks(task: Callable,
     TimedTask:
         Can report the duration of the task
     """
+    # is_needed (internally only)
+    # needs_work (make internal)
+    # not_tested
+    # usedin_both (potentially)
     window = view_to_window(view)
     with TimedTask() as timer:
         masks = []
@@ -450,6 +506,7 @@ def process_masks(task: Callable,
 
 def combine_entropy_blocks(output_params: dict,
                            entropy_q: Queue):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Listen to queue (entropy_q) and write computed blocks to a single file.
 
     This function continuously listens to a queue for entropy blocks and writes
@@ -488,6 +545,11 @@ def combine_entropy_blocks(output_params: dict,
     It is important to ensure that the queue is properly managed to avoid
     deadlocks or resource leaks.
     """
+    # is_needed
+    # no_work
+    # is_tested
+    # usedin_processing
+
     with TimedTask() as timer:
         output_dtype = output_params.pop('output_dtype')
         if isinstance(output_dtype, str):
@@ -529,8 +591,13 @@ def combine_entropy_blocks(output_params: dict,
 
 def combine_interaction_blocks(output_params: dict,
                                interaction_q: Queue):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Listen to queue (interaction_q) and write computed block to single file
     """
+    # is_needed (internally_only)
+    # needs_work (docs; make internal)
+    # not_tested
+    # usedin_processing
 
     with TimedTask() as timer:
         output_dtype = output_params.pop('output_dtype')
@@ -579,11 +646,17 @@ def runner_call(queue: Queue[Any],
                 callback: Callable,
                 params: dict,
                 wrapper: Callable | None = None):
+    # TODO: is_needed - no_work - is_tested - usedin_both
     """Put the results of callback using parameter into the queue
 
     If provided `wrapper(callback(**params))` is put into the queue.
 
     """
+    # is_needed (internally only)
+    # needs_work (better docs; make internal; check if can be used for generalization)
+    # not_tested (used in tests)
+    # usedin_both
+
     output = callback(**params)
     if wrapper is not None:
         queue.put(wrapper(output))
@@ -591,7 +664,7 @@ def runner_call(queue: Queue[Any],
         queue.put(output)
     return output
 
-
+# TODO: check how much extract_categories and apply_filter are redundant
 def extract_categories(source: str | Source,
                        categories: list,
                        output_file: str,
@@ -603,6 +676,8 @@ def extract_categories(source: str | Source,
                        filter_output_range:tuple|None=None,
                        verbose: bool = False,
                        **params):
+    # TODO: Not entirely sure if this is really needed
+    # TODO: is_needed ? - needs_work - is_tested - usedin_processing
     """Load per-category maps from resource, apply a filter and export.
 
     Parameters
@@ -687,6 +762,11 @@ def extract_categories(source: str | Source,
     output_file:
        Path to the resulting tif file
     """
+    # is_needed (internally only and in tests)
+    # needs_work (make internal?)
+    # is_tested
+    # usedin_both (potentially)
+
     if output_params is None:
         output_params = dict()
     # handle deprecated parameters
@@ -835,6 +915,7 @@ def apply_filter(source: str | Source,
                  output_params:None|dict = None,
                  **params
                  )->str:
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """
     Parameters
     ----------
@@ -905,6 +986,11 @@ def apply_filter(source: str | Source,
         start_method: str
           Starting method for multiprocessing jobs
     """
+    # not_needed
+    # needs_work (docs - if not jsut deleted; see TODOs)
+    # is_tested
+    # usedin_both (not sure if at all)
+
     if isinstance(source, str):
         source = Source(path=source)
     with source.open() as src:
@@ -1046,6 +1132,7 @@ def compute_entropy(source: str | Source,
                     plot_pdf_preview: bool = True,
                     verbose: bool = False,
                     **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Compute the entropy-based heterogeneity from several category bands
 
     Parameters
@@ -1093,6 +1180,11 @@ def compute_entropy(source: str | Source,
        Path to the resulting tif file
 
     """
+    # not_needed (only in example)
+    # needs_work (doc)
+    # is_tested
+    # usedin_processing (if at all)
+
     print(f'compute_entropy - {source=}, {categories=}')
     if isinstance(source, str):
         source = Source(path=source)
@@ -1235,6 +1327,7 @@ def compute_interaction(source: str | Source,
                         normed: bool = True,
                         verbose: bool = False,
                         **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Compute the interaction-strength from heterogeneity from several category bands in a pairwise,
     tree-way-interaction, four-way-interaction.... manner
 
@@ -1275,6 +1368,11 @@ def compute_interaction(source: str | Source,
        Path to the resulting tif file
 
     """
+    # not_needed
+    # needs_work (doc)
+    # is_tested
+    # usedin_processing
+
     if isinstance(source, str):
         source = Source(path=source)
     with source.open(mode='r') as src:
@@ -1407,6 +1505,7 @@ def compute_model(predictors: Collection[Band],
                   selector_band: Band|None=None,
                   verbose: bool = False,
                   **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Create a tif file with the model prediction values from a fitted model.
 
     Parameters
@@ -1470,6 +1569,11 @@ def compute_model(predictors: Collection[Band],
        Path to the newly created tif file holding the model prediction data
 
     """
+    # is_needed (in tests only)
+    # no_work
+    # is_tested
+    # usedin_linfit
+
     # get all source files
     sources = tuple(set(pred.source.path for pred in predictors))
     check_compatibility(*sources)
@@ -1569,6 +1673,7 @@ def compute_mask(source: str | Source,
                  bands: list[Band] | None = None,
                  verbose: bool = False,
                  **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Compute the mask of a dataset in parallel and write it it out to the file
 
     Parameters
@@ -1608,6 +1713,10 @@ def compute_mask(source: str | Source,
           Starting method for multiprocessing jobs
     
     """
+    # is_needed
+    # needs_work (docs)
+    # not_tested (used in various tests)
+    # usedin_both (mostly linfit for now but generally useful)
     print(f'compute_mask - {source=}')
     if isinstance(source, str):
         source = Source(path=source)
@@ -1697,6 +1806,7 @@ def prepare_selector(*bands: Band,
                      extra_masking_band: Band|None=None,
                      verbose=False,
                      **params) -> NDArray:
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Compute a boolean selector from masks of the provided `io_.Band` objects
 
 
@@ -1724,6 +1834,10 @@ def prepare_selector(*bands: Band,
     NDArray:
        A boolean array that can be used as selector
     """
+    # is_needed (internally only - also tests)
+    # needs_work (make internal; docs)
+    # not_tested (not directly)
+    # usedin_both (potentially - part of io)
     print(f'prepare_selector - {bands=}')
     # make sure the bands are compatible
     _source0 = bands[0].source
@@ -1806,6 +1920,7 @@ def check_predictor_consistency(predictors: Collection[Band],
                                 sanitize:bool=False,
                                 verbose:bool=False,
                                 **params)->Collection[Band]:
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Check if with the selector all the predictors still contain data
 
     Parameters
@@ -1851,6 +1966,10 @@ def check_predictor_consistency(predictors: Collection[Band],
       If `sanitize=True` then the colleciton will no longer contain predictors
       that get completely masked when the `selector` is applied.
     """
+    # is_needed (internally only)
+    # needs_work (get rid of verbose; docs; make internal)
+    # not_tested
+    # usedin_linfit
     print(f'check_predictor_consistency - {predictors=}')
     _vals, _counts = np.unique(selector, return_counts=True)
     total_selected = int(_counts[_vals][0])
@@ -1909,6 +2028,7 @@ def check_predictor_consistency(predictors: Collection[Band],
 
 
 def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Per block (i.e. view) model prediction for a fitted regression
 
     Parameters
@@ -1928,6 +2048,10 @@ def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
     job_out_q: multiprocessing.Queue
       The queue to push the block data to
     """
+    # is_needed (internally only)
+    # needs_work (make internal)
+    # not_tested
+    # usedin_linfit
     with TimedTask() as timer:
         predictors = params.pop('predictors')
         optimal_weights = params.pop('optimal_weights')
@@ -1984,6 +2108,7 @@ def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
 
 
 def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Per block (i.e. view) heterogeneity measure based on entropy
 
     Parameters
@@ -2011,6 +2136,10 @@ def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
     entropy_q: multiprocessing.Queue
       The queue to push the entropy maps through
     """
+    # is_needed (internally only)
+    # needs_work (make internal; docs)
+    # not_tested
+    # usedin_processing
     with TimedTask() as timer:
         input_bands = params.pop('input_bands')
         blurred_data = dict()
@@ -2043,6 +2172,7 @@ def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
 
 
 def block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Per block (i.e. view) interaction measure based on given categories
 
     Parameters
@@ -2070,6 +2200,10 @@ def block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
     interaction_q: multiprocessing.Queue
       The queue to push the interaction maps through
     """
+    # is_needed (internally only)
+    # needs_work (make internal; docs)
+    # not_tested
+    # usedin_processing
     with TimedTask() as timer:
         input_bands = params.pop('input_bands')
         blurred_data = dict()
@@ -2105,6 +2239,7 @@ def block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
 
 
 def block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Per block (i.e. view) category extraction and filter application
 
     This is a wrapper function to process a selection of a (pot. large)
@@ -2142,6 +2277,10 @@ def block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
     blur_q: multiprocessing.Queue
       The queue to push the multi-band blurred land-cover types maps through
     """
+    # is_needed (internally only)
+    # needs_work (make internal; docs)
+    # not_tested
+    # usedin_processing (though could be io)
     with TimedTask() as timer:
         # this is only needed for the entropy part below
         blur_params = dict(
@@ -2166,6 +2305,7 @@ def block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
 
 
 def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedTask:
+    # TODO: is_needed (not sure) - needs_work - not_tested - usedin_processing
     """Per block (i.e. view) heterogeneity measure based on entropy
 
     Parameters
@@ -2202,6 +2342,10 @@ def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedT
     blur_q: multiprocessing.Queue
       The queue to push the multi-band blurred land-cover types maps through
     """
+    # is_needed
+    # needs_work (docs)
+    # not_tested
+    # usedin_processing
     # handle deprecated parameters
     blur_as_int = params.pop('blur_as_int', None)
     if blur_as_int is not None:
@@ -2257,6 +2401,7 @@ def get_XT_X(response: str | Band,
              verbose: bool = False,
              **mpc_params
              ) -> np.ndarray:
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Calculate X.T @ X in parallel directly from view of the predictor data
 
     .. note::
@@ -2294,6 +2439,11 @@ def get_XT_X(response: str | Band,
         Starting method for multiprocessing jobs
 
     """
+    # is_needed
+    # needw_work (doc; see TODO's)
+    # is_tested
+    # usedin_linfit
+
     print(f'get_XT_X - {response=}, {predictors=}')
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
@@ -2359,8 +2509,13 @@ def get_optimal_betas(*predictors: Band | str,
                       as_dtype=np.float64,
                       **mpc_params
                       ):
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """
     """
+    # is_needed
+    # needw_work (doc)
+    # is_tested
+    # usedin_linfit
     print(f'get_optimal_betas - {response=}, {predictors=}')
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
@@ -2445,6 +2600,7 @@ def get_XT_X_dependency(response: str | Band,
                         verbose:bool=False,
                         **params
                         ) -> dict[Band, str]:
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Test for linear dependency of columsn (before using other functions to fit the MLR)
 
     Parameters
@@ -2485,6 +2641,11 @@ def get_XT_X_dependency(response: str | Band,
         - `start_method` (str): Determines how the workers should start a
           process. Accepted are 'spawn', 'fork' or 'forkserver'.
     """
+    # is_needed (in tests only)
+    # needw_work (doc)
+    # is_tested
+    # usedin_linfit
+
     # if block sizes are provided as dictionary - some pre-check on input is desired - else
     block_size_params = dict(prepare_selector=None, get_XT_X=None)
     if isinstance(block_size, tuple):
@@ -2558,6 +2719,7 @@ def compute_weights(response: str | Band,
                     verbose:bool=False,
                     **params
                     ) -> dict[Band, float] | dict[Band, str] | None:
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Compute the optimal weight in a multiple linear regression
 
     Parameters
@@ -2608,6 +2770,11 @@ def compute_weights(response: str | Band,
           process. Accepted are 'spawn', 'fork' or 'forkserver'.
 
     """
+    # is_needed
+    # needs_work (see TODO's; doc)
+    # is_tested
+    # usedin_linfit
+
     # if block sizes are provided as dictionary - some pre-check on input is desired - else
     block_size_params = dict(prepare_selector=None, get_XT_X=None, get_optimal_betas=None)
     if isinstance(block_size, tuple):
@@ -2716,8 +2883,13 @@ def compute_weights(response: str | Band,
 
 
 def block_ssr(params: dict, ssr_parts: list):
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Partialy calculate the Sum of Squares for the Residuals (SSR)
     """
+    # is_needed (internally only)
+    # needs_work (docs; create a test)
+    # not_tested
+    # usedin_linfit
 
     response = params.pop("response")
     model = params.pop("model")
@@ -2741,8 +2913,14 @@ def block_ssr(params: dict, ssr_parts: list):
 
 
 def block_sst(params: dict, sst_parts: list):
+    # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Partialy calculate the Sum of Squares Total (SST)
     """
+    # is_needed (internally only)
+    # needs_work (docs; create a test; see TODO's)
+    # not_tested
+    # usedin_linfit
+
     #TODO: maybe reduce redundancy between this function an the one above (ssr)
 
     response = params.pop("response")
@@ -2770,6 +2948,7 @@ def calculate_rmse(response: str | Band,
                    block_size: Union[dict[str, tuple[int, int]], tuple[int, int]],
                    verbose: bool = False,
                    **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Compute the Root mean square error (RSME) based on a predicted model and original response data.
      The formula for RMSE is:
 
@@ -2796,6 +2975,10 @@ def calculate_rmse(response: str | Band,
         - `start_method` (str): Determines how the workers should start a
           process. Accepted are 'spawn', 'fork' or 'forkserver'.
     """
+    # not_needed (but should be useful)
+    # needs_work (see TODO's; docs)
+    # is_tested
+    # usedin_linfit
 
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),bidx=1)
@@ -2859,6 +3042,7 @@ def calculate_r2(response: str | Band,
                  block_size: Union[dict[str, tuple[int, int]], tuple[int, int]],
                  verbose: bool = False,
                  **params):
+    # TODO: is_needed - needs_work - is_tested - usedin_linfit
     """Compute the Coefficient of Determination (R2) based on a predicted model and original response data.
     The formula for R2 is:
         R^2 = 1 - (SS_res / SS_tot)
@@ -2890,6 +3074,10 @@ def calculate_r2(response: str | Band,
         - `start_method` (str): Determines how the workers should start a
           process. Accepted are 'spawn', 'fork' or 'forkserver'.
     """
+    # not_needed (but should be useful)
+    # needs_work (see TODO's; docs)
+    # is_tested
+    # usedin_linfit
 
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),bidx=1)

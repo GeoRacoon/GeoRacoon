@@ -22,28 +22,48 @@ from decimal import Decimal
 
 
 def serialize(tags:dict[str,Any])->dict[str,str]:
+    # TODO: is_needed - no_work - not_tested - usedin_both
     """Convert the values of a dict to into JSON
     """
+    # is_needed
+    # no_work
+    # not_tested (indirect calls in tests)
+    # usedin_both (io sub-module)
     return {tag: json.dumps(obj=value) 
             for tag, value in tags.items()}
 
 
 def deserialize(tags:dict[str,str])->dict[str,Any]:
+    # TODO: is_needed - no_work - not_tested - usedin_both
     """Reads python objects from JSON-encoded values of a dict
     """
+    # is_needed
+    # no_work
+    # not_tested (indirect calls in tests)
+    # usedin_both (io sub-module)
     return {tag: json.loads(s=value) 
             for tag, value in tags.items()}
 
 
 def sanitize(tags:dict[str,Any])->Any:
+    # TODO: is_needed - no_work - not_tested - usedin_both
     """Serializes then deserializes values of a dict
     """
+    # is_needed
+    # no_work
+    # not_tested (indirect calls in tests)
+    # usedin_both (io sub-module)
     return deserialize(serialize(tags))
 
 
 def match_all(targets:dict, tags:dict)->bool:
+    # TODO: is_needed - no_work - is_tested - usedin_both
     """Check if all tags in targets are present in tags
     """
+    # is_needed
+    # no_work
+    # is_tested
+    # usedin_both (io sub-module)
     match = True
     for t, v in targets.items():
         if not match:
@@ -59,8 +79,13 @@ def match_all(targets:dict, tags:dict)->bool:
 
 
 def match_any(targets:dict, tags:dict)->bool:
+    # TODO: is_needed - no_work - is_tested - usedin_both
     """Check if any tag in targets is present in tags
     """
+    # not_needed (logic covered by match_all)
+    # no_work
+    # is_tested
+    # usedin_both
     match = False
     for t, v in targets.items():
         if match:
@@ -76,6 +101,7 @@ def match_any(targets:dict, tags:dict)->bool:
 
 
 def view_to_window(view: None | tuple[int, int, int, int]):
+    # TODO: is_needed - no_work - is_tested - usedin_both
     """Conerts a view into a rasterio Window
 
     Parameters
@@ -83,6 +109,10 @@ def view_to_window(view: None | tuple[int, int, int, int]):
     view:
       tuple (x, y, width, height) defining the view of the data array to update
     """
+    # is_needed
+    # needs_work (fix doc, dedicated test)
+    # not_tested (used in test)
+    # usedin_both
     if view is not None:
         window =  Window(view[0],
                          view[1],
@@ -94,7 +124,12 @@ def view_to_window(view: None | tuple[int, int, int, int]):
 
 
 def check_crs_raster(source, reference, verbose=False):
+    # TODO: not_needed
     """Compare coordinate reference systems of two raster datasets"""
+    # is_needed
+    # needs_work (fix doc, dedicated test)
+    # not_tested (used in test)
+    # usedin_both (used in io submodule)
     with rio.open(source, mode='r') as src:
         src_crs = str(src.crs)
     with rio.open(reference, mode='r') as ref:
@@ -110,8 +145,13 @@ def check_crs_raster(source, reference, verbose=False):
 
 
 def check_units(*sources):
+    # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all sources have the same units
     """
+    # is_needed
+    # needs_work (fix doc, make internal _...)
+    # not_tested
+    # usedin_both (used in io submodule)
     units = []
     for source in sources:
         with rio.open(source) as src:
@@ -128,8 +168,13 @@ def check_units(*sources):
 
 
 def check_crs(*sources):
+    # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all the sources have the same projection (i.e. same crs)
     """
+    # is_needed
+    # needs_work (make internal _...)
+    # not_tested
+    # usedin_both (used in io submodule)
     crss = []
     for source in sources:
         with rio.open(source) as src:
@@ -141,8 +186,13 @@ def check_crs(*sources):
 
 
 def check_resolution(*sources):
+    # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all the sources have the same resolution
     """
+    # is_needed
+    # needs_work (make internal _...)
+    # not_tested
+    # usedin_both (used in io submodule)
     ress = []
     for source in sources:
         with rio.open(source) as src:
@@ -155,6 +205,8 @@ def check_resolution(*sources):
 
 
 def check_compatibility(*sources):
+    # TODO: is_needed - no_work - not_tested - usedin_both
+    #  --> not sure if this is really needed in both (but its in CLASS io_
     """Assert that all the sources are compatible with each other.
 
     The checks include:
@@ -164,6 +216,10 @@ def check_compatibility(*sources):
         - resolution
 
     """
+    # is_needed
+    # needs_work (better doc)
+    # not_tested (used in tests)
+    # usedin_both (used in io submodule and parallel of linfit)
     units = check_units(*sources)
     crss = check_crs(*sources)
     ress = check_resolution(*sources)
@@ -172,8 +228,12 @@ def check_compatibility(*sources):
 
 
 def get_scale_factor(source, target):
+    # TODO: not_needed
     """Get scaling factors (width & height) to match target to source
     """
+    # not_needed (used in clipping_and_masking.py example)
+    # needs_work (better doc, check if it is not the inverse)
+    # not_tested
     # Make sure both have the same projection and linear units
     check_crs(source, target)
     with rio.open(source) as src:
@@ -185,6 +245,7 @@ def get_scale_factor(source, target):
 
 
 def nodata_mask_band(source, nodata=None):
+    # TODO: not_needed (should be in class actually)
     """Update exiting raster with an added nodata mask band (alpha band)
     0=nodata, 255=valid_data
     Note: it is only possible to set one mask band for all value bands.
@@ -203,6 +264,9 @@ def nodata_mask_band(source, nodata=None):
     -------
     None
     """
+    # not_needed (used in clip_and_maks_SILA.py example)
+    # needs_work (formatting)
+    # not_tested
     with rio.Env(GDAL_TIFF_INTERNAL_MASK=True):
         with rio.open(source, mode='r+') as src:
 
@@ -226,13 +290,24 @@ def nodata_mask_band(source, nodata=None):
 
 
 def outfile_suffix(filename, suffix, separator:str='_'):
+    # TODO: is_needed (for now) - no_work - not_tested - usedin_both
     """Insert suffix into filename and hand back basename_suffix.extension"""
+    # is_needed
+    # no_work 
+    # not_tested (used in tests)
+    # usedin_both (used in io submodule)
     base, ext = os.path.splitext(filename)
     return f"{base}{separator}{suffix}{ext}"
 
+
 def strip_suffix(filename:str, separator:str='_'):
+    # TODO: not_needed
     """Removes the last suffix from the name (i.e. the last part separated by '_')
     """
+    # not_needed
+    # no_work 
+    # not_tested (used in tests)
+    # usedin_both (used in io submodule)
     base, ext = os.path.splitext(filename)
     if separator in filename:
         _base = separator.join(filename.split(separator)[:-1])
@@ -240,7 +315,9 @@ def strip_suffix(filename:str, separator:str='_'):
         _base = base
     return f"{_base}{ext}"
 
+
 def output_filename(base_name: str, out_type: str, blur_params: dict):
+    # TODO: is_needed - no_work - is_tested - usedin_both
     """Construct the filename for the specific output type.
 
     Parameters
@@ -260,6 +337,10 @@ def output_filename(base_name: str, out_type: str, blur_params: dict):
       The resulting filename of the form
       '<name>_<out_type>_sig_<{sigma}>_diam_<{diameter}>_trunc_<{truncate}>.tif'
     """
+    # is_needed
+    # needs_work (minor cleanup)
+    # not_tested
+    # usedin_both
     _base_name, _ext = os.path.splitext(base_name)
     # sig = blur_params['sigma']
     # diam = blur_params['diameter']
@@ -272,14 +353,24 @@ def output_filename(base_name: str, out_type: str, blur_params: dict):
 
 
 def usable_pixels_info(all_pixels, data_pixels):
+    # TODO: is_needed - no_work - not_tested - usedin_both
     """Prints the fraction of usable pixels
     """
+    # is_needed
+    # no_work
+    # not_tested (no need)
+    # usedin_linfit
     print(f"Of {all_pixels=} there are {data_pixels=}, i.e. "
           f"{round(100 * data_pixels/all_pixels, 2)}% are usable")
 
 
 def usable_pixels_count(selector):
+    # TODO: is_needed - no_work - not_tested - usedin_both
     """Count the number of usable pixels determined by the selector"""
+    # is_needed
+    # no_work
+    # not_tested (no need)
+    # usedin_linfit
     vals, counts = np.unique(selector, return_counts=True)
     # vals: [True, False] or inv. in any case ok
     try:
@@ -289,6 +380,7 @@ def usable_pixels_count(selector):
 
 
 def dtype_range(dtype:type|str)->tuple[int|float, int|float]:
+    # TODO: is_needed - no_work - is_tested - usedin_both
     """Get the range of the specified dtype
 
     ..warning::
@@ -297,6 +389,10 @@ def dtype_range(dtype:type|str)->tuple[int|float, int|float]:
       Be sure to convert them back into `dtype` if needed!
 
     """
+    # is_needed (mostly internal + processing.py)
+    # needs_work (adding tests, fix type-hints)
+    # not_tested
+    # usedin_both (certainly in processing + internal)
     if isinstance(dtype, str):
         dtype = np.dtype(dtype)
     # avoid issues of object not callable from rasterio
@@ -318,6 +414,7 @@ def convert_to_dtype(data: NDArray,
                      as_dtype:None|type|np._dtype|str=None,
                      in_range:None|NDArray|Collection=None,
                      out_range:None|NDArray|Collection|str|type=None)->NDArray:
+    # TODO: is_needed - no_work - is_tested - usedin_both
     """Converts data to `as_dtype` and optionally rescales it.
 
     Rescaling is done only if at least one of of the ranges is explicitly set.
@@ -384,6 +481,10 @@ def convert_to_dtype(data: NDArray,
       Alternatively, a data type can be specified, in which case the data
       will be scaled to the full range of the specified data type
     """
+    # is_needed
+    # needs_work (formatting, fix type-hinting)
+    # is_tested
+    # usedin_both (could be io module)
     # convert to numpy dtype is string was provided
     if isinstance(as_dtype, str):
         as_dtype = np.dtype(as_dtype)
@@ -453,6 +554,7 @@ def convert_to_dtype(data: NDArray,
 
 
 def aggregated_selector(masks:list[NDArray], logic:str='all')->NDArray:
+    # TODO: is_needed - no_work - is_tested - usedin_both
     """Turns several rasterio masks into a boolen selector for a numpy array
 
     Rasterio masks are uint8 numpy arrays where every value > 0 is considered
@@ -470,6 +572,10 @@ def aggregated_selector(masks:list[NDArray], logic:str='all')->NDArray:
         consider it valid data. `logic="any"` will lead to selecting
         all cells which **at least one** mask considers valid
     """
+    # is_needed
+    # no_work
+    # is_tested
+    # usedin_both (used in parallel.prepare_selector)
     selector = masks[0]!=0  # values > 0 are selected (i.e. True)
     if logic == 'any':
         _logic = np.logical_or
@@ -484,6 +590,7 @@ def aggregated_selector(masks:list[NDArray], logic:str='all')->NDArray:
 def reduced_mask(array:NDArray,
                 nodata=0,
                 logic:str='all',):
+    # TODO: is_needed - no_work - is_tested - usedin_both
     """Computes a mask based on the value of several bands
 
     Parameters
@@ -495,6 +602,10 @@ def reduced_mask(array:NDArray,
         - `"any"`: Masked will be each cell for which any of the bands matches the nodata value
         - `"all"`: Masked will be each cell for which all of the bands match the nodata value
     """
+    # is_needed
+    # no_work (create test)
+    # not_tested
+    # usedin_both (used in parallel.compute_mask)
     if logic=='any':
         _logic = np.logical_and
     else:
@@ -504,9 +615,11 @@ def reduced_mask(array:NDArray,
     else:
         return _logic.reduce(array=array!=nodata, axis=0).astype(np.uint8)
 
+
 def count_contribution(data:NDArray,
                        selector:NDArray[np.bool_],
                        no_data:Union[int, float]=0)->int:
+    # TODO: is_needed - no_work - is_tested - usedin_both
     """The remaining number of data cells when applying the selector
 
     Parameters
@@ -523,6 +636,10 @@ def count_contribution(data:NDArray,
         You might also provide `np.nan` as no data value.
 
     """
+    # is_needed
+    # no_work
+    # is_tested
+    # usedin_both (io module)
     if np.isnan(no_data):
         b_vals, b_counts = np.unique(~np.isnan(data[selector]), return_counts=True)
     else:
@@ -536,6 +653,7 @@ def count_contribution(data:NDArray,
 
 
 def check_rank_deficiency(array, return_by_issue_type: bool=False) -> dict[int, str] | dict[str, list[int]]:
+    # TODO: is_needed - no_work - is_tested - usedin_linfit
     """Check if matrix is rank deficient and extract the dependent columns (linear combination of other columns.
     Returns a dictionary with column (key) and issue description (value). Lenght of dictionary is rank-deficiency + 1,
     Empyt dictionary indicates that no rank deficiency was detected
@@ -548,6 +666,10 @@ def check_rank_deficiency(array, return_by_issue_type: bool=False) -> dict[int, 
         If desired, a nested dictionary may be returned separating the type of issue:
         "all_zero" and "linear dependent"
     """
+    # is_needed
+    # needs_work (formatting)
+    # is_tested
+    # usedin_linfit
     all_zero_cols = {}
     rank_deficient_cols = {}
     _, num_columns = array.shape
@@ -577,12 +699,17 @@ def check_rank_deficiency(array, return_by_issue_type: bool=False) -> dict[int, 
 
 
 def rasterio_to_numpy_dtype(rasterio_dtype):
+    # TODO: is_needed (for testing later) - no_work - is_tested - usedin_both
     """
     Map Rasterio actual data types to NumPy data types.
 
     Rasterio types like rasterio.dtypes.int16, rasterio.dtypes.float32
     are mapped to their NumPy equivalents.
     """
+    # not_needed
+    # no_work
+    # not_tested
+    # usedin_both (io module - but not used)
     dtype_mapping = {
         rio.dtypes.int16: np.int16,
         rio.dtypes.int32: np.int32,

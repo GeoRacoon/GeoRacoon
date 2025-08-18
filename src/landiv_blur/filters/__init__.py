@@ -10,6 +10,10 @@ Usually, within a specific sub-module a filter method of the same name exists.
 So, for example, within `filters.gaussian`, `skimage.filters.gaussian` is
 available as `gaussian`.
 """
+# is_needed
+# needs_work (clean this up - it's too complicated setup)
+# is_tested
+# usedin_processing
 
 from .gaussian import gaussian as _gauss_filter
 from .gaussian import bpgaussian

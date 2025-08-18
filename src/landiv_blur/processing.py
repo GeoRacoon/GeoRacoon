@@ -19,6 +19,7 @@ def select_category(data:NDArray,
                     category: int | list[int],
                     as_dtype: type|str = "uint8",
                     limits: tuple | None = None):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Filter for particular category or categories
 
 
@@ -46,6 +47,10 @@ def select_category(data:NDArray,
     np.array:
       Matrix of type `as_dtype` in the same shape of `data`
     """
+    # is_needed (only internally)
+    # needs_work (docs)
+    # is_tested
+    # usedin_processing (though might be part of the io module)
     if isinstance(as_dtype, str):
         _as_dtype = np.dtype(as_dtype)
     else:
@@ -63,6 +68,7 @@ def select_category(data:NDArray,
 
 
 def _apply_filter(data, img_filter:Callable, **params):
+    # TODO: is_needed - no_work - is_tested - usedin_processing
     """Apply a filter to the provided data
 
     Parameters
@@ -72,10 +78,15 @@ def _apply_filter(data, img_filter:Callable, **params):
     params: dict
       keyword parameter passed as is to the callback function
     """
+    # is_needed (internally and for tests)
+    # needs_work (docs)
+    # not_tested (directly)
+    # usedin_processing (part of io)
     return img_filter(data, **params)
 
 
 def get_max_entropy(nbr:int):
+    # TODO: is_needed - no_work - is_tested - usedin_processing
     """Maximal entropy value possible for a given number of categories
 
     Parameters
@@ -88,10 +99,15 @@ def get_max_entropy(nbr:int):
     float
       The maximal entropy defined be a uniform distribution
     """
+    # is_needed (internally)
+    # needs_work (make internal; docs)
+    # not_tested (but used in tests)
+    # usedin_processing
     return entropy(np.ones(nbr))
 
 
 def get_categories(data:NDArray, )->list[int]:
+    # TODO: is_needed - no_work - is_tested - usedin_processing
     """Return the list of categories present in the data.
 
     Parameters
@@ -104,6 +120,10 @@ def get_categories(data:NDArray, )->list[int]:
     list
       List of unique categories present in the data
     """
+    # is_needed (tests; motly internal - only plotting otherwise)
+    # no_work
+    # not_tested (used in tests)
+    # usedin_processing (primarily, but ideally part of a io module)
     categories = np.unique(data)
     categories.sort()
     print("Inferring the number of categories from the provided data."
@@ -119,6 +139,7 @@ def get_category_data(data:NDArray,
                       as_dtype:type|str|None=None,
                       output_range:tuple|None=None,
                       data_as_dtype:type|str="uint8")->NDArray:
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Return the data of a single category, optionally after applying a filter
 
     .. note::
@@ -166,6 +187,11 @@ def get_category_data(data:NDArray,
         Only if the data contains more than 255 different categories it would make
         sense to change it to `np.uint16`.
     """
+    # is_needed (mostly for tests)
+    # no_work
+    # not_tested 
+    # usedin_processing (but could go to io)
+
     # strip the category/categories
     _data = select_category(data, category, as_dtype=data_as_dtype)
     filter_params = filter_params or dict()
@@ -185,7 +211,7 @@ def view_data(source:Source|str,
               as_dtype:type|str|None,
               output_range:None|NDArray|Collection,
               ):
-
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Get a data view from tif file + optionally convert and rescale the values
 
     You may use the `**tags` to specify which band to read, by default only the
@@ -215,6 +241,11 @@ def view_data(source:Source|str,
 
       See `io.load_block` for further details.
     """
+    # is_needed (internal only)
+    # no_work
+    # not_tested
+    # usedin_processing (if at all; but might become part of io module)
+
     # read out block from original file
 
     if not isinstance(source, Source):
@@ -247,6 +278,7 @@ def filter_data(data:NDArray,
                 as_dtype:type|str|None=None,
                 output_range:tuple|None=None,
                 )->NDArray:
+    # TODO: is_needed - no_work - is_tested - usedin_processing
     # TODO: remove all default arguments!
     """Applies a filter to an `np.array`
 
@@ -288,6 +320,11 @@ def filter_data(data:NDArray,
     np.array:
       Resulting data array
     """
+    # is_needed (internally only )
+    # needs_work (see TODO)
+    # is_tested
+    # usedin_processing (part of io)
+
     # check if nan exists
     # TODO: move this out of this function
     if np.isnan(np.sum(data)) and replace_nan_with is None:
@@ -355,9 +392,14 @@ def view_filtered(source:Source|str,
                   bands: list[Band|int]|None = None,
                   selector_band: Band | None = None,
                   ):
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Extracts and possibly converts a view from the source file
 
     """
+    # not_needed (used in a unneeded function in parallel)
+    # needs_work (docs)
+    # not_tested
+    # usedin_both (probably not used at all!)
     data_views = view_data(source=source,
                            bands=bands,
                            view=view,
@@ -418,6 +460,7 @@ def get_filtered_categories(data:NDArray,
                             output_range:tuple|None=None,
                             filter_output_range:tuple|None=None,
                             filter_params:dict|None=None)->dict[int, NDArray]:
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Extract each category into a separate `np.array` and apply an image filter
 
     ..Note::
@@ -445,6 +488,11 @@ def get_filtered_categories(data:NDArray,
     dict:
       For each category (key) the filtered data
     """
+    # is_needed (only in tests)
+    # needs_work (docs)
+    # not_tested (used in tests thought)
+    # usedin_processing 
+
     if categories is None:
         categories = get_categories(data)
     all_categories = dict()
@@ -466,6 +514,7 @@ def compute_entropy(data_arrays: Sequence[NDArray],
                     as_dtype:type|str|None=None,
                     output_range:tuple|None=None,
                     **entropy_params)->NDArray:
+    # TODO: is_needed - no_work - is_tested - usedin_processing
     """Per cell entropy computed over a series of data arrays
 
     Parameters
@@ -517,6 +566,11 @@ def compute_entropy(data_arrays: Sequence[NDArray],
       A `np.array` with identical shape as the elements in `data_arrays` holding the
       per-cell entropy
     """
+    # is_needed (internally and in tests)
+    # no_work
+    # not_tested 
+    # usedin_processing
+
     # calculate the entropy
     _stacked = np.stack(data_arrays, axis=2)
     entropy_array = entropy(_stacked, axis=2, **entropy_params)
@@ -575,6 +629,7 @@ def compute_interaction(data_arrays: Sequence[NDArray],
                         output_dtype:type|str|None=None,
                         output_range: tuple | None = None,
                         **interaction_params)->NDArray:
+    # TODO: is_needed - no_work - is_tested - usedin_processing
     r"""Per cell interaction computed over a series of data arrays
     For 'float' inputs:
         .. math::
@@ -601,6 +656,11 @@ def compute_interaction(data_arrays: Sequence[NDArray],
       A `np.array` with identical shape as the elements in `data_arrays` holding the
       per-cell interaction between given layers
     """
+    # is_needed (internally; as non-parallelized version)
+    # no_work
+    # is_tested
+    # usedin_processing
+
     # TODO: all of this does not work with floats yet --> implement
 
     array_dtype = data_arrays[0].dtype
@@ -657,6 +717,7 @@ def get_entropy(data:NDArray,
                 entropy_params:dict|None=None,
                 filter_output_range:tuple|None=None,
                 **params)->NDArray:
+    # TODO: is_needed - no_work - is_tested - usedin_processing
     """Compute the Shannon entropy per cell directly from a 2D array of categorical data
 
 
@@ -707,6 +768,11 @@ def get_entropy(data:NDArray,
       A `np.array` with identical shape as the elements in `data_arrays` holding the
       per-cell entropy
     """
+    # is_needed
+    # needs_work (docs; see TODO)
+    # is_tested
+    # usedin_processing
+
     # TODO: This function does not allow the set `as_dtype` of
     # `get_filtered_categories`
     # > Change call signature to
@@ -737,7 +803,7 @@ def view_blurred(source:str,
                  output_dtype:type|str|None = "uint8",
                  output_range:tuple|None=None,
                  **tags):
-
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Uses a tif file with categorical data to compute blurred binary arrays
 
     The provided tif file must contain a band with categorical data (i.e. of type `uint`).
@@ -786,6 +852,11 @@ def view_blurred(source:str,
 
       See `io.load_block` for further details.
     """
+    # is_needed
+    # needs_work (docs - minor)
+    # is_tested
+    # usedin_processing
+
     # read out block from original file
     result = load_block(source, view=view, scaling_params=None, **tags)
     data = result.pop('data')
@@ -817,6 +888,7 @@ def  view_entropy(category_arrays:dict[int, NDArray],
                   max_entropy_categories: int|None = None,
                   output_dtype:type|str|None = None,
                   output_range:tuple|None = None):
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Return a per-cell entropy computed from the per category arrays.
 
     ..Note::
@@ -841,6 +913,10 @@ def  view_entropy(category_arrays:dict[int, NDArray],
       If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
       This argument is ignored if `normed=False`.
     """
+    # is_needed
+    # no_work
+    # not_tested
+    # usedin_processing
     entropy_array = compute_entropy(
         data_arrays=tuple(category_arrays.values()),
         normed=normed,
@@ -858,6 +934,7 @@ def view_interaction(category_arrays:dict[int, NDArray],
                      normed:bool = True,
                      output_dtype: type | str | None = None,
                      output_range: tuple | None = None):
+    # TODO: is_needed - needs_work - not_tested - usedin_processing
     """Return a per-cell interaction computed from the per category arrays.
 
     Parameters
@@ -871,6 +948,10 @@ def view_interaction(category_arrays:dict[int, NDArray],
 
       See `comptue_interaction` for further details
     """
+    # is_needed
+    # needs_work (docs)
+    # not_tested
+    # usedin_processing
     interaction_array = compute_interaction(
         data_arrays=tuple(category_arrays.values()),
         input_dtype=input_dtype,
@@ -896,6 +977,7 @@ def get_entropy_view(source:str,
                      output_range:tuple|None=None,
                      normed:bool=True,
                      **tags):
+    # TODO: not_needed
     """Returns the entropy for some categories over a view from a tif file
 
     ..Warning::
@@ -917,6 +999,10 @@ def get_entropy_view(source:str,
 
       See `io.load_block` for further details.
     """
+    # is_needed (only in tests for parallel)
+    # no_work
+    # not_tested
+    # usedin_processing
     warnings.warn("This function is deprecated and will be removed",
                   category=DeprecationWarning)
     if blur_as_int is None:
