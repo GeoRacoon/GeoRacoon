@@ -905,6 +905,10 @@ def apply_filter(source: str | Source,
         start_method: str
           Starting method for multiprocessing jobs
     """
+    # not_needed
+    # needs_work (docs - if not jsut deleted)
+    # not_tested
+    # usedin_both (not sure if at all)
     if isinstance(source, str):
         source = Source(path=source)
     with source.open() as src:
