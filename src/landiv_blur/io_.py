@@ -123,12 +123,20 @@ class Source:
           Requesting the shape will synchronize the profile with the data
           written on disk.
         """
+        # is_needed (not sure - check)
+        # needs_work (this should be renamed to avoid confusion w np.array.shape
+        # not_tested
+        # usedin_both (potentially, if used at all)
         self.import_profile()
         height = self.profile['height']
         width = self.profile['width']
         return (height, width)
     
     def get_tags(self, bidx:int)->dict:
+        # is_needed (noly internally)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (part of IO module)
         with self.open(mode='r') as src:
             tags = get_tags(src=src, bidx=bidx, ns=self._ns)
         return tags
@@ -138,6 +146,10 @@ class Source:
         
         If the tag is not present, None is returned
         """
+        # is_needed
+        # needs_work (docs)
+        # not_tested
+        # usedin_processing (but should be part of the io module)
         t_vals = dict()
         with self.open(mode='r') as src:
             if bidx is None:
@@ -153,11 +165,19 @@ class Source:
         return t_vals
 
     def set_tags(self, bidx:int|None, tags:dict):
+        # is_needed (noly internally)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (part of IO module)
         with self.open(mode='r+') as src:
             set_tags(src=src, bidx=bidx, ns=self._ns, **tags)
 
     @contextmanager
     def mask_reader(self, **kwargs):
+        # is_needed
+        # needs_work (docs)
+        # is_tested
+        # usedin_both
         mode = kwargs.pop('mode', 'r')
         with self.open(mode=mode, **kwargs) as src:
             yield src.dataset_mask
@@ -177,6 +197,10 @@ class Source:
           `okwargs`: dict
             These arguments will be passed to the `open` method of the source
         """
+        # is_needed
+        # no_work
+        # is_tested
+        # usedin_both
         okwargs = kwargs.pop('okwargs', dict())
         with self.mask_reader(mode='r', **okwargs) as dataset_mask:
             mask = dataset_mask(**kwargs)
@@ -184,6 +208,10 @@ class Source:
 
     @contextmanager
     def mask_writer(self, **kwargs):
+        # is_needed
+        # needs_work (docs)
+        # not_tested (used in tests)
+        # usedin_both (part of io)
         mode = kwargs.pop('mode', 'r+')
         with rio.Env(GDAL_TIFF_INTERNAL_MASK=True):
             with self.open(mode=mode, **kwargs) as src:
@@ -199,12 +227,20 @@ class Source:
         window:
             Optional subset to write to
         """
+        # not_needed (useful?)
+        # no_work
+        # not_tested
+        # usedin_both (potentially)
         with self.open(mode='r+') as src:
             src.write_mask(mask_array=mask, window=window)
 
     def init_source(self, overwrite:bool=False, **kwargs):
         """Create or accesses source file
         """
+        # is_needed (only internally for now)
+        # needs_work (docs)
+        # not_tested (but used in tests)
+        # usedin_both (potentially)
         if overwrite or not self.exists:
             with self.open(mode='w', **self.profile, **kwargs) as _:
                 print(f'Initiating empty file\n\t"{self.path}"\n')
@@ -212,6 +248,10 @@ class Source:
     def get_band(self, bidx:int|None=None, **tags)->Band:
         """Find the wanted band and return a related band object
         """
+        # is_needed
+        # needs_work (dcos)
+        # is_tested (though no dedicated test)
+        # usedin_both
         if not self.exists:
             raise SourceNotSavedError(
                 f"{self.path}:\n\tNot present in the filesystem"
@@ -243,6 +283,10 @@ class Source:
     def get_bands(self)->list[Band]:
         """Return a list with all Bands present in the dataset
         """
+        # is_needed
+        # needs_work (dcos)
+        # is_tested (though no dedicated test)
+        # usedin_both
         bands = []
         with self.open(mode='r') as src:
             for bidx in src.indexes:
@@ -259,6 +303,10 @@ class Source:
           If the file is opened in writing mode, the profile is injected
           into rio.open
         """
+        # is_needed (internal only)
+        # no_work
+        # not_tested
+        # usedin_both (potentially)
         mode = kwargs.get('mode', args[0] if len(args) else self._mode_default)
         assert mode in self._modes
         if self.path.suffix in ['.tif', ]:
@@ -283,6 +331,10 @@ class Source:
           Therefore: **the profile needs to be set when calling this method with writing mode!**
 
         """
+        # is_needed
+        # needs_work (docs)
+        # not_tested
+        # usedin_both
         src = self._get_source(*args, **kwargs)
         try:
             yield src
@@ -298,6 +350,10 @@ class Source:
         bands:
             Collection of Band objects.
         """
+        # is_needed
+        # needs_work (docs)
+        # not_tested
+        # usedin_both
         mode = kwargs.pop('mode', 'r')
         if bands is None:
             bands = self.get_bands()
@@ -307,11 +363,19 @@ class Source:
 
     @property
     def band_indexes(self,):
+        # is_needed (only internally)
+        # needs_work (docs, make internal?)
+        # not_tested
+        # usedin_both (potentially)
         with self.open() as src:
             bidxs = src.indexes
         return bidxs
 
     def has_bidx(self, bidx:int)->bool:
+        # is_needed (only internally)
+        # needs_work (docs; make internal?)
+        # not_tested
+        # usedin_both (potentially)
         has_it = False
         with rio.open(self.path, 'r') as src:
             if bidx in src.indexes:
@@ -319,6 +383,10 @@ class Source:
         return has_it
 
     def has_tags(self, tags:dict)->bool:
+        # not_needed (might be useful if working with tags
+        # needs_work (doc)
+        # not_tested
+        # usedin_both (potentially)
         all_tags = []
         with rio.open(self.path, 'r') as src:
             for bidx in src.indexes:
@@ -328,6 +396,10 @@ class Source:
     def find_indexes(self, tags:dict, mode='all')->list:
         """Check if one or several bands have matching tags
         """
+        # is_needed (only internally)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (potentially)
         with self.open() as src:
             if mode=='any':
                 # TODO: match_any was implemented in !41
@@ -337,6 +409,10 @@ class Source:
         return bidxs
 
     def find_index(self, tags:dict)->int|None:
+        # is_needed (only internally)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (potentially)
         midx = None
         matching_bidxs = self.find_indexes(tags=tags, mode='all')
         if len(matching_bidxs) != 1:
@@ -346,6 +422,10 @@ class Source:
         return midx
 
     def has_band(self, band:Band)->int:
+        # not_needed (might be useful if working with tags
+        # needs_work (doc)
+        # not_tested
+        # usedin_both (potentially)
         has_it = False
         if band.bidx is not None:
             has_it = self.has_bidx(band.bidx)
@@ -358,6 +438,10 @@ class Source:
     def get_bidx(self, band:Band)->int|None:
         """Find an specific band to write to in the file
         """
+        # is_needed (only internally)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (potentially
         midx = None
         if band.bidx is not None:
             if self.has_bidx(band.bidx):
@@ -390,6 +474,10 @@ class Source:
         return midx
 
     def compress(self, output:str|None=None, compression:str|None='lzw', keep_original:bool=False):
+        # is_needed
+        # needs_work (docs)
+        # not_tested
+        # usedin_both
         uncompressed = self.path
         # create a compressed file
         self.path = Path(compress_tif(str(self.path),
@@ -405,6 +493,10 @@ class Source:
         See `helper.check_compatibility` for details
 
         """
+        # is_needed
+        # needs_work (docs)
+        # not_tested
+        # usedin_both
         _sources = {self.path,}
         for source in sources:
             _sources.add(source.path)
@@ -418,6 +510,10 @@ class Source:
 
         See `io.load_block` for further details
         """
+        # is_needed (internal only)
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (potentially)
         return load_block(source=str(self.path),
                           view=view,
                           scaling_params=scaling_params,
@@ -656,6 +752,10 @@ class Band:
         bidx:
             The index of the band in the source that matches this band
         """
+        # is_needed
+        # no_work
+        # not_tested
+        # usedin_both (potentially)
         failed = ''
         bidx = None
         if self.bidx is not None:
@@ -958,6 +1058,10 @@ class Band:
 
         See `io.load_block` for further details
         """
+        # is_needed
+        # needs_work (docs)
+        # not_tested
+        # usedin_both (potentially)
         bidx = self.get_bidx(match=match)
         return self.source.load_block(
                           view=view,
