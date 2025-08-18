@@ -51,7 +51,12 @@ from .helper import (
 # this is our namespace for tags
 NS = 'LANDIV'
 
+# TODO: General Idea - maybe we can merge some of these into io_.py class structure - so we avoid having both.
+#  --> yet it is nice to have the function by themselves as well without direct need of class structures
+
+
 def set_tags(src, bidx:int|None=None, ns:str=NS, **tags):
+    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Update tags for a dataset or a single band of a dataset.
 
     Since metadata in a tif file is stored as a string the value of each tag is
@@ -109,6 +114,7 @@ def set_tags(src, bidx:int|None=None, ns:str=NS, **tags):
     src.update_tags(ns=ns, bidx=bidx, **serialized_tags)
 
 def get_tags(src, bidx:int|None=None, ns:str=NS):
+    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Get all the tags and deserialize the values
 
     Parameters
@@ -135,6 +141,7 @@ def get_tags(src, bidx:int|None=None, ns:str=NS):
     return deserialize(src.tags(bidx=bidx, ns=ns))
 
 def find_bidxs(src, ns:str=NS, **tags):
+    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Find all bands in src for which all tags match
 
     Parameters
@@ -165,6 +172,7 @@ def find_bidxs(src, ns:str=NS, **tags):
     return matching_bidxs
 
 def get_bidx(src, ns:str=NS, **tags)->None|int:
+    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Get the index of the band with matching tags
 
     ..Note::
@@ -253,6 +261,7 @@ def get_bidx(src, ns:str=NS, **tags)->None|int:
     return bidx
 
 def get_bands(source:str, ns:str=NS, **tags)->list[tuple[str,int]]:
+    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Find all bands that match specific tags
 
     This method check the metadata (including those of bands)
@@ -304,6 +313,7 @@ def get_bands(source:str, ns:str=NS, **tags)->list[tuple[str,int]]:
 
 
 def load_map(source:str, **tags)->dict:
+    # TODO: is_needed (but only in tests)
     """Load a specific band from a tif file
 
     See `load_block` for details
@@ -325,6 +335,7 @@ def load_block(source:str,
                view:None|tuple[int,int,int,int]=None,
                scaling_params:dict|None=None,
                **tags)->dict:
+    # TODO: is_needed - needs_work - not_tested - usedin_both
     """Get a block from a specific band of a *.tif file along with the transform
 
     You can select what band(s) to load by passing keyword arguments as tags
@@ -416,6 +427,7 @@ def write_band(src:DatasetWriter,
                bidx:int=1,
                window:Window|None=None,
                **tags):
+    # TODO: is_needed (only 1 use) - needs_work - is_tested - usedin_both
     """Write data to a specific band of a tif file and set the tags
 
 
@@ -444,6 +456,7 @@ def update_band(src:DatasetWriter,
                 data:NDArray,
                 window:Window|None=None,
                 **tags):
+    # TODO: not_needed
     """Find a specific band and update it with data
 
     ..Note::
@@ -484,6 +497,7 @@ def export_to_tif(destination:str,
                   orig_profile:dict,
                   start=(0, 0),
                   **pparams):
+    # TODO: not_needed
     """Export a np.array to tif, only updating a window if data is smaller
 
     .. note::
@@ -524,6 +538,7 @@ def export_to_tif(destination:str,
 
 
 def project_to(source, reference, output=None, nodata=None)->str | None:
+    # TODO: not_needed
     """Re-projects the source map into the coordinate system of a reference map
 
     Parameters
@@ -594,6 +609,7 @@ def project_to(source, reference, output=None, nodata=None)->str | None:
 
 
 def clip_to_bounds(source, reference, output=None):
+    # TODO: not_needed
     """Clip raster to bounding box of reference raster
 
     Parameters
@@ -640,6 +656,7 @@ def clip_to_bounds(source, reference, output=None):
 
 
 def coregister_raster(source, reference, output=None):
+    # TODO: not_needed (but used in some tests)
     """Align raster to have identical resolution.
 
     Resolution will be calculated automatically from bounds and height/width of reference raster.
@@ -705,6 +722,7 @@ def coregister_raster(source, reference, output=None):
 
 
 def buffer_geometries_metric(geom_geoseries, buffer_meter, source_crs):
+    # TODO: not_needed
     """ Applies a buffer to the geometries in GeoSeries given.
 
     ..Note: This function re-projects the GeoSeries to the respective UTM zone in order to use metric buffer and best
@@ -737,6 +755,7 @@ def buffer_geometries_metric(geom_geoseries, buffer_meter, source_crs):
 
 
 def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_meter=None):
+    # TODO: not_needed
     """Clip raster file to eco-region boundary (vector-data) for given eco-region number
 
     Parameters
@@ -817,6 +836,8 @@ def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_m
 
 
 def compress_tif(source, output:str|None=None, compression:str|None='lzw'):
+    # TODO: is_needed (technically not_needed but still present in some bash-scripts (Folder: scripts)
+    # TODO: once this goes, we may also remove the outfile_suffix I believe (but double-check)
     """Compress tif file with LZW compression
 
     Parameters

@@ -1,5 +1,6 @@
 """This module defines custom exceptions
 """
+# TODO: all of these get use at a certain point
 
 
 class InferenceError(Exception):
