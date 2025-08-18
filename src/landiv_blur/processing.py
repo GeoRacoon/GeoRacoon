@@ -239,7 +239,7 @@ def view_data(source:Source|str,
     # is_needed (internal only)
     # no_work
     # not_tested
-    # usedinb_processing (if at all; but might become part of io module)
+    # usedin_processing (if at all; but might become part of io module)
 
     # read out block from original file
 
