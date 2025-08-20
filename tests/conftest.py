@@ -114,7 +114,12 @@ def create_blurred_tif(datafiles):
     blurr_source = Source(path=blurred_tif)
     # compute the mask
     view_size = (500, 400)
-    compute_mask(source=blurr_source, block_size=view_size, logic='all')
+    compute_mask(source=blurr_source,
+                 block_size=view_size,
+                 logic='all',
+                 nbrcpu = nbrcpu,
+                 start_method = MPC_STARTER_METHODS[1]  # use fork
+                 )
     # ###
     return blurred_tif
 
@@ -159,7 +164,12 @@ def create_blurred_tif_float(datafiles):
     blurr_source = Source(path=blurred_tif)
     # compute the mask
     view_size = (500, 400)
-    compute_mask(source=blurr_source, block_size=view_size, logic='all')
+    compute_mask(source=blurr_source,
+                 block_size=view_size,
+                 logic='all',
+                 nbrcpu = nbrcpu,
+                 start_method = MPC_STARTER_METHODS[1]  # use fork
+                 )
     # ###
     print(f"{blurr_source.import_profile()=}")
     return blurred_tif
