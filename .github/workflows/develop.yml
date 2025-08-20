@@ -34,17 +34,43 @@ jobs:
         ls -ahl ./data/testing/ndvi/
         source .venv/bin/activate
         python -c "import multiprocessing; print(multiprocessing.cpu_count())"
-        python -m pytest -s -vvv -k test_preparation --timeout 300  --cov=landiv_blur
-        coverage xml --include=src/**
-    
-    - name: Upload coverage report
+        python -m pytest -s -vvv -k test_preparation --timeout 300 --junitxml=junit/test-results.xml --cov=landiv_blur
+      env:
+        COVERAGE_FILE: ".coverage.unittests"
+    - name: Store coverage file
+      if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: coverage-report
-        path: coverage.xml
-    
-    - name: Upload coverage to Codecov
-      uses: actions/upload-artifact@v4
-      with:
-        file: ./coverage.xml
-        flags: unittests
+        name: coverage-unittests
+        path: .coverage.unittests
+        include-hidden-files: true
+
+  coverage:
+    name: coverage-combine-publish
+    runs-on: ubuntu-24.04
+    needs: [unit-tests, ]
+    if: |
+      always()
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        id: download
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+      - name: Coverage comment
+        id: coverage_comment
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGE_COVERAGE_FILES: true
+
+      - name: Store Pull Request comment to be posted
+        uses: actions/upload-artifact@v4
+        if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'
+        with:
+          name: python-coverage-comment-action
+          path: python-coverage-comment-action.txt
