@@ -25,7 +25,7 @@ from multiprocessing import (
     Queue,
     Manager,
     cpu_count,
-    get_context)
+    )
 from numpy.typing import NDArray
 
 from .io_ import Source, Band
@@ -35,7 +35,8 @@ from .helper import (view_to_window,
                      aggregated_selector,
                      check_compatibility,
                      check_rank_deficiency,
-                     convert_to_dtype)
+                     convert_to_dtype,
+                     get_or_set_context)
 from .timing import TimedTask
 from .plotting import plot_entropy
 from .processing import (
@@ -51,10 +52,6 @@ from .inference import (
     get_optimal_weights_source)
 from .io import write_band
 from .exceptions import InvalidPredictorError
-
-
-# NOTE: The first element will be picked by default
-MPC_STARTER_METHODS = ['spawn', 'fork', 'forkserver']
 
 
 def combine_views(output_params: dict,
@@ -852,13 +849,12 @@ def extract_categories(source: str | Source,
     # ###
     manager = Manager()
     blur_q = manager.Queue()
-    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
-    assert start_method in MPC_STARTER_METHODS
+    start_method = params.get('start_method', None)
     # get number of cpu's
     nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
-    with get_context(start_method).Pool(nbr_cpus) as pool:
+    with get_or_set_context(start_method).Pool(nbr_cpus) as pool:
         # start the blurred category writer task
         blur_combiner = pool.apply_async(combine_blurred_categories,
                                          (blur_output_params, blur_q))
@@ -1073,10 +1069,9 @@ def apply_filter(source: str | Source,
     if verbose:
         print(f"using {nbr_cpus=}")
     
-    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
-    assert start_method in MPC_STARTER_METHODS
+    start_method = params.get('start_method', None)
 
-    with get_context(start_method).Pool(nbr_cpus) as pool:
+    with get_or_set_context(start_method).Pool(nbr_cpus) as pool:
 
         # start the blurred category writer task
         blur_combiner = pool.apply_async(
@@ -1265,13 +1260,12 @@ def compute_entropy(source: str | Source,
     # ###
     manager = Manager()
     entropy_q = manager.Queue()
-    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
-    assert start_method in MPC_STARTER_METHODS
+    start_method = params.get('start_method', None)
     # get number of cpu's
     nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
-    with get_context(start_method).Pool(nbr_cpus) as pool:
+    with get_or_set_context(start_method).Pool(nbr_cpus) as pool:
         # start the entropy writer task
         entropy_combiner = pool.apply_async(combine_entropy_blocks,
                                             (entropy_output_params, entropy_q))
@@ -1451,13 +1445,12 @@ def compute_interaction(source: str | Source,
     # ###
     manager = Manager()
     interaction_q = manager.Queue()
-    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
-    assert start_method in MPC_STARTER_METHODS
+    start_method = params.get('start_method', None)
     # get number of cpu's
     nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
-    with get_context(start_method).Pool(nbr_cpus) as pool:
+    with get_or_set_context(start_method).Pool(nbr_cpus) as pool:
         # start the interaction writer task
         interaction_combiner = pool.apply_async(combine_interaction_blocks,
                                                 (interaction_output_params, interaction_q))
@@ -1622,13 +1615,12 @@ def compute_model(predictors: Collection[Band],
     # ###
     manager = Manager()
     job_out_q = manager.Queue()
-    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
-    assert start_method in MPC_STARTER_METHODS
+    start_method = params.get('start_method', None)
     # get number of cpu's
     nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
-    with get_context(start_method).Pool(nbr_cpus) as pool:
+    with get_or_set_context(start_method).Pool(nbr_cpus) as pool:
         # start the aggregator task
         combiner_job = pool.apply_async(combine_views,
                                         (combine_params, job_out_q))
@@ -1763,13 +1755,12 @@ def compute_mask(source: str | Source,
     # ###
     manager = Manager()
     aggr_q = manager.Queue()
-    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
-    assert start_method in MPC_STARTER_METHODS
+    start_method = params.get('start_method', None)
     # get number of cpu's
     nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
-    with get_context(start_method).Pool(nbr_cpus) as pool:
+    with get_or_set_context(start_method).Pool(nbr_cpus) as pool:
         # start the aggregator task
         aggr_params = dict(mode='r+')  # nothing else to pass
         aggregator_job = pool.apply_async(
@@ -1871,13 +1862,12 @@ def prepare_selector(*bands: Band,
     # ###
     manager = Manager()
     aggr_q = manager.Queue()
-    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
-    assert start_method in MPC_STARTER_METHODS
+    start_method = params.get('start_method', None)
     # get number of cpu's
     nbr_cpus = params.get('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
-    with get_context(start_method).Pool(nbr_cpus) as pool:
+    with get_or_set_context(start_method).Pool(nbr_cpus) as pool:
         # start the aggregator job
         # set the aggregator parameter - just an all-False selector
         aggr_params = dict(
@@ -1990,12 +1980,11 @@ def check_predictor_consistency(predictors: Collection[Band],
             no_data=no_data
         )
         job_params.append(jparams)
-    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
-    assert start_method in MPC_STARTER_METHODS
+    start_method = params.get('start_method', None)
     nbr_cpus = params.get('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"Predictor consistency check using {nbr_cpus=}")
-    with get_context(start_method).Pool(nbr_cpus) as pool:
+    with get_or_set_context(start_method).Pool(nbr_cpus) as pool:
         all_jobs = []
         for jparams in job_params:
             all_jobs.append(pool.apply_async(process_band_count_valid,
@@ -2448,8 +2437,7 @@ def get_XT_X(response: str | Band,
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
                         bidx=1)
-    start_method = mpc_params.get('start_method', MPC_STARTER_METHODS[0])
-    assert start_method in MPC_STARTER_METHODS
+    start_method = mpc_params.get('start_method', None)
     view_size = mpc_params.get('view_size')
     nbr_cpus = mpc_params.get('nbrcpu', cpu_count() - 1)
     src_profile = response.source.import_profile()
@@ -2475,7 +2463,7 @@ def get_XT_X(response: str | Band,
     output_q = manager.Queue()
     if verbose:
         print(f"using {nbr_cpus=}")
-    with get_context(start_method).Pool(nbr_cpus) as pool:
+    with get_or_set_context(start_method).Pool(nbr_cpus) as pool:
         # start the aggregation step
         matrix_aggregator = pool.apply_async(
             combine_matrices,
@@ -2520,8 +2508,7 @@ def get_optimal_betas(*predictors: Band | str,
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
                         bidx=1)
-    start_method = mpc_params.get('start_method', MPC_STARTER_METHODS[0])
-    assert start_method in MPC_STARTER_METHODS
+    start_method = mpc_params.get('start_method', None)
     view_size = mpc_params.get('view_size')
     nbr_cpus = mpc_params.get('nbrcpu', cpu_count() - 1)
     src_profile = response.source.import_profile()
@@ -2552,7 +2539,7 @@ def get_optimal_betas(*predictors: Band | str,
     if verbose:
         print(f"using {nbr_cpus=}")
 
-    with get_context(start_method).Pool(nbr_cpus) as pool:
+    with get_or_set_context(start_method).Pool(nbr_cpus) as pool:
         # start the aggregation step
         matrix_aggregator = pool.apply_async(
             combine_matrices,
@@ -3007,14 +2994,13 @@ def calculate_rmse(response: str | Band,
 
     manager = Manager()
     ssr_parts = manager.list()
-    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
-    assert start_method in MPC_STARTER_METHODS
+    start_method = params.get('start_method', None)
 
     # get number of cpu's
     nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
-    with get_context(start_method).Pool(nbr_cpus) as pool:
+    with get_or_set_context(start_method).Pool(nbr_cpus) as pool:
 
         # start the block calculation processing
         all_jobs = []
@@ -3122,14 +3108,13 @@ def calculate_r2(response: str | Band,
     manager = Manager()
     ssr_parts = manager.list()
     sst_parts = manager.list()
-    start_method = params.get('start_method', MPC_STARTER_METHODS[0])
-    assert start_method in MPC_STARTER_METHODS
+    start_method = params.get('start_method', None)
 
     # get number of cpu's
     nbr_cpus = params.pop('nbrcpu', cpu_count() - 1)
     if verbose:
         print(f"using {nbr_cpus=}")
-    with get_context(start_method).Pool(nbr_cpus) as pool:
+    with get_or_set_context(start_method).Pool(nbr_cpus) as pool:
 
         # start the block calculation processing
         all_jobs = []
