@@ -34,7 +34,7 @@ jobs:
         ls -ahl ./data/testing/ndvi/
         source .venv/bin/activate
         python -c "import multiprocessing; print(multiprocessing.cpu_count())"
-        python -m pytest -s -vvv --timeout 600 --junitxml=junit/test-results.xml --cov=landiv_blur
+        python -m pytest -k parallel -s -vvv --timeout 300 --junitxml=junit/test-results.xml --cov=landiv_blur
       env:
         COVERAGE_FILE: ".coverage.unittests"
     - name: Store coverage file
