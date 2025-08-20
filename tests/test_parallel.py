@@ -99,7 +99,7 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
         manager = mproc.Manager()
         blur_q = manager.Queue()
         # get number of cpu's
-        nbr_cpus = mproc.cpu_count() - 1
+        nbr_cpus = mproc.cpu_count()
         pool = set_mpc_strategy.Pool(nbr_cpus)
         # start the blurred category writer task
         blur_combiner = pool.apply_async(
@@ -246,7 +246,7 @@ def test_entropy_recombination(datafiles, set_mpc_strategy):
         manager = mproc.Manager()
         entropy_q = manager.Queue()
         # get number of cpu's
-        nbr_cpus = mproc.cpu_count() - 1
+        nbr_cpus = mproc.cpu_count()
         # print(f"using {nbr_cpus=}")
         pool = set_mpc_strategy.Pool(nbr_cpus)
         # start the blurred category writer task
@@ -539,7 +539,7 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     # start the processes 
     manager = mproc.Manager()
     output_q = manager.Queue()
-    nbr_cpus = mproc.cpu_count() - 1
+    nbr_cpus = mproc.cpu_count()
     # print(f"using {nbr_cpus=}")
     pool = set_mpc_strategy.Pool(nbr_cpus)
     # start the aggregation step
@@ -686,7 +686,7 @@ def test_entropy_2_step(datafiles):
         filter_params.update(dict(preserve_range=True))
         _ = filter_params.pop('diameter')
         # get number of cpu's
-        nbr_cpus = mproc.cpu_count() - 1
+        nbr_cpus = mproc.cpu_count()
         # print(f"using {nbr_cpus=}")
 
         # ###
