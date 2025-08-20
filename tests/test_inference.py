@@ -2,6 +2,7 @@ import pytest
 
 import numpy as np
 import rasterio as rio
+import multiprocessing as mpc
 from numpy.random import Generator, PCG64
 # from memory_profiler import profile as mem_profile
 from skimage.filters import gaussian
@@ -18,11 +19,11 @@ from landiv_blur import parallel as lbpara
 from landiv_blur import inference as lbinf
 from landiv_blur.filters import gaussian as lbf_gauss
 
-from .conftest import ALL_MAPS, get_file
+from .conftest import ALL_MAPS, get_file, set_mpc_strategy
 
 
 @ALL_MAPS
-def test_preparation(datafiles, create_blurred_tif):
+def test_preparation(datafiles, create_blurred_tif, set_mpc_strategy):
     """Test the preparation of predictors based on a response matrix
     """
     test_data = list(datafiles.iterdir())
@@ -198,7 +199,14 @@ def test_extra_masking_band(datafiles, create_blurred_tif):
     lbio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
     blurred_source = lbio_.Source(path=create_blurred_tif)
     # set the mask
-    lbpara.compute_mask(source=blurred_source, block_size=(500, 500), nodata=0, logic='all')
+    nbrcpu = mpc.cpu_count()
+    lbpara.compute_mask(source=blurred_source,
+                        block_size=(500, 500),
+                        nodata=0,
+                        logic='all',
+                        nbrcpu = nbrcpu,
+                        start_method = lbpara.MPC_STARTER_METHODS[1]  # use fork
+                        )
     # create the inputs
     response = lbio_.Band(source=lbio_.Source(path=ndvi_map))
     predictors = blurred_source.get_bands()
