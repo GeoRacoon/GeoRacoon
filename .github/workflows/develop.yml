@@ -33,6 +33,7 @@ jobs:
       run: |
         ls -ahl ./data/testing/ndvi/
         source .venv/bin/activate
+        python -c "import multiprocessing; print(multiprocessing.cpu_count())"
         python -m pytest -s -vvv -k test_preparation --timeout 300  --cov=landiv_blur
         coverage xml --include=src/**
     
