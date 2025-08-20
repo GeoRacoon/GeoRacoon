@@ -11,8 +11,8 @@ from landiv_blur.prepare import get_blur_params
 from landiv_blur.parallel import (
     extract_categories,
     compute_mask,
-    MPC_STARTER_METHODS
 )
+from landiv_blur.helper import get_or_set_context
 from landiv_blur.io_ import Source, Band
 from landiv_blur.filters.gaussian import gaussian
 
@@ -36,6 +36,12 @@ def get_file(pattern:str, datafiles):
     if len(matching_files) != 1:
         raise ValueError(f"Found multiple files matching this {pattern=}:\n{matching_files}")
     return matching_files[0]
+
+
+@pytest.fixture(scope="session")  # use session since all run on same OS
+def set_mpc_strategy():
+    _ = get_or_set_context(method='fork')
+
 
 
 def get_example_data(bands=1, size=(240, 180)):
@@ -109,7 +115,6 @@ def create_blurred_tif(datafiles):
         block_size=(500, 500),
         compress = True,
         nbrcpu = nbrcpu,
-        start_method = MPC_STARTER_METHODS[1]  # use fork instead of spawn
     )
     blurr_source = Source(path=blurred_tif)
     # compute the mask
@@ -118,7 +123,6 @@ def create_blurred_tif(datafiles):
                  block_size=view_size,
                  logic='all',
                  nbrcpu = nbrcpu,
-                 start_method = MPC_STARTER_METHODS[1]  # use fork
                  )
     # ###
     return blurred_tif
@@ -159,7 +163,6 @@ def create_blurred_tif_float(datafiles):
         block_size=(500, 500),
         compress = True,
         nbrcpu = nbrcpu,
-        start_method = MPC_STARTER_METHODS[1]  # use fork instead of spawn
     )
     blurr_source = Source(path=blurred_tif)
     # compute the mask
@@ -168,7 +171,6 @@ def create_blurred_tif_float(datafiles):
                  block_size=view_size,
                  logic='all',
                  nbrcpu = nbrcpu,
-                 start_method = MPC_STARTER_METHODS[1]  # use fork
                  )
     # ###
     print(f"{blurr_source.import_profile()=}")
