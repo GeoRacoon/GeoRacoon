@@ -3,6 +3,8 @@ import pytest
 import glob
 
 import numpy as np
+import multiprocessing as mp
+
 from rasterio.transform import Affine
 
 from landiv_blur.prepare import get_blur_params
@@ -129,6 +131,8 @@ def create_blurred_tif_float(datafiles):
     filter_params = blur_params.copy()
     filter_params['preserve_range'] = False
     _ = filter_params.pop('diameter')
+    # get the number of available cpus
+    nbrcpu = mp.cpu_count()
     blurred_tif = extract_categories(
         source=lct_source,
         categories=[1,3,4,5,6],
@@ -141,7 +145,8 @@ def create_blurred_tif_float(datafiles):
             output_range=(0, 1),
         ),
         block_size=(500, 500),
-        compress = True
+        compress = True,
+        nbrcpu = nbrcpu,
     )
     blurr_source = Source(path=blurred_tif)
     # compute the mask
