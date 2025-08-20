@@ -110,41 +110,43 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
 
     current = mpc.get_start_method(allow_none=True)
 
+    _context = None
     if method is None:
         if current is not None:
-            return mpc.get_context(current)
+            _context = mpc.get_context(current)
         else:
             warnings.warn(
                 "No multiprocessing start method set "
                 f"— defaulting to '{default_method}'.",
                 RuntimeWarning
             )
-            return mpc.get_context(default_method)
-
+            _context = mpc.get_context(default_method)
     # method is provided
     elif current is None:  # method is not None but current is None
         # try to set globally (best-effort)
         try:
             mpc.set_start_method(method)  # set starting method
-            return mpc.get_context(method)
+            _context = mpc.get_context(method)
         except RuntimeError:
             # concurrent set; fall back to context for requested method
             warnings.warn(
                 "Race when setting start method; returning requested context.",
                 RuntimeWarning)
-            return mpc.get_context(method)
+            _context = mpc.get_context(method)
 
     # current is not None
     if current == method:
-        return mpc.get_context(method)
-
-    # different method already set: cannot overwrite global method in-process.
-    warnings.warn(
-        f"Global start method already set to {current!r}; returning context for requested method {method!r}. "
-        "Global start method is not changed.",
-        RuntimeWarning
-    )
-    return mpc.get_context(method)
+        _context = mpc.get_context(current)
+    else:
+        # different method already set: cannot overwrite global method in-process.
+        warnings.warn(
+            f"Global start method already set to {current!r}; returning context for requested method {method!r}. "
+            "Global start method is not changed.",
+            RuntimeWarning
+        )
+        _context = mpc.get_context(method)
+    print(f"{_context=}")
+    return _context
 
 
 def serialize(tags:dict[str,Any])->dict[str,str]:
