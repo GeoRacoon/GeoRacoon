@@ -188,7 +188,7 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif):
     np.testing.assert_allclose(tpX, transprodX, rtol=1e-05)
 
 @ALL_MAPS
-def test_extra_masking_band(datafiles, create_blurred_tif):
+def test_extra_masking_band(datafiles, create_blurred_tif, set_mpc_strategy):
     """Assert that the extra masking band is included correctly
     """
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
@@ -205,7 +205,6 @@ def test_extra_masking_band(datafiles, create_blurred_tif):
                         nodata=0,
                         logic='all',
                         nbrcpu = nbrcpu,
-                        start_method = lbpara.MPC_STARTER_METHODS[1]  # use fork
                         )
     # create the inputs
     response = lbio_.Band(source=lbio_.Source(path=ndvi_map))
