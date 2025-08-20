@@ -40,7 +40,7 @@ def get_file(pattern:str, datafiles):
 
 @pytest.fixture(scope="session")  # use session since all run on same OS
 def set_mpc_strategy():
-    _ = get_or_set_context(method='fork')
+    return get_or_set_context(method='fork')
 
 
 
