@@ -141,7 +141,8 @@ def test_optimal_weights_example_data(datafiles, create_blurred_tif):
 
 # @mem_profile
 @ALL_MAPS
-def test_transposed_prod_example_data(datafiles, create_blurred_tif):
+def test_transposed_prod_example_data(datafiles, create_blurred_tif,
+                                      set_mpc_strategy):
     """Calculate transposed product from the predictor matrix
     """
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)

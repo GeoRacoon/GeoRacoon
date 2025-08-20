@@ -19,13 +19,13 @@ from landiv_blur import parallel as lbpara
 from landiv_blur.filters import gaussian as lbf_gauss
 from landiv_blur.helper import rasterio_to_numpy_dtype
 
-from .conftest import ALL_MAPS, get_file
+from .conftest import ALL_MAPS, get_file, set_mpc_strategy
 
 from matplotlib import pyplot as plt
 
 
 @ALL_MAPS
-def test_blur_recombination(datafiles):
+def test_blur_recombination(datafiles, set_mpc_strategy):
     """Assert recombined blur of a band is identical to processing entire map
     """
     blur_partial = str(datafiles / 'blur_partial.tif')
@@ -155,7 +155,7 @@ def test_blur_recombination(datafiles):
 
 
 @ALL_MAPS
-def test_entropy_recombination(datafiles):
+def test_entropy_recombination(datafiles, set_mpc_strategy):
     """Assert recombined entropy map is identical to processing the entire map
     """
     # TODO: the use of get_entropy should be avoided anyways.
@@ -304,7 +304,8 @@ def test_entropy_recombination(datafiles):
         )
 
 @ALL_MAPS
-def test_prepare_selector_parallel(datafiles, create_blurred_tif):
+def test_prepare_selector_parallel(datafiles, create_blurred_tif,
+                                   set_mpc_strategy):
     """`parallel.prepare_selector` is equivalent to `inference.prepare_selector`
     """
     block_size = (500, 500)
@@ -373,7 +374,7 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
     np.testing.assert_equal(selector,selector_para)
 
 @ALL_MAPS
-def test_extract_categories(datafiles):
+def test_extract_categories(datafiles, set_mpc_strategy):
     """Make sure the extract categories works as expected
     """
     verbose = True
@@ -457,7 +458,7 @@ def test_extract_categories(datafiles):
 
 
 @ALL_MAPS
-def test_parallel_transposed_prod(datafiles):
+def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     """Calculate the transposed product of a predictor matrix
     """
     verbose = True
@@ -579,7 +580,8 @@ def test_parallel_transposed_prod(datafiles):
 
 
 @ALL_MAPS
-def test_parallel_optimal_weights(datafiles, create_blurred_tif):
+def test_parallel_optimal_weights(datafiles, create_blurred_tif,
+                                  set_mpc_strategy):
     """Calculate the transposed product of a predictor matrix
     """
     as_dtype = np.float64
@@ -646,7 +648,7 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
 
 
 @ALL_MAPS
-def test_entropy_2_step(datafiles):
+def test_entropy_2_step(datafiles, set_mpc_strategy):
     """Assert that the 2 step approach (blur->entropy) yields identical results
     """
     dtype_tests = {"uint8": (0, 255),
@@ -824,7 +826,7 @@ def test_entropy_2_step(datafiles):
         )
 
 @ALL_MAPS
-def test_reduced_mask(datafiles):
+def test_reduced_mask(datafiles, set_mpc_strategy):
     """Compute a mask from multiple bands in one go and then in parallel
     """
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
@@ -871,7 +873,8 @@ def test_reduced_mask(datafiles):
 
 
 @ALL_MAPS
-def test_selector_computation(datafiles, create_blurred_tif):
+def test_selector_computation(datafiles, create_blurred_tif,
+                              set_mpc_strategy):
     """Compare the selector generation in parallel to the full one
     """
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
@@ -907,7 +910,7 @@ def test_selector_computation(datafiles, create_blurred_tif):
     np.testing.assert_equal(selector_full, selector_para)
 
 @ALL_MAPS
-def test_apply_filter(datafiles):
+def test_apply_filter(datafiles, set_mpc_strategy):
     """Test the parallel application of a filter to one or serveral bands
     """
     blur_para = str(datafiles / 'blur_para.tif')
@@ -977,7 +980,8 @@ def test_apply_filter(datafiles):
         np.testing.assert_equal(b_twostep.get_data(), b_single.get_data())
 
 @ALL_MAPS
-def test_interaction_parallel_computation(datafiles, create_blurred_tif):
+def test_interaction_parallel_computation(datafiles, create_blurred_tif,
+                                          set_mpc_strategy):
     """Compare whether parallel and single compute_interaction give the same result
     TODO: only tested for n=2 (test more)
     """
@@ -1015,7 +1019,8 @@ def test_interaction_parallel_computation(datafiles, create_blurred_tif):
         np.testing.assert_array_equal(para_interaction_data, interaction_data)
 
 @ALL_MAPS
-def test_get_XT_X_dependency(datafiles, create_blurred_tif):
+def test_get_XT_X_dependency(datafiles, create_blurred_tif,
+                             set_mpc_strategy):
     """Test wether rank deficiency is captured when layers would be linear dependent
     """
     blur_source = lbio_.Source(path=create_blurred_tif)
@@ -1046,7 +1051,8 @@ def test_get_XT_X_dependency(datafiles, create_blurred_tif):
 
 
 @ALL_MAPS
-def test_compute_weights(datafiles, create_blurred_tif):
+def test_compute_weights(datafiles, create_blurred_tif,
+                         set_mpc_strategy):
     """Test compute weights for different issues:
         1) normal
         2) with rank deficiency and all zero column
@@ -1100,7 +1106,8 @@ def test_compute_weights(datafiles, create_blurred_tif):
 
 
 @ALL_MAPS
-def test_model_output(datafiles, create_blurred_tif):
+def test_model_output(datafiles, create_blurred_tif,
+                      set_mpc_strategy):
     """Test the parallelized model prediction calculation.
     """
     as_dtype = 'float32'
@@ -1151,7 +1158,8 @@ def test_model_output(datafiles, create_blurred_tif):
 
 
 @ALL_MAPS
-def test_calculate_rmse(datafiles, create_blurred_tif):
+def test_calculate_rmse(datafiles, create_blurred_tif,
+                        set_mpc_strategy):
     """Test the parallelized RSME calculation.
       """
     block_size = (500, 500)
