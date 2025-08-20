@@ -8,7 +8,11 @@ import multiprocessing as mp
 from rasterio.transform import Affine
 
 from landiv_blur.prepare import get_blur_params
-from landiv_blur.parallel import extract_categories, compute_mask
+from landiv_blur.parallel import (
+    extract_categories,
+    compute_mask,
+    MPC_STARTER_METHODS
+)
 from landiv_blur.io_ import Source, Band
 from landiv_blur.filters.gaussian import gaussian
 
@@ -147,6 +151,7 @@ def create_blurred_tif_float(datafiles):
         block_size=(500, 500),
         compress = True,
         nbrcpu = nbrcpu,
+        start_method = MPC_STARTER_METHODS[1]  # use fork instead of spawn
     )
     blurr_source = Source(path=blurred_tif)
     # compute the mask
