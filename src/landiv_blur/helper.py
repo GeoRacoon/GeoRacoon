@@ -147,6 +147,8 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
                 pass
         else:  # global is set local in None > use global (_context)
             pass
+    print(f"{mpc.get_start_method()=}")
+    print(f"{_context=}")
     return mpc.get_context(_context)
 
 
