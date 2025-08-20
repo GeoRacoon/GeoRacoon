@@ -26,9 +26,10 @@ def test_preparation(datafiles, create_blurred_tif):
     """Test the preparation of predictors based on a response matrix
     """
     test_data = list(datafiles.iterdir())
+    print(f"{test_data=}")
     _landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    # print(f"{test_data=}")
+    print(f"{ndvi_map=}")
 
     landcover_map = str(datafiles / 'lct_coreged.tif')
     lbio.coregister_raster(_landcover_map, ndvi_map, output=landcover_map)
