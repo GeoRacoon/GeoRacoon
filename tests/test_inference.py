@@ -156,7 +156,12 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif,
     ndvi_source = lbio_.Source(path=ndvi_map)
     blurred_source = lbio_.Source(path=create_blurred_tif)
     # set the mask
-    lbpara.compute_mask(source=blurred_source, block_size=(500, 500), nodata=0, logic='all')
+    nbrcpu = mpc.cpu_count()
+    lbpara.compute_mask(source=blurred_source,
+                        block_size=(500, 500),
+                        nodata=0,
+                        logic='all',
+                        nbrcpu=nbrcpu)
     # create the inputs
     response = lbio_.Band(source=lbio_.Source(path=ndvi_map))
     predictors = blurred_source.get_bands()
