@@ -104,7 +104,7 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
     # usedin_both (potentially any usage of mpc)
 
     allowed = MPC_STARTER_METHODS + [None,]
-    default_method = MPC_STARTER_METHODS[0]
+    default_method = MPC_STARTER_METHODS[1]  # default is 'fork'
     if method not in allowed:
         raise ValueError(f"Unsupported start method: {method!r}")
 
