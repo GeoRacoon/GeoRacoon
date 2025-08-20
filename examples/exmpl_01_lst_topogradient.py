@@ -138,7 +138,7 @@ def main():
     # Again we are interested in the deviation of elevation from the regional determining elevation
 
     # Initate empty file again
-    elev_conv_file = os.path.join(base_dir, f"../data/example/elev_conv_{kernel_m_sigma}m_alps.tif")
+    elev_conv_file = os.path.join(base_dir, f"../data/example/_tmp_elev_conv_{kernel_m_sigma}m_alps.tif")
     elev_conv_source = Source(path=elev_conv_file,
                                    profile=topo_profile)
     elev_conv_source.init_source(overwrite=True)
