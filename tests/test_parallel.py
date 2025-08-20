@@ -483,6 +483,7 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
     filter_params = blur_params.copy()
     _ = filter_params.pop('diameter')
+    print(mproc.get_start_method(allow_none=True))
     blurred_tif = lbpara.extract_categories(
         source=lct_source,
         categories=[1,2,3,4,5],
