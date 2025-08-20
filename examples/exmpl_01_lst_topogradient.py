@@ -28,9 +28,9 @@ from landiv_blur import filters as ldfilter
 # Parameters
 base_dir = os.path.dirname(__file__)
 lst_file_org = os.path.join(base_dir, "../data/example/lst_day_mean_summer_2015_MODISLST8D_alps.tif")
-# lct_file = os.path.join(base_dir, "../data/example/lc_frac_plots_cgls2015_alps.tif")
 topo_file_org = os.path.join(base_dir, "../data/example/elevation_mean_COP90_alps.tif")
-count_file = os.path.join(base_dir, "../data/example/countries_alps.tif")
+# lct_file = os.path.join(base_dir, "../data/example/lc_frac_plots_cgls2015_alps.tif")
+# count_file = os.path.join(base_dir, "../data/example/countries_alps.tif")
 
 params = dict(nbrcpu=6)
 block_size = (200, 200)
