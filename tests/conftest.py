@@ -95,6 +95,7 @@ def create_blurred_tif(datafiles):
     filter_params = blur_params.copy()
     filter_params['preserve_range'] = False
     _ = filter_params.pop('diameter')
+    nbrcpu = mp.cpu_count()
     blurred_tif = extract_categories(
         source=lct_source,
         categories=[1,3,4,5,6],
@@ -106,7 +107,9 @@ def create_blurred_tif(datafiles):
             as_dtype=as_dtype,
         ),
         block_size=(500, 500),
-        compress = True
+        compress = True,
+        nbrcpu = nbrcpu,
+        start_method = MPC_STARTER_METHODS[1]  # use fork instead of spawn
     )
     blurr_source = Source(path=blurred_tif)
     # compute the mask
