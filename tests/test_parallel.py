@@ -497,10 +497,7 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     blurr_source = lbio_.Source(path=blurred_tif)
     # compute the mask
     view_size = (500, 400)
-    lbpara.compute_mask(source=blurr_source,
-                        block_size=view_size,
-                        logic='all',
-                        start_method='fork')
+    lbpara.compute_mask(source=blurr_source, block_size=view_size, logic='all')
     # ###
     predictors = blurr_source.get_bands()
     # use the dataset mask
