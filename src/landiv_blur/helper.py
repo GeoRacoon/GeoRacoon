@@ -31,17 +31,18 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
     Return a multiprocessing context and set the global start method if unset.
 
     The function tries to be conservative about changing global interpreter state:
-    - If `method` is None, it returns a context for the currently configured global
-      start method when one exists; otherwise it warns and returns a context for
-      a sensible default.
+    - If `method` is None, it returns a context for the currently configured
+      global start method when one exists; otherwise it warns and returns a
+      context for a sensible default ('spawn' is used to establish
+      compatibility with windows).
     - If `method` is provided and no global start method is set, it attempts to
-      set the global start method to `method`. If that attempt races with another
-      thread/process, it falls back to returning a context for `method` without
-      changing the global start method.
-    - If `method` is provided and a different global start method is already set,
-      the global start method is not changed; a warning is emitted and a context
-      for the requested `method` is returned so callers can still create objects
-      using the requested start semantics.
+      set the global start method to `method`. If that attempt races with
+      another thread/process, it falls back to returning a context for `method`
+      without changing the global start method.
+    - If `method` is provided and a different global start method is already
+      set, the global start method is not changed; a warning is emitted and a
+      context for the requested `method` is returned so callers can still
+      create objects using the requested start semantics.
     
     Parameters
     ----------
@@ -51,7 +52,7 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
         - return a context for the currently configured global start method if
           one exists, or
         - emit a ``RuntimeWarning`` and return a context for the configured
-          default method (``default_method``) if no global method is set.
+          default method (``spawn``) if no global method is set.
         Valid explicit values are ``'fork'``, ``'spawn'`` and ``'forkserver'``
         (availability depends on the platform and Python build). Passing an
         unsupported value raises ``ValueError``.
@@ -104,49 +105,49 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
     # usedin_both (potentially any usage of mpc)
 
     allowed = MPC_STARTER_METHODS + [None,]
-    default_method = MPC_STARTER_METHODS[1]  # default is 'fork'
+    default_method = MPC_STARTER_METHODS[0]  # default is 'spawn'
     if method not in allowed:
         raise ValueError(f"Unsupported start method: {method!r}")
 
-    current = mpc.get_start_method(allow_none=True)
+    # get the current context
+    _context= mpc.get_start_method(allow_none=True)
 
-    _context = None
-    if method is None:
-        if current is not None:
-            _context = mpc.get_context(current)
-        else:
+    if _context is None:
+        # if method is not None, set the global method and the current context
+        if method is not None:
+            try:
+                mpc.set_start_method(method)  # set starting method
+            except RuntimeError:
+                # concurrent set; warn and ignore the global context
+                warnings.warn(
+                    "Race when setting start method; returning requested context.",
+                    RuntimeWarning)
+            finally:
+                _context = method
+        else:  # both the gloabl context and method are None:
+            # avoid setting the global context, only set locally
             warnings.warn(
-                "No multiprocessing start method set "
-                f"— defaulting to '{default_method}'.",
+                "No multiprocessing start method set and no global either"
+                f"— defaulting to local context only with '{default_method}'.",
                 RuntimeWarning
             )
-            _context = mpc.get_context(default_method)
-    # method is provided
-    elif current is None:  # method is not None but current is None
-        # try to set globally (best-effort)
-        try:
-            mpc.set_start_method(method)  # set starting method
-            _context = mpc.get_context(method)
-        except RuntimeError:
-            # concurrent set; fall back to context for requested method
-            warnings.warn(
-                "Race when setting start method; returning requested context.",
-                RuntimeWarning)
-            _context = mpc.get_context(method)
-
-    # current is not None
-    if current == method:
-        _context = mpc.get_context(current)
-    else:
-        # different method already set: cannot overwrite global method in-process.
-        warnings.warn(
-            f"Global start method already set to {current!r}; returning context for requested method {method!r}. "
-            "Global start method is not changed.",
-            RuntimeWarning
-        )
-        _context = mpc.get_context(method)
-    print(f"{_context=}")
-    return _context
+            _context = default_method
+    else:  # global context is set already
+        if method is not None:
+            if method != _context:
+                warnings.warn(
+                    f"Global multiprocessing start method is '{_context}'"
+                    f" but requested context is '{method}'"
+                    f"— using local context only with '{method}'"
+                    "keeping the global unchanged.",
+                    RuntimeWarning
+                )
+                _context = method
+            else:  # simply use _context
+                pass
+        else:  # global is set local in None > use global (_context)
+            pass
+    return mpc.get_context(_context)
 
 
 def serialize(tags:dict[str,Any])->dict[str,str]:
