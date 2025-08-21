@@ -20,7 +20,13 @@
 
 import os
 import shutil
+from unicodedata import category
+
 import numpy as np
+import rasterio as rio
+from matplotlib import pyplot as plt
+
+# Our package(s)
 from landiv_blur.io_ import Source, Band
 from landiv_blur import parallel as ldpara
 from landiv_blur import filters as ldfilter
@@ -139,8 +145,7 @@ def main():
 
     # Initate empty file again
     elev_conv_file = os.path.join(base_dir, f"../data/example/_tmp_elev_conv_{kernel_m_sigma}m_alps.tif")
-    elev_conv_source = Source(path=elev_conv_file,
-                                   profile=topo_profile)
+    elev_conv_source = Source(path=elev_conv_file, profile=topo_profile)
     elev_conv_source.init_source(overwrite=True)
     elev_conv_band = Band(elev_conv_source, bidx=1)
 
@@ -299,6 +304,19 @@ def main():
     print(" - "*20, end="\n")
     print(f"Overall {rmse=:.2f} | {r2=:.2f}")
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    # 4.3 Residuals
+    # TODO: it would be nice to add the residuals as an extra band directly to the model tiff.
+    # This is not implementable yet, as there will be now second band created when out_band is used,
+    # We can think about doing this --> for now I just create a new file
+    resid_file = os.path.join(base_dir, f"../data/example/_tmp_resid_model_conv_{kernel_m_sigma}_m.tif")
+    resid_source = Source(path=resid_file, profile=lst_profile)
+    resid_source.init_source(overwrite=True)
+    resid_band = Band(source=resid_source, bidx=1)
+
+    # Residual calculation
+    lst_org_band.subtract(band=model_band,
+                          out_band=resid_band)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # 5. Lapse Rate results (model weights)
@@ -313,10 +331,46 @@ def main():
           "\t In the European Alps (a study in northern Italy), found the annual rate to range between -5.4 to -5.8°C per year.\n"
           "\t (Source: https://doi.org/10.1175/1520-0442(2003)016%3C1032:SASVOA%3E2.0.CO;2")
 
+
     # for f in [model_file, lst_file, topo_file]:
     #     if os.path.exists(f):
     #         os.remove(f)
 
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    # 6. Plotting results
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    # Set up plot
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 6))
+    axes = axes.flatten()
+
+    # function making later plotting more neat and easy
+    def plot_map(file: str, ax_n: int, title: str, limits: tuple, bidx=1) -> None:
+        src = rio.open(file)
+        data = src.read(bidx)
+        ax = axes[ax_n]
+        ax.set_axis_off()
+        img = ax.imshow(data, cmap="RdBu_r", vmin=limits[0], vmax=limits[1])
+        ax.set_title(title)
+        fig.colorbar(img, ax=ax, label="°C", shrink=0.4)
+
+    # LST original
+    plot_map(file=lst_file_org, ax_n=0, title="Land Surface Temperature (LST)", limits=(0, 50))
+
+    # LST Convolution
+    plot_map(file=lst_conv_file, ax_n=1, title="LST Convolution", limits=(0, 50))
+
+    # Model Full
+    plot_map(file=model_file, ax_n=2, title="Complete Model (Conv + Lapse Rate)", limits=(0, 50))
+
+    # Residuals
+    plot_map(file=resid_file, ax_n=3, title="Residuals", limits=(-10, 10))
+
+    fig.savefig(os.path.join(base_dir, "exmpl_01_results_plot.pdf"), format="pdf",
+                bbox_inches="tight")
+    plt.show()
+
+
 if __name__ == '__main__':
     main()
