@@ -26,6 +26,24 @@ from typing import Optional
 
 MPC_STARTER_METHODS = ['spawn', 'fork', 'forkserver']
 
+def get_nbr_workers(number:Optional[int]=None, min_count:int=2)->int:
+    """
+    """
+    if number is None:
+        _use = max(min_count, mpc.cpu_count())  # assert the min. count
+    elif number <= min_count:
+        warnings.warn(
+            message=f"For this routine to work properly at least {min_count} "
+                    f"workers are required - the requersted {number} are not "
+                    "enough and thus the request will be ignored.",
+            category=RuntimeWarning
+        )
+        _use = min_count
+    else:
+        _use = int(number)
+    return _use
+
+    return None
 def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseContext:
     """
     Return a multiprocessing context and set the global start method if unset.
