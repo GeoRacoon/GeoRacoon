@@ -315,8 +315,14 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
     ndvi_map = str(datafiles / 'lct_coreged.tif')
     lbio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
     blurred_source = lbio_.Source(path=create_blurred_tif)
+    nbrcpu = mproc.cpu_count()
     # set the mask
-    lbpara.compute_mask(source=blurred_source, block_size=block_size, nodata=0, logic='all')
+    lbpara.compute_mask(source=blurred_source,
+                        block_size=block_size,
+                        nodata=0,
+                        logic='all',
+                        nbrcpu=nbrcpu,
+                        )
     # create the inputs
     response = lbio_.Band(source=lbio_.Source(path=ndvi_map))
     predictors = blurred_source.get_bands()
@@ -332,6 +338,7 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
         response,
         *predictors,
         block_size=block_size,
+        nbrcpu=nbrcpu,
     )
     np.testing.assert_equal(selector_wo, selector_parallel_wo)
     # Create extra masking band
@@ -356,6 +363,7 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
         *predictors,
         block_size=block_size,
         extra_masking_band=extra_masking_band,
+        nbrcpu=nbrcpu,
     )
     np.testing.assert_equal(selector, selector_parallel)
     # extra mask none and check that it has no influence
@@ -364,12 +372,15 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
     selector = lbinf.prepare_selector(
         response,
         *predictors,
-        extra_masking_band=extra_masking_band)
+        extra_masking_band=extra_masking_band,
+        )
     selector_para = lbpara.prepare_selector(
         response,
         *predictors,
         block_size=block_size,
-        extra_masking_band=extra_masking_band)
+        extra_masking_band=extra_masking_band,
+        nbrcpu=nbrcpu,
+        )
     np.testing.assert_equal(selector,selector_para)
 
 @ALL_MAPS
@@ -385,6 +396,7 @@ def test_extract_categories(datafiles):
     # extract categories without applying a filter
     to_dtype="uint8"
     categories = [1,2,3,4,5]
+    nbrcpu = mproc.cpu_count()
     category_tif = lbpara.extract_categories(
         source=lct_source,
         categories=categories,
@@ -396,6 +408,7 @@ def test_extract_categories(datafiles):
             nodata=0,
             dtype=to_dtype
         ),
+        nbrcpu=nbrcpu,
     )
     category_source = lbio_.Source(category_tif)
     assert len(category_source.get_bands()) == len(categories)
@@ -446,6 +459,7 @@ def test_extract_categories(datafiles):
                 nodata=nodata,
                 dtype=to_dtype
             ),
+            nbrcpu=nbrcpu,
         )
         out_source = lbio_.Source(path=blurred_tif)
         out_profile = out_source.import_profile()
