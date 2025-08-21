@@ -3,7 +3,6 @@ import pytest
 import glob
 
 import numpy as np
-import multiprocessing as mp
 
 from rasterio.transform import Affine
 
@@ -12,7 +11,7 @@ from landiv_blur.parallel import (
     extract_categories,
     compute_mask,
 )
-from landiv_blur.helper import get_or_set_context
+from landiv_blur.helper import get_or_set_context, get_nbr_workers
 from landiv_blur.io_ import Source, Band
 from landiv_blur.filters.gaussian import gaussian
 
@@ -101,7 +100,6 @@ def create_blurred_tif(datafiles):
     filter_params = blur_params.copy()
     filter_params['preserve_range'] = False
     _ = filter_params.pop('diameter')
-    nbrcpu = mp.cpu_count()
     blurred_tif = extract_categories(
         source=lct_source,
         categories=[1,3,4,5,6],
@@ -114,16 +112,11 @@ def create_blurred_tif(datafiles):
         ),
         block_size=(500, 500),
         compress = True,
-        nbrcpu = nbrcpu,
     )
     blurr_source = Source(path=blurred_tif)
     # compute the mask
     view_size = (500, 400)
-    compute_mask(source=blurr_source,
-                 block_size=view_size,
-                 logic='all',
-                 nbrcpu = nbrcpu,
-                 )
+    compute_mask(source=blurr_source, block_size=view_size, logic='all')
     # ###
     return blurred_tif
 
@@ -147,8 +140,6 @@ def create_blurred_tif_float(datafiles):
     filter_params = blur_params.copy()
     filter_params['preserve_range'] = False
     _ = filter_params.pop('diameter')
-    # get the number of available cpus
-    nbrcpu = mp.cpu_count()
     blurred_tif = extract_categories(
         source=lct_source,
         categories=[1,3,4,5,6],
@@ -162,16 +153,11 @@ def create_blurred_tif_float(datafiles):
         ),
         block_size=(500, 500),
         compress = True,
-        nbrcpu = nbrcpu,
     )
     blurr_source = Source(path=blurred_tif)
     # compute the mask
     view_size = (500, 400)
-    compute_mask(source=blurr_source,
-                 block_size=view_size,
-                 logic='all',
-                 nbrcpu = nbrcpu,
-                 )
+    compute_mask(source=blurr_source, block_size=view_size, logic='all')
     # ###
     print(f"{blurr_source.import_profile()=}")
     return blurred_tif

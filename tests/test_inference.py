@@ -2,7 +2,6 @@ import pytest
 
 import numpy as np
 import rasterio as rio
-import multiprocessing as mpc
 from numpy.random import Generator, PCG64
 # from memory_profiler import profile as mem_profile
 from skimage.filters import gaussian
@@ -156,12 +155,10 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif,
     ndvi_source = lbio_.Source(path=ndvi_map)
     blurred_source = lbio_.Source(path=create_blurred_tif)
     # set the mask
-    nbrcpu = mpc.cpu_count()
     lbpara.compute_mask(source=blurred_source,
                         block_size=(500, 500),
                         nodata=0,
-                        logic='all',
-                        nbrcpu=nbrcpu)
+                        logic='all')
     # create the inputs
     response = lbio_.Band(source=lbio_.Source(path=ndvi_map))
     predictors = blurred_source.get_bands()
@@ -205,13 +202,10 @@ def test_extra_masking_band(datafiles, create_blurred_tif, set_mpc_strategy):
     lbio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
     blurred_source = lbio_.Source(path=create_blurred_tif)
     # set the mask
-    nbrcpu = mpc.cpu_count()
     lbpara.compute_mask(source=blurred_source,
                         block_size=(500, 500),
                         nodata=0,
-                        logic='all',
-                        nbrcpu = nbrcpu,
-                        )
+                        logic='all')
     # create the inputs
     response = lbio_.Band(source=lbio_.Source(path=ndvi_map))
     predictors = blurred_source.get_bands()
