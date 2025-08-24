@@ -4,8 +4,52 @@ import json
 import os
 import pytest
 import platform
+import multiprocessing as mpc
 
-MODULE_SRC = '' 
+from landiv_blur.helper import get_nbr_workers
+
+
+def test_get_nbr_workers_sequence(monkeypatch):
+    """Test sequence for get_nbr_workers.
+    
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to patch multiprocessing.cpu_count for deterministic
+        behaviour.
+    
+    Notes
+    -----
+    This single test runs the following checks in order:
+    - number is None: uses patched cpu_count and respects min_count.
+    - number <= min_count: emits RuntimeWarning and returns min_count.
+    - number > min_count: returns the provided number as int.
+    - negative min_count: cpu_count still respected when number is None.
+    """
+    # 1) number is None -> uses cpu_count
+    monkeypatch.setattr(mpc, "cpu_count", lambda: 4)
+    assert get_nbr_workers(None) == 4
+
+    # cpu_count less than min_count -> returns min_count
+    monkeypatch.setattr(mpc, "cpu_count", lambda: 1)
+    assert get_nbr_workers(None, min_count=2) == 2
+
+    # 2) number <= min_count -> warns and returns min_count
+    monkeypatch.setattr(mpc, "cpu_count", lambda: 8)
+
+    with pytest.warns(RuntimeWarning,
+                      match='will be ignored'):
+        res = get_nbr_workers(1, min_count=2)
+        assert res == 2
+
+    # 3) number > min_count -> returns provided number (as int)
+    assert get_nbr_workers(5, min_count=2) == 5
+    assert get_nbr_workers(int(3.0), min_count=2) == 3
+
+    # 4) negative min_count handled (cpu_count used when number is None)
+    monkeypatch.setattr(mpc, "cpu_count", lambda: 2)
+    assert get_nbr_workers(None, min_count=-1) == 2
+
 
 def run_in_subprocess(pycode):
     cmd = [sys.executable, "-c", pycode]
