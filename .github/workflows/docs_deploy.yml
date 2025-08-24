@@ -1,0 +1,39 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy-docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v3
+      with:
+        python-version: 3.9
+    
+    - name: Install documentation dependencies
+      run: |
+        python -m venv .venv
+        source .venv/bin/activate
+        pip install --upgrade pip
+        pip install -r docs/requirements.txt
+        pip install -e .
+    
+    - name: Generate API docs and build documentation
+      run: |
+        source .venv/bin/activate
+        sphinx-apidoc -o docs/api src/landiv_blur -f
+        sphinx-build -b html docs public
+    
+    # TODO: change to proper deployment
+    # - name: Deploy to GitHub Pages
+    #   uses: peaceiris/actions-gh-pages@v3
+    #   with:
+    #     github_token: ${{ secrets.GITHUB_TOKEN }}
+    #     publish_dir: ./public

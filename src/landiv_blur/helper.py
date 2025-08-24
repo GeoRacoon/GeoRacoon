@@ -20,6 +20,178 @@ from numpy.typing import NDArray
 
 from decimal import Decimal
 
+import multiprocessing as mpc
+from multiprocessing import context as _context_module
+from typing import Optional
+
+MPC_STARTER_METHODS = ['spawn', 'fork', 'forkserver']
+
+def get_nbr_workers(number:Optional[int]=None, min_count:int=2)->int:
+    """Determine the number of worker processes to use in mulitprocessing.
+    
+    Parameters
+    ----------
+    number : int or None, optional
+        Desired number of workers. If ``None``, the function will choose
+        the maximum of ``min_count`` and the number of CPUs available.
+    min_count : int, optional
+        Minimum allowed number of workers. If ``number`` is provided but
+        is less than or equal to ``min_count``, a ``RuntimeWarning`` is
+        issued and ``min_count`` is returned.
+    
+    Returns
+    -------
+    int
+        Number of workers to use (>= ``min_count``).
+    
+    Notes
+    -----
+    A warning is emitted when a requested ``number`` is not sufficient
+    and the request is ignored in favour of ``min_count``.
+    """
+    # is_needed
+    # no_work
+    # not_tested
+    # usedin_both (potentially)
+    if number is None:
+        _use = max(min_count, mpc.cpu_count())  # assert the min. count
+    elif number <= min_count:
+        warnings.warn(
+            message=f"For this routine to work properly at least {min_count} "
+                    f"workers are required - the requersted {number} are not "
+                    "enough and thus the request will be ignored.",
+            category=RuntimeWarning
+        )
+        _use = min_count
+    else:
+        _use = int(number)
+    return _use
+
+def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseContext:
+    """
+    Return a multiprocessing context and set the global start method if unset.
+
+    The function tries to be conservative about changing global interpreter state:
+    - If `method` is None, it returns a context for the currently configured
+      global start method when one exists; otherwise it warns and returns a
+      context for a sensible default ('spawn' is used to establish
+      compatibility with windows).
+    - If `method` is provided and no global start method is set, it attempts to
+      set the global start method to `method`. If that attempt races with
+      another thread/process, it falls back to returning a context for `method`
+      without changing the global start method.
+    - If `method` is provided and a different global start method is already
+      set, the global start method is not changed; a warning is emitted and a
+      context for the requested `method` is returned so callers can still
+      create objects using the requested start semantics.
+    
+    Parameters
+    ----------
+    method : {None, 'fork', 'spawn', 'forkserver'}, optional
+        Desired multiprocessing start method to use for the returned context.
+        If ``None`` the function will:
+        - return a context for the currently configured global start method if
+          one exists, or
+        - emit a ``RuntimeWarning`` and return a context for the configured
+          default method (``spawn``) if no global method is set.
+        Valid explicit values are ``'fork'``, ``'spawn'`` and ``'forkserver'``
+        (availability depends on the platform and Python build). Passing an
+        unsupported value raises ``ValueError``.
+    
+    Returns
+    -------
+    multiprocessing.context.BaseContext
+        A multiprocessing context object appropriate for creating
+        ``Process``, ``Pool`` and related objects. The returned context will
+        use the start method determined by the logic described above. The
+        function always returns a context and never mutates an already-set
+        global start method to a different value.
+    
+    Raises
+    ------
+    ValueError
+        If ``method`` is not one of the supported start methods or ``None``.
+    RuntimeError
+        If the function attempts to set the global start method and the call to
+        ``multiprocessing.set_start_method`` raises ``RuntimeError`` for reasons
+        other than a race (this is rare); in normal race cases the function
+        catches the ``RuntimeError`` and falls back to returning the requested
+        context.
+    
+    Notes
+    -----
+    - Calling ``multiprocessing.set_start_method`` can only be done once per
+      interpreter process. Once the global start method is set, it cannot be
+      changed without restarting the interpreter. This function therefore
+      avoids forcibly overwriting an existing different global start method.
+    - The returned context is safe to use even when the global start method
+      differs, because context objects encapsulate start semantics for the
+      created processes independently of global state.
+    - On Windows the only available start method is ``'spawn'``; on Unix-like
+      systems ``'fork'`` and ``'spawn'`` are commonly available and
+      ``'forkserver'`` may be available depending on the platform.
+    - Use this helper in library code when you need a guaranteed context but
+      do not want to unconditionally mutate global multiprocessing state.
+    
+    Examples
+    --------
+    >>> ctx = get_or_set_context('spawn')
+    >>> with ctx.Process(target=worker) as p:
+    >>>     p.start()
+    >>>     p.join()
+    """
+    # is_needed
+    # no_work
+    # is_tested
+    # usedin_both (potentially any usage of mpc)
+
+    allowed = MPC_STARTER_METHODS + [None,]
+    default_method = MPC_STARTER_METHODS[0]  # default is 'spawn'
+    if method not in allowed:
+        raise ValueError(f"Unsupported start method: {method!r}")
+
+    # get the current context
+    _context= mpc.get_start_method(allow_none=True)
+
+    if _context is None:
+        # if method is not None, set the global method and the current context
+        if method is not None:
+            try:
+                mpc.set_start_method(method)  # set starting method
+            except RuntimeError:
+                # concurrent set; warn and ignore the global context
+                warnings.warn(
+                    "Race when setting start method; returning requested context.",
+                    RuntimeWarning)
+            finally:
+                _context = method
+        else:  # both the gloabl context and method are None:
+            # avoid setting the global context, only set locally
+            warnings.warn(
+                "No multiprocessing start method set and no global either"
+                f"— defaulting to local context only with '{default_method}'.",
+                RuntimeWarning
+            )
+            _context = default_method
+    else:  # global context is set already
+        if method is not None:
+            if method != _context:
+                warnings.warn(
+                    f"Global multiprocessing start method is '{_context}'"
+                    f" but requested context is '{method}'"
+                    f"— using local context only with '{method}'"
+                    "keeping the global unchanged.",
+                    RuntimeWarning
+                )
+                _context = method
+            else:  # simply use _context
+                pass
+        else:  # global is set local in None > use global (_context)
+            pass
+    # print(f"{mpc.get_start_method()=}")
+    # print(f"{_context=}")
+    return mpc.get_context(_context)
+
 
 def serialize(tags:dict[str,Any])->dict[str,str]:
     # TODO: is_needed - no_work - not_tested - usedin_both
