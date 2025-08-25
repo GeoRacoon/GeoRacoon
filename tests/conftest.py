@@ -11,7 +11,7 @@ from landiv_blur.parallel import (
     extract_categories,
     compute_mask,
 )
-from landiv_blur.helper import get_or_set_context, get_nbr_workers
+from landiv_blur.helper import get_or_set_context
 from landiv_blur.io_ import Source, Band
 from landiv_blur.filters.gaussian import gaussian
 

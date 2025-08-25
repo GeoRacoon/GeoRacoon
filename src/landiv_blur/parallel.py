@@ -848,8 +848,7 @@ def extract_categories(source: str | Source,
     blur_q = manager.Queue()
     start_method = params.get('start_method', None)
     # get number of workers
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None),
-                                  min_count=2)
+    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
@@ -1063,8 +1062,7 @@ def apply_filter(source: str | Source,
     manager = Manager()
     blur_q = manager.Queue()
     # get number of cpu's
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None),
-                                  min_count=2)
+    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
     if verbose:
         print(f"using {nbr_workers=}")
     
@@ -1261,8 +1259,7 @@ def compute_entropy(source: str | Source,
     entropy_q = manager.Queue()
     start_method = params.get('start_method', None)
     # get number of cpu's
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None),
-                                  min_count=2)
+    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
@@ -1447,8 +1444,7 @@ def compute_interaction(source: str | Source,
     interaction_q = manager.Queue()
     start_method = params.get('start_method', None)
     # get number of workers
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None),
-                                  min_count=2)
+    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
@@ -1618,8 +1614,7 @@ def compute_model(predictors: Collection[Band],
     job_out_q = manager.Queue()
     start_method = params.get('start_method', None)
     # get number of workers
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None),
-                                  min_count=2)
+    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
@@ -1759,8 +1754,7 @@ def compute_mask(source: str | Source,
     aggr_q = manager.Queue()
     start_method = params.get('start_method', None)
     # get number of workers
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None),
-                                  min_count=2)
+    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
@@ -1867,8 +1861,7 @@ def prepare_selector(*bands: Band,
     aggr_q = manager.Queue()
     start_method = params.get('start_method', None)
     # get number of workers
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None),
-                                  min_count=2)
+    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
@@ -1985,8 +1978,7 @@ def check_predictor_consistency(predictors: Collection[Band],
         )
         job_params.append(jparams)
     start_method = params.get('start_method', None)
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None),
-                                  min_count=2)
+    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
     if verbose:
         print(f"Predictor consistency check using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
@@ -2444,8 +2436,7 @@ def get_XT_X(response: str | Band,
                         bidx=1)
     start_method = mpc_params.get('start_method', None)
     view_size = mpc_params.get('view_size')
-    nbr_workers = get_nbr_workers(number=mpc_params.get('nbrcpu', None),
-                                  min_count=2)
+    nbr_workers = get_nbr_workers(number=mpc_params.get('nbrcpu', None))
     src_profile = response.source.import_profile()
     src_width = int(src_profile.get('width'))
     src_height = int(src_profile.get('height'))
@@ -2516,8 +2507,7 @@ def get_optimal_betas(*predictors: Band | str,
                         bidx=1)
     start_method = mpc_params.get('start_method', None)
     view_size = mpc_params.get('view_size')
-    nbr_workers = get_nbr_workers(number=mpc_params.get('nbrcpu', None),
-                                  min_count=2)
+    nbr_workers = get_nbr_workers(number=mpc_params.get('nbrcpu', None))
     src_profile = response.source.import_profile()
     src_width = int(src_profile.get('width'))
     src_height = int(src_profile.get('height'))
@@ -3004,8 +2994,7 @@ def calculate_rmse(response: str | Band,
     start_method = params.get('start_method', None)
 
     # get number of workers
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None),
-                                  min_count=2)
+    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
@@ -3119,8 +3108,7 @@ def calculate_r2(response: str | Band,
     start_method = params.get('start_method', None)
 
     # get number of workers
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None),
-                                  min_count=2)
+    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:

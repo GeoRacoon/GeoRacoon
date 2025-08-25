@@ -26,43 +26,40 @@ from typing import Optional
 
 MPC_STARTER_METHODS = ['spawn', 'fork', 'forkserver']
 
-def get_nbr_workers(number:Optional[int]=None, min_count:int=2)->int:
+def get_nbr_workers(number:Optional[int]=None)->int:
     """Determine the number of worker processes to use in mulitprocessing.
     
     Parameters
     ----------
     number : int or None, optional
-        Desired number of workers. If ``None``, the function will choose
-        the maximum of ``min_count`` and the number of CPUs available.
-    min_count : int, optional
-        Minimum allowed number of workers. If ``number`` is provided but
-        is less than or equal to ``min_count``, a ``RuntimeWarning`` is
-        issued and ``min_count`` is returned.
+        Desired number of workers. If ``None``, the function will use the 
+        number of CPUs available, but never less than 2.
     
     Returns
     -------
     int
-        Number of workers to use (>= ``min_count``).
+        Number of workers to use (always `>= 2`).
     
     Notes
     -----
-    A warning is emitted when a requested ``number`` is not sufficient
-    and the request is ignored in favour of ``min_count``.
+    A warning is emitted when a requested ``number`` is lower than 2 and the
+    request is ignored setting the number of used workers to 2.
     """
     # is_needed
     # no_work
     # not_tested
     # usedin_both (potentially)
+    _min_count = 2  # Hardcoded: some parallelization routines fail when < 2
     if number is None:
-        _use = max(min_count, mpc.cpu_count())  # assert the min. count
-    elif number <= min_count:
+        _use = max(_min_count, mpc.cpu_count())  # assert the min. count
+    elif number <= _min_count:
         warnings.warn(
-            message=f"For this routine to work properly at least {min_count} "
-                    f"workers are required - the requersted {number} are not "
+            message=f"For this routine to work properly at least {_min_count} "
+                    f"workers are required - the requested {number} are not "
                     "enough and thus the request will be ignored.",
             category=RuntimeWarning
         )
-        _use = min_count
+        _use = _min_count
     else:
         _use = int(number)
     return _use
