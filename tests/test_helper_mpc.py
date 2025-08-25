@@ -32,23 +32,19 @@ def test_get_nbr_workers_sequence(monkeypatch):
 
     # cpu_count less than min_count -> returns min_count
     monkeypatch.setattr(mpc, "cpu_count", lambda: 1)
-    assert get_nbr_workers(None, min_count=2) == 2
+    assert get_nbr_workers(None) == 2
 
     # 2) number <= min_count -> warns and returns min_count
     monkeypatch.setattr(mpc, "cpu_count", lambda: 8)
 
     with pytest.warns(RuntimeWarning,
                       match='will be ignored'):
-        res = get_nbr_workers(1, min_count=2)
+        res = get_nbr_workers(1)
         assert res == 2
 
     # 3) number > min_count -> returns provided number (as int)
-    assert get_nbr_workers(5, min_count=2) == 5
-    assert get_nbr_workers(int(3.0), min_count=2) == 3
-
-    # 4) negative min_count handled (cpu_count used when number is None)
-    monkeypatch.setattr(mpc, "cpu_count", lambda: 2)
-    assert get_nbr_workers(None, min_count=-1) == 2
+    assert get_nbr_workers(5) == 5
+    assert get_nbr_workers(int(3.0)) == 3
 
 
 def run_in_subprocess(pycode):
