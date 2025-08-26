@@ -1,5 +1,9 @@
 # Landiv Blur
 
+<!-- badges: start -->
+[![Coverage](https://github.com/GeoRacoon/landiv/raw/python-coverage-comment-action-data/badge.svg)](https://github.com/GeoRacoon/landiv/tree/python-coverage-comment-action-data)
+<!-- badges: end -->
+
 Package to compute diversity measures in land-cover type maps
 
 ## Installation
