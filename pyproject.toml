@@ -35,3 +35,18 @@ include-package-data = false
 [build-system]
 requires = ["setuptools>=64.0", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
+
+# config for the test coverage
+[tool.coverage.run]
+relative_files = true
+# plugins = ["Cython.Coverage", ]
+source = ["src/landiv_blur", ]
+omit = [
+  "tests",
+  "*__init__.py",
+  ]
+[tool.coverage.paths]
+source = [
+  "src/landiv_blur/", 
+  # "venv/lib/python*/site-packages/landiv_blur/"
+]

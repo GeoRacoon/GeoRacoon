@@ -19,13 +19,13 @@ from landiv_blur import parallel as lbpara
 from landiv_blur.filters import gaussian as lbf_gauss
 from landiv_blur.helper import rasterio_to_numpy_dtype
 
-from .conftest import ALL_MAPS, get_file
+from .conftest import ALL_MAPS, get_file, set_mpc_strategy
 
 from matplotlib import pyplot as plt
 
 
 @ALL_MAPS
-def test_blur_recombination(datafiles):
+def test_blur_recombination(datafiles, set_mpc_strategy):
     """Assert recombined blur of a band is identical to processing entire map
     """
     blur_partial = str(datafiles / 'blur_partial.tif')
@@ -98,9 +98,9 @@ def test_blur_recombination(datafiles):
             block_params.append(bparams)
         manager = mproc.Manager()
         blur_q = manager.Queue()
-        # get number of cpu's
-        nbr_cpus = mproc.cpu_count() - 1
-        pool = mproc.Pool(nbr_cpus)
+        # get number of workers
+        nbr_workers = lbhelp.get_nbr_workers()
+        pool = set_mpc_strategy.Pool(nbr_workers)
         # start the blurred category writer task
         blur_combiner = pool.apply_async(
             lbpara.combine_blurred_categories,
@@ -155,7 +155,7 @@ def test_blur_recombination(datafiles):
 
 
 @ALL_MAPS
-def test_entropy_recombination(datafiles):
+def test_entropy_recombination(datafiles, set_mpc_strategy):
     """Assert recombined entropy map is identical to processing the entire map
     """
     # TODO: the use of get_entropy should be avoided anyways.
@@ -245,10 +245,10 @@ def test_entropy_recombination(datafiles):
             block_params.append(bparams)
         manager = mproc.Manager()
         entropy_q = manager.Queue()
-        # get number of cpu's
-        nbr_cpus = mproc.cpu_count() - 1
-        # print(f"using {nbr_cpus=}")
-        pool = mproc.Pool(nbr_cpus)
+        # get number of workers
+        nbr_workers = lbhelp.get_nbr_workers()
+        # print(f"using {nbr_workers=}")
+        pool = set_mpc_strategy.Pool(nbr_workers)
         # start the blurred category writer task
         blur_combiner = pool.apply_async(
             lbpara.combine_entropy_blocks,
@@ -316,7 +316,11 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
     lbio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
     blurred_source = lbio_.Source(path=create_blurred_tif)
     # set the mask
-    lbpara.compute_mask(source=blurred_source, block_size=block_size, nodata=0, logic='all')
+    lbpara.compute_mask(source=blurred_source,
+                        block_size=block_size,
+                        nodata=0,
+                        logic='all',
+                        )
     # create the inputs
     response = lbio_.Band(source=lbio_.Source(path=ndvi_map))
     predictors = blurred_source.get_bands()
@@ -364,12 +368,14 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
     selector = lbinf.prepare_selector(
         response,
         *predictors,
-        extra_masking_band=extra_masking_band)
+        extra_masking_band=extra_masking_band,
+        )
     selector_para = lbpara.prepare_selector(
         response,
         *predictors,
         block_size=block_size,
-        extra_masking_band=extra_masking_band)
+        extra_masking_band=extra_masking_band,
+        )
     np.testing.assert_equal(selector,selector_para)
 
 @ALL_MAPS
@@ -457,7 +463,7 @@ def test_extract_categories(datafiles):
 
 
 @ALL_MAPS
-def test_parallel_transposed_prod(datafiles):
+def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     """Calculate the transposed product of a predictor matrix
     """
     verbose = True
@@ -483,6 +489,7 @@ def test_parallel_transposed_prod(datafiles):
     blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
     filter_params = blur_params.copy()
     _ = filter_params.pop('diameter')
+    print(mproc.get_start_method(allow_none=True))
     blurred_tif = lbpara.extract_categories(
         source=lct_source,
         categories=[1,2,3,4,5],
@@ -538,9 +545,9 @@ def test_parallel_transposed_prod(datafiles):
     # start the processes 
     manager = mproc.Manager()
     output_q = manager.Queue()
-    nbr_cpus = mproc.cpu_count() - 1
-    # print(f"using {nbr_cpus=}")
-    pool = mproc.Pool(nbr_cpus)
+    nbr_workers= lbhelp.get_nbr_workers()
+    # print(f"using {nbr_workers=}")
+    pool = set_mpc_strategy.Pool(nbr_workers)
     # start the aggregation step
     matrix_aggregator = pool.apply_async(
         lbpara.combine_matrices,
@@ -684,9 +691,6 @@ def test_entropy_2_step(datafiles):
         filter_params = blur_params.copy()
         filter_params.update(dict(preserve_range=True))
         _ = filter_params.pop('diameter')
-        # get number of cpu's
-        nbr_cpus = mproc.cpu_count() - 1
-        # print(f"using {nbr_cpus=}")
 
         # ###
         # use single step approach
@@ -722,7 +726,8 @@ def test_entropy_2_step(datafiles):
             block_params.append(bparams)
         manager = mproc.Manager()
         entropy_q = manager.Queue()
-        pool = mproc.Pool(nbr_cpus)
+        nbr_workers = lbhelp.get_nbr_workers()
+        pool = mproc.Pool(nbr_workers)
         # start the blurred category writer task
         blur_combiner = pool.apply_async(
             lbpara.combine_entropy_blocks,
@@ -1253,5 +1258,3 @@ def test_calculate_rmse(datafiles, create_blurred_tif):
     # ax2[0].imshow(residuals, vmin=scale_min, vmax=scale_max)
     # ax2[1].imshow(diff_mean, vmin=scale_min, vmax=scale_max)
     # plt.show()
-
-

@@ -193,10 +193,10 @@ def get_lct_heterogeneity(source: str,
     manager = mproc.Manager()
     entropy_q = manager.Queue()
     blur_q = manager.Queue()
-    # get number of cpu's
-    nbr_cpus = params.pop('nbrcpu', mproc.cpu_count())
-    print(f"using {nbr_cpus=}")
-    pool = mproc.Pool(nbr_cpus)
+    # get number of workers
+    nbr_workers = lbhelp.get_nbr_workers(params.pop('nbrcpu', None))
+    print(f"using {nbr_workers=}")
+    pool = mproc.Pool(nbr_workers)
 
 
     # start the blurred category writer task

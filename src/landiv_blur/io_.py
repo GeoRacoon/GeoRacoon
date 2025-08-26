@@ -641,6 +641,9 @@ class Band:
         print("###")
 
     def _pair_operation(self, pair_op: Callable, band, out_band=None, **op_kwargs):
+        # TODO: important note, when out_band is used it does not create a new band (if you target Raster has only
+        # one band (bidx 2 does not exist) using out_band will not work as you will not create an extra band here, we
+        # may want to implement this.
         """Internal method for performing operations on data arrays
         """
         # is_needed (only internally)

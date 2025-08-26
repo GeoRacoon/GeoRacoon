@@ -18,17 +18,18 @@ from landiv_blur import parallel as lbpara
 from landiv_blur import inference as lbinf
 from landiv_blur.filters import gaussian as lbf_gauss
 
-from .conftest import ALL_MAPS, get_file
+from .conftest import ALL_MAPS, get_file, set_mpc_strategy
 
 
 @ALL_MAPS
-def test_preparation(datafiles, create_blurred_tif):
+def test_preparation(datafiles, create_blurred_tif, set_mpc_strategy):
     """Test the preparation of predictors based on a response matrix
     """
     test_data = list(datafiles.iterdir())
+    print(f"{test_data=}")
     _landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    # print(f"{test_data=}")
+    print(f"{ndvi_map=}")
 
     landcover_map = str(datafiles / 'lct_coreged.tif')
     lbio.coregister_raster(_landcover_map, ndvi_map, output=landcover_map)
@@ -139,7 +140,8 @@ def test_optimal_weights_example_data(datafiles, create_blurred_tif):
 
 # @mem_profile
 @ALL_MAPS
-def test_transposed_prod_example_data(datafiles, create_blurred_tif):
+def test_transposed_prod_example_data(datafiles, create_blurred_tif,
+                                      set_mpc_strategy):
     """Calculate transposed product from the predictor matrix
     """
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
@@ -153,7 +155,10 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif):
     ndvi_source = lbio_.Source(path=ndvi_map)
     blurred_source = lbio_.Source(path=create_blurred_tif)
     # set the mask
-    lbpara.compute_mask(source=blurred_source, block_size=(500, 500), nodata=0, logic='all')
+    lbpara.compute_mask(source=blurred_source,
+                        block_size=(500, 500),
+                        nodata=0,
+                        logic='all')
     # create the inputs
     response = lbio_.Band(source=lbio_.Source(path=ndvi_map))
     predictors = blurred_source.get_bands()
@@ -186,7 +191,7 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif):
     np.testing.assert_allclose(tpX, transprodX, rtol=1e-05)
 
 @ALL_MAPS
-def test_extra_masking_band(datafiles, create_blurred_tif):
+def test_extra_masking_band(datafiles, create_blurred_tif, set_mpc_strategy):
     """Assert that the extra masking band is included correctly
     """
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
@@ -197,7 +202,10 @@ def test_extra_masking_band(datafiles, create_blurred_tif):
     lbio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
     blurred_source = lbio_.Source(path=create_blurred_tif)
     # set the mask
-    lbpara.compute_mask(source=blurred_source, block_size=(500, 500), nodata=0, logic='all')
+    lbpara.compute_mask(source=blurred_source,
+                        block_size=(500, 500),
+                        nodata=0,
+                        logic='all')
     # create the inputs
     response = lbio_.Band(source=lbio_.Source(path=ndvi_map))
     predictors = blurred_source.get_bands()
