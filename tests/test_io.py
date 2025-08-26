@@ -53,6 +53,9 @@ def test_import_export(datafiles):
 
 @ALL_MAPS
 def test_resampling(datafiles):
+    # TODO: We really should consider whether we want to keep this in the RioGrande or not.
+    #  It is a nice feature to be able to resample and coregister rasters - but actually,
+    #  it is cryptic the way it is now, (resampling method etc not specifyable).
     """Make sure our re-sampling method works as expected.
     """
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
