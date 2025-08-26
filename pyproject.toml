@@ -1,7 +1,7 @@
 [project]
 name = "landiv_blur"
 authors = [
-  { name="Simon Landauer", email="simons@email.com" },
+  { name="Simon Landauer", email="simon.landauer@gmail.com" },
   { name="Jonas I. Liechti", email="j-i-l@t4d.ch" },
 ]
 dynamic = ["version", "dependencies", "optional-dependencies"]
