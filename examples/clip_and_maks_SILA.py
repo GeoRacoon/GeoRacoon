@@ -34,7 +34,7 @@ img_clipped = lbio.clip_to_bounds(source=img_projected,
 print("Clipped to BBox")
 
 # Coregister
-img_coreg = lbio.coregister_raster(source=img_clipped,
+img_coreg = lbio._coregister_raster(source=img_clipped,
                                    reference=clipping_file)
 print("Coregistered")
 

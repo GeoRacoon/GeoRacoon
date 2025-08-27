@@ -655,8 +655,8 @@ def clip_to_bounds(source, reference, output=None):
     return output
 
 
-def coregister_raster(source, reference, output=None):
-    # TODO: not_needed (but used in some tests)
+def _coregister_raster(source, reference, output=None):
+    # TODO: needed (Internal funciton only - move this to riogrande for now)
     """Align raster to have identical resolution.
 
     Resolution will be calculated automatically from bounds and height/width of reference raster.
