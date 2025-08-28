@@ -12,6 +12,7 @@ from landiv_blur.exceptions import (
 
 from .conftest import ALL_MAPS, get_file
 
+
 @ALL_MAPS
 def test_Band_operations(datafiles):
     """Cover some basic operations on Band objects

@@ -22,7 +22,6 @@ def test_load_block():
         lbio.load_block(source='non-existing',
                         view=(0, 0, 10, 10))
 
-
 @ALL_MAPS
 def test_import_export(datafiles):
     """Export per-cell entropy map after categories are blurred, load it and compare.
@@ -49,7 +48,6 @@ def test_import_export(datafiles):
     assert np.all(np.nan_to_num(entropy_array,
                   nan=-1) == np.nan_to_num(block_2['data'], nan=-1))
     assert block['transform'] == block_2['transform']
-
 
 @ALL_MAPS
 def test_resampling(datafiles):
@@ -78,7 +76,6 @@ def test_resampling(datafiles):
     assert ndvi_data.shape == lc_data.shape
     # finally, check again
     check_compatibility(ndvi_map, landcover_map)
-
 
 @ALL_MAPS
 def test_band_tagging(datafiles):
@@ -142,7 +139,6 @@ def test_band_tagging(datafiles):
         # print_tag_details(src)
         # print(f'\nAnd now in NAMESPACE "{our_namespace}":')
         # print_tag_details(src, ns=our_namespace)
-
 
 @ALL_MAPS
 def test_tag_matching(datafiles):
@@ -224,7 +220,6 @@ def test_tag_matching(datafiles):
     assert (str(outfile2), 1) in some_value
     assert (str(outfile2), 3) in some_value
 
-
 @ALL_MAPS
 def test_tif_compression(datafiles):
     """Test whether compression produces correct ouput and transfers tags
@@ -250,7 +245,6 @@ def test_tif_compression(datafiles):
         replaced_size = os.path.getsize(file_re_decompressed)
         # make sure the original file changed
         assert replaced_size < re_decompressed_size
-
 
 @ALL_MAPS
 def test_compression_tagging(datafiles):
@@ -315,4 +309,3 @@ def test_band_count_contrib(datafiles):
                                          limit_count=limit_count)
         assert isinstance(valid, bool)
         assert ~valid
-
