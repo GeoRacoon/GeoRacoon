@@ -23,7 +23,7 @@ from sklearn.linear_model import LinearRegression
 
 from numpy.typing import NDArray
 
-from .exceptions import InferenceError
+from ._exceptions import InferenceError
 from ._helper import (check_compatibility,
                       usable_pixels_info,
                       usable_pixels_count,

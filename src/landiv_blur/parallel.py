@@ -48,7 +48,7 @@ from .inference import (
     transposed_product,
     get_optimal_weights_source)
 from .io import write_band
-from .exceptions import InvalidPredictorError
+from ._exceptions import InvalidPredictorError
 
 
 def combine_views(output_params: dict,
