@@ -27,7 +27,7 @@ import geopandas as gpd
 
 from numpy.typing import NDArray
 
-from .exceptions import (
+from ._exceptions import (
     BandSelectionNoMatchError,
     BandSelectionAmbiguousError,
     SourceNotSavedError,

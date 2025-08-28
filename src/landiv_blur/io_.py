@@ -14,7 +14,7 @@ from collections.abc import Callable
 
 from typing import Union
 
-from .exceptions import (
+from ._exceptions import (
     BandSelectionNoMatchError,
     BandSelectionAmbiguousError,
     SourceNotSavedError,
