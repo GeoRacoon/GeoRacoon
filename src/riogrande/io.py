@@ -403,3 +403,177 @@ def load_block(source:str,
             'transform': transform,
             'orig_profile': img.profile.copy()
         }
+
+def write_band(src:DatasetWriter,
+               data:NDArray,
+               bidx:int=1,
+               window:Window|None=None,
+               **tags):
+    # is_needed
+    # needs_work
+    # not_tested
+    """Write data to a specific band of a tif file and set the tags
+
+
+    Parameters
+    ----------
+    src:
+      An opened file to write into
+    data:
+      The array to write into the file
+    window:
+      An optional window to specify an area to write
+    **tags:
+      Arbitrary number of keyword arguments that will be set as tags.
+      The value provided is converted to a string with `helper.serialize`
+      before the tag is written to the file.
+    """
+    src.write(data, indexes=bidx, window=window)
+    set_tags(src, bidx=bidx, **tags)
+
+def update_band(src:DatasetWriter,
+                data:NDArray,
+                window:Window|None=None,
+                **tags):
+    # not_needed (could be useful though)
+    # no_work
+    # not_tested
+    """Find a specific band and update it with data
+
+    ..Note::
+      If no band with the matching tags is found a
+      `BandSelectionNoMatchError` is raised.
+
+    Parameters
+    ----------
+    src:
+      An opened file to write into
+    data:
+      The array to write into the file
+    window:
+      An optional window to specify an area to write
+    **tags:
+      Arbitrary number of keyword arguments that will be used to find
+      the band to write into
+    """
+    try:
+        bidx = get_bidx(src=src, **tags)
+    except BandSelectionNoMatchError as e:
+        raise BandSelectionNoMatchError(
+            "There was no band with matching tags. "
+            "Either adapt the tags or use `write_band` "
+            "with a specific band index instead if you "
+            "want to write and also update the tags."
+        ) from e
+    else:
+        src.write(data, indexes=bidx, window=window)
+
+def export_to_tif(destination:str,
+                  data:NDArray,
+                  orig_profile:dict,
+                  start=(0, 0),
+                  **pparams):
+    # not_needed (could be useful though)
+    # no_work
+    # not_tested
+    """Export a np.array to tif, only updating a window if data is smaller
+
+    .. note::
+      This function will overwrite the dtype of the destination tif with the
+      value provided in `pparams` or the data type of `data`.
+
+    Parameters
+    ----------
+    destination: str
+        location to export save the .tif file
+    data: np.array
+        The map to export
+    start: tuple
+      horizontal and vertical starting coordinate
+    orig_profile: dict
+        the profile of the original map
+        (see https://rasterio.readthedocs.io/en/stable/topics/profiles.html)
+    **pparams:
+        further parameter to be added to the profile
+    """
+    profile = orig_profile.copy()
+    # Note: we no longer update the size automatically as for Windows this is
+    # not correct, pass height and width explicitly to update via pparams
+    # # update for the correct dimensions
+    # profile['height'] = data.shape[1]
+    # profile['width'] = data.shape[0]
+    # set the dtype explicitly of get it from the data
+    profile['dtype'] = pparams.pop('dtype', str(data.dtype))
+    profile.update(pparams)
+    # write it:
+    size = data.shape[::-1]  # since positions are inverted in numpy
+    with rasterio.open(destination, "w", **profile) as dest:
+        dest.write(data, window=Window(*start, *size), indexes=1)
+
+def project_to(source, reference, output=None, nodata=None)->str | None:
+    # not_needed (used in examples)
+    # no_work
+    # not_tested
+    """Re-projects the source map into the coordinate system of a reference map
+
+    Parameters
+    ----------
+    source: str
+      The path to the tif file you want to change projection
+    reference: str
+      The path to the tif file with the projection to apply
+    output: str (optional)
+      The path to write the re-projected map to.
+    nodata: float, int (optional)
+      The `nodata` value to set for the output (e.g. np.nan or integer)
+
+    ..note::
+       If not provided, the output file will take the name of the input file
+       and add the CRS of the new projection at the end of the name.
+
+    Returns
+    -------
+    str:
+      The name of the file that hold the re-projected map
+    """
+    with rio.open(reference) as ref:
+        dst_crs = str(ref.profile['crs'])
+    with rio.open(source) as src:
+        src_crs = str(src.crs)
+        if src_crs == dst_crs:
+            print(f"There is nothing to project! {src_crs=} to {dst_crs=}")
+            return None
+
+        (transform, width, height) = calculate_default_transform(
+            src.crs,
+            dst_crs,
+            src.width,
+            src.height,
+            *src.bounds
+        )
+        kwargs = src.meta.copy()
+        # prepare the resulting profile
+        kwargs.update({
+          'crs': dst_crs,
+          'transform': transform,
+          'width': width,
+          'height': height
+        })
+        if nodata is not None:
+            kwargs['nodata'] = nodata
+
+        if output is None:
+            _base_name, _ext = os.path.splitext(source)
+            output = f"{_base_name}_{dst_crs}{_ext}"
+        with rio.open(output, 'w', **kwargs) as dst:
+            for bidx in src.indexes:
+                reproject(
+                    source=rio.band(src, bidx),
+                    destination=rio.band(dst, bidx),
+                    src_transform=src.transform,
+                    src_crs=src.crs,
+                    dst_transform=transform,
+                    dst_crs=dst_crs,
+                    resampling=Resampling.nearest
+                )
+        return output
