@@ -7,7 +7,7 @@ from rasterio.windows import from_bounds
 
 from typing import Any
 
-from .helper import check_compatibility
+from ._helper import check_compatibility
 from .io import load_block
 
 

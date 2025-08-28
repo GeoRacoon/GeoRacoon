@@ -33,7 +33,7 @@ from .exceptions import (
     SourceNotSavedError,
     UnknownExtensionError,
 )
-from .helper import (
+from ._helper import (
     check_crs_raster,
     outfile_suffix,
     serialize,

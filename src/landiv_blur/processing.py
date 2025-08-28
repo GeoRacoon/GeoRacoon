@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 from scipy.stats import entropy
 from skimage.filters import gaussian
 
-from .helper import dtype_range, convert_to_dtype
+from ._helper import dtype_range, convert_to_dtype
 from .io import load_block, get_bands
 from .io_ import Source, Band
 from .prepare import get_view, relative_view

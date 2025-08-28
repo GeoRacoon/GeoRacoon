@@ -32,7 +32,7 @@ from .io import (
     compress_tif,
     load_block
 )
-from .helper import (
+from ._helper import (
     check_compatibility as _check_compatibility,
     count_contribution,
 )

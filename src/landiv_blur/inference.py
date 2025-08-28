@@ -24,11 +24,11 @@ from sklearn.linear_model import LinearRegression
 from numpy.typing import NDArray
 
 from .exceptions import InferenceError
-from .helper import (check_compatibility,
-                     usable_pixels_info,
-                     usable_pixels_count,
-                     view_to_window,
-                     convert_to_dtype)
+from ._helper import (check_compatibility,
+                      usable_pixels_info,
+                      usable_pixels_count,
+                      view_to_window,
+                      convert_to_dtype)
 from .processing import select_category
 from .io_ import Source, Band
 
