@@ -6,17 +6,15 @@ import json
 import warnings
 
 import numpy as np
-import rasterio as rio
-
-from rasterio.windows import Window
-
-from typing import Any, Union, Dict, List
-
-from collections.abc import Collection
-
 from numpy.typing import NDArray
 
+import rasterio as rio
+from rasterio.windows import Window
+
 from decimal import Decimal
+from typing import Any, Union
+
+from collections.abc import Collection
 
 import multiprocessing as mpc
 from multiprocessing import context as _context_module
@@ -25,7 +23,8 @@ from typing import Optional
 
 MPC_STARTER_METHODS = ['spawn', 'fork', 'forkserver']
 
-def get_nbr_workers(number :Optional[int ] =None )- >int:
+
+def get_nbr_workers(number: Optional[int] = None) -> int:
     """Determine the number of worker processes to use in mulitprocessing.
 
     Parameters
@@ -62,6 +61,7 @@ def get_nbr_workers(number :Optional[int ] =None )- >int:
     else:
         _use = int(number)
     return _use
+
 
 def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseContext:
     """
@@ -147,7 +147,7 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
         raise ValueError(f"Unsupported start method: {method!r}")
 
     # get the current context
-    _contex t= mpc.get_start_method(allow_none=True)
+    _context = mpc.get_start_method(allow_none=True)
 
     if _context is None:
         # if method is not None, set the global method and the current context
@@ -491,9 +491,9 @@ def dtype_range(dtype:type|str)->tuple[int|float, int|float]:
 
 
 def convert_to_dtype(data: NDArray,
-                     as_dtype:None|type|np._dtype|str=None,
-                     in_range:None|NDArray|Collection=None,
-                     out_range:None|NDArray|Collection|str|type=None)->NDArray:
+                     as_dtype: None | type | np._dtype | str = None,
+                     in_range: None | NDArray | Collection = None,
+                     out_range: None | NDArray | Collection | str | type=None) -> NDArray:
     # TODO: is_needed - no_work - is_tested - usedin_both
     """Converts data to `as_dtype` and optionally rescales it.
 

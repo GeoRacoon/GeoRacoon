@@ -1,26 +1,7 @@
 
 from __future__ import annotations
 
-import os
-import json
-import warnings
-
 import numpy as np
-import rasterio as rio
-
-from rasterio.windows import Window
-
-from typing import Any, Union, Dict, List
-
-from collections.abc import Collection
-
-from numpy.typing import NDArray
-
-from decimal import Decimal
-
-import multiprocessing as mpc
-from multiprocessing import context as _context_module
-from typing import Optional
 
 
 def check_rank_deficiency(array, return_by_issue_type: bool=False) -> dict[int, str] | dict[str, list[int]]:
