@@ -108,3 +108,57 @@ def set_tags(src, bidx:int|None=None, ns:str=NS, **tags):
     # serialize the tag values:
     serialized_tags = serialize(tags)
     src.update_tags(ns=ns, bidx=bidx, **serialized_tags)
+
+def get_tags(src, bidx:int|None=None, ns:str=NS):
+        # is_needed
+        # needs_work (should be internal)
+        # is_tested
+        """Get all the tags and deserialize the values
+
+        Parameters
+        ----------
+        src:
+          `tif` file openend with `rasterio.open`
+        bidx:
+          Index of the band to get tags from (starting from 1 as is the convention
+          in rasterio). If set to `None` then the tags for the entire dataset are
+          returned.
+        ns:
+          The namespace to get the tags from.
+          
+          ..Note::
+            It is dicouraged to change this value from the default as all tagging
+            related methods of this package use the same default namespace.
+        """
+        if bidx is None:
+            bidx = 0  # get the tags for the files metadata
+        return deserialize(src.tags(bidx=bidx, ns=ns))
+
+def find_bidxs(src, ns:str=NS, **tags):
+    # is_needed
+    # neews_work (should be internal)
+    # not_tested
+    """Find all bands in src for which all tags match
+
+    Parameters
+    ----------
+    src:
+      `tif` file openend with `rasterio.open`
+    ns:
+      The namespace to set the tags in.
+
+      ..Note::
+        It is dicouraged to change this value from the default as all tagging
+        related methods of this package use the same default namespace.
+    **tags:
+      Arbitrary number of keyword arguments that will be compared to the tags
+      of the bands in the dataset.
+    """
+
+    _tags = sanitize(tags) 
+    matching_bidxs = []
+    for bidx in src.indexes:
+        b_tags = get_tags(src=src, bidx=bidx, ns=ns)
+        if match_all(targets=_tags, tags=b_tags):
+            matching_bidxs.append(bidx)
+    return matching_bidxs
