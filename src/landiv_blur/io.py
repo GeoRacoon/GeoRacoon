@@ -56,7 +56,9 @@ NS = 'LANDIV'
 
 
 def set_tags(src, bidx:int|None=None, ns:str=NS, **tags):
-    # TODO: is_needed - needs_work - is_tested - usedin_both
+    # is_needed
+    # needs_work (should be made internal?)
+    # is_tested
     """Update tags for a dataset or a single band of a dataset.
 
     Since metadata in a tif file is stored as a string the value of each tag is
@@ -102,10 +104,6 @@ def set_tags(src, bidx:int|None=None, ns:str=NS, **tags):
       The value provided is converted to a string with `helper.serialize`
       before the tag is written to the file.
     """
-    # is_needed
-    # needs_work (should be made internal?)
-    # is_tested
-    # usedin_both (is internal to IO)
 
     if bidx is None:
         bidx = 0
