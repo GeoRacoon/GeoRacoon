@@ -4,7 +4,6 @@ Add sth here
 from __future__ import annotations
 
 from numpy.typing import ArrayLike, NDArray
-
 import math
 
 
