@@ -189,4 +189,53 @@ def create_views(view_size:tuple[int, int],
     )
 
 
+def get_view(data:NDArray, view:tuple[int,int,int,int])->NDArray:
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
+    # TODO: This was moved here to riogrand as it makes more sense, despite it may only be used in processing
+    """Return a view of the data array
+
+    ..Note::
+      data.shape == height, width!
+
+    Parameters
+    ----------
+    data:
+      np.array to return the view from
+    view:
+      tuple (x, y, width, height) defining the view
+
+    """
+    # is_needed
+    # not_tested (used in test)
+    # no_work
+    # usedin_processing (maybe both)
+
+    # return data[slice(view[0], view[0] + view[2]),
+    #             slice(view[1], view[1] + view[3])]
+    return data[slice(view[1], view[1] + view[3]),
+                slice(view[0], view[0] + view[2])]
+
+
+def relative_view(view:tuple[int,int,int,int],
+                  inner_view:tuple[int,int,int,int])->tuple[int,int,int,int]:
+    # TODO: is_needed - needs_work - is_tested - usedin_processing
+    # TODO: This was moved here to riogrand as it makes more sense, despite it may only be used in processing
+    """Return the `inner_view` relative to `view`
+
+    Parameters
+    ----------
+    view:
+      (x, y, width, height) defining a view
+    inner_view:
+      (x, y, width, height) defining a view
+    """
+    # is_needed
+    # needs_work (better docs)
+    # not_tested (used in tests)
+    # usedin_processing (maybe both)
+    return (inner_view[0] - view[0],
+            inner_view[1] - view[1],
+            inner_view[2],
+            inner_view[3])
+
 
