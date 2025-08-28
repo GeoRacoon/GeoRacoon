@@ -1,13 +1,14 @@
-import numpy as np
-from skimage.filters import gaussian
-from scipy.stats import entropy
-import itertools
-import random
 import pytest
 
+import numpy as np
+import itertools
+import random
+
+from skimage.filters import gaussian
+
+# TODO paths for landiv_blur need to be changed
 from landiv_blur import io as lbio
 from landiv_blur import processing as lbproc
-from landiv_blur.filters import gaussian as lbf_gauss
 
 from .conftest import ALL_MAPS, get_file
 
@@ -199,7 +200,7 @@ def test_entropy_normalization_conversion(datafiles):
            'Maximal entropy is exceeded'
 
     with pytest.warns(expected_warning=UserWarning, match='without rescaling'):
-        # we convert but do not normalize > no rescaling possible, only type 
+        # we convert but do not normalize > no rescaling possible, only type
         # conversion
         _= lbproc.get_entropy(data=data,
                               categories=categories,
