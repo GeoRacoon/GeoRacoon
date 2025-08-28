@@ -1,9 +1,7 @@
 """
 This module contains various helper functions to process numpy arrays
 """
-# is_needed
-# usedin_processing
-# no_work
+
 import numpy as np
 
 # TODO: should we move both of these somewhere? or bring them together with the helpers (or split the latter a bit)
