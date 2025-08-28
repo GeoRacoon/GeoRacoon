@@ -42,7 +42,7 @@ from .processing import (
     view_filtered,
     view_interaction
 )
-from .prepare import create_views, update_view
+from ._prepare import create_views, update_view
 from .filters.gaussian import compatible_border_size
 from .inference import (
     transposed_product,

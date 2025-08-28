@@ -11,7 +11,7 @@ from skimage.filters import gaussian
 from ._helper import dtype_range, convert_to_dtype
 from .io import load_block, get_bands
 from .io_ import Source, Band
-from .prepare import get_view, relative_view
+from ._prepare import get_view, relative_view
 from .filters import bpgaussian
 
 
