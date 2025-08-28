@@ -6,7 +6,8 @@ import rasterio as rio
 
 from rasterio.windows import Window
 from contextlib import contextmanager
-from dataclasses import dataclass, field from pathlib import Path
+from dataclasses import dataclass, field
+from pathlib import Path
 from functools import partial
 from numpy.typing import NDArray
 from collections.abc import Callable
