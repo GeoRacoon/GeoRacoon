@@ -7,8 +7,6 @@ from linfit.helper import (
     check_rank_deficiency,
 )
 
-from .conftest import ALL_MAPS, get_file
-
 
 def test_rank_deficiency():
     """Test some examples to identify rank deficiency
