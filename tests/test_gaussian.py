@@ -1,7 +1,7 @@
 import numpy as np
 from skimage.filters import gaussian
 
-from landiv_blur import ap
+from landiv_blur import ap # TODO: this is only in riogrande now, but also not name ap in __init__ there, so make sure it is array processing for now
 from landiv_blur import processing as lbproc
 
 
