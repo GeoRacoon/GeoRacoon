@@ -25,15 +25,15 @@ from multiprocessing import (Queue, Manager)
 from numpy.typing import NDArray
 
 from .io_ import Source, Band
-from .helper import (view_to_window,
-                     output_filename,
-                     reduced_mask,
-                     aggregated_selector,
-                     check_compatibility,
-                     check_rank_deficiency,
-                     convert_to_dtype,
-                     get_or_set_context,
-                     get_nbr_workers,)
+from ._helper import (view_to_window,
+                      output_filename,
+                      reduced_mask,
+                      aggregated_selector,
+                      check_compatibility,
+                      check_rank_deficiency,
+                      convert_to_dtype,
+                      get_or_set_context,
+                      get_nbr_workers, )
 from .timing import TimedTask
 from .plotting import plot_entropy
 from .processing import (

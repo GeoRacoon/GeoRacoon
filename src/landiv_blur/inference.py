@@ -24,11 +24,11 @@ from sklearn.linear_model import LinearRegression
 from numpy.typing import NDArray
 
 from .exceptions import InferenceError
-from .helper import (check_compatibility,
-                     usable_pixels_info,
-                     usable_pixels_count,
-                     view_to_window,
-                     convert_to_dtype)
+from ._helper import (check_compatibility,
+                      usable_pixels_info,
+                      usable_pixels_count,
+                      view_to_window,
+                      convert_to_dtype)
 from .processing import select_category
 from .io_ import Source, Band
 
@@ -62,7 +62,7 @@ def to_numpy_selector(rasterio_mask: NDArray) -> NDArray:
 def enrich_selector(selector: NDArray,
                     *predictors: Band,
                     verbose: bool = False) -> NDArray:
-    # TODO: is_needed - no_work - not_tested - usedin_both
+    # TODO: is_needed - no_work - not_tested - usedin_linfit
     """Complete the selector with the masks extracted from the pridictors
 
     Parameters
@@ -116,7 +116,7 @@ def prepare_selector(response: str | Band,
                      *predictors: Band,
                      extra_masking_band: Band|None=None,
                      verbose=False) -> NDArray:
-    # TODO: is_needed - no_work - is_tested - usedin_both
+    # TODO: is_needed - no_work - is_tested - usedin_linfit
     """Creates a boolean selector based on the masks of response and predictors
 
     The selector is a np.array of type np.bool_ indicating which well can be
