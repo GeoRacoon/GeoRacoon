@@ -6,12 +6,8 @@ from __future__ import annotations
 from time import perf_counter
 
 class TimedTask:
-    # TODO: is_needed - no_work - not_tested - usedin_both
-
-    # is_needed
     # needs_work (documentation)
     # not_tested
-    # usedin_both
     def __init__(self,):
         self.labs = []
 
