@@ -10,45 +10,39 @@ of filters on a tif
 from __future__ import annotations
 
 import math
-import warnings
-from typing import Any
-from collections.abc import Callable, Collection
+from collections.abc import Collection
 
-from copy import copy
 
 from typing import Union
 
 import numpy as np
-import rasterio as rio
 
 from multiprocessing import (Queue, Manager)
 from numpy.typing import NDArray
 
-from .io_ import Source, Band
-from ._helper import (view_to_window,
-                      output_filename,
-                      reduced_mask,
-                      aggregated_selector,
-                      check_compatibility,
-                      check_rank_deficiency,
-                      convert_to_dtype,
-                      get_or_set_context,
-                      get_nbr_workers, )
-from .timing import TimedTask
-from .plotting import plot_entropy
-from .processing import (
-    view_blurred,
-    view_entropy,
-    view_filtered,
-    view_interaction
+from riogrande.io_ import Source, Band
+from riogrande.helper import (
+    view_to_window,
+    check_compatibility,
+    convert_to_dtype,
+    get_or_set_context,
+    get_nbr_workers,
 )
-from ._prepare import create_views, update_view
-from .filters.gaussian import compatible_border_size
+from riogrande.timing import TimedTask
+from riogrande.prepare import (
+    create_views,
+    update_view
+)
+from riogrande import parallel as rgpara
+
+from .helper import check_rank_deficiency
+
+
 from .inference import (
     transposed_product,
-    get_optimal_weights_source)
-from .io import write_band
-from ._exceptions import InvalidPredictorError
+    get_optimal_weights_source
+)
+from .exceptions import InvalidPredictorError
 
 
 def combine_matrices(output_q: Queue) -> tuple[NDArray | None, tuple]:
@@ -146,7 +140,7 @@ def partial_transposed_product(params: dict, output_q: Queue):
     def _wrap(tpX):
         return dict(X=tpX)
 
-    runner_call(
+    rgpara.runner_call(
         output_q,
         transposed_product,
         params,
@@ -173,7 +167,7 @@ def partial_optimal_betas(params: dict, output_q: Queue):
     def _wrap(beta_dict):
         return dict(X=list(beta_dict.values()))  # ok for python >= 3.6 (dict keeps order)
 
-    runner_call(
+    rgpara.runner_call(
         output_q,
         get_optimal_weights_source,
         params,
@@ -326,7 +320,7 @@ def compute_model(predictors: Collection[Band],
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
         # start the aggregator task
-        combiner_job = pool.apply_async(combine_views,
+        combiner_job = pool.apply_async(rgpara.combine_views,
                                         (combine_params, job_out_q))
 
         # start the block processing
@@ -808,12 +802,13 @@ def get_XT_X_dependency(response: str | Band,
                         bidx=1)
 
     print("Creating selector...")
-    selector = prepare_selector(response,
-                                *predictors,
-                                block_size=block_size_params["prepare_selector"],
-                                verbose=verbose,
-                                **params)
-
+    selector = rgpara.prepare_selector(
+        response,
+        *predictors,
+        block_size=block_size_params["prepare_selector"],
+        verbose=verbose,
+        **params
+    )
 
     # If selector is empty (meaning all is FALSE) - no need to proceed
     _vals = np.unique(selector)
@@ -834,11 +829,13 @@ def get_XT_X_dependency(response: str | Band,
 
     if len(predictors) != nbr_predictors:
         # for details here: see compute_weights
-        selector = prepare_selector(response,
-                                    *predictors,
-                                    block_size=block_size_params["prepare_selector"],
-                                    verbose=verbose,
-                                    **params)
+        selector = lgpara.prepare_selector(
+            response,
+            *predictors,
+            block_size=block_size_params["prepare_selector"],
+            verbose=verbose,
+            **params
+        )
 
     print("Calculate X.T @ X...")
     tpX = get_XT_X(response,
@@ -936,12 +933,14 @@ def compute_weights(response: str | Band,
 
     print("Creating selector...")
     extra_masking_band = params.pop("extra_masking_band", None)
-    selector = prepare_selector(response,
-                                *predictors,
-                                block_size=block_size_params["prepare_selector"],
-                                verbose=verbose,
-                                extra_masking_band=extra_masking_band,
-                                **params)
+    selector = rgpara.prepare_selector(
+        response,
+        *predictors,
+        block_size=block_size_params["prepare_selector"],
+        verbose=verbose,
+        extra_masking_band=extra_masking_band,
+        **params
+    )
 
     # If selector is empty (meaning all is FALSE) - no need to proceed
     _vals = np.unique(selector)
@@ -970,12 +969,14 @@ def compute_weights(response: str | Band,
         # the consistency check removed some predictors
         # we re-create the selector in this case since the dropped out
         # predictor(s) might have masked some cells
-        selector = prepare_selector(response,
-                                    *predictors,
-                                    block_size=block_size_params["prepare_selector"],
-                                    verbose=verbose,
-                                    extra_masking_band=extra_masking_band,
-                                    **params)
+        selector = rgpara.prepare_selector(
+            response,
+            *predictors,
+            block_size=block_size_params["prepare_selector"],
+            verbose=verbose,
+            extra_masking_band=extra_masking_band,
+            **params
+        )
         # NOTE: We do not need to check_predictor_consistency again sine
         #       removing the predictor leads to at least the same valid
         #       pixels, if not more.
@@ -1040,7 +1041,7 @@ def block_ssr(params: dict, ssr_parts: list):
     view = params.get('view')
     window = view_to_window(view)
 
-    # Get data from window
+    # Get data fromte window
     response_data = response.get_data(window=window)
     model_data = model.get_data(window=window)
 
