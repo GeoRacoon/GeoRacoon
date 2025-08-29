@@ -9,7 +9,6 @@ of filters on a tif
 # usedin_both (should be split up!)
 from __future__ import annotations
 
-import math
 import warnings
 from typing import Any
 from collections.abc import Callable, Collection
@@ -25,30 +24,25 @@ from multiprocessing import (Queue, Manager)
 from numpy.typing import NDArray
 
 from .io_ import Source, Band
-from ._helper import (view_to_window,
-                      output_filename,
+from .helper import (view_to_window,
                       reduced_mask,
                       aggregated_selector,
                       check_compatibility,
-                      check_rank_deficiency,
-                      convert_to_dtype,
                       get_or_set_context,
                       get_nbr_workers, )
+from .prepare import create_views, update_view
 from .timing import TimedTask
-from .plotting import plot_entropy
-from .processing import (
-    view_blurred,
-    view_entropy,
-    view_filtered,
-    view_interaction
-)
-from ._prepare import create_views, update_view
-from .filters.gaussian import compatible_border_size
-from .inference import (
-    transposed_product,
-    get_optimal_weights_source)
-from .io import write_band
-from ._exceptions import InvalidPredictorError
+
+
+# TODO: very important - now it is dependent on ConvSTER which we really dont want.
+# Either move this or change it up
+from convster.processing import (view_blurred,
+                                 view_filtered,
+                                 )
+from convster.parallel import combine_blurred_categories
+
+# TODO: this could lead to failure but not sure why it does not import
+from convster.filters.gaussian import compatible_border_size
 
 
 def combine_views(output_params: dict,
@@ -91,6 +85,7 @@ def combine_views(output_params: dict,
                     print(f"Wrote out block {view=}")
                 timer.new_lab()
     return timer
+
 
 def data_writer(writer: Callable, writer_params: dict, aggr_q: Queue) -> TimedTask:
     # is_needed (internally_only)
@@ -196,6 +191,7 @@ def process_block(task: Callable,
         # print(f"{view=}\n{data=}\nmask={_}")
     return timer
 
+
 def process_masks(task: Callable,
                   bands: Collection[Band],
                   view: tuple[int, int, int, int],
@@ -262,6 +258,7 @@ def process_masks(task: Callable,
         # print(f"{view=}\n{data=}\nmask={_}")
     return timer
 
+
 def runner_call(queue: Queue[Any],
                 callback: Callable,
                 params: dict,
@@ -281,6 +278,7 @@ def runner_call(queue: Queue[Any],
     else:
         queue.put(output)
     return output
+
 
 # TODO: check how much extract_categories and apply_filter are redundant
 def extract_categories(source: str | Source,
