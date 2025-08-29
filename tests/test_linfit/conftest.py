@@ -16,7 +16,7 @@ from riogrande.parallel import (
 
 FIXTURE_DIR = os.path.abspath(os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
-    '../',
+    '../../',
     'data'
 ))
 lct_map = os.path.join(FIXTURE_DIR, 'testing', 'landcover',
