@@ -21,12 +21,17 @@ from collections.abc import Collection
 
 from sklearn.linear_model import LinearRegression
 
-from .helper import (check_compatibility,
-                      usable_pixels_info,
-                      usable_pixels_count,
-                      view_to_window,
-                      convert_to_dtype)
+from riogrande.helper import (
+    check_compatibility,
+    view_to_window,
+    convert_to_dtype
+)
 from riogrande.io_ import Source, Band
+
+from .helper import (
+    usable_pixels_info,
+    usable_pixels_count,
+)
 
 
 def to_numpy_selector(rasterio_mask: NDArray) -> NDArray:
