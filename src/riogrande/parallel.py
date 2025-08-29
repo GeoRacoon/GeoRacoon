@@ -18,7 +18,6 @@ from copy import copy
 from typing import Union
 
 import numpy as np
-import rasterio as rio
 
 from multiprocessing import (Queue, Manager)
 from numpy.typing import NDArray
@@ -27,10 +26,9 @@ from .io_ import Source, Band
 from .helper import (view_to_window,
                       reduced_mask,
                       aggregated_selector,
-                      check_compatibility,
                       get_or_set_context,
                       get_nbr_workers, )
-from .prepare import create_views, update_view
+from .prepare import create_views
 from .timing import TimedTask
 
 
