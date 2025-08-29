@@ -1,27 +1,25 @@
-import builtins
-from functools import partial
-
-from time import sleep
-
-import numpy as np
-import multiprocessing as mproc
 import itertools
 import random
+
+import numpy as np
 import rasterio as rio
+import multiprocessing as mproc
 
-from landiv_blur import helper as lbhelp
-from landiv_blur import io as lbio
-from landiv_blur import io_ as lbio_
-from landiv_blur import processing as lbproc
-from landiv_blur import prepare as lbprep
-from landiv_blur import inference as lbinf
-from landiv_blur import parallel as lbpara
-from landiv_blur.filters import gaussian as lbf_gauss
-from landiv_blur.helper import rasterio_to_numpy_dtype
+from functools import partial
 
-from .conftest import ALL_MAPS, get_file, set_mpc_strategy
+from riogrande import helper as rghelp
+from riogrande import io as rgio
+from riogrande import io_ as rgio_
+from riogrande import prepare as rgprep
+from riogrande import parallel as rgpara
 
-from matplotlib import pyplot as plt
+from convster import processing as csproc
+from convster import prepare as csprep
+from convster import parallel as cspara
+from convster.filters import gaussian as csf_gauss
+
+from .conftest import ALL_MAPS, get_file
+
 
 @ALL_MAPS
 def test_blur_recombination(datafiles, set_mpc_strategy):
@@ -34,13 +32,13 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
     truncate = 3  # property of the gaussian filter
     view_size = (500, 400)
     output_dtype = "uint8"  # data type to use for the blurred arrays
-    blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
-    min_border = lbf_gauss.compatible_border_size(sigma=blur_params['sigma'],
+    blur_params = csprep.get_blur_params(diameter=_diameter, truncate=truncate)
+    min_border = csf_gauss.compatible_border_size(sigma=blur_params['sigma'],
                                                   truncate=truncate)
     border = (100, 100)
     # load the data
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ch_map = lbio.load_map(ch_map_tif, indexes=1)
+    ch_map = rgio.load_map(ch_map_tif, indexes=1)
     ch_data = ch_map['data']
     profile = ch_map['orig_profile']
     width = profile['width']
@@ -49,12 +47,12 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
     profile['count'] = 1
     profile['dtype'] = rio.uint8
     # get the categories 
-    categories = lbproc.get_categories(ch_data)
+    categories = csproc.get_categories(ch_data)
     # we partially evaluate the guassian filter to make sure it gets
     # identical parameter everywhere
     # we do not need to pass the diameter to the filter function
     _ = blur_params.pop('diameter')
-    img_filter = partial(lbf_gauss.gaussian, **blur_params)
+    img_filter = partial(csf_gauss.gaussian, **blur_params)
     # we perform the test for each category 
     # print("CATEGORIES", categories)
     for category in categories:
@@ -63,14 +61,14 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
         #This was changed to allow for (1) seleciton of non-sequential lists, (2) lc maps with values [0, 255]
         index = 1
         # perform the blur in a single run
-        blurred_data = lbproc.get_category_data(ch_data,
+        blurred_data = csproc.get_category_data(ch_data,
                                                 category=category,
                                                 img_filter=img_filter,
                                                 as_dtype=output_dtype
                                                 )
         # use multiprocessing and blur block by block
         # first set the parameters for the recombintion task
-        blur_output_file = lbhelp.output_filename(
+        blur_output_file = rghelp.output_filename(
             base_name=blur_partial,
             out_type=f"blur_lct_{category}",
             blur_params=blur_params
@@ -81,7 +79,7 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
             as_dtype=output_dtype
         )
         # now the parameter for the per block blur tasks
-        views, inner_views = lbprep.create_views(view_size=view_size,
+        views, inner_views = rgprep.create_views(view_size=view_size,
                                                  border=border,
                                                  size=(width, height))
         block_params = []
@@ -98,20 +96,20 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
         manager = mproc.Manager()
         blur_q = manager.Queue()
         # get number of workers
-        nbr_workers = lbhelp.get_nbr_workers()
+        nbr_workers = rghelp.get_nbr_workers()
         pool = set_mpc_strategy.Pool(nbr_workers)
         # start the blurred category writer task
         blur_combiner = pool.apply_async(
-            lbpara.combine_blurred_categories,
+            cspara.combine_blurred_categories,
             (blur_output_params, blur_q,)
         )
         # start the block processing
         all_jobs = []
         for bparams in block_params:
             all_jobs.append(pool.apply_async(
-                lbpara.runner_call,
+                rgpara.runner_call,
                 (blur_q,
-                 lbproc.view_blurred,
+                 csproc.view_blurred,
                  bparams)
             ))
         # now lets wait for all of these jobs to finish
@@ -131,13 +129,13 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
 
         # check if tags were set correctly
         with rio.open(blur_output_file) as src:
-            tags = lbio.get_tags(src, bidx=index)
-            bidx = lbio.get_bidx(src, category=category)
+            tags = rgio.get_tags(src, bidx=index)
+            bidx = rgio.get_bidx(src, category=category)
             np.testing.assert_equal(tags['category'], category)
             np.testing.assert_equal(bidx, index)
 
         # now we can read out the tif with the blurred category and compare
-        blurred_cat_map = lbio.load_map(blur_output_file, indexes=index)
+        blurred_cat_map = rgio.load_map(blur_output_file, indexes=index)
         blurred_cat_data = blurred_cat_map['data']
 
         # plt.imshow(blurred_data)
@@ -172,14 +170,14 @@ def test_entropy_recombination(datafiles, set_mpc_strategy):
         blur_output_dtype = test_dtype  # blurred maps will be saved in this format
         output_dtype = test_dtype
         normed = True
-        blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
-        min_border = lbf_gauss.compatible_border_size(sigma=blur_params['sigma'],
+        blur_params = csprep.get_blur_params(diameter=_diameter, truncate=truncate)
+        min_border = csf_gauss.compatible_border_size(sigma=blur_params['sigma'],
                                                       truncate=truncate)
         border = (50, 50)
         print(f"{min_border=}, {border=}")
         # load the data
         ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-        ch_map = lbio.load_map(ch_map_tif, indexes=1)
+        ch_map = rgio.load_map(ch_map_tif, indexes=1)
         ch_data = ch_map['data']
         profile = ch_map['orig_profile']
         width = profile['width']
@@ -188,16 +186,16 @@ def test_entropy_recombination(datafiles, set_mpc_strategy):
         profile['count'] = 1
         profile['dtype'] = np.dtype(output_dtype)
         # get the categories
-        categories = lbproc.get_categories(ch_data)
+        categories = csproc.get_categories(ch_data)
         max_entropy_categories = len(categories)
         # we partially evaluate the guassian filter to make sure it gets
         # identical parameter everywhere
         # we do not need to pass the diameter to the filter function
         _ = blur_params.pop('diameter')
-        img_filter = partial(lbf_gauss.gaussian, **blur_params)
+        img_filter = partial(csf_gauss.gaussian, **blur_params)
         filter_params = blur_params.copy()
         filter_params.update(dict(preserve_range=True))
-        entropy_data = lbproc.get_entropy(
+        entropy_data = csproc.get_entropy(
             data=ch_data,
             categories=categories,
             max_entropy_categories=max_entropy_categories,
@@ -210,7 +208,7 @@ def test_entropy_recombination(datafiles, set_mpc_strategy):
         )
         # use multiprocessing and blur block by block
         # first set the parameters for the recombintion task
-        entropy_output_file = lbhelp.output_filename(
+        entropy_output_file = rghelp.output_filename(
             base_name=blur_partial,
             out_type=f"entropy_lct",
             blur_params=blur_params
@@ -222,7 +220,7 @@ def test_entropy_recombination(datafiles, set_mpc_strategy):
             count=len(categories)
         )
         # now the parameter for the per block blur tasks
-        views, inner_views = lbprep.create_views(view_size=view_size,
+        views, inner_views = rgprep.create_views(view_size=view_size,
                                                  border=border,
                                                  size=(width, height))
         block_params = []
@@ -244,21 +242,21 @@ def test_entropy_recombination(datafiles, set_mpc_strategy):
         manager = mproc.Manager()
         entropy_q = manager.Queue()
         # get number of workers
-        nbr_workers = lbhelp.get_nbr_workers()
+        nbr_workers = rghelp.get_nbr_workers()
         # print(f"using {nbr_workers=}")
         pool = set_mpc_strategy.Pool(nbr_workers)
         # start the blurred category writer task
         blur_combiner = pool.apply_async(
-            lbpara.combine_entropy_blocks,
+            cspara.combine_entropy_blocks,
             (entropy_output_params, entropy_q,)
         )
         # start the block processing
         all_jobs = []
         for bparams in block_params:
             all_jobs.append(pool.apply_async(
-                lbpara.runner_call,
+                rgpara.runner_call,
                 (entropy_q,
-                 lbproc.get_entropy_view,
+                 csproc.get_entropy_view,
                  bparams)
             ))
         # now lets wait for all of these jobs to finish
@@ -278,13 +276,13 @@ def test_entropy_recombination(datafiles, set_mpc_strategy):
 
         # check if tags were set correctly
         with rio.open(entropy_output_file) as src:
-            tags = lbio.get_tags(src, bidx=1)
-            bidx = lbio.get_bidx(src, category="entropy")
+            tags = rgio.get_tags(src, bidx=1)
+            bidx = rgio.get_bidx(src, category="entropy")
             np.testing.assert_equal(tags['category'], "entropy")
             np.testing.assert_equal(bidx, 1)
 
         # now we can read out the tif with the blurred category and compare
-        entropy_recomb_map = lbio.load_map(entropy_output_file, indexes=1)
+        entropy_recomb_map = rgio.load_map(entropy_output_file, indexes=1)
         entropy_recomb_data = entropy_recomb_map['data']
 
         # plt.imshow(entropy_data)
@@ -320,13 +318,13 @@ def test_entropy_2_step(datafiles):
         output_dtype = test_dtype  # data type to use for the entropy array
         blur_output_dtype = test_dtype
         normed = True
-        blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
-        min_border = lbf_gauss.compatible_border_size(sigma=blur_params['sigma'],
+        blur_params = csprep.get_blur_params(diameter=_diameter, truncate=truncate)
+        min_border = csf_gauss.compatible_border_size(sigma=blur_params['sigma'],
                                                       truncate=truncate)
         border = (50, 50)
         # load the data
         ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-        ch_map = lbio.load_map(ch_map_tif, indexes=1)
+        ch_map = rgio.load_map(ch_map_tif, indexes=1)
         ch_data = ch_map['data']
         profile = ch_map['orig_profile']
         width = profile['width']
@@ -335,9 +333,9 @@ def test_entropy_2_step(datafiles):
         profile['count'] = 1
         profile['dtype'] = test_dtype
         # get the categories
-        categories = lbproc.get_categories(ch_data)
+        categories = csproc.get_categories(ch_data)
         # Filter params for both
-        img_filter = lbf_gauss.gaussian
+        img_filter = csf_gauss.gaussian
         filter_params = blur_params.copy()
         filter_params.update(dict(preserve_range=True))
         _ = filter_params.pop('diameter')
@@ -345,7 +343,7 @@ def test_entropy_2_step(datafiles):
         # ###
         # use single step approach
         # ###
-        entropy_output_file = lbhelp.output_filename(
+        entropy_output_file = rghelp.output_filename(
             base_name=blur_partial,
             out_type=f"entropy_lct",
             blur_params=blur_params.copy()
@@ -357,7 +355,7 @@ def test_entropy_2_step(datafiles):
             count=len(categories)
         )
         # now the parameter for the per block blur tasks
-        views, inner_views = lbprep.create_views(view_size=view_size,
+        views, inner_views = rgprep.create_views(view_size=view_size,
                                                  border=border,
                                                  size=(width, height))
         block_params = []
@@ -376,20 +374,20 @@ def test_entropy_2_step(datafiles):
             block_params.append(bparams)
         manager = mproc.Manager()
         entropy_q = manager.Queue()
-        nbr_workers = lbhelp.get_nbr_workers()
+        nbr_workers = rghelp.get_nbr_workers()
         pool = mproc.Pool(nbr_workers)
         # start the blurred category writer task
         blur_combiner = pool.apply_async(
-            lbpara.combine_entropy_blocks,
+            cspara.combine_entropy_blocks,
             (entropy_output_params, entropy_q,)
         )
         # start the block processing
         all_jobs = []
         for bparams in block_params:
             all_jobs.append(pool.apply_async(
-                lbpara.runner_call,
+                rgpara.runner_call,
                 (entropy_q,
-                 lbproc.get_entropy_view,
+                 csproc.get_entropy_view,
                  bparams)
             ))
         # now lets wait for all of these jobs to finish
@@ -410,8 +408,8 @@ def test_entropy_2_step(datafiles):
         ###
         # Now calculate first the map with blurred layers and then the entropy
         ###
-        source = lbio_.Source(path=ch_map_tif)
-        blurred_tif = lbpara.extract_categories(
+        source = rgio_.Source(path=ch_map_tif)
+        blurred_tif = cspara.extract_categories(
             source=source,
             categories=categories,
             output_file=blur_out,
@@ -426,19 +424,19 @@ def test_entropy_2_step(datafiles):
         # get the somewhat weird output filename
         # check if tags were set correctly for the blurred layers
         with rio.open(blurred_tif) as src:
-            tags = lbio.get_tags(src, bidx=1)
-            bidx = lbio.get_bidx(src, category=categories[0])
+            tags = rgio.get_tags(src, bidx=1)
+            bidx = rgio.get_bidx(src, category=categories[0])
             np.testing.assert_equal(tags['category'], categories[0])
             np.testing.assert_equal(bidx, 1)
 
-        blurred_source = lbio_.Source(path=blurred_tif)
+        blurred_source = rgio_.Source(path=blurred_tif)
         for bidx in blurred_source.band_indexes:
-            b = lbio_.Band(source=blurred_source, bidx=bidx)
+            b = rgio_.Band(source=blurred_source, bidx=bidx)
             with rio.open(blurred_source.path, 'r') as src:
                 data = src.read(indexes=bidx)
                 np.testing.assert_equal(data, b.get_data())
 
-        entropy_tif = lbpara.compute_entropy(
+        entropy_tif = cspara.compute_entropy(
             source=blurred_source,
             output_file=entropy_out,
             block_size=view_size,
@@ -449,11 +447,11 @@ def test_entropy_2_step(datafiles):
         )
 
         # now we can read out the tif with the blurred category and compare
-        entropy_map = lbio.load_map(entropy_output_file, indexes=1)
+        entropy_map = rgio.load_map(entropy_output_file, indexes=1)
         entropy_data = entropy_map['data']
 
         # for the 2-step approach
-        entropy_source = lbio_.Source(path=entropy_tif)
+        entropy_source = rgio_.Source(path=entropy_tif)
         # get the entropy band as a object
         eband = entropy_source.get_band(category='entropy')
         entropy_data_2step = eband.get_data()
@@ -487,7 +485,7 @@ def test_interaction_parallel_computation(datafiles, create_blurred_tif):
     dtype_tests = {"uint8": (0, 255),
                    "float32": None}
     for test_dtype, _ in dtype_tests.items():
-        out_source = lbio_.Source(path=create_blurred_tif)
+        out_source = rgio_.Source(path=create_blurred_tif)
         categories = [b.tags['category'] for b in out_source.get_bands()]
         # Pairs
         all_possible_pairs = [list(x) for x in itertools.combinations(categories, r=2)]
@@ -495,7 +493,7 @@ def test_interaction_parallel_computation(datafiles, create_blurred_tif):
         test_pair = [1, 3]
 
         # Interaction (parallel)
-        para_interaction_tif = lbpara.compute_interaction(source=out_source,
+        para_interaction_tif = cspara.compute_interaction(source=out_source,
                                                           output_file=str(datafiles / f'{test_dtype}_interact_out.tif'),
                                                           block_size=(500, 500),
                                                           categories=test_pair,
@@ -504,13 +502,13 @@ def test_interaction_parallel_computation(datafiles, create_blurred_tif):
                                                           output_dtype=test_dtype,                                                          standardize=True,
                                                           normed=True,
                                                           verbose=False)
-        int_band = lbio_.Band(source=lbio_.Source(path=para_interaction_tif), bidx=1)
+        int_band = rgio_.Band(source=rgio_.Source(path=para_interaction_tif), bidx=1)
         para_interaction_data = int_band.get_data()
 
         # Interaction (single process
         band_list = [out_source.get_band(category=c) for c in test_pair]
         data_array = [b.get_data() for b in band_list]
-        interaction_data = lbproc.compute_interaction(data_arrays=data_array,
+        interaction_data = csproc.compute_interaction(data_arrays=data_array,
                                                       input_dtype=np.uint8,
                                                       normed=True,
                                                       standardize=True,
@@ -532,13 +530,13 @@ def test_apply_filter(datafiles):
     block_size = (500, 400)
     output_dtype = np.uint8  # data type to use for the blurred arrays
     blur_params = rgprep.get_blur_params(diameter=_diameter, truncate=truncate)
-    img_filter=lbf_gauss.gaussian
+    img_filter=csf_gauss.gaussian
     filter_params = blur_params.copy()
     _ = filter_params.pop('diameter')
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     categories = [1,2,3]
     # compute in one go
-    blurred_tif = lbpara.extract_categories(
+    blurred_tif = cspara.extract_categories(
         source=str(ch_map_tif),
         categories=categories,
         output_file=blur_single,
@@ -554,7 +552,7 @@ def test_apply_filter(datafiles):
     )
     # now in two steps:
     # first extract categories
-    bands_tif = lbpara.extract_categories(
+    bands_tif = cspara.extract_categories(
         source=str(ch_map_tif),
         categories=categories,
         output_file=bands_out,
@@ -566,7 +564,7 @@ def test_apply_filter(datafiles):
         compress=True
     )
     # apply the filter in parallel
-    blurred_para = lbpara.apply_filter(source=bands_tif,
+    blurred_para = cspara.apply_filter(source=bands_tif,
                                        output_file=blur_para,
                                        block_size=block_size,
                                        bands=None,
@@ -588,119 +586,6 @@ def test_apply_filter(datafiles):
         b_single.import_tags()
         np.testing.assert_equal(b_twostep.get_data(), b_single.get_data())
 
-
-@ALL_MAPS
-def test_prepare_selector_parallel(datafiles, create_blurred_tif):
-    """`parallel.prepare_selector` is equivalent to `inference.prepare_selector`
-    """
-    block_size = (500, 500)
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-
-    # scale it down to 100x100m (from 30x30)
-    ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
-    blurred_source = rgio_.Source(path=create_blurred_tif)
-    # set the mask
-    lbpara.compute_mask(source=blurred_source,
-                        block_size=block_size,
-                        nodata=0,
-                        logic='all',
-                        )
-    # create the inputs
-    response = rgio_.Band(source=rgio_.Source(path=ndvi_map))
-    predictors = blurred_source.get_bands()
-    # Each band should use the dataset mask:
-    for pred_band in predictors:
-        pred_band.set_mask_reader(use='source')
-
-    # without the extra masking band, both should lead to the same result
-    selector_wo = lbinf.prepare_selector(
-        response,
-        *predictors,)
-    selector_parallel_wo = lbpara.prepare_selector(
-        response,
-        *predictors,
-        block_size=block_size,
-    )
-    np.testing.assert_equal(selector_wo, selector_parallel_wo)
-    # Create extra masking band
-    resp_profile = response.source.import_profile()
-    tmp_map = str(datafiles / 'extra_mask_band.tif')
-    tmp_source = rgio_.Source(path=tmp_map)
-    tmp_profile = resp_profile.copy()
-    tmp_profile['nodata'] = 0
-    tmp_profile['dtype'] = np.uint8 
-    tmp_source.profile = tmp_profile
-    tmp_source.init_source(overwrite=True)
-    extra_masking_band = rgio_.Band(source=tmp_source, bidx=1)
-    # write out data as (mask all)
-    extra_mask_data = np.full(shape=response.shape, fill_value=0, dtype=np.uint8)
-    extra_masking_band.set_data(data=extra_mask_data)
-    selector = lbinf.prepare_selector(
-        response,
-        *predictors,
-        extra_masking_band=extra_masking_band)
-    selector_parallel = lbpara.prepare_selector(
-        response,
-        *predictors,
-        block_size=block_size,
-        extra_masking_band=extra_masking_band,
-    )
-    np.testing.assert_equal(selector, selector_parallel)
-    # extra mask none and check that it has no influence
-    extra_mask_data = np.full(shape=response.shape, fill_value=255, dtype=np.uint8)
-    extra_masking_band.set_data(data=extra_mask_data)
-    selector = lbinf.prepare_selector(
-        response,
-        *predictors,
-        extra_masking_band=extra_masking_band,
-        )
-    selector_para = lbpara.prepare_selector(
-        response,
-        *predictors,
-        block_size=block_size,
-        extra_masking_band=extra_masking_band,
-        )
-    np.testing.assert_equal(selector,selector_para)
-
-
-@ALL_MAPS
-def test_selector_computation(datafiles, create_blurred_tif):
-    """Compare the selector generation in parallel to the full one
-    """
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-
-    # scale it down to 100x100m (from 30x30)
-    ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
-
-    lct_source = rgio_.Source(path=landcover_map)
-    ndvi_source = rgio_.Source(path=ndvi_map)
-    blurred_source = rgio_.Source(path=create_blurred_tif)
-    # set the mask
-    lbpara.compute_mask(source=blurred_source, block_size=(1000, 1000),
-                        nodata=0, logic='all')
-    # create the inputs
-    response = rgio_.Band(source=rgio_.Source(path=ndvi_map))
-    predictors = blurred_source.get_bands()
-    # Each band should use the dataset mask:
-    for pred_band in predictors:
-        pred_band.set_mask_reader(use='source')
-    #predictors = ((landcover_map, 1, (1, 2, 3, 4, 5), False),)
-
-    # create a mask for ndvi_map masking the nan's
-    with rio.open(ndvi_map, 'r+') as src:
-        data = src.read(indexes=1)
-        mask = np.where(np.isnan(data), 0, 255)
-        src.write_mask(mask)
-
-    selector_full = lbinf.prepare_selector(response,
-                                           *predictors)
-    selector_para = lbpara.prepare_selector(response, *predictors, block_size=(1000,1000))
-    np.testing.assert_equal(selector_full, selector_para)
-
 @ALL_MAPS
 def test_extract_categories(datafiles):
     """Make sure the extract categories works as expected
@@ -714,7 +599,7 @@ def test_extract_categories(datafiles):
     # extract categories without applying a filter
     to_dtype="uint8"
     categories = [1,2,3,4,5]
-    category_tif = lbpara.extract_categories(
+    category_tif = cspara.extract_categories(
         source=lct_source,
         categories=categories,
         output_file=str(datafiles / 'category_out.tif'),
@@ -762,11 +647,11 @@ def test_extract_categories(datafiles):
             sigma = 100,
             truncate = 3
         )
-        blurred_tif = lbpara.extract_categories(
+        blurred_tif = cspara.extract_categories(
             source=tmp_source,
             categories=[1,2,3,4,5],
             output_file=str(datafiles / 'blur_out.tif'),
-            img_filter=lbf_gauss.gaussian,
+            img_filter=csf_gauss.gaussian,
             filter_params=filter_params,
             output_dtype=to_dtype,
             block_size=(500, 500),
@@ -792,7 +677,7 @@ def test_reduced_mask(datafiles):
     source = rgio_.Source(path=ch_map_tif)
     blur_out = str(datafiles / 'blur_out.tif')
     # create the blurred bands
-    img_filter = lbf_gauss.gaussian
+    img_filter = csf_gauss.gaussian
     output_dtype = np.uint8
     diameter = 5000  # this is in meter
     scale = 100  # meter per pixel
@@ -803,7 +688,7 @@ def test_reduced_mask(datafiles):
     blur_params = rgprep.get_blur_params(diameter=_diameter, truncate=truncate)
     filter_params = blur_params.copy()
     _ = filter_params.pop('diameter')
-    blurred_tif = lbpara.extract_categories(
+    blurred_tif = cspara.extract_categories(
         source=source,
         categories=categories,
         output_file=blur_out,
@@ -821,7 +706,7 @@ def test_reduced_mask(datafiles):
     # print(f"{dataset.shape=}")
     mask = rghelp.reduced_mask(array=dataset)
     # print(f"{mask=}")
-    lbpara.compute_mask(source=blurr_source, block_size=view_size)
+    rgpara.compute_mask(source=blurr_source, block_size=view_size)
     updated_mask = blurr_source.get_mask()
     # as get_mask returns [0, 255] mask and mask produces [0, 1] we need to account for that
     # it is important that > 0 is Valid data and needs to be equal
