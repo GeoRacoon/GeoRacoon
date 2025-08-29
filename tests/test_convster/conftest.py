@@ -2,12 +2,13 @@ import os
 import pytest
 import glob
 
-from riogrande import parallel as riogp
+from riogrande import parallel as rgpara
 from riogrande.helper import get_or_set_context
 from riogrande.io_ import Source
 
 from convster.prepare import get_blur_params
 from convster.filters.gaussian import gaussian
+from convster import parallel as cspara
 
 FIXTURE_DIR = os.path.abspath(os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
@@ -57,7 +58,7 @@ def create_blurred_tif(datafiles):
     filter_params = blur_params.copy()
     filter_params['preserve_range'] = False
     _ = filter_params.pop('diameter')
-    blurred_tif = riogp.extract_categories(
+    blurred_tif = cspara.extract_categories(
         source=lct_source,
         categories=[1,3,4,5,6],
         output_file=blur_out,
@@ -73,7 +74,7 @@ def create_blurred_tif(datafiles):
     blurr_source = Source(path=blurred_tif)
     # compute the mask
     view_size = (500, 400)
-    riogp.compute_mask(source=blurr_source, block_size=view_size, logic='all')
+    rgpara.compute_mask(source=blurr_source, block_size=view_size, logic='all')
     # ###
     return blurred_tif
 
@@ -97,7 +98,7 @@ def create_blurred_tif_float(datafiles):
     filter_params = blur_params.copy()
     filter_params['preserve_range'] = False
     _ = filter_params.pop('diameter')
-    blurred_tif = riogp.extract_categories(
+    blurred_tif = cspara.extract_categories(
         source=lct_source,
         categories=[1,3,4,5,6],
         output_file=blur_out,

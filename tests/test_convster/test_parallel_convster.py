@@ -529,7 +529,7 @@ def test_apply_filter(datafiles):
     truncate = 3  # property of the gaussian filter
     block_size = (500, 400)
     output_dtype = np.uint8  # data type to use for the blurred arrays
-    blur_params = rgprep.get_blur_params(diameter=_diameter, truncate=truncate)
+    blur_params = csprep.get_blur_params(diameter=_diameter, truncate=truncate)
     img_filter=csf_gauss.gaussian
     filter_params = blur_params.copy()
     _ = filter_params.pop('diameter')
@@ -685,7 +685,7 @@ def test_reduced_mask(datafiles):
     view_size = (500, 400)
     categories = [1, 2, 3, 4, 5]
     _diameter = diameter / scale
-    blur_params = rgprep.get_blur_params(diameter=_diameter, truncate=truncate)
+    blur_params = csprep.get_blur_params(diameter=_diameter, truncate=truncate)
     filter_params = blur_params.copy()
     _ = filter_params.pop('diameter')
     blurred_tif = cspara.extract_categories(

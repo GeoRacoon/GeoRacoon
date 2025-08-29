@@ -446,3 +446,116 @@ def test_calculate_rmse(datafiles, create_blurred_tif):
     # ax2[0].imshow(residuals, vmin=scale_min, vmax=scale_max)
     # ax2[1].imshow(diff_mean, vmin=scale_min, vmax=scale_max)
     # plt.show()
+
+@ALL_MAPS
+def test_prepare_selector_parallel(datafiles, create_blurred_tif):
+    """`parallel.prepare_selector` is equivalent to `inference.prepare_selector`
+    """
+    block_size = (500, 500)
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+
+    # scale it down to 100x100m (from 30x30)
+    ndvi_map = str(datafiles / 'lct_coreged.tif')
+    rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+    blurred_source = rgio_.Source(path=create_blurred_tif)
+    # set the mask
+    rgpara.compute_mask(source=blurred_source,
+                        block_size=block_size,
+                        nodata=0,
+                        logic='all',
+                        )
+    # create the inputs
+    response = rgio_.Band(source=rgio_.Source(path=ndvi_map))
+    predictors = blurred_source.get_bands()
+    # Each band should use the dataset mask:
+    for pred_band in predictors:
+        pred_band.set_mask_reader(use='source')
+
+    # without the extra masking band, both should lead to the same result
+    selector_wo = lfinf.prepare_selector(
+        response,
+        *predictors,)
+    selector_parallel_wo = rgpara.prepare_selector(
+        response,
+        *predictors,
+        block_size=block_size,
+    )
+    np.testing.assert_equal(selector_wo, selector_parallel_wo)
+    # Create extra masking band
+    resp_profile = response.source.import_profile()
+    tmp_map = str(datafiles / 'extra_mask_band.tif')
+    tmp_source = rgio_.Source(path=tmp_map)
+    tmp_profile = resp_profile.copy()
+    tmp_profile['nodata'] = 0
+    tmp_profile['dtype'] = np.uint8 
+    tmp_source.profile = tmp_profile
+    tmp_source.init_source(overwrite=True)
+    extra_masking_band = rgio_.Band(source=tmp_source, bidx=1)
+    # write out data as (mask all)
+    extra_mask_data = np.full(shape=response.shape, fill_value=0, dtype=np.uint8)
+    extra_masking_band.set_data(data=extra_mask_data)
+    selector = lfinf.prepare_selector(
+        response,
+        *predictors,
+        extra_masking_band=extra_masking_band)
+    selector_parallel = rgpara.prepare_selector(
+        response,
+        *predictors,
+        block_size=block_size,
+        extra_masking_band=extra_masking_band,
+    )
+    np.testing.assert_equal(selector, selector_parallel)
+    # extra mask none and check that it has no influence
+    extra_mask_data = np.full(shape=response.shape, fill_value=255, dtype=np.uint8)
+    extra_masking_band.set_data(data=extra_mask_data)
+    selector = lfinf.prepare_selector(
+        response,
+        *predictors,
+        extra_masking_band=extra_masking_band,
+        )
+    selector_para = rgpara.prepare_selector(
+        response,
+        *predictors,
+        block_size=block_size,
+        extra_masking_band=extra_masking_band,
+        )
+    np.testing.assert_equal(selector,selector_para)
+
+
+
+@ALL_MAPS
+def test_selector_computation(datafiles, create_blurred_tif):
+    """Compare the selector generation in parallel to the full one
+    """
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+
+    # scale it down to 100x100m (from 30x30)
+    ndvi_map = str(datafiles / 'lct_coreged.tif')
+    rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+
+    lct_source = rgio_.Source(path=landcover_map)
+    ndvi_source = rgio_.Source(path=ndvi_map)
+    blurred_source = rgio_.Source(path=create_blurred_tif)
+    # set the mask
+    rgpara.compute_mask(source=blurred_source, block_size=(1000, 1000),
+                        nodata=0, logic='all')
+    # create the inputs
+    response = rgio_.Band(source=rgio_.Source(path=ndvi_map))
+    predictors = blurred_source.get_bands()
+    # Each band should use the dataset mask:
+    for pred_band in predictors:
+        pred_band.set_mask_reader(use='source')
+    #predictors = ((landcover_map, 1, (1, 2, 3, 4, 5), False),)
+
+    # create a mask for ndvi_map masking the nan's
+    with rio.open(ndvi_map, 'r+') as src:
+        data = src.read(indexes=1)
+        mask = np.where(np.isnan(data), 0, 255)
+        src.write_mask(mask)
+
+    selector_full = lfinf.prepare_selector(response,
+                                           *predictors)
+    selector_para = rgpara.prepare_selector(response, *predictors, block_size=(1000,1000))
+    np.testing.assert_equal(selector_full, selector_para)

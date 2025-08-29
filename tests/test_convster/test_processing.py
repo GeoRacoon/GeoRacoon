@@ -1,8 +1,10 @@
 import pytest
 
-import numpy as np
 import itertools
 import random
+
+import numpy as np
+import rasterio as rio
 
 from skimage.filters import gaussian
 
@@ -16,6 +18,7 @@ from riogrande import io_ as rgio_
 from riogrande import prepare as rgprep
 
 from convster import processing as csproc
+from convster import prepare as csprep
 from convster.filters import gaussian as lbgauss
 
 from .conftest import ALL_MAPS, get_file
@@ -525,53 +528,6 @@ def test_visualize_recombination_coverage():
 
 
 @ALL_MAPS
-def test_reduced_mask(datafiles):
-    """Compute a mask from multiple bands in one go and then in parallel
-    """
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    source = rgio_.Source(path=ch_map_tif)
-    blur_out = str(datafiles / 'blur_out.tif')
-    # create the blurred bands
-    img_filter = lbgauss.gaussian
-    output_dtype = np.uint8
-    diameter = 5000  # this is in meter
-    scale = 100  # meter per pixel
-    truncate = 3
-    view_size = (500, 400)
-    categories = [1, 2, 3, 4, 5]
-    _diameter = diameter / scale
-    blur_params = rgprep.get_blur_params(diameter=_diameter, truncate=truncate)
-    filter_params = blur_params.copy()
-    _ = filter_params.pop('diameter')
-    blurred_tif = lbpara.extract_categories(
-        source=source,
-        categories=categories,
-        output_file=blur_out,
-        img_filter=img_filter,
-        filter_params=filter_params,
-        output_dtype=output_dtype,
-        block_size=view_size,
-        compress=True
-    )
-    blurr_source = rgio_.Source(path=blurred_tif)
-    initial_mask = blurr_source.get_mask()
-    # get the mask loading the entire dataset
-    with blurr_source.data_reader(mode='r') as read:
-        dataset = read()
-    # print(f"{dataset.shape=}")
-    mask = rghelp.reduced_mask(array=dataset)
-    # print(f"{mask=}")
-    lbpara.compute_mask(source=blurr_source, block_size=view_size)
-    updated_mask = blurr_source.get_mask()
-    # as get_mask returns [0, 255] mask and mask produces [0, 1] we need to account for that
-    # it is important that > 0 is Valid data and needs to be equal
-    updated_mask = np.divide(updated_mask, 255)
-    # print(f"UNIQUE VALUES: \n mask: {np.unique(mask)}\n updated_mask: {np.unique(updated_mask)}")
-    np.testing.assert_array_equal(mask, updated_mask)
-    assert not np.array_equal(initial_mask, updated_mask)
-
-
-@ALL_MAPS
 def test_import_export(datafiles):
     """Export per-cell entropy map after categories are blurred, load it and compare.
     """
@@ -580,7 +536,7 @@ def test_import_export(datafiles):
     view1 = (*start, *size)
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     block = rgio.load_block(ch_map_tif, view=view1, indexes=1)
-    entropy_array = lbproc.get_entropy(block['data'], categories=range(8),
+    entropy_array = csproc.get_entropy(block['data'], categories=range(8),
                                        normed=True,
                                        img_filter=gaussian)
     outfile = datafiles / 'out.tif'
@@ -607,7 +563,7 @@ def test_convert_to_dtype_real_range_handling(datafiles):
     ch_range = np.nanmin(ch_data), np.nanmax(ch_data)
     print(ch_range)
 
-    lctypes = lbproc.get_categories(ch_data)
+    lctypes = csproc.get_categories(ch_data)
     sigma = 10
     truncate = 3
     params = dict(
