@@ -9,7 +9,6 @@ of filters on a tif
 # usedin_both (should be split up!)
 from __future__ import annotations
 
-import math
 import warnings
 from typing import Any
 from collections.abc import Callable, Collection
@@ -25,30 +24,24 @@ from multiprocessing import (Queue, Manager)
 from numpy.typing import NDArray
 
 from .io_ import Source, Band
-from ._helper import (view_to_window,
-                      output_filename,
+from .helper import (view_to_window,
                       reduced_mask,
                       aggregated_selector,
                       check_compatibility,
-                      check_rank_deficiency,
-                      convert_to_dtype,
                       get_or_set_context,
                       get_nbr_workers, )
+from .prepare import create_views, update_view
 from .timing import TimedTask
-from .plotting import plot_entropy
-from .processing import (
-    view_blurred,
-    view_entropy,
-    view_filtered,
-    view_interaction
-)
-from ._prepare import create_views, update_view
-from .filters.gaussian import compatible_border_size
-from .inference import (
-    transposed_product,
-    get_optimal_weights_source)
-from .io import write_band
-from ._exceptions import InvalidPredictorError
+
+
+# TODO: very important - now it depends on ConvSTER which we really dont want.
+# Either move this or change it up
+from convster.processing import (view_blurred,
+                                 view_filtered,
+                                 )
+
+from convster.filters.gaussian import compatible_border_size
+
 
 
 def combine_views(output_params: dict,
