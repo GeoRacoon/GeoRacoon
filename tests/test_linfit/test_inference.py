@@ -3,20 +3,14 @@ import pytest
 import numpy as np
 import rasterio as rio
 from numpy.random import Generator, PCG64
-# from memory_profiler import profile as mem_profile
-from skimage.filters import gaussian
 
 from pydataset import data as pydata
 
-from landiv_blur import exceptions as lbexcept
 from landiv_blur import helper as lbhelp
-from landiv_blur import io as lbio
-from landiv_blur import io_ as lbio_
-from landiv_blur import prepare as lbprep
-from landiv_blur import processing as lbproc
+from riogrande import io as lbio
+from riogrande import io_ as lbio_
 from landiv_blur import parallel as lbpara
-from landiv_blur import inference as lbinf
-from landiv_blur.filters import gaussian as lbf_gauss
+from linfit import inference as lbinf
 
 from .conftest import ALL_MAPS, get_file, set_mpc_strategy
 
@@ -219,7 +213,7 @@ def test_extra_masking_band(datafiles, create_blurred_tif, set_mpc_strategy):
     tmp_source = lbio_.Source(path=tmp_map)
     tmp_profile = resp_profile.copy()
     tmp_profile['nodata'] = 0
-    tmp_profile['dtype'] = np.uint8 
+    tmp_profile['dtype'] = np.uint8
     tmp_source.profile = tmp_profile
     tmp_source.init_source(overwrite=True)
     extra_masking_band = lbio_.Band(source=tmp_source, bidx=1)

@@ -13,24 +13,23 @@ thereof as predictors for NDVI or the temperature based response maps.
 from __future__ import annotations
 
 import numpy as np
+from numpy.typing import NDArray
 import rasterio as rio
+from rasterio.windows import Window
 
 from operator import mul
 from collections.abc import Collection
 
-from rasterio.windows import Window
 from sklearn.linear_model import LinearRegression
 
-from numpy.typing import NDArray
-
-from ._exceptions import InferenceError
-from ._helper import (check_compatibility,
+from .exceptions import InferenceError
+from .helper import (check_compatibility,
                       usable_pixels_info,
                       usable_pixels_count,
                       view_to_window,
                       convert_to_dtype)
-from .processing import select_category
-from .io_ import Source, Band
+from riogrande.processing import select_category
+from riogrande.io_ import Source, Band
 
 
 def to_numpy_selector(rasterio_mask: NDArray) -> NDArray:
@@ -114,7 +113,7 @@ def enrich_selector(selector: NDArray,
 
 def prepare_selector(response: str | Band,
                      *predictors: Band,
-                     extra_masking_band: Band|None=None,
+                     extra_masking_band: Band | None = None,
                      verbose=False) -> NDArray:
     # TODO: is_needed - no_work - is_tested - usedin_linfit
     """Creates a boolean selector based on the masks of response and predictors
@@ -183,7 +182,7 @@ def init_X(predictors: Collection[Band],
            selector: NDArray,
            window: Window | None,
            include_intercept: bool,
-           as_dtype:type|str) -> NDArray:
+           as_dtype: type | str) -> NDArray:
     # TODO: is_needed - no_work - is_tested - usedin_linfit
     """Initiates the matrix X with the appropriate width and height
 
@@ -203,7 +202,7 @@ def init_X(predictors: Collection[Band],
 
         See `.parallel.partial_optimal_betas` and `get_optimal_weights_source`
         for further details
-      
+
     include_intercept:
       Determine if the predictor matrix should also contain an extra column of
       1's at the end, which is needed if also the intercepts should be fitted.
@@ -225,7 +224,7 @@ def init_X(predictors: Collection[Band],
 
 def populate_X(X: NDArray,
                predictors: Collection[Band],
-               as_dtype: type|str,
+               as_dtype: type | str,
                window: Window | None,
                selector: NDArray,
                include_intercept: bool):
@@ -234,7 +233,7 @@ def populate_X(X: NDArray,
 
     ...Note::
       $X$ is updated in place.
-    
+
     Parameters
     ----------
     X:
@@ -270,7 +269,7 @@ def populate_X(X: NDArray,
         with predictor.data_reader() as read:
             pred_data = read(window=window)
             # perform type conversion without any rescaling
-            
+
             pred_data_converted = convert_to_dtype(pred_data, as_dtype=as_dtype,
                                                    in_range=None, out_range=None)
 
@@ -310,11 +309,11 @@ def prepare_predictors(response: str | Band,
     In doing so we can reduce the amount of pixel to include in the multiple
     linear regression analysis, therefore, reducing the size of the response
     vector, leading to a denser but smaller predictor matrix.
-    
+
     .. note::
 
       This function returns an InferenceError if some predictor is invalid.
-      
+
       An invalid predictor can happen if it is a linear combination of the
       other predictors.
 
@@ -356,7 +355,7 @@ def prepare_predictors(response: str | Band,
         the `uint8` values are simple converted to floats (e.g. 255 > 255.0)
 
         **Rescaling the predictor data must be done separately beforehand!**
-        
+
     view:
       An optional tuple (x, y, width, height) defining the view of the predictors
       and response data to consider.
@@ -429,7 +428,7 @@ def transposed_product(predictors: Collection[Band],
                        view: tuple[int, int, int, int] | None,
                        selector: NDArray,
                        include_intercept: bool = False,
-                       as_dtype:str|type="float64"
+                       as_dtype: str | type = "float64"
                        ):
     # TODO: is_needed - no_work - is_tested - usedin_linfit
     """Extracts the selector of the predictor data in the provided view.
@@ -528,7 +527,7 @@ def partial_X(predictors: Collection[Band],
               window: Window | None,
               selector: NDArray,
               include_intercept: bool,
-              as_dtype:type|str):
+              as_dtype: type | str):
     # TODO: is_needed - needs_work - not_tested - usedin_linfit
     """Generate (a partial) predictor matrix, $`X`$.
 
@@ -586,13 +585,13 @@ def get_optimal_weights_source(Y: NDArray,
     the transposed product, Y.
 
     $$\hat{\vec{\beta}} = (X^T @ X)^{-1} X^T \vec{y}$$
-    
+
     And we define $Y = (X^T @ X)^{-1}$, thus:
-    
+
     $$\hat{\vec{\beta}} = Y @ X^T \vec{y}$$
-    
+
     Which leads to:
-    
+
     $$\hat{\beta}_j = \Sigma_{n=1}^N y_n \Sigma_{m=1}^M{Y_{j,m}l_{n}^{m}}$$
 
     Parameters
@@ -620,7 +619,7 @@ def get_optimal_weights_source(Y: NDArray,
       is present
     """
     riow = view_to_window(view)
-    # First 
+    # First
     part_X = partial_X(predictors=predictors,
                        window=riow,
                        selector=selector,
