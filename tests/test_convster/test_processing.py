@@ -597,3 +597,20 @@ def test_import_export(datafiles):
     assert np.all(np.nan_to_num(entropy_array,
                   nan=-1) == np.nan_to_num(block_2['data'], nan=-1))
     assert block['transform'] == block_2['transform']
+
+@ALL_MAPS
+def test_convert_to_dtype_real_range_handling(datafiles):
+    """Make sure datatypes are properly converted
+    """
+    ch_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_data = rgio.load_map(ch_tif)['data']
+    ch_range = np.nanmin(ch_data), np.nanmax(ch_data)
+    print(ch_range)
+
+    lctypes = lbproc.get_categories(ch_data)
+    sigma = 10
+    truncate = 3
+    params = dict(
+        sigma=sigma,
+        truncate=truncate
+    )

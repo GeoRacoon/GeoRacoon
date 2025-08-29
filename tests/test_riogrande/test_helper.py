@@ -7,10 +7,7 @@ import os
 import platform
 
 import numpy as np
-
-# TODO: !! I guess these two imports will be 'riogrande' but check again later
-from landiv_blur import io as lbio
-from landiv_blur import processing as lbproc
+import multiprocessing as mpc
 
 from riogrande.helper import (
     match_all,
@@ -19,11 +16,6 @@ from riogrande.helper import (
     convert_to_dtype,
     get_nbr_workers
 )
-
-import multiprocessing as mpc
-
-from .conftest import ALL_MAPS, get_file
-
 
 def test_matching():
     """Make sure our matching functions work as expected
@@ -165,24 +157,6 @@ def test_convert_to_dtype_range_handling():
         a_converted = convert_to_dtype(data=a_wrong, as_dtype=np.float64,
                                 in_range=[0,1],
                                 out_range=[0.0, 1.0])
-
-
-@ALL_MAPS
-def test_convert_to_dtype_real_range_handling(datafiles):
-    """Make sure datatypes are properly converted
-    """
-    ch_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ch_data = lbio.load_map(ch_tif)['data']
-    ch_range = np.nanmin(ch_data), np.nanmax(ch_data)
-    print(ch_range)
-
-    lctypes = lbproc.get_categories(ch_data)
-    sigma = 10
-    truncate = 3
-    params = dict(
-        sigma=sigma,
-        truncate=truncate
-    )
 
 
 def test_get_nbr_workers_sequence(monkeypatch):
