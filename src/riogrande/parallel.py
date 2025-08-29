@@ -34,14 +34,15 @@ from .prepare import create_views, update_view
 from .timing import TimedTask
 
 
-# TODO: very important - now it depends on ConvSTER which we really dont want.
+# TODO: very important - now it is dependent on ConvSTER which we really dont want.
 # Either move this or change it up
 from convster.processing import (view_blurred,
                                  view_filtered,
                                  )
+from convster.parallel import combine_blurred_categories
 
+# TODO: this could lead to failure but not sure why it does not import
 from convster.filters.gaussian import compatible_border_size
-
 
 
 def combine_views(output_params: dict,
@@ -84,6 +85,7 @@ def combine_views(output_params: dict,
                     print(f"Wrote out block {view=}")
                 timer.new_lab()
     return timer
+
 
 def data_writer(writer: Callable, writer_params: dict, aggr_q: Queue) -> TimedTask:
     # is_needed (internally_only)
@@ -189,6 +191,7 @@ def process_block(task: Callable,
         # print(f"{view=}\n{data=}\nmask={_}")
     return timer
 
+
 def process_masks(task: Callable,
                   bands: Collection[Band],
                   view: tuple[int, int, int, int],
@@ -255,6 +258,7 @@ def process_masks(task: Callable,
         # print(f"{view=}\n{data=}\nmask={_}")
     return timer
 
+
 def runner_call(queue: Queue[Any],
                 callback: Callable,
                 params: dict,
@@ -274,6 +278,7 @@ def runner_call(queue: Queue[Any],
     else:
         queue.put(output)
     return output
+
 
 # TODO: check how much extract_categories and apply_filter are redundant
 def extract_categories(source: str | Source,
