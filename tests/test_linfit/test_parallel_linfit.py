@@ -1,27 +1,23 @@
-import builtins
-from functools import partial
-
-from time import sleep
-
 import numpy as np
 import multiprocessing as mproc
-import itertools
 import random
 import rasterio as rio
 
-from landiv_blur import helper as lbhelp
-from landiv_blur import io as lbio
-from landiv_blur import io_ as lbio_
-from landiv_blur import processing as lbproc
-from landiv_blur import prepare as lbprep
-from landiv_blur import inference as lbinf
-from landiv_blur import parallel as lbpara
-from landiv_blur.filters import gaussian as lbf_gauss
-from landiv_blur.helper import rasterio_to_numpy_dtype
+from skimage.filters import gaussian
 
-from .conftest import ALL_MAPS, get_file, set_mpc_strategy
+from riogrande import io as rgio
+from riogrande import io_ as rgio_
+from riogrande import helper as rghelp
+from riogrande import parallel as rgpara
+from riogrande import prepare as rgprep
 
-from matplotlib import pyplot as plt
+from convster import parallel as cspara
+from convster import prepare as csprep
+
+from linfit import inference as lfinf
+from linfit import parallel as lfpara
+
+from .conftest import ALL_MAPS, get_file
 
 @ALL_MAPS
 def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
@@ -29,10 +25,10 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     """
     verbose = True
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    lct_source = lbio_.Source(path=landcover_map)
+    lct_source = rgio_.Source(path=landcover_map)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     # scale it down to 100x100m (from 30x30)
-    lbio._coregister_raster(ndvi_map, landcover_map, output=str(ndvi_map))
+    rgio._coregister_raster(ndvi_map, landcover_map, output=str(ndvi_map))
     # create a mask for ndvi_map masking the nan's
     with rio.open(ndvi_map, 'r+') as src:
         data = src.read(indexes=1)
@@ -47,31 +43,31 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     scale = 100  # meter per pixel
     truncate = 3
     _diameter = diameter / scale
-    blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
+    blur_params = csprep.get_blur_params(diameter=_diameter, truncate=truncate)
     filter_params = blur_params.copy()
     _ = filter_params.pop('diameter')
     print(mproc.get_start_method(allow_none=True))
-    blurred_tif = lbpara.extract_categories(
+    blurred_tif = cspara.extract_categories(
         source=lct_source,
         categories=[1,2,3,4,5],
         output_file=blur_out,
-        img_filter=lbf_gauss.gaussian,
+        img_filter=gaussian,
         filter_params=filter_params,
         output_dtype=np.uint8,
         block_size=(500, 500),
         compress = True
     )
-    blurr_source = lbio_.Source(path=blurred_tif)
+    blurr_source = rgio_.Source(path=blurred_tif)
     # compute the mask
     view_size = (500, 400)
-    lbpara.compute_mask(source=blurr_source, block_size=view_size, logic='all')
+    rgpara.compute_mask(source=blurr_source, block_size=view_size, logic='all')
     # ###
     predictors = blurr_source.get_bands()
     # use the dataset mask
     for pred in predictors:
         pred.set_mask_reader(use='source')
     # first compute the full matrix and calculate XT X
-    X, _ = lbinf.prepare_predictors(response,
+    X, _ = lfinf.prepare_predictors(response,
                                     *predictors,
                                     include_intercept=False,
                                     verbose=verbose,
@@ -84,7 +80,7 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
         src_height = src.height
 
     # get the aggregated selector
-    selector = lbinf.prepare_selector(response,
+    selector = lfinf.prepare_selector(response,
                                       *predictors,
                                       verbose=verbose)
 
@@ -93,7 +89,7 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     view_size = (500, 400)
     border = (0, 0)
     #  _ is for the inner_views which we do not need
-    views, _ = lbprep.create_views(view_size=view_size,
+    views, _ = rgprep.create_views(view_size=view_size,
                                    border=border,
                                    size=size)
     part_params = []
@@ -106,18 +102,18 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     # start the processes 
     manager = mproc.Manager()
     output_q = manager.Queue()
-    nbr_workers= lbhelp.get_nbr_workers()
+    nbr_workers= rghelp.get_nbr_workers()
     # print(f"using {nbr_workers=}")
     pool = set_mpc_strategy.Pool(nbr_workers)
     # start the aggregation step
     matrix_aggregator = pool.apply_async(
-        lbpara.combine_matrices,
+        lfpara.combine_matrices,
         (output_q,)
     )
     all_jobs = []
     for pparams in part_params:
         all_jobs.append(pool.apply_async(
-            lbpara.partial_transposed_product,
+            lfpara.partial_transposed_product,
             (pparams, output_q)
         ))
     # now lets wait for all of these jobs to finish
@@ -134,10 +130,10 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     np.testing.assert_allclose(transprod_full, recombined_tpX, rtol=1e-06)
     # finally in condensed form
     # get the aggregated selector (again)
-    selector = lbinf.prepare_selector(response,
+    selector = lfinf.prepare_selector(response,
                                       *predictors,
                                       verbose=verbose)
-    recombtpX = lbpara.get_XT_X(response,
+    recombtpX = lfpara.get_XT_X(response,
                                 *predictors,
                                 selector=selector,
                                 include_intercept=False,
@@ -151,15 +147,15 @@ def test_model_output(datafiles, create_blurred_tif):
     """Test the parallelized model prediction calculation.
     """
     as_dtype = 'float32'
-    blurred_source = lbio_.Source(path=create_blurred_tif)
+    blurred_source = rgio_.Source(path=create_blurred_tif)
     predictors = blurred_source.get_bands()
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    lbio._coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
-    resp_source = lbio_.Source(path=ndvi_map)
+    rgio._coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
+    resp_source = rgio_.Source(path=ndvi_map)
     resp_profile = resp_source.import_profile()
     resp_profile['count'] = 1
     print('computing weights')
-    optimal_weights = lbpara.compute_weights(response=ndvi_map,
+    optimal_weights = lfpara.compute_weights(response=ndvi_map,
                                             predictors=predictors,
                                             block_size=(500, 500),
                                             include_intercept=False,
@@ -172,7 +168,7 @@ def test_model_output(datafiles, create_blurred_tif):
     block_size = (500, 400)
     params = dict()
     print('Compute the model prediction')
-    model_out = lbpara.compute_model(
+    model_out = lfpara.compute_model(
         predictors=predictors,
         optimal_weights=optimal_weights,
         output_file=model_output_file,
@@ -189,7 +185,7 @@ def test_model_output(datafiles, create_blurred_tif):
     for pred in predictors:
         model_data += (optimal_weights[pred] * pred.get_data()).astype(as_dtype)
 
-    model_source = lbio_.Source(model_out)
+    model_source = rgio_.Source(model_out)
     model_band = model_source.get_band(bidx=1)
     # make sure we get the same
     print(f"{np.unique(model_band.get_data())=}")
@@ -208,7 +204,7 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
     _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    lbio._coregister_raster(_ndvi_map, landcover_map, output=ndvi_map)
+    rgio._coregister_raster(_ndvi_map, landcover_map, output=ndvi_map)
     # create a mask for ndvi_map masking the nan's
     with rio.open(ndvi_map, 'r+') as src:
         data = src.read(indexes=1)
@@ -217,15 +213,15 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
     # create the predicotrs 
     response = ndvi_map
 
-    blurred_source = lbio_.Source(path=create_blurred_tif)
+    blurred_source = rgio_.Source(path=create_blurred_tif)
     predictors = blurred_source.get_bands()
     # choose the write mask
     for pred in predictors:
         pred.set_mask_reader(use='source')
-    selector = lbinf.prepare_selector(response,
+    selector = lfinf.prepare_selector(response,
                                       *predictors)
     view_size = (500, 400)
-    tpX = lbpara.get_XT_X(response,
+    tpX = lfpara.get_XT_X(response,
                           *predictors,
                           selector=selector,
                           include_intercept=include_intercept,
@@ -235,7 +231,7 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
     Y = np.linalg.inv(tpX)
     # print(f"{tpX=}\n{Y=}")
     # print("#####\n#####\n#####")
-    betas_dict = lbpara.get_optimal_betas(*predictors,
+    betas_dict = lfpara.get_optimal_betas(*predictors,
                                      Y=Y,
                                      response=response,
                                      selector=selector,
@@ -245,13 +241,13 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
                                      view_size=view_size,
                                      )
     # compute the betas by loading the entire map
-    X, y = lbinf.prepare_predictors(response,
+    X, y = lfinf.prepare_predictors(response,
                                     *predictors,
                                     include_intercept=include_intercept,
                                     verbose=verbose,
                                     )
     # round both to the 6th digit
-    b = np.round(lbinf.get_optimal_weights(X, y), 6)
+    b = np.round(lfinf.get_optimal_weights(X, y), 6)
     betas = np.round(list(betas_dict.values()), 6)
     # print(f"{b=}\n{betas=}")
     np.testing.assert_allclose(betas, b, rtol=1e-04)
@@ -267,14 +263,14 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
 def test_get_XT_X_dependency(datafiles, create_blurred_tif):
     """Test wether rank deficiency is captured when layers would be linear dependent
     """
-    blur_source = lbio_.Source(path=create_blurred_tif)
+    blur_source = rgio_.Source(path=create_blurred_tif)
     predictors = blur_source.get_bands()
 
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    lbio._coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
+    rgio._coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
 
     # Generally it should be empty (as there is no linear dependency by nature)
-    result = lbpara.get_XT_X_dependency(response=ndvi_map,
+    result = lfpara.get_XT_X_dependency(response=ndvi_map,
                                         predictors=predictors,
                                         block_size=(500, 500),
                                         include_intercept=False)
@@ -286,7 +282,7 @@ def test_get_XT_X_dependency(datafiles, create_blurred_tif):
     with rio.open(blur_source.path, mode='r+') as dst:
         dst.write(ref_array, indexes=pred_sample[1].get_bidx())
 
-    result_issue = lbpara.get_XT_X_dependency(response=ndvi_map,
+    result_issue = lfpara.get_XT_X_dependency(response=ndvi_map,
                                               predictors=predictors,
                                               block_size=(500, 500),
                                               include_intercept=False)
@@ -299,18 +295,18 @@ def test_compute_weights(datafiles, create_blurred_tif):
         1) normal
         2) with rank deficiency and all zero column
     """
-    blur_source = lbio_.Source(path=create_blurred_tif)
+    blur_source = rgio_.Source(path=create_blurred_tif)
     predictors = blur_source.get_bands()
 
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    lbio._coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
+    rgio._coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
 
-    lbpara.compute_mask(blur_source, block_size=(500, 500))
+    rgpara.compute_mask(blur_source, block_size=(500, 500))
     for p in predictors:
         p.set_mask_reader(use="source")
 
     # 1) Normal test
-    beta_weights = lbpara.compute_weights(response=ndvi_map,
+    beta_weights = lfpara.compute_weights(response=ndvi_map,
                                     predictors=predictors,
                                     block_size=(500, 500),
                                     include_intercept=False)
@@ -336,7 +332,7 @@ def test_compute_weights(datafiles, create_blurred_tif):
 
     # 2.3) Run test
     # The All-Zero band should be caught by the sanitize
-    beta_weights = lbpara.compute_weights(response=ndvi_map,
+    beta_weights = lfpara.compute_weights(response=ndvi_map,
                                     predictors=predictors,
                                     block_size=(500, 500),
                                     include_intercept=False,
@@ -352,26 +348,26 @@ def test_calculate_rmse(datafiles, create_blurred_tif):
     """Test the parallelized RSME calculation.
       """
     block_size = (500, 500)
-    blurred_source = lbio_.Source(path=create_blurred_tif)
+    blurred_source = rgio_.Source(path=create_blurred_tif)
     predictors = blurred_source.get_bands()
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    lbio._coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
-    resp_source = lbio_.Source(path=ndvi_map)
+    rgio._coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
+    resp_source = rgio_.Source(path=ndvi_map)
     resp_profile = resp_source.import_profile()
     resp_profile['count'] = 1
 
     # Masks (important for latter model fitting)
     for p in predictors:
         p.set_mask_reader(use="source")
-    lbpara.compute_mask(source=resp_source, nodata=np.nan, block_size=block_size)
+    rgpara.compute_mask(source=resp_source, nodata=np.nan, block_size=block_size)
 
     # Comupte selector (else the data does not overlap)
     print('Calculate Selector')
-    selector = lbpara.prepare_selector(resp_source.get_band(bidx=1), *predictors,
+    selector = rgpara.prepare_selector(resp_source.get_band(bidx=1), *predictors,
                                        block_size=block_size)
 
     print('computing weights')
-    optimal_weights = lbpara.compute_weights(response=ndvi_map,
+    optimal_weights = lfpara.compute_weights(response=ndvi_map,
                                              predictors=predictors,
                                              block_size=block_size,
                                              as_dtype=np.float64,
@@ -384,7 +380,7 @@ def test_calculate_rmse(datafiles, create_blurred_tif):
     verbose = False
     params = dict()
     print('Compute the model prediction')
-    model_out = lbpara.compute_model(
+    model_out = lfpara.compute_model(
         predictors=predictors,
         predictors_as_dtype=np.float64,
         optimal_weights=optimal_weights,
@@ -396,7 +392,7 @@ def test_calculate_rmse(datafiles, create_blurred_tif):
 
     # make sure we get the same
     ndvi_band = resp_source.get_band(bidx=1)
-    model_band = lbio_.Source(path=model_out).get_band(bidx=1)
+    model_band = rgio_.Source(path=model_out).get_band(bidx=1)
     ndvi_array = ndvi_band.get_data()
     model_array = model_band.get_data()
 
@@ -416,7 +412,7 @@ def test_calculate_rmse(datafiles, create_blurred_tif):
     rmse_manual = np.sqrt((ssr / n))
     print(f"{rmse_manual=}")
 
-    rmse = lbpara.calculate_rmse(response=ndvi_band,
+    rmse = lfpara.calculate_rmse(response=ndvi_band,
                                  model=model_band,
                                  selector=selector,
                                  block_size=block_size,)
@@ -431,7 +427,7 @@ def test_calculate_rmse(datafiles, create_blurred_tif):
     r2_manual = 1 - (ssr / sst)
     print(f"{r2_manual=}")
 
-    r2 = lbpara.calculate_r2(response=ndvi_band,
+    r2 = lfpara.calculate_r2(response=ndvi_band,
                              model=model_band,
                              selector=selector,
                              block_size=block_size,)
