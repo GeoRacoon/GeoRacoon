@@ -20,20 +20,25 @@ import rasterio as rio
 
 from multiprocessing import (Queue, Manager)
 
-from .io_ import Source, Band
-from ._helper import (view_to_window,
-                      output_filename,
-                      get_or_set_context,
-                      get_nbr_workers, )
-from .timing import TimedTask
+from riogrande.io_ import Source, Band
+from riogrande.helper import (
+    view_to_window,
+    output_filename,
+    get_or_set_context,
+    get_nbr_workers
+)
+
+from riogrande.timing import TimedTask
+from riogrande.prepare import create_views
+from riogrande.io import write_band
+from riogrande.parallel import runner_call
+
 from .plotting import plot_entropy
 from .processing import (
     view_blurred,
     view_entropy,
     view_interaction
 )
-from ._prepare import create_views
-from .io import write_band
 
 
 def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
