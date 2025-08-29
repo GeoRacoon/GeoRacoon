@@ -10,6 +10,8 @@ from rasterio.mask import mask
 from shapely.geometry import box as shbox
 import geopandas as gpd
 
+from riogrande import io as riogio
+
 from .helper import (
     outfile_suffix,
 )
@@ -62,14 +64,18 @@ def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_m
     # Note: before buffering cut shapefiler bigger than the raster to expanded smaler chunk to avoid long processing.
     # Therfore the bbox of the raster plus the buffer distance (absolute) is used to avoid losing any areas later.
     if buffer_meter is not None:
-        exp_bbox_geom = buffer_geometries_metric(gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[bbox_geom]),
-                                                 buffer_meter=abs(buffer_meter),
-                                                 source_crs=gdf.crs)
+        exp_bbox_geom = riogio.buffer_geometries_metric(
+            geom_geoseries=gpd.GeoDataFrame(index=[0],
+                                            crs='epsg:4326',
+                                            geometry=[bbox_geom]),
+            buffer_meter=abs(buffer_meter),
+            source_crs=gdf.crs
+        )
         exp_geometry = gpd.clip(geometry, exp_bbox_geom, keep_geom_type=True)
 
-        geometry = buffer_geometries_metric(exp_geometry,
-                                            buffer_meter=buffer_meter,
-                                            source_crs=gdf.crs)
+        geometry = riogio.buffer_geometries_metric(geom_geoseries=exp_geometry,
+                                                   buffer_meter=buffer_meter,
+                                                   source_crs=gdf.crs)
 
     # Clip to bbox
     geometry_clip = gpd.clip(geometry, bbox_geom, keep_geom_type=True)
