@@ -2,10 +2,6 @@ import os
 import pytest
 import glob
 
-import numpy as np
-
-from rasterio.transform import Affine
-
 from landiv_blur.prepare import get_blur_params
 from landiv_blur.parallel import (
     extract_categories,
