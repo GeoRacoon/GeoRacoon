@@ -25,7 +25,7 @@ from .helper import (view_to_window,
                       aggregated_selector,
                       get_or_set_context,
                       get_nbr_workers, )
-from .prepare import create_views
+from .prepare import create_views, update_view
 from .timing import TimedTask
 
 
@@ -394,6 +394,44 @@ def compute_mask(source: str | Source,
         # wait for the *_combiner tasks to finish
         pool.join()
         total_duration = aggregator_job.get().get_duration()
+
+
+def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
+    # is_needed (internally only)
+    # needs_work (docs; make internal)
+    # not_tested
+    """Filling up a matrix
+
+    Parameters
+    ----------
+    matrix:
+      ...
+    aggr_q:
+        The queue this job listens to.
+        Each element in the queue must be a `dict` containing either:
+        - "view" + "data" specifying where to write what
+        - "signal" with value:
+          - "kill": will terminate the process and return the filled matrix
+
+    Returns
+    -------
+    matrice, (TimedTask, ):
+        The first object is the filled matrix, the second holds a
+        `TimedTask` object that holds information on the duration of this task
+    """
+    with TimedTask() as timer:
+        while True:
+            output = aggr_q.get()
+            signal = output.get('signal', None)
+            if signal:
+                if signal == "kill":
+                    # print(f"\n\nDone with the matrix aggregation.\n\n")
+                    break
+            view = output.pop('view')
+            block_data = output.pop('data')
+            update_view(data=matrix, view=view, block=block_data)
+            timer.new_lab()
+    return matrix, (timer,)
 
 
 def prepare_selector(*bands: Band,

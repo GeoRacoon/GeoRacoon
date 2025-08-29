@@ -5,8 +5,8 @@ import numpy as np
 import numpy.ma as ma
 import rasterio as rio
 
-from landiv_blur.io_ import Source, Band
-from landiv_blur.exceptions import (
+from riogrande.io_ import Source, Band
+from riogrande.exceptions import (
     BandSelectionNoMatchError,
 )
 
@@ -229,7 +229,7 @@ def test_masking(datafiles):
 @ALL_MAPS
 def test_masking_all_none(datafiles):
     """make sure the not masking and the masking all works as expected"""
-    from landiv_blur.helper import aggregated_selector
+    from riogrande.helper import aggregated_selector
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     test_file = datafiles / 'test.tif'
     source = Source(path=ch_map_tif)

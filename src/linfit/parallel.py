@@ -31,7 +31,6 @@ from riogrande.helper import (
 from riogrande.timing import TimedTask
 from riogrande.prepare import (
     create_views,
-    update_view
 )
 from riogrande import parallel as rgpara
 
@@ -83,44 +82,6 @@ def combine_matrices(output_q: Queue) -> tuple[NDArray | None, tuple]:
                 out_matrix[np.isnan(out_matrix)] = 0
             timer.new_lab()
     return out_matrix, (timer,)
-
-
-def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
-    # is_needed (internally only)
-    # needs_work (docs; make internal)
-    # not_tested
-    """Filling up a matrix
-
-    Parameters
-    ----------
-    matrix:
-      ...
-    aggr_q:
-        The queue this job listens to.
-        Each element in the queue must be a `dict` containing either:
-        - "view" + "data" specifying where to write what
-        - "signal" with value:
-          - "kill": will terminate the process and return the filled matrix
-
-    Returns
-    -------
-    matrice, (TimedTask, ):
-        The first object is the filled matrix, the second holds a
-        `TimedTask` object that holds information on the duration of this task
-    """
-    with TimedTask() as timer:
-        while True:
-            output = aggr_q.get()
-            signal = output.get('signal', None)
-            if signal:
-                if signal == "kill":
-                    # print(f"\n\nDone with the matrix aggregation.\n\n")
-                    break
-            view = output.pop('view')
-            block_data = output.pop('data')
-            update_view(data=matrix, view=view, block=block_data)
-            timer.new_lab()
-    return matrix, (timer,)
 
 
 def partial_transposed_product(params: dict, output_q: Queue):

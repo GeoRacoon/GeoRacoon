@@ -2,52 +2,24 @@ import pytest
 import os
 import rasterio as rio
 import numpy as np
-from skimage.filters import gaussian
-from rasterio.windows import Window
 
 from .conftest import ALL_MAPS, get_example_data, get_file
-from landiv_blur.exceptions import (
+
+from riogrande.exceptions import (
     BandSelectionAmbiguousError,
     BandSelectionNoMatchError
 )
-from landiv_blur.helper import check_compatibility
-from landiv_blur import io as lbio
-from landiv_blur import io_ as lbio_
-from landiv_blur import processing as lbproc
+from riogrande.helper import check_compatibility
+from riogrande import io as rgio
+from riogrande import io_ as rgio_
 
 
 def test_load_block():
     """This is just a smoketest"""
     with pytest.raises(rio.RasterioIOError):
-        lbio.load_block(source='non-existing',
+        rgio.load_block(source='non-existing',
                         view=(0, 0, 10, 10))
 
-@ALL_MAPS
-def test_import_export(datafiles):
-    """Export per-cell entropy map after categories are blurred, load it and compare.
-    """
-    start = (1020, 1020)
-    size = (700, 700)
-    view1 = (*start, *size)
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    block = lbio.load_block(ch_map_tif, view=view1, indexes=1)
-    entropy_array = lbproc.get_entropy(block['data'], categories=range(8),
-                                       normed=True,
-                                       img_filter=gaussian)
-    outfile = datafiles / 'out.tif'
-    lbio.export_to_tif(
-        destination=str(outfile),
-        data=entropy_array,
-        orig_profile=block['orig_profile'],
-        # we need the transform from the window from block 1
-        transform=block['transform']
-    )
-    view2 = (0, 0, *size)
-    block_2 = lbio.load_block(outfile, view=view2)
-    # NOTE: if the arrays contain np.nan then np.all will always be False
-    assert np.all(np.nan_to_num(entropy_array,
-                  nan=-1) == np.nan_to_num(block_2['data'], nan=-1))
-    assert block['transform'] == block_2['transform']
 
 @ALL_MAPS
 def test_resampling(datafiles):
@@ -62,7 +34,7 @@ def test_resampling(datafiles):
     with pytest.raises(TypeError):
         check_compatibility(ndvi_map, landcover_map)
     # re-sample the landcover_map to match the resolution of the ndvi_map
-    lbio._coregister_raster(landcover_map, ndvi_map, output=str(landcover_map))
+    rgio._coregister_raster(landcover_map, ndvi_map, output=str(landcover_map))
     # now check that the shape of the data actually matches
     with rio.open(ndvi_map, 'r') as src:
         # get the shape and the projection
@@ -123,13 +95,13 @@ def test_band_tagging(datafiles):
     with rio.open(outfile, 'r+') as src:
         # file wide tags
         # src.update_tags(ns=our_namespace, **gen_tag1)
-        lbio.set_tags(src=src, **gen_tag1)
+        rgio.set_tags(src=src, **gen_tag1)
         # src.update_tags(ns=our_namespace, **gen_tag2)
-        lbio.set_tags(src=src, **gen_tag2)
+        rgio.set_tags(src=src, **gen_tag2)
         # now we add tags per band
         for idx in src.indexes:
             # src.update_tags(ns=our_namespace, bidx=idx, **band_tags[idx])
-            lbio.set_tags(src=src, bidx=idx, **band_tags[idx])
+            rgio.set_tags(src=src, bidx=idx, **band_tags[idx])
     # read the tif
     # print('\nAnd now we read the tags again form the tif:')
     with rio.open(outfile, 'r') as src:
@@ -173,32 +145,32 @@ def test_tag_matching(datafiles):
     with rio.open(outfile1, 'r+') as src:
         # file wide tags
         # src.update_tags(ns=our_namespace, **gen_tag1)
-        lbio.set_tags(src=src, **gen_tag1)
+        rgio.set_tags(src=src, **gen_tag1)
         # now we add tags per band
         for idx in src.indexes:
             # src.update_tags(ns=our_namespace, bidx=idx, **band_tags[idx])
-            lbio.set_tags(src=src, bidx=idx, **band_tags[idx])
+            rgio.set_tags(src=src, bidx=idx, **band_tags[idx])
     # now to the second file
     band_tags[2]['category'] = 101  # change one category to not match
     with rio.open(outfile2, 'r+') as src:
         # file wide tags
-        lbio.set_tags(src=src, **gen_tag2)
+        rgio.set_tags(src=src, **gen_tag2)
         for idx in src.indexes:
             # src.update_tags(ns=our_namespace, bidx=idx, **band_tags[idx])
-            lbio.set_tags(src=src, bidx=idx, **band_tags[idx])
+            rgio.set_tags(src=src, bidx=idx, **band_tags[idx])
     # now we check the matching:
     with rio.open(outfile1, 'r') as src:
         # category matches to band 1:
         _bidx = 1
         _category = band_tags[_bidx]['category']
-        assert lbio.get_bidx(src=src,
+        assert rgio.get_bidx(src=src,
                              category=_category) == _bidx
         # category 222 does not exist
         with pytest.raises(BandSelectionNoMatchError):
-            lbio.get_bidx(src=src,
+            rgio.get_bidx(src=src,
                           category=222)
         with pytest.raises(BandSelectionAmbiguousError):
-            lbio.get_bidx(src=src, some='value')
+            rgio.get_bidx(src=src, some='value')
         # check that serialization works
         _bidx = 2
         _tag = 'extra'
@@ -206,13 +178,13 @@ def test_tag_matching(datafiles):
         _bla = _extra['bla']  # this is an int
         _blu = _extra['blu']  # this is a list
         # we read the serialized tags from the tif and convert them
-        tags = lbio.get_tags(src=src, bidx=_bidx)
+        tags = rgio.get_tags(src=src, bidx=_bidx)
         assert tags[_tag]['bla'] == _bla
         assert tags[_tag]['blu'] == _blu
     # now test the get_bands
     sources = str(datafiles / 'out*.tif')
     # find all some: 'value' tags:
-    some_value = lbio.get_bands(source=sources, some='value')
+    some_value = rgio.get_bands(source=sources, some='value')
     assert (str(outfile2), None) in some_value  # the tag in the dataset
     # the bands
     assert (str(outfile1), 1) in some_value
@@ -230,18 +202,18 @@ def test_tif_compression(datafiles):
     )
     for file in test_data:
         # decompress it
-        file_decompressed = lbio.compress_tif(file, compression=None)
+        file_decompressed = rgio.compress_tif(file, compression=None)
         decompressed_size = os.path.getsize(file_decompressed)
         # compress it
-        file_compressed = lbio.compress_tif(file_decompressed)
+        file_compressed = rgio.compress_tif(file_decompressed)
         compressed_size = os.path.getsize(file_compressed)
         assert decompressed_size > compressed_size
         # decompress it again
-        file_re_decompressed = lbio.compress_tif(file_compressed, compression=None)
+        file_re_decompressed = rgio.compress_tif(file_compressed, compression=None)
         re_decompressed_size = os.path.getsize(file_re_decompressed)
         assert decompressed_size == re_decompressed_size
         # replace file:
-        _ = lbio.compress_tif(file_re_decompressed, output=file_re_decompressed)
+        _ = rgio.compress_tif(file_re_decompressed, output=file_re_decompressed)
         replaced_size = os.path.getsize(file_re_decompressed)
         # make sure the original file changed
         assert replaced_size < re_decompressed_size
@@ -258,28 +230,28 @@ def test_compression_tagging(datafiles):
         ds_tag='test'
     )
     for file in test_data:
-        orig_file_tagged = lbio.outfile_suffix(file, "orig_tagged")
+        orig_file_tagged = rgio.outfile_suffix(file, "orig_tagged")
         # create file copy with tags
         target = {}
         with rio.open(file) as src:
             profile = src.profile
             with rio.open(orig_file_tagged, 'w', **profile) as dst:
-                lbio.set_tags(dst, **dataset_tags)
+                rgio.set_tags(dst, **dataset_tags)
                 for bidx in range(1, src.count + 1):
                     dst.write(src.read(bidx), bidx)
-                    lbio.set_tags(dst, bidx, category=np.random.randint(low=0, high=255))
-                    target[bidx] = lbio.get_tags(src=dst, bidx=bidx)
-        file_tagged = lbio.outfile_suffix(file, "tagged")
+                    rgio.set_tags(dst, bidx, category=np.random.randint(low=0, high=255))
+                    target[bidx] = rgio.get_tags(src=dst, bidx=bidx)
+        file_tagged = rgio.outfile_suffix(file, "tagged")
         # uncompress it
-        file_tagged = lbio.compress_tif(orig_file_tagged, compression=None)
+        file_tagged = rgio.compress_tif(orig_file_tagged, compression=None)
 
         # compress file and check if tags match
-        file_compress = lbio.compress_tif(file_tagged)
+        file_compress = rgio.compress_tif(file_tagged)
         test = {}
         with rio.open(file_compress) as src:
-            dataset_tags_copied = lbio.get_tags(src=src)
+            dataset_tags_copied = rgio.get_tags(src=src)
             for bidx in range(1, src.count + 1):
-                tags = lbio.get_tags(src=src, bidx=bidx)
+                tags = rgio.get_tags(src=src, bidx=bidx)
                 test[bidx] = tags
 
         assert dataset_tags_copied == dataset_tags
@@ -295,7 +267,7 @@ def test_band_count_contrib(datafiles):
         get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     )
     for test_file in test_data:
-        band = lbio_.Band(source=lbio_.Source(path=test_file), bidx=1)
+        band = rgio_.Band(source=rgio_.Source(path=test_file), bidx=1)
         valids = band.count_valid_pixels(selector=None, no_data=0)
         print(f"{valids=}")
         assert isinstance(valids, int)

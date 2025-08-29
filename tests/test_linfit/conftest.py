@@ -2,18 +2,21 @@ import os
 import pytest
 import glob
 
-from landiv_blur.prepare import get_blur_params
-from landiv_blur.parallel import (
+from convster.prepare import get_blur_params
+from convster.parallel import (
     extract_categories,
+)
+from convster.filters.gaussian import gaussian
+
+from riogrande.helper import get_or_set_context
+from riogrande.io_ import Source, Band
+from riogrande.parallel import (
     compute_mask,
 )
-from landiv_blur.helper import get_or_set_context
-from landiv_blur.io_ import Source, Band
-from landiv_blur.filters.gaussian import gaussian
 
 FIXTURE_DIR = os.path.abspath(os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
-    '../',
+    '../../',
     'data'
 ))
 lct_map = os.path.join(FIXTURE_DIR, 'testing', 'landcover',

@@ -5,11 +5,11 @@ import glob
 import numpy as np
 from rasterio.transform import Affine
 
-from landiv_blur.helper import get_or_set_context
+from riogrande.helper import get_or_set_context
 
 FIXTURE_DIR = os.path.abspath(os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
-    '../',
+    '../../',
     'data'
 ))
 lct_map = os.path.join(FIXTURE_DIR, 'testing', 'landcover',
