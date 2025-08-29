@@ -2,13 +2,11 @@ import os
 import pytest
 import glob
 
-from landiv_blur.prepare import get_blur_params
-from landiv_blur.parallel import (
-    extract_categories,
-    compute_mask,
-)
+from riogrande import parallel as riogp
 from riogrande.helper import get_or_set_context
-from riogrande.io_ import Source, Band
+from riogrande.io_ import Source
+
+from convster.prepare import get_blur_params
 from convster.filters.gaussian import gaussian
 
 FIXTURE_DIR = os.path.abspath(os.path.join(
@@ -59,7 +57,7 @@ def create_blurred_tif(datafiles):
     filter_params = blur_params.copy()
     filter_params['preserve_range'] = False
     _ = filter_params.pop('diameter')
-    blurred_tif = extract_categories(
+    blurred_tif = riogp.extract_categories(
         source=lct_source,
         categories=[1,3,4,5,6],
         output_file=blur_out,
@@ -75,7 +73,7 @@ def create_blurred_tif(datafiles):
     blurr_source = Source(path=blurred_tif)
     # compute the mask
     view_size = (500, 400)
-    compute_mask(source=blurr_source, block_size=view_size, logic='all')
+    riogp.compute_mask(source=blurr_source, block_size=view_size, logic='all')
     # ###
     return blurred_tif
 
@@ -99,7 +97,7 @@ def create_blurred_tif_float(datafiles):
     filter_params = blur_params.copy()
     filter_params['preserve_range'] = False
     _ = filter_params.pop('diameter')
-    blurred_tif = extract_categories(
+    blurred_tif = riogp.extract_categories(
         source=lct_source,
         categories=[1,3,4,5,6],
         output_file=blur_out,
@@ -116,7 +114,7 @@ def create_blurred_tif_float(datafiles):
     blurr_source = Source(path=blurred_tif)
     # compute the mask
     view_size = (500, 400)
-    compute_mask(source=blurr_source, block_size=view_size, logic='all')
+    riop.compute_mask(source=blurr_source, block_size=view_size, logic='all')
     # ###
     print(f"{blurr_source.import_profile()=}")
     return blurred_tif

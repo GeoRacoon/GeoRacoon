@@ -6,6 +6,7 @@ from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from rasterio.plot import show
 
 from riogrande.io import load_block
+
 from .processing import (
     get_category_data,
     get_entropy,

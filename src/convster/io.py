@@ -1,47 +1,19 @@
 from __future__ import annotations
 
-import os
-import glob
 import rasterio
 
 
-from math import floor
-
-from typing import Any
 
 import rasterio as rio
-from rasterio.io import DatasetWriter
-from rasterio.enums import ColorInterp
-from rasterio.windows import Window
-from rasterio.enums import Resampling
 from rasterio.mask import mask
-from rasterio.warp import (
-    calculate_default_transform,
-    reproject,
-    Resampling,
-    transform_bounds
-)
 
 from shapely.geometry import box as shbox
 import geopandas as gpd
 
-from numpy.typing import NDArray
+from riogrande import io as riogio
 
-from ._exceptions import (
-    BandSelectionNoMatchError,
-    BandSelectionAmbiguousError,
-    SourceNotSavedError,
-    UnknownExtensionError,
-)
-from ._helper import (
-    check_crs_raster,
+from .helper import (
     outfile_suffix,
-    serialize,
-    deserialize,
-    sanitize,
-    match_all,
-    view_to_window,
-    get_scale_factor,
 )
 # is_needed
 # needs_work (module should be moved, needs docs)
@@ -92,14 +64,18 @@ def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_m
     # Note: before buffering cut shapefiler bigger than the raster to expanded smaler chunk to avoid long processing.
     # Therfore the bbox of the raster plus the buffer distance (absolute) is used to avoid losing any areas later.
     if buffer_meter is not None:
-        exp_bbox_geom = buffer_geometries_metric(gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[bbox_geom]),
-                                                 buffer_meter=abs(buffer_meter),
-                                                 source_crs=gdf.crs)
+        exp_bbox_geom = riogio.buffer_geometries_metric(
+            geom_geoseries=gpd.GeoDataFrame(index=[0],
+                                            crs='epsg:4326',
+                                            geometry=[bbox_geom]),
+            buffer_meter=abs(buffer_meter),
+            source_crs=gdf.crs
+        )
         exp_geometry = gpd.clip(geometry, exp_bbox_geom, keep_geom_type=True)
 
-        geometry = buffer_geometries_metric(exp_geometry,
-                                            buffer_meter=buffer_meter,
-                                            source_crs=gdf.crs)
+        geometry = riogio.buffer_geometries_metric(geom_geoseries=exp_geometry,
+                                                   buffer_meter=buffer_meter,
+                                                   source_crs=gdf.crs)
 
     # Clip to bbox
     geometry_clip = gpd.clip(geometry, bbox_geom, keep_geom_type=True)
