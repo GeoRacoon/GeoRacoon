@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import os
 import glob
-import rasterio
-
 
 from math import floor
 
+import rasterio # TODO: choose either rio or rasterio as name
 import rasterio as rio
 from rasterio.io import DatasetWriter
 from rasterio.windows import Window
