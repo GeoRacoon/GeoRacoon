@@ -2,7 +2,7 @@ import numpy as np
 from skimage.filters import gaussian
 
 from convster import array_processing as ap
-from landiv_blur import processing as lbproc
+from convster import processing as csproc
 
 
 def test_sigma_absolut():
@@ -14,7 +14,7 @@ def test_sigma_absolut():
         half = int(0.5 * (msize - 1))
         z[half, half] = 255
         sigma = 1
-        blurred = lbproc._apply_filter(z, gaussian, sigma=sigma)
+        blurred = csproc._apply_filter(z, gaussian, sigma=sigma)
         diameter = max(np.unique(ap.last_nonzero(blurred, axis=1)
                        - ap.first_nonzero(blurred, axis=1)))
         kernel_dims.append(diameter)
@@ -31,7 +31,7 @@ def test_auc_constance():
     for trunc in [0.01, 0.1, 0.5, 1, 1.5, 2, 3, 5]:
         half = int(0.5 * (msize - 1))
         z[half, half] = 255
-        blurred = lbproc._apply_filter(z, gaussian, sigma=sigma, truncate=trunc)
+        blurred = csproc._apply_filter(z, gaussian, sigma=sigma, truncate=trunc)
         sums.append(np.round(np.sum(blurred), 8))
     assert sums[0] == 1.0, "AUC is not 1!"
     assert len(np.unique(sums)) == 1, \
