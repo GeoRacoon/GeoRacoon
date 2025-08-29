@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import numpy as np
 from numpy.typing import NDArray
-import rasterio as rio
 from rasterio.windows import Window
 
 from operator import mul
@@ -22,14 +21,17 @@ from collections.abc import Collection
 
 from sklearn.linear_model import LinearRegression
 
-from .exceptions import InferenceError
-from .helper import (check_compatibility,
-                      usable_pixels_info,
-                      usable_pixels_count,
-                      view_to_window,
-                      convert_to_dtype)
-from riogrande.processing import select_category
+from riogrande.helper import (
+    check_compatibility,
+    view_to_window,
+    convert_to_dtype
+)
 from riogrande.io_ import Source, Band
+
+from .helper import (
+    usable_pixels_info,
+    usable_pixels_count,
+)
 
 
 def to_numpy_selector(rasterio_mask: NDArray) -> NDArray:

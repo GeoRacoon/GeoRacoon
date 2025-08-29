@@ -9,9 +9,10 @@ from scipy.stats import entropy
 from skimage.filters import gaussian
 
 from riogrande.helper import dtype_range, convert_to_dtype
-from riogrande.io import load_block, get_bands
+from riogrande.io import load_block
 from riogrande.io_ import Source, Band
 from riogrande.prepare import get_view, relative_view
+
 from .filters import bpgaussian
 
 
