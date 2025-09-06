@@ -21,7 +21,10 @@ from convster import processing as csproc
 from convster import prepare as csprep
 from convster.filters import gaussian as lbgauss
 
-from .conftest import ALL_MAPS, get_file
+from .conftest import (
+    ALL_MAPS,
+    get_file,
+)
 
 
 def test_select_category():

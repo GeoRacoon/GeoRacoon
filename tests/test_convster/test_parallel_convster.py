@@ -18,7 +18,12 @@ from convster import prepare as csprep
 from convster import parallel as cspara
 from convster.filters import gaussian as csf_gauss
 
-from .conftest import ALL_MAPS, get_file
+from .conftest import (
+    ALL_MAPS,
+    get_file,
+    create_blurred_tif,
+    set_mpc_strategy,
+)
 
 
 @ALL_MAPS
