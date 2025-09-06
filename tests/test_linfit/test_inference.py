@@ -13,7 +13,12 @@ from riogrande import parallel as rgpara
 from linfit import inference as lfinf
 from linfit import parallel as lfpara
 
-from .conftest import ALL_MAPS, get_file
+from .conftest import (
+    ALL_MAPS,
+    get_file,
+    create_blurred_tif,
+    set_mpc_strategy,
+)
 
 
 @ALL_MAPS

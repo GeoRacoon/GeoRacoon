@@ -17,7 +17,12 @@ from convster import prepare as csprep
 from linfit import inference as lfinf
 from linfit import parallel as lfpara
 
-from .conftest import ALL_MAPS, get_file
+from .conftest import (
+    ALL_MAPS,
+    get_file,
+    set_mpc_strategy,
+    get_blur_params,
+)
 
 @ALL_MAPS
 def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
