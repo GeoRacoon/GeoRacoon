@@ -44,6 +44,8 @@ def create_blurred_tif(datafiles):
     as_dtype = 'uint8'
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    test_data = list(datafiles.iterdir())
+    landcover_map = test_data[0]
     lct_source = Source(path=landcover_map)
     # ###
     # compute blurred layers
@@ -68,7 +70,6 @@ def create_blurred_tif(datafiles):
         ),
         block_size=(500, 500),
         compress = True,
-        verbose = True,
     )
     blurr_source = Source(path=blurred_tif)
     # compute the mask
@@ -83,6 +84,8 @@ def create_blurred_tif_float(datafiles):
     """
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    test_data = list(datafiles.iterdir())
+    landcover_map = test_data[0]
     lct_source = Source(path=landcover_map)
     # ###
     # compute blurred layers

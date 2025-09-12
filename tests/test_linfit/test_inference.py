@@ -25,6 +25,8 @@ from .conftest import (
 def test_preparation(datafiles, create_blurred_tif, set_mpc_strategy):
     """Test the preparation of predictors based on a response matrix
     """
+    test_data = list(datafiles.iterdir())
+    print(f"{test_data=}")
     _landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     print(f"{ndvi_map=}")

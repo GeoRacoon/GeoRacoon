@@ -869,7 +869,6 @@ def view_blurred(source:str,
     # transform = result.pop('transform')
     # orig_profile = result.pop('orig_profile')
     # perform blur
-    print(f"before blur: {np.unique(data)=}")
     blurred_categories = get_filtered_categories(
         data=data,
         categories=categories,
@@ -879,8 +878,6 @@ def view_blurred(source:str,
         output_dtype=output_dtype,
         output_range=output_range,
     )
-    for cat, data in blurred_categories.items():
-        print(f"{cat=}, {np.unique(data)=}")
     # get the relative view
     for category, data in blurred_categories.items():
         blurred_categories[category] = np.copy(

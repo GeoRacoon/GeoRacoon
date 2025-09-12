@@ -45,11 +45,11 @@ def set_mpc_strategy():
 def create_blurred_tif(datafiles):
     """Create blurred single land-cover type layers in uint8 format
     """
-    print(f"{datafiles=}")
     as_dtype = 'uint8'
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    print(f"Using\n- landcover map: {landcover_map}\n- ndvi map {ndvi_map}")
+    test_data = list(datafiles.iterdir())
+    landcover_map = test_data[0]
     lct_source = Source(path=landcover_map)
     # ###
     # compute blurred layers
@@ -62,7 +62,6 @@ def create_blurred_tif(datafiles):
     filter_params = blur_params.copy()
     filter_params['preserve_range'] = False
     _ = filter_params.pop('diameter')
-    
     blurred_tif = extract_categories(
         source=lct_source,
         categories=[1,3,4,5,6],
@@ -72,12 +71,9 @@ def create_blurred_tif(datafiles):
         filter_output_range=(0,1),
         output_params=dict(
             as_dtype=as_dtype,
-            nodata=0
         ),
         block_size=(500, 500),
-        start_method="fork",
         compress = True,
-        verbose=True
     )
     blurr_source = Source(path=blurred_tif)
     # compute the mask
