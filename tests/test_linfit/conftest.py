@@ -48,8 +48,7 @@ def create_blurred_tif(datafiles):
     as_dtype = 'uint8'
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    test_data = list(datafiles.iterdir())
-    landcover_map = test_data[0]
+    print(f"Using\n- landcover map: {landcover_map}\n- ndvi map {ndvi_map}")
     lct_source = Source(path=landcover_map)
     # ###
     # compute blurred layers
