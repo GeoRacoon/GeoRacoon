@@ -102,6 +102,7 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
                     # NOTE: downside of this is that we set the tags
                     #       every time, unfortunately, in the FINALIZE_TASK
                     #       we do not have the bidx 
+                    print(f"{np.unique(data)=}")
                     write_band(src=dst, bidx=bidx, data=data.astype(as_dtype), window=w,
                                category=band)
                     # NOTE: we might want keep the description unchanged:
