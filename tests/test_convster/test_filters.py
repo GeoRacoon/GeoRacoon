@@ -4,16 +4,16 @@ from itertools import product
 
 import numpy as np
 
-from landiv_blur import io as lbio
-from landiv_blur import processing as lbproc
-from landiv_blur.filters import _filters
-from landiv_blur.filters import _get_kernel_diam
-from landiv_blur.filters import _get_kernel_size
-from landiv_blur.filters.gaussian import (
+from riogrande import io as lbio
+from convster import processing as lbproc
+from convster.filters import _filters
+from convster.filters import _get_kernel_diam
+from convster.filters import _get_kernel_size
+from convster.filters.gaussian import (
     gaussian,
     compatible_border_size
 )
-from landiv_blur.filters import bpgaussian
+from convster.filters import bpgaussian
 
 from .conftest import ALL_MAPS, get_file
 
@@ -80,6 +80,7 @@ def test_signal_preservation():
         # print(f"kernel size {ks=}")
         gsquare = _filter(data, sigma=sigma, truncate=truncate)
         assert round(signal, 2) == round(gsquare.sum(), 2)
+
 
 def test_border_checking():
     """Make sure that we identify border sizes that truncate a kernel.

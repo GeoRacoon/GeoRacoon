@@ -5,12 +5,17 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from rasterio.plot import show
 
-from .io import load_block
+from riogrande.io import load_block
+
 from .processing import (
     get_category_data,
     get_entropy,
     get_categories
 )
+
+# TODO: We should think whether we want to include this afterall in the package. It could be helpfull actully.
+#  --> for now all here is "is_needed"
+
 # not_needed (we need to decide if we want to keep this around)
 # needs_work (doc; define what it should contain; where it should reside)
 # not_tested
@@ -35,10 +40,6 @@ COLORS = [
     BLACK,
 ]
 DPI = 200
-
-
-# TODO: We should think whether we want to include this afterall in the package. It could be helpfull actully.
-#  --> for now all here is "is_needed"
 
 
 def _get_class_colormap(colors=COLORS):
@@ -87,7 +88,7 @@ def plot_block(source:str,
         Where to store the image
 
     **tags:
-      Arbitrary number of keyword arguments to describe the band to select.    
+      Arbitrary number of keyword arguments to describe the band to select.
 
       See `get_bidx` for further details
 
@@ -123,7 +124,7 @@ def plot_categories(source:str,
       An optional tuple (x, y, width, height) defining the view to show
 
     **tags:
-      Arbitrary number of keyword arguments to describe the band to select.    
+      Arbitrary number of keyword arguments to describe the band to select.
 
       See `get_bidx` for further details
     """
@@ -287,7 +288,7 @@ def plot_entropy(source:str,
         Where to store the image
 
     **tags:
-      Arbitrary number of keyword arguments to describe the band to select.    
+      Arbitrary number of keyword arguments to describe the band to select.
 
       See `get_bidx` for further details
     """

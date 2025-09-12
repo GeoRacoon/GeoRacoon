@@ -8,10 +8,11 @@ from numpy.typing import NDArray
 from scipy.stats import entropy
 from skimage.filters import gaussian
 
-from .helper import dtype_range, convert_to_dtype
-from .io import load_block, get_bands
-from .io_ import Source, Band
-from .prepare import get_view, relative_view
+from riogrande.helper import dtype_range, convert_to_dtype
+from riogrande.io import load_block
+from riogrande.io_ import Source, Band
+from riogrande.prepare import get_view, relative_view
+
 from .filters import bpgaussian
 
 
@@ -189,7 +190,7 @@ def get_category_data(data:NDArray,
     """
     # is_needed (mostly for tests)
     # no_work
-    # not_tested 
+    # not_tested
     # usedin_processing (but could go to io)
 
     # strip the category/categories
@@ -203,6 +204,7 @@ def get_category_data(data:NDArray,
                         as_dtype=as_dtype,
                         output_range=output_range)
     return _data
+
 
 def view_data(source:Source|str,
               bands: list[Band|int]|None,
@@ -377,19 +379,20 @@ def filter_data(data:NDArray,
         _data[nan_mask] = np.nan
     return _data
 
-def view_filtered(source:Source|str,
-                  view:tuple[int,int,int,int],
-                  inner_view:tuple[int,int,int,int],
-                  data_in_range:None|NDArray|Collection=None,
-                  data_as_dtype:type|str|None=None,
-                  data_output_range:None|NDArray|Collection=None,
-                  replace_nan_with: int|float|None = None,
-                  img_filter:Callable|None=None,
-                  filter_params:dict|None=None,
-                  filter_output_range:tuple|None=None,
-                  as_dtype:type|str|None=None,
-                  output_range:tuple|None=None,
-                  bands: list[Band|int]|None = None,
+
+def view_filtered(source: Source | str,
+                  view: tuple[int, int, int, int],
+                  inner_view: tuple[int, int, int, int],
+                  data_in_range: None | NDArray | Collection = None,
+                  data_as_dtype: type | str | None = None,
+                  data_output_range: None | NDArray | Collection = None,
+                  replace_nan_with: int | float | None = None,
+                  img_filter: Callable | None = None,
+                  filter_params: dict | None = None,
+                  filter_output_range: tuple | None = None,
+                  as_dtype: type | str | None = None,
+                  output_range: tuple | None = None,
+                  bands: list[Band | int] | None = None,
                   selector_band: Band | None = None,
                   ):
     # TODO: is_needed - needs_work - is_tested - usedin_processing
@@ -434,17 +437,17 @@ def view_filtered(source:Source|str,
         _filtered_data = np.zeros(shape=(view[3], view[2]), dtype=_as_dtype)
 
         for select in selectors:
-            _selector = np.where(selector_data==select, True, False)
+            _selector = np.where(selector_data == select, True, False)
             select_data_view = np.where(_selector, data_view['data'], _nodata)
 
             _part_filtered_data = filter_data(
-                    data=select_data_view,
-                    replace_nan_with=replace_nan_with,
-                    img_filter=img_filter,
-                    filter_params=filter_params,
-                    filter_output_range=filter_output_range,
-                    as_dtype=as_dtype,
-                    output_range=output_range)
+                data=select_data_view,
+                replace_nan_with=replace_nan_with,
+                img_filter=img_filter,
+                filter_params=filter_params,
+                filter_output_range=filter_output_range,
+                as_dtype=as_dtype,
+                output_range=output_range)
             _filtered_data += np.where(_selector, _part_filtered_data, 0)
         # only keep the inner view
         filtered_datas[band.get_bidx()] = np.copy(
@@ -453,13 +456,14 @@ def view_filtered(source:Source|str,
         )
     return dict(data=filtered_datas, view=inner_view)
 
-def get_filtered_categories(data:NDArray,
-                            categories: None|Collection=None,
-                            img_filter:None|Callable=None,
-                            output_dtype:type|str|None="uint8",
-                            output_range:tuple|None=None,
-                            filter_output_range:tuple|None=None,
-                            filter_params:dict|None=None)->dict[int, NDArray]:
+
+def get_filtered_categories(data: NDArray,
+                            categories: None | Collection = None,
+                            img_filter: None | Callable = None,
+                            output_dtype: type | str | None = "uint8",
+                            output_range: tuple | None = None,
+                            filter_output_range: tuple | None = None,
+                            filter_params: dict | None = None) -> dict[int, NDArray]:
     # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Extract each category into a separate `np.array` and apply an image filter
 
@@ -491,7 +495,7 @@ def get_filtered_categories(data:NDArray,
     # is_needed (only in tests)
     # needs_work (docs)
     # not_tested (used in tests thought)
-    # usedin_processing 
+    # usedin_processing
 
     if categories is None:
         categories = get_categories(data)
@@ -509,11 +513,11 @@ def get_filtered_categories(data:NDArray,
 
 
 def compute_entropy(data_arrays: Sequence[NDArray],
-                    normed:bool=True,
-                    max_entropy_categories:int|None=None,
-                    as_dtype:type|str|None=None,
-                    output_range:tuple|None=None,
-                    **entropy_params)->NDArray:
+                    normed: bool = True,
+                    max_entropy_categories: int | None = None,
+                    as_dtype: type | str | None = None,
+                    output_range: tuple | None = None,
+                    **entropy_params) -> NDArray:
     # TODO: is_needed - no_work - is_tested - usedin_processing
     """Per cell entropy computed over a series of data arrays
 
@@ -548,7 +552,7 @@ def compute_entropy(data_arrays: Sequence[NDArray],
         With `as_dtype="uint8"` and `normed=True` entropy values are mapped to
         the range [0, 255] and an array of type `np.uint8` is returned with a
         considerably smaller memory footprint.
-        
+
     output_range:
       Set the output range for the resulting `np.array`
 
@@ -568,7 +572,7 @@ def compute_entropy(data_arrays: Sequence[NDArray],
     """
     # is_needed (internally and in tests)
     # no_work
-    # not_tested 
+    # not_tested
     # usedin_processing
 
     # calculate the entropy
@@ -596,7 +600,7 @@ def compute_entropy(data_arrays: Sequence[NDArray],
             # use the general possible range for Integers
             _intmax, _intmin = dtype_range(_as_dtype)
             output_range = (_intmin, _intmax)
-        input_range=[0.0, max_entropy],
+        input_range = [0.0, max_entropy],
     else:
         if output_range is not None:
             warnings.warn(
@@ -793,6 +797,7 @@ def get_entropy(data:NDArray,
                            output_range=output_range,
                            **entropy_params)
 
+
 def view_blurred(source:str,
                  view:tuple[int,int,int,int],
                  inner_view:tuple[int,int,int,int],
@@ -848,7 +853,7 @@ def view_blurred(source:str,
         becomes `0.0`)).
 
     **tags:
-      Arbitrary number of keyword arguments to describe the band to select.    
+      Arbitrary number of keyword arguments to describe the band to select.
 
       See `io.load_block` for further details.
     """
@@ -882,7 +887,7 @@ def view_blurred(source:str,
     return dict(data=blurred_categories, view=inner_view)
 
 
-def  view_entropy(category_arrays:dict[int, NDArray],
+def view_entropy(category_arrays:dict[int, NDArray],
                   view:tuple[int,int,int,int],
                   normed:bool = True,
                   max_entropy_categories: int|None = None,
@@ -892,7 +897,7 @@ def  view_entropy(category_arrays:dict[int, NDArray],
     """Return a per-cell entropy computed from the per category arrays.
 
     ..Note::
-      The `view` parameter is simply passed along and returned with in order to 
+      The `view` parameter is simply passed along and returned with in order to
       keep track of where the `category_arrays` data belongs.
 
       This method will move to the `parallel` sub-module
@@ -995,7 +1000,7 @@ def get_entropy_view(source:str,
       ..note::
         This argument is only taken into account if `normed=True`.
     **tags:
-      Arbitrary number of keyword arguments to describe the band to select.    
+      Arbitrary number of keyword arguments to describe the band to select.
 
       See `io.load_block` for further details.
     """

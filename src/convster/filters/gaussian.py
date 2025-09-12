@@ -1,18 +1,21 @@
-from __future__ import annotations
 """
 This module provides various functions to facilitate the usage of
 `skimage.filters.gaussian`
 """
-import numpy as np
-from skimage.filters import gaussian
 
+from __future__ import annotations
+
+import numpy as np
 from numpy.typing import NDArray
 
-from .. import ap
+from skimage.filters import gaussian
+
+from .. import array_processing as ap
 
 # we abstract the specific filter so that wie can to:
 # from landiv_blur.filters.<some_filter> import img_filter
 img_filter = gaussian
+
 
 def get_kernel_diameter(sigma, **params):
     # TODO: is_needed - needs_work - is_tested - usedin_processing
@@ -44,7 +47,7 @@ def get_kernel_diameter(sigma, **params):
         tmap[half, half] = 255
         blurred = gaussian(tmap, sigma=sigma, **params)
         diameter = max(np.unique(ap.last_nonzero(blurred, axis=1)
-                       - ap.first_nonzero(blurred, axis=1))) + 1
+                                 - ap.first_nonzero(blurred, axis=1))) + 1
     return diameter
 
 
@@ -59,14 +62,14 @@ def get_kernel_size(sigma, **params):
     return int(0.5 * (get_kernel_diameter(sigma, **params) - 1))
 
 
-def compatible_border_size(sigma:float|int, border:tuple[int, int]|None=None,
-                           **params)->tuple[int,int]:
+def compatible_border_size(sigma: float | int, border: tuple[int, int] | None = None,
+                           **params) -> tuple[int, int]:
     # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Assert that the border size is compatible with the specified parameter
 
     This method asserts that the kernel size determined by `sigma` and further
-    parametrization is smaller than the border. 
-    If no border is provided, then the minimal border size (in number of 
+    parametrization is smaller than the border.
+    If no border is provided, then the minimal border size (in number of
     pixels) is returned.
 
     Parameters
@@ -90,15 +93,15 @@ def compatible_border_size(sigma:float|int, border:tuple[int, int]|None=None,
     # usedin_processing
     ks = get_kernel_size(sigma=sigma, **params)
     if border:
-        assert all(ks <= b for b in border), f"A dimension of {border=} "\
-                f"exceeds the kernel size {ks}"
+        assert all(ks <= b for b in border), f"A dimension of {border=} " \
+                                             f"exceeds the kernel size {ks}"
         bs = border
     else:
         bs = (ks + 1,) * 2
-    return bs   
+    return bs
 
 
-def bpgaussian(data:NDArray, **filter_params)->NDArray:
+def bpgaussian(data: NDArray, **filter_params) -> NDArray:
     # TODO: is_needed - needs_work - is_tested - usedin_processing
     """Applies a border-preserving Gaussian filter
 
@@ -130,7 +133,7 @@ def bpgaussian(data:NDArray, **filter_params)->NDArray:
       Array to apply the Gaussian filter on.
     filter_params:
       Parametrization of the Gaussian filter.
-      
+
       sigma:
         Standard deviation for Gaussian kernel
       truncate:
@@ -159,6 +162,6 @@ def bpgaussian(data:NDArray, **filter_params)->NDArray:
     # 3.
     # ###
     _blurred_data = np.divide(_data_nonnan_blurred, _data_binary_blurred,
-                             out=np.full(data.shape, np.nan),
-                             where=~np.isnan(data))
+                              out=np.full(data.shape, np.nan),
+                              where=~np.isnan(data))
     return _blurred_data

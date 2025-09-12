@@ -1,5 +1,5 @@
-"""This module defines functions that might be helpful when working
-with rasterio
+"""
+To be added
 """
 from __future__ import annotations
 
@@ -8,38 +8,38 @@ import json
 import warnings
 
 import numpy as np
-import rasterio as rio
-
-from rasterio.windows import Window
-
-from typing import Any, Union, Dict, List
-
-from collections.abc import Collection
-
 from numpy.typing import NDArray
 
+import rasterio as rio
+from rasterio.windows import Window
+
 from decimal import Decimal
+from typing import Any, Union
+
+from collections.abc import Collection
 
 import multiprocessing as mpc
 from multiprocessing import context as _context_module
 from typing import Optional
 
+
 MPC_STARTER_METHODS = ['spawn', 'fork', 'forkserver']
 
-def get_nbr_workers(number:Optional[int]=None)->int:
+
+def get_nbr_workers(number: Optional[int] = None) -> int:
     """Determine the number of worker processes to use in mulitprocessing.
-    
+
     Parameters
     ----------
     number : int or None, optional
-        Desired number of workers. If ``None``, the function will use the 
+        Desired number of workers. If ``None``, the function will use the
         number of CPUs available, but never less than 2.
-    
+
     Returns
     -------
     int
         Number of workers to use (always `>= 2`).
-    
+
     Notes
     -----
     A warning is emitted when a requested ``number`` is lower than 2 and the
@@ -64,6 +64,7 @@ def get_nbr_workers(number:Optional[int]=None)->int:
         _use = int(number)
     return _use
 
+
 def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseContext:
     """
     Return a multiprocessing context and set the global start method if unset.
@@ -81,7 +82,7 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
       set, the global start method is not changed; a warning is emitted and a
       context for the requested `method` is returned so callers can still
       create objects using the requested start semantics.
-    
+
     Parameters
     ----------
     method : {None, 'fork', 'spawn', 'forkserver'}, optional
@@ -94,7 +95,7 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
         Valid explicit values are ``'fork'``, ``'spawn'`` and ``'forkserver'``
         (availability depends on the platform and Python build). Passing an
         unsupported value raises ``ValueError``.
-    
+
     Returns
     -------
     multiprocessing.context.BaseContext
@@ -103,7 +104,7 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
         use the start method determined by the logic described above. The
         function always returns a context and never mutates an already-set
         global start method to a different value.
-    
+
     Raises
     ------
     ValueError
@@ -114,7 +115,7 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
         other than a race (this is rare); in normal race cases the function
         catches the ``RuntimeError`` and falls back to returning the requested
         context.
-    
+
     Notes
     -----
     - Calling ``multiprocessing.set_start_method`` can only be done once per
@@ -129,7 +130,7 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
       ``'forkserver'`` may be available depending on the platform.
     - Use this helper in library code when you need a guaranteed context but
       do not want to unconditionally mutate global multiprocessing state.
-    
+
     Examples
     --------
     >>> ctx = get_or_set_context('spawn')
@@ -142,13 +143,13 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
     # is_tested
     # usedin_both (potentially any usage of mpc)
 
-    allowed = MPC_STARTER_METHODS + [None,]
+    allowed = MPC_STARTER_METHODS + [None ,]
     default_method = MPC_STARTER_METHODS[0]  # default is 'spawn'
     if method not in allowed:
         raise ValueError(f"Unsupported start method: {method!r}")
 
     # get the current context
-    _context= mpc.get_start_method(allow_none=True)
+    _context = mpc.get_start_method(allow_none=True)
 
     if _context is None:
         # if method is not None, set the global method and the current context
@@ -198,7 +199,7 @@ def serialize(tags:dict[str,Any])->dict[str,str]:
     # no_work
     # not_tested (indirect calls in tests)
     # usedin_both (io sub-module)
-    return {tag: json.dumps(obj=value) 
+    return {tag: json.dumps(obj=value)
             for tag, value in tags.items()}
 
 
@@ -210,7 +211,7 @@ def deserialize(tags:dict[str,str])->dict[str,Any]:
     # no_work
     # not_tested (indirect calls in tests)
     # usedin_both (io sub-module)
-    return {tag: json.loads(s=value) 
+    return {tag: json.loads(s=value)
             for tag, value in tags.items()}
 
 
@@ -292,25 +293,6 @@ def view_to_window(view: None | tuple[int, int, int, int]):
     return window
 
 
-def check_crs_raster(source, reference, verbose=False):
-    # TODO: not_needed
-    """Compare coordinate reference systems of two raster datasets"""
-    # is_needed
-    # needs_work (fix doc, dedicated test)
-    # not_tested (used in test)
-    # usedin_both (used in io submodule)
-    with rio.open(source, mode='r') as src:
-        src_crs = str(src.crs)
-    with rio.open(reference, mode='r') as ref:
-        ref_crs = str(ref.crs)
-
-    if src_crs == ref_crs:
-        if verbose:
-            print(f"Coordinate systems are the same: {src_crs} --> {ref_crs}")
-        return True
-    else:
-        print(f"CRS CHECK FAILING: {src_crs=} - {ref_crs=}")
-        return False
 
 
 def check_units(*sources):
@@ -396,73 +378,31 @@ def check_compatibility(*sources):
     return crss, units, ress
 
 
-def get_scale_factor(source, target):
+def check_crs_raster(source, reference, verbose=False):
     # TODO: not_needed
-    """Get scaling factors (width & height) to match target to source
-    """
-    # not_needed (used in clipping_and_masking.py example)
-    # needs_work (better doc, check if it is not the inverse)
-    # not_tested
-    # Make sure both have the same projection and linear units
-    check_crs(source, target)
-    with rio.open(source) as src:
-        source_res = src.res
-    with rio.open(target) as trg:
-        target_res = trg.res
-    # calculate the sale factor along each dimension and return it
-    return tuple(sres / tres for sres, tres in zip(source_res, target_res))
+    """Compare coordinate reference systems of two raster datasets"""
+    # is_needed
+    # needs_work (fix doc, dedicated test)
+    # not_tested (used in test)
+    # usedin_both (used in io submodule)
+    with rio.open(source, mode='r') as src:
+        src_crs = str(src.crs)
+    with rio.open(reference, mode='r') as ref:
+        ref_crs = str(ref.crs)
 
-
-def nodata_mask_band(source, nodata=None):
-    # TODO: not_needed (should be in class actually)
-    """Update exiting raster with an added nodata mask band (alpha band)
-    0=nodata, 255=valid_data
-    Note: it is only possible to set one mask band for all value bands.
-    Consequently, if a tif with band_count > 1 is given. Pixels will be masked
-    which show the given nodata value in any of the provided bands.
-
-    Parameters
-    ----------
-    source: str
-      The path to the tif file you want to create alpha band for
-    nodata: float or int (optional)
-      The nodata value to use for the mask (e.g. np.nan or integer)
-      if not provided - the nodata value from the source metadata is taken
-
-    Returns
-    -------
-    None
-    """
-    # not_needed (used in clip_and_maks_SILA.py example)
-    # needs_work (formatting)
-    # not_tested
-    with rio.Env(GDAL_TIFF_INTERNAL_MASK=True):
-        with rio.open(source, mode='r+') as src:
-
-            if nodata is None:
-                nodata = src.nodata
-                if nodata is None:
-                    raise ValueError(f"Neither nodata value provided nor inherent in raster metadata")
-            if src.count > 1:
-                print(f"WARNING: You are creating a mask for multiple bands (n={src.count} (bitwise And condition)")
-
-            for ji, window in src.block_windows(1):
-                msk = np.full((window.height, window.width), 255, dtype=np.uint8)
-                for i in range(1, src.count + 1):
-                    band = src.read(i, window=window)
-                    if np.isnan(nodata):
-                        msk_band = np.where(np.isnan(band), 0, 255).astype(np.uint8)
-                    else:
-                        msk_band = np.where(band == nodata, 0, 255).astype(np.uint8)
-                    msk = np.bitwise_and(msk, msk_band)
-                src.write_mask(msk, window=window)
-
+    if src_crs == ref_crs:
+        if verbose:
+            print(f"Coordinate systems are the same: {src_crs} --> {ref_crs}")
+        return True
+    else:
+        print(f"CRS CHECK FAILING: {src_crs=} - {ref_crs=}")
+        return False
 
 def outfile_suffix(filename, suffix, separator:str='_'):
     # TODO: is_needed (for now) - no_work - not_tested - usedin_both
     """Insert suffix into filename and hand back basename_suffix.extension"""
     # is_needed
-    # no_work 
+    # no_work
     # not_tested (used in tests)
     # usedin_both (used in io submodule)
     base, ext = os.path.splitext(filename)
@@ -474,7 +414,7 @@ def strip_suffix(filename:str, separator:str='_'):
     """Removes the last suffix from the name (i.e. the last part separated by '_')
     """
     # not_needed
-    # no_work 
+    # no_work
     # not_tested (used in tests)
     # usedin_both (used in io submodule)
     base, ext = os.path.splitext(filename)
@@ -521,33 +461,6 @@ def output_filename(base_name: str, out_type: str, blur_params: dict):
     return f"{_base_name}_{out_type}{_blur_string}{_ext}"
 
 
-def usable_pixels_info(all_pixels, data_pixels):
-    # TODO: is_needed - no_work - not_tested - usedin_both
-    """Prints the fraction of usable pixels
-    """
-    # is_needed
-    # no_work
-    # not_tested (no need)
-    # usedin_linfit
-    print(f"Of {all_pixels=} there are {data_pixels=}, i.e. "
-          f"{round(100 * data_pixels/all_pixels, 2)}% are usable")
-
-
-def usable_pixels_count(selector):
-    # TODO: is_needed - no_work - not_tested - usedin_both
-    """Count the number of usable pixels determined by the selector"""
-    # is_needed
-    # no_work
-    # not_tested (no need)
-    # usedin_linfit
-    vals, counts = np.unique(selector, return_counts=True)
-    # vals: [True, False] or inv. in any case ok
-    try:
-        return int(counts[vals][0])
-    except IndexError:
-        return 0
-
-
 def dtype_range(dtype:type|str)->tuple[int|float, int|float]:
     # TODO: is_needed - no_work - is_tested - usedin_both
     """Get the range of the specified dtype
@@ -580,9 +493,9 @@ def dtype_range(dtype:type|str)->tuple[int|float, int|float]:
 
 
 def convert_to_dtype(data: NDArray,
-                     as_dtype:None|type|np._dtype|str=None,
-                     in_range:None|NDArray|Collection=None,
-                     out_range:None|NDArray|Collection|str|type=None)->NDArray:
+                     as_dtype: None | type | np._dtype | str = None,
+                     in_range: None | NDArray | Collection = None,
+                     out_range: None | NDArray | Collection | str | type=None) -> NDArray:
     # TODO: is_needed - no_work - is_tested - usedin_both
     """Converts data to `as_dtype` and optionally rescales it.
 
@@ -603,11 +516,11 @@ def convert_to_dtype(data: NDArray,
     >>> y_data = np.array([0, 0.5, 1.], dtype=np.float64)
     >>> convert_to_dtype(my_data, as_dtype='uint8')
     array([0, 0, 1], dtype=uint8)
-    >>> # conversion with rescaling specifying in_range only 
+    >>> # conversion with rescaling specifying in_range only
     >>> new_data = convert_to_dtype(my_data, as_dtype='uint8', in_range=(0,1))
     >>> new_data
     array([  0, 127, 255], dtype=uint8)
-    >>> # convert with scaling specifying out_range only 
+    >>> # convert with scaling specifying out_range only
     >>> convert_to_dtype(data=new_data, as_dtype='float64', out_range=[-1, 1])
     array([-1.        , -0.00392157,  1.        ])
     >>> # only scaling, keeping data type
@@ -819,52 +732,6 @@ def count_contribution(data:NDArray,
         return int(b_counts[b_vals][0])
     else:
         return 0
-
-
-def check_rank_deficiency(array, return_by_issue_type: bool=False) -> dict[int, str] | dict[str, list[int]]:
-    # TODO: is_needed - no_work - is_tested - usedin_linfit
-    """Check if matrix is rank deficient and extract the dependent columns (linear combination of other columns.
-    Returns a dictionary with column (key) and issue description (value). Lenght of dictionary is rank-deficiency + 1,
-    Empyt dictionary indicates that no rank deficiency was detected
-
-    Parameters
-    ----------
-    array : np.ndarray
-        Matrix to check for rank deficiency
-    return_by_issue_type: bool
-        If desired, a nested dictionary may be returned separating the type of issue:
-        "all_zero" and "linear dependent"
-    """
-    # is_needed
-    # needs_work (formatting)
-    # is_tested
-    # usedin_linfit
-    all_zero_cols = {}
-    rank_deficient_cols = {}
-    _, num_columns = array.shape
-    rank = np.linalg.matrix_rank(array)
-
-    if rank == num_columns:
-        return dict()
-
-    for col in range(num_columns):
-        column_vector = array[:, col]
-
-        if np.all(column_vector == 0):
-            all_zero_cols[col] = "All zero column"
-        else:
-            # drop focus column
-            sub_array = np.delete(array, col, axis=1)
-
-            # does removing a column increase the rank?
-            if np.linalg.matrix_rank(sub_array) == rank:
-                rank_deficient_cols[col] = "Linear dependent column"
-
-    if return_by_issue_type:
-        return dict(linear_dependent=[l for l in rank_deficient_cols.keys()],
-                    all_zero=[z for z in all_zero_cols.keys()])
-    else:
-        return {**rank_deficient_cols, **all_zero_cols}
 
 
 def rasterio_to_numpy_dtype(rasterio_dtype):

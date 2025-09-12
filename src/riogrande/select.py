@@ -1,4 +1,7 @@
-# not_needed (though might be helpful) 
+# TODO: despite none of this actually needed, we could consider building on it an implementing it into our RioGrande
+#  To be discussed..., else we drop it completely
+
+# not_needed (though might be helpful)
 # needs_work (docstring missing)
 # not_tested
 import numpy as np
@@ -25,12 +28,12 @@ def read_clip(source:str, clipping, **tags):
     clipping: str
       The path to the tif file to use for clipping
     **tags:
-      Arbitrary number of keyword arguments to describe the band to select.    
+      Arbitrary number of keyword arguments to describe the band to select.
 
       See `io.get_bidx` for further details
 
     """
-    # not_needed (though might be helpful) 
+    # not_needed (though might be helpful)
     # needs_work (better doc - address TODO or remove)
     # not_tested
     # -
@@ -78,7 +81,7 @@ def mask_relative(source:str,
       See `io.get_bidx` for further details
 
     """
-    # not_needed (though might be helpful) 
+    # not_needed (though might be helpful)
     # needs_work (better doc)
     # not_tested
     # -
