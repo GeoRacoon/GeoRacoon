@@ -71,6 +71,7 @@ def create_blurred_tif(datafiles):
         filter_output_range=(0,1),
         output_params=dict(
             as_dtype=as_dtype,
+            nodata=0
         ),
         block_size=(500, 500),
         start_method="fork",
