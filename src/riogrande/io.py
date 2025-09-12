@@ -351,6 +351,7 @@ def load_block(source:str,
        orig_profile: The profile information of the original .tif file
     """
     window=view_to_window(view)
+    print(f"Loading block from {source=}")
     with rasterio.open(source) as img:
         # TODO: rasterio Window allows using slices. In doing so we could
         #       harmonize what we call blocks and views and just work with
