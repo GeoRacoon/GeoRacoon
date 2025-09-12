@@ -74,6 +74,7 @@ def create_blurred_tif(datafiles):
         ),
         block_size=(500, 500),
         compress = True,
+        verbose=True
     )
     blurr_source = Source(path=blurred_tif)
     # compute the mask
