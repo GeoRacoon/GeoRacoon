@@ -869,6 +869,7 @@ def view_blurred(source:str,
     # transform = result.pop('transform')
     # orig_profile = result.pop('orig_profile')
     # perform blur
+    print(f"before blur: {np.unique(data)=}")
     blurred_categories = get_filtered_categories(
         data=data,
         categories=categories,
