@@ -53,6 +53,8 @@ def create_blurred_tif(datafiles):
     print(f"Using\n- landcover map: {landcover_map}\n- ndvi map {ndvi_map}")
     test_data = list(datafiles.iterdir())
     landcover_map = test_data[0]
+    print(f"{test_data=}")
+    print(f'Now using landover map: {landcover_map}')
     lct_source = Source(path=landcover_map)
     # ###
     # compute blurred layers
@@ -65,6 +67,7 @@ def create_blurred_tif(datafiles):
     filter_params = blur_params.copy()
     filter_params['preserve_range'] = False
     _ = filter_params.pop('diameter')
+    
     blurred_tif = extract_categories(
         source=lct_source,
         categories=[1,3,4,5,6],
