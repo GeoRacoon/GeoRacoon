@@ -5,6 +5,8 @@ on:
     branches:
       - main
   pull_request:
+    # we exclude draft here
+    types: [opened, synchronize, reopened, edited, ready_for_review]
     branches:
       - main
 
