@@ -41,7 +41,6 @@ def set_mpc_strategy():
     return get_or_set_context(method='fork')
 
 # TODO: we need to get rid of this config for testing --> we dont want to be dependent on convster for the linfit package
-@ALL_MAPS
 @pytest.fixture(scope="function")  # is function scope since datafiles is too
 def create_blurred_tif(datafiles):
     """Create blurred single land-cover type layers in uint8 format
@@ -51,10 +50,6 @@ def create_blurred_tif(datafiles):
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     print(f"Using\n- landcover map: {landcover_map}\n- ndvi map {ndvi_map}")
-    test_data = list(datafiles.iterdir())
-    landcover_map = test_data[0]
-    print(f"{test_data=}")
-    print(f'Now using landover map: {landcover_map}')
     lct_source = Source(path=landcover_map)
     # ###
     # compute blurred layers
