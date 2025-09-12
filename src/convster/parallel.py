@@ -102,7 +102,7 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
                     # NOTE: downside of this is that we set the tags
                     #       every time, unfortunately, in the FINALIZE_TASK
                     #       we do not have the bidx 
-                    print(f"{np.unique(data)=}")
+                    print(f"{bidx=}\n\t{band=}\n\t{np.unique(data)=}")
                     write_band(src=dst, bidx=bidx, data=data.astype(as_dtype), window=w,
                                category=band)
                     # NOTE: we might want keep the description unchanged:
@@ -1080,7 +1080,7 @@ def extract_categories(source: str | Source,
     # get number of workers
     nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
     if verbose:
-        print(f"using {nbr_workers=}")
+        print(f"using {nbr_workers=} with start method '{start_method}'")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
         # start the blurred category writer task
         blur_combiner = pool.apply_async(combine_blurred_categories,
