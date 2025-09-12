@@ -51,8 +51,7 @@ jobs:
     name: coverage-combine-publish
     runs-on: ubuntu-24.04
     needs: [unit-tests, ]
-    if: |
-      always()
+    if: needs.unit-tests.result == 'success' || needs.unit-tests.result == 'failure'
     permissions:
       pull-requests: write
       contents: write
