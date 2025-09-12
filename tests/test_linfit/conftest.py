@@ -73,6 +73,7 @@ def create_blurred_tif(datafiles):
             as_dtype=as_dtype,
         ),
         block_size=(500, 500),
+        start_method="fork",
         compress = True,
         verbose=True
     )
