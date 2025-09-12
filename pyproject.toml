@@ -47,7 +47,7 @@ build-backend = "setuptools.build_meta"
 relative_files = true
 # plugins = ["Cython.Coverage", ]
 source = [
-    "src/landiv_blur",
+    # "src/landiv_blur",
     "src/riogrande",
     "src/convster",
     "src/linfit"
@@ -58,7 +58,7 @@ omit = [
   ]
 [tool.coverage.paths]
 source = [
-  "src/landiv_blur/", 
+  # "src/landiv_blur/", 
   "src/riogrande/", 
   "src/convster/", 
   "src/linfit/", 
