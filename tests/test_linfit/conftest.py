@@ -46,6 +46,7 @@ def set_mpc_strategy():
 def create_blurred_tif(datafiles):
     """Create blurred single land-cover type layers in uint8 format
     """
+    print(f"{datafiles=}")
     as_dtype = 'uint8'
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
