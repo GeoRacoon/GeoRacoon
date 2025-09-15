@@ -29,8 +29,8 @@ exclude = ["tests*"]
 Homepage = "https://git.math.uzh.ch/landiv/landiv/"
 Issues = "https://git.math.uzh.ch/landiv/landiv/-/issues"
 
-[project.scripts]
-landiv = "landiv_blur.scripts.parallel_filter:main"
+# [project.scripts]
+# landiv = "landiv_blur.scripts.parallel_filter:main"
 # landiv_old = "landiv_blur.scripts.entropoint_deprecated:main_cli"
 
 [tool.setuptools]
@@ -45,9 +45,7 @@ build-backend = "setuptools.build_meta"
 # config for the test coverage
 [tool.coverage.run]
 relative_files = true
-# plugins = ["Cython.Coverage", ]
 source = [
-    # "src/landiv_blur",
     "src/riogrande",
     "src/convster",
     "src/linfit"
@@ -58,9 +56,7 @@ omit = [
   ]
 [tool.coverage.paths]
 source = [
-  # "src/landiv_blur/", 
   "src/riogrande/", 
   "src/convster/", 
   "src/linfit/", 
-  # "venv/lib/python*/site-packages/landiv_blur/"
 ]

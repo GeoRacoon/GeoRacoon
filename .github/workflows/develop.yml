@@ -5,11 +5,14 @@ on:
     branches:
       - main
   pull_request:
+    # we exclude draft here
+    types: [opened, synchronize, reopened, edited, ready_for_review]
     branches:
       - main
 
 jobs:
   unit-tests:
+    if: github.event_name == 'pull_request' && github.event.pull_request != null && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
@@ -48,8 +51,7 @@ jobs:
     name: coverage-combine-publish
     runs-on: ubuntu-24.04
     needs: [unit-tests, ]
-    if: |
-      always()
+    if: needs.unit-tests.result == 'success' || needs.unit-tests.result == 'failure'
     permissions:
       pull-requests: write
       contents: write
