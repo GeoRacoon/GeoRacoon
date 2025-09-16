@@ -467,27 +467,6 @@ def check_compatibility(*sources: str | list):
     return crss, units, ress
 
 
-def check_crs_raster(source, reference, verbose=False):
-    # TODO: not_needed
-    """Compare coordinate reference systems of two raster datasets"""
-    # is_needed
-    # needs_work (fix doc, dedicated test)
-    # not_tested (used in test)
-    # usedin_both (used in io submodule)
-    with rio.open(source, mode='r') as src:
-        src_crs = str(src.crs)
-    with rio.open(reference, mode='r') as ref:
-        ref_crs = str(ref.crs)
-
-    if src_crs == ref_crs:
-        if verbose:
-            print(f"Coordinate systems are the same: {src_crs} --> {ref_crs}")
-        return True
-    else:
-        print(f"CRS CHECK FAILING: {src_crs=} - {ref_crs=}")
-        return False
-
-
 def outfile_suffix(filename, suffix, separator:str='_'):
     # TODO: is_needed (for now) - no_work - not_tested - usedin_both
     """Insert suffix into filename and hand back basename_suffix.extension"""
