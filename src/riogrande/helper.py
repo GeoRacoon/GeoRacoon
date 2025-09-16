@@ -51,7 +51,7 @@ def get_nbr_workers(number: Optional[int] = None) -> int:
     # usedin_both (potentially)
     _min_count = 2  # Hardcoded: some parallelization routines fail when < 2
     if number is None:
-        _use = max(_min_count, mpc.cpu_count())  # assert the min. count
+        _use = max(_min_count, mpc.cpu_count())
     elif number <= _min_count:
         warnings.warn(
             message=f"For this routine to work properly at least {_min_count} "
@@ -191,9 +191,19 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
     return mpc.get_context(_context)
 
 
-def serialize(tags:dict[str,Any])->dict[str,str]:
+def serialize(tags: dict[str, Any]) -> dict[str, str]:
     # TODO: is_needed - no_work - not_tested - usedin_both
-    """Convert the values of a dict to into JSON
+    """Convert the values of a dict into JSON
+
+    Parameters
+    ----------
+    tags : Dictionary of tags with string keywords and any-type values,
+    which are serializable.
+
+    Returns
+    -------
+    dict
+        Dictionary with tag as key and serialized value as value.
     """
     # is_needed
     # no_work
@@ -203,9 +213,23 @@ def serialize(tags:dict[str,Any])->dict[str,str]:
             for tag, value in tags.items()}
 
 
-def deserialize(tags:dict[str,str])->dict[str,Any]:
+def deserialize(tags: dict[str, str]) -> dict[str, Any]:
     # TODO: is_needed - no_work - not_tested - usedin_both
     """Reads python objects from JSON-encoded values of a dict
+
+    Parameters
+    ----------
+    tags : Dictionary with tag as key and serialized value as value.
+    which are serializable.
+
+    Returns
+    -------
+    dict
+        Dictionary with tag as key and deserialized value as value.
+
+    Notes
+    ------
+    Contrasting function to serialize()
     """
     # is_needed
     # no_work
@@ -215,9 +239,19 @@ def deserialize(tags:dict[str,str])->dict[str,Any]:
             for tag, value in tags.items()}
 
 
-def sanitize(tags:dict[str,Any])->Any:
+def sanitize(tags: dict[str, Any]) -> Any:
     # TODO: is_needed - no_work - not_tested - usedin_both
     """Serializes then deserializes values of a dict
+
+    Parameters
+    ----------
+    tags : Dictionary with tag as key and serialized value as value.
+    which are serializable.
+
+    Returns
+    ---------
+    dict
+        Dictionary with tag as key and deserialized value as value.
     """
     # is_needed
     # no_work
@@ -226,9 +260,19 @@ def sanitize(tags:dict[str,Any])->Any:
     return deserialize(serialize(tags))
 
 
-def match_all(targets:dict, tags:dict)->bool:
+def match_all(targets: dict, tags: dict) -> bool:
     # TODO: is_needed - no_work - is_tested - usedin_both
     """Check if all tags in targets are present in tags
+
+    Parameters
+    ----------
+    targets : Dictionary with tags to match to.
+    tags : Dictionary with tags to check for matching items.
+
+    Returns
+    ---------
+    bool
+        True if all tags in targets are present in tags, otherwise False.
     """
     # is_needed
     # no_work
@@ -237,20 +281,30 @@ def match_all(targets:dict, tags:dict)->bool:
     match = True
     for t, v in targets.items():
         if not match:
-            break  # stop if the last was no match
-        if t in tags:  # if tag is present check for value match
+            break
+        if t in tags:
             if tags[t] == v:
                 match = True
-            else:  # if a value is different it is no match
+            else:
                 match = False
-        else:  # if a tag is absent it is no match
+        else:
             match = False
     return match
 
 
-def match_any(targets:dict, tags:dict)->bool:
+def match_any(targets: dict, tags: dict) -> bool:
     # TODO: is_needed - no_work - is_tested - usedin_both
     """Check if any tag in targets is present in tags
+
+    Parameters
+    ----------
+    targets : Dictionary with tags to match to.
+    tags : Dictionary with tags to check for matching items.
+
+    Returns
+    ---------
+    bool
+        True if any tags in targets are present in tags, otherwise False.
     """
     # not_needed (logic covered by match_all)
     # no_work
@@ -259,18 +313,18 @@ def match_any(targets:dict, tags:dict)->bool:
     match = False
     for t, v in targets.items():
         if match:
-            break  # stop if there was a match
-        if t in tags:  # if tag is present check for value match
+            break
+        if t in tags:
             if tags[t] == v:
                 match = True
-            else:  # if a value is different it is no match
+            else:
                 match = False
-        else:  # if a tag is absent it is no match
+        else:
             match = False
     return match
 
 
-def view_to_window(view: None | tuple[int, int, int, int]):
+def view_to_window(view: None | tuple[int, int, int, int]) -> Window:
     # TODO: is_needed - no_work - is_tested - usedin_both
     """Conerts a view into a rasterio Window
 
@@ -278,26 +332,36 @@ def view_to_window(view: None | tuple[int, int, int, int]):
     ----------
     view:
       tuple (x, y, width, height) defining the view of the data array to update
+
+    Returns
+    ---------
+    Window
+        Rasterio window object.
     """
     # is_needed
     # needs_work (fix doc, dedicated test)
     # not_tested (used in test)
     # usedin_both
     if view is not None:
-        window =  Window(view[0],
-                         view[1],
-                         view[2],
-                         view[3])
+        window = Window(view[0], view[1], view[2], view[3])
     else:
         window = None
     return window
 
 
-
-
-def check_units(*sources):
+def check_units(*sources: list) -> list:
     # TODO: is_needed - no_work - not_tested - usedin_both
-    """Assert that all sources have the same units
+    """Assert that all sources have the same linear units in the coordinate reference system (crs)
+
+    Parameters
+    ----------
+    sources :
+        List of sources (paths to files) from which units are to be compared to each other.
+
+    Returns
+    ---------
+    list
+        All unique units in a list.
     """
     # is_needed
     # needs_work (fix doc, make internal _...)
@@ -318,9 +382,19 @@ def check_units(*sources):
     return units
 
 
-def check_crs(*sources):
+def check_crs(*sources:list) -> list:
     # TODO: is_needed - no_work - not_tested - usedin_both
-    """Assert that all the sources have the same projection (i.e. same crs)
+    """Assert that all the sources have the same coordinate reference system (crs)
+
+    Parameters
+    ----------
+    sources :
+        List of sources (paths to files) from which crs are to be compared to each other.
+
+    Returns
+    ---------
+    list
+        All unique crs from sources in a list.
     """
     # is_needed
     # needs_work (make internal _...)
@@ -336,9 +410,19 @@ def check_crs(*sources):
     return crss
 
 
-def check_resolution(*sources):
+def check_resolution(*sources: list) -> list:
     # TODO: is_needed - no_work - not_tested - usedin_both
-    """Assert that all the sources have the same resolution
+    """Assert that all the sources have the same spatial resolution
+
+    Parameters
+    ----------
+    sources :
+        List of sources (paths to files) from which resolutions are to be compared to each other.
+
+    Returns
+    ---------
+    list
+        All unique resolutions from sources in a list.
     """
     # is_needed
     # needs_work (make internal _...)
@@ -355,17 +439,23 @@ def check_resolution(*sources):
     return ress
 
 
-def check_compatibility(*sources):
+def check_compatibility(*sources: list):
     # TODO: is_needed - no_work - not_tested - usedin_both
-    #  --> not sure if this is really needed in both (but its in CLASS io_
     """Assert that all the sources are compatible with each other.
 
     The checks include:
-
         - crs
         - units
         - resolution
 
+    Parameters
+    ----------
+    sources :
+        List of sources (paths to files) from which are to be compared to each other.
+
+    Returns
+    ---------
+    # TODO: unsure what is best practice to report this here and above for multiple values returned
     """
     # is_needed
     # needs_work (better doc)
@@ -374,7 +464,6 @@ def check_compatibility(*sources):
     units = check_units(*sources)
     crss = check_crs(*sources)
     ress = check_resolution(*sources)
-    # print(f"{crss=}, {units=}, {ress=}")
     return crss, units, ress
 
 
