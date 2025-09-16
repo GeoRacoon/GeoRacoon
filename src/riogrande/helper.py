@@ -467,6 +467,11 @@ def check_compatibility(*sources: str | list):
     return crss, units, ress
 
 
+# TODO: STOPPED HERE FOR NOW
+#         We need to merge the two outfile functions maybe to one, or make them more flexible.
+#         I feel the second one is super specific to the convster package (and therefore needs adjustmen)
+
+
 def outfile_suffix(filename, suffix, separator:str='_'):
     # TODO: is_needed (for now) - no_work - not_tested - usedin_both
     """Insert suffix into filename and hand back basename_suffix.extension"""
@@ -489,6 +494,7 @@ def output_filename(base_name: str, out_type: str, blur_params: dict):
     out_type: str
       The type of output that will be saved.
       This should be either 'blur' or 'entropy' but any string is accepted
+    # TODO: refractor the blur_params so we have only params (which)
     blur_params: dict
       Output of `get_blur_params`, so 'sigma', 'truncate' and 'diameter'
       are expected keys.
@@ -504,13 +510,9 @@ def output_filename(base_name: str, out_type: str, blur_params: dict):
     # not_tested
     # usedin_both
     _base_name, _ext = os.path.splitext(base_name)
-    # sig = blur_params['sigma']
-    # diam = blur_params['diameter']
-    # trunc = blur_params['truncate']
     _blur_string = ""
     for name, value in blur_params.items():
         _blur_string += f"_{name}_{round(value)}"
-    # _blur_string = f"sig_{sig}_diam_{diam}_trunc_{trunc}"
     return f"{_base_name}_{out_type}{_blur_string}{_ext}"
 
 
