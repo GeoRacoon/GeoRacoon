@@ -25,7 +25,7 @@ from .exceptions import (
     BandSelectionAmbiguousError,
 )
 from .helper import (
-    check_crs_raster,
+    check_crs,
     outfile_suffix,
     serialize,
     deserialize,
@@ -588,8 +588,7 @@ def clip_to_bounds(source, reference, output=None):
     str:
       The name of the file that holds clipped map
     """
-    if not check_crs_raster(source, reference):
-        raise ValueError("Cannot clip by BBOX - projections are not the same.")
+    check_crs(source, reference)
 
     if output is None:
         output = outfile_suffix(source, "bounds")
@@ -634,9 +633,7 @@ def _coregister_raster(source, reference, output=None):
     str:
       The name of the file that holds co-registered map
     """
-
-    if not check_crs_raster(source, reference):
-        raise ValueError("Cannot co-register sources - projections are not the same.")
+    check_crs(source, reference)
 
     if output is None:
         output = outfile_suffix(source, "coreg")

@@ -349,7 +349,7 @@ def view_to_window(view: None | tuple[int, int, int, int]) -> Window:
     return window
 
 
-def check_units(*sources: list) -> list:
+def check_units(*sources: str | list) -> list:
     # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all sources have the same linear units in the coordinate reference system (crs)
 
@@ -382,7 +382,7 @@ def check_units(*sources: list) -> list:
     return units
 
 
-def check_crs(*sources:list) -> list:
+def check_crs(*sources: str | list) -> list:
     # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all the sources have the same coordinate reference system (crs)
 
@@ -410,7 +410,7 @@ def check_crs(*sources:list) -> list:
     return crss
 
 
-def check_resolution(*sources: list) -> list:
+def check_resolution(*sources: str | list) -> list:
     # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all the sources have the same spatial resolution
 
@@ -439,7 +439,7 @@ def check_resolution(*sources: list) -> list:
     return ress
 
 
-def check_compatibility(*sources: list):
+def check_compatibility(*sources: str | list):
     # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all the sources are compatible with each other.
 
@@ -487,6 +487,7 @@ def check_crs_raster(source, reference, verbose=False):
         print(f"CRS CHECK FAILING: {src_crs=} - {ref_crs=}")
         return False
 
+
 def outfile_suffix(filename, suffix, separator:str='_'):
     # TODO: is_needed (for now) - no_work - not_tested - usedin_both
     """Insert suffix into filename and hand back basename_suffix.extension"""
@@ -496,22 +497,6 @@ def outfile_suffix(filename, suffix, separator:str='_'):
     # usedin_both (used in io submodule)
     base, ext = os.path.splitext(filename)
     return f"{base}{separator}{suffix}{ext}"
-
-
-def strip_suffix(filename:str, separator:str='_'):
-    # TODO: not_needed
-    """Removes the last suffix from the name (i.e. the last part separated by '_')
-    """
-    # not_needed
-    # no_work
-    # not_tested (used in tests)
-    # usedin_both (used in io submodule)
-    base, ext = os.path.splitext(filename)
-    if separator in filename:
-        _base = separator.join(filename.split(separator)[:-1])
-    else:
-        _base = base
-    return f"{_base}{ext}"
 
 
 def output_filename(base_name: str, out_type: str, blur_params: dict):
