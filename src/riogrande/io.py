@@ -26,7 +26,6 @@ from .exceptions import (
 )
 from .helper import (
     check_crs,
-    outfile_suffix,
     output_filename,
     serialize,
     deserialize,
@@ -620,12 +619,12 @@ def compress_tif(source, output:str|None=None, compression:str|None='lzw'):
     overwrite = False
     if output is None:
         if compression != 'none':
-            output = outfile_suffix(source, "compress")
+            output = output_filename(source, "compress")
         else:
-            output = outfile_suffix(source, "decompressed")
+            output = output_filename(source, "decompressed")
     elif output == source:
         overwrite = True
-        output = outfile_suffix(source, 'tmp')
+        output = output_filename(source, 'tmp')
 
     with rasterio.Env():
         with rasterio.open(source) as src:

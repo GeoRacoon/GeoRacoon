@@ -505,8 +505,9 @@ def output_filename(base_name: str, out_type: str, blur_params: None | dict = No
     # usedin_both
     _base_name, _ext = os.path.splitext(base_name)
     _blur_string = ""
-    for name, value in blur_params.items():
-        _blur_string += f"_{name}_{round(value)}"
+    if blur_params is not None:
+        for name, value in blur_params.items():
+            _blur_string += f"_{name}_{round(value)}"
     return f"{_base_name}_{out_type}{_blur_string}{_ext}"
 
 

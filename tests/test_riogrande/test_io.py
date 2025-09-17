@@ -230,7 +230,7 @@ def test_compression_tagging(datafiles):
         ds_tag='test'
     )
     for file in test_data:
-        orig_file_tagged = rgio.outfile_suffix(file, "orig_tagged")
+        orig_file_tagged = rgio.output_filename(file, "orig_tagged")
         # create file copy with tags
         target = {}
         with rio.open(file) as src:
@@ -241,7 +241,7 @@ def test_compression_tagging(datafiles):
                     dst.write(src.read(bidx), bidx)
                     rgio.set_tags(dst, bidx, category=np.random.randint(low=0, high=255))
                     target[bidx] = rgio.get_tags(src=dst, bidx=bidx)
-        file_tagged = rgio.outfile_suffix(file, "tagged")
+        file_tagged = rgio.output_filename(file, "tagged")
         # uncompress it
         file_tagged = rgio.compress_tif(orig_file_tagged, compression=None)
 
