@@ -31,7 +31,7 @@ from .io import (
     _get_tags,
     _set_tags,
     _find_bidxs,
-    get_bidx,
+    _get_bidx,
     match_all,
     compress_tif,
     load_block
@@ -256,7 +256,7 @@ class Source:
             _bidx = bidx
         if tags:
             with self.open() as src:
-                _tb_bidx = get_bidx(src=src, ns=self._ns, **tags)
+                _tb_bidx = _get_bidx(src=src, ns=self._ns, **tags)
             if _bidx:
                 assert _tb_bidx == _bidx, \
                     f"The band index matching {tags=} is diffrent from " \

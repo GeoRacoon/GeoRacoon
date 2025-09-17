@@ -1,4 +1,4 @@
-"""to be added
+"""Holds [...] as well as internal functions largely used for Source and Band Classes
 """
 
 from __future__ import annotations
@@ -32,14 +32,13 @@ from .helper import (
     view_to_window,
 )
 
-# TODO: Adapt this to rioG (or similar)
 NS = 'GEORACOON'
 
 # TODO: General Idea - maybe we can merge some of these into io_.py class structure - so we avoid having both.
 #  --> yet it is nice to have the function by themselves as well without direct need of class structures
 
 
-def _set_tags(src, bidx: int | None = None, ns: str = NS, **tags):
+def _set_tags(src, bidx: int | None = None, ns: str = NS, **tags: dict[str, Any]) -> None:
     # is_needed
     # needs_work (should be made internal?)
     # is_tested
@@ -47,27 +46,9 @@ def _set_tags(src, bidx: int | None = None, ns: str = NS, **tags):
 
     Since metadata in a tif file is stored as a string the value of each tag is
     serialized and converted to a string with `helper.serialize`.
-
-    ..Example::
-
-      Setting the tags
-
-      - 'category': 1
-      - foo: 'bar'
-
-      on band with index 2 in some opened tif file (`src`) is done with:
-
-      ```python
-      set_tags(src=src, bidx=2, category=1, foo='bar')
-      ```
-
-    ..Note::
-      A tag name must satisfy the python variable naming convention and
-      must be different from `src`, `bidx` and `ns` as these are reserved
-      for the arguments of this function.
-
-    ..Note::
-      Existing tags are either kept or updated
+    A tag name must satisfy the python variable naming convention and must be different from `src`,
+    `bidx` and `ns` as these are reserved for the arguments of this function.
+    Existing tags are either kept or updated.
 
     Parameters
     ----------
@@ -79,7 +60,6 @@ def _set_tags(src, bidx: int | None = None, ns: str = NS, **tags):
       dataset.
     ns:
       The namespace to set the tags in.
-      
       ..Note::
         It is dicouraged to change this value from the default as all tagging
         related methods of this package use the same default namespace.
@@ -87,8 +67,20 @@ def _set_tags(src, bidx: int | None = None, ns: str = NS, **tags):
       Arbitrary number of keyword arguments that will be set as tags.
       The value provided is converted to a string with `helper.serialize`
       before the tag is written to the file.
-    """
 
+    Examples
+    ----------
+      Setting the tags
+
+      - 'category': 1
+      - foo: 'bar'
+
+      on band with index 2 in some opened tif file (`src`) is done with:
+
+      ```python
+      set_tags(src=src, bidx=2, category=1, foo='bar')
+      ```
+    """
     if bidx is None:
         bidx = 0
     serialized_tags = serialize(tags)
@@ -101,27 +93,32 @@ def _get_tags(src, bidx: int | None = None, ns: str = NS) -> dict[str, Any]:
     # is_tested
     """Get all the tags and deserialize the values
 
-        Parameters
-        ----------
-        src:
-          `tif` file openend with `rasterio.open`
-        bidx:
-          Index of the band to get tags from (starting from 1 as is the convention
-          in rasterio). If set to `None` then the tags for the entire dataset are
-          returned.
-        ns:
-          The namespace to get the tags from.
-          
-          ..Note::
-            It is dicouraged to change this value from the default as all tagging
-            related methods of this package use the same default namespace.
-        """
+    Parameters
+    ----------
+    src:
+      `tif` file openend with `rasterio.open`
+    bidx:
+      Index of the band to get tags from (starting from 1 as is the convention
+      in rasterio). If set to `None` then the tags for the entire dataset are
+      returned.
+    ns:
+      The namespace to get the tags from.
+
+      ..Note::
+        It is dicouraged to change this value from the default as all tagging
+        related methods of this package use the same default namespace.
+
+    Returns
+    ----------
+    dict
+        Tags from queried band are returned in a dictionary form.
+    """
     if bidx is None:
         bidx = 0  # get the tags for the files metadata
     return deserialize(src.tags(bidx=bidx, ns=ns))
 
 
-def _find_bidxs(src, ns: str = NS, **tags):
+def _find_bidxs(src, ns: str = NS, **tags: dict[str, Any]) -> list[int]:
     # is_needed
     # neews_work (should be internal)
     # not_tested
@@ -140,8 +137,12 @@ def _find_bidxs(src, ns: str = NS, **tags):
     **tags:
       Arbitrary number of keyword arguments that will be compared to the tags
       of the bands in the dataset.
-    """
 
+    Returns
+    ----------
+    list[int]
+        List of all indexes (integer) for bands where tags match.
+    """
     _tags = sanitize(tags)
     matching_bidxs = []
     for bidx in src.indexes:
@@ -151,7 +152,9 @@ def _find_bidxs(src, ns: str = NS, **tags):
     return matching_bidxs
 
 
-def get_bidx(src, ns: str = NS, **tags) -> None | int:
+def _get_bidx(src, ns: str = NS, **tags: dict[str, Any]) -> None | int:
+    # TODO: actually I feel we should rename this function, as it is more than the io_.py get_bidx.
+    #       Here we are actually matching by tags.
     # is_needed
     # needs_work
     # not_tested (used in tests)
@@ -218,12 +221,15 @@ def get_bidx(src, ns: str = NS, **tags) -> None | int:
     **tags:
       Arbitrary number of keyword arguments that will be compared to the tags
       of the bands in the dataset.
-    """
 
+    Returns
+    ----------
+    int | None
+        Band index (integer) of band matching provided tags. If no match was found None is returned.
+    """
     if 'indexes' in tags or not tags:
         bidx = tags.get('indexes', 1)  # return 1 if nothing is provided
     else:
-        # serialize/deserialize tags
         _tags = sanitize(tags)
         matching_bidxs = _find_bidxs(src=src, ns=ns, **_tags)
         matches = len(matching_bidxs)

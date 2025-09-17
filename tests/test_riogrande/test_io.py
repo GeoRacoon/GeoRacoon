@@ -163,14 +163,14 @@ def test_tag_matching(datafiles):
         # category matches to band 1:
         _bidx = 1
         _category = band_tags[_bidx]['category']
-        assert rgio.get_bidx(src=src,
+        assert rgio._get_bidx(src=src,
                              category=_category) == _bidx
         # category 222 does not exist
         with pytest.raises(BandSelectionNoMatchError):
-            rgio.get_bidx(src=src,
+            rgio._get_bidx(src=src,
                           category=222)
         with pytest.raises(BandSelectionAmbiguousError):
-            rgio.get_bidx(src=src, some='value')
+            rgio._get_bidx(src=src, some='value')
         # check that serialization works
         _bidx = 2
         _tag = 'extra'
