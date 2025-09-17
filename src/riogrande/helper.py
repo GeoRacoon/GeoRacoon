@@ -14,14 +14,12 @@ import rasterio as rio
 from rasterio.windows import Window
 
 from decimal import Decimal
-from typing import Any, Union, Tuple
+from typing import Any, Union, Tuple, Optional
 
 from collections.abc import Collection
 
 import multiprocessing as mpc
 from multiprocessing import context as _context_module
-from typing import Optional
-
 
 MPC_STARTER_METHODS = ['spawn', 'fork', 'forkserver']
 
@@ -143,7 +141,7 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
     # is_tested
     # usedin_both (potentially any usage of mpc)
 
-    allowed = MPC_STARTER_METHODS + [None ,]
+    allowed = MPC_STARTER_METHODS + [None, ]
     default_method = MPC_STARTER_METHODS[0]  # default is 'spawn'
     if method not in allowed:
         raise ValueError(f"Unsupported start method: {method!r}")
@@ -511,7 +509,7 @@ def output_filename(base_name: str, out_type: str, blur_params: None | dict = No
     return f"{_base_name}_{out_type}{_blur_string}{_ext}"
 
 
-def dtype_range(dtype:type|str)->tuple[int|float, int|float]:
+def dtype_range(dtype: type | str) -> Tuple[int | float, int | float]:
     # TODO: is_needed - no_work - is_tested - usedin_both
     """Get the range of the specified dtype
 
@@ -542,10 +540,9 @@ def dtype_range(dtype:type|str)->tuple[int|float, int|float]:
     return _max, _min
 
 
-def convert_to_dtype(data: NDArray,
-                     as_dtype: None | type | np._dtype | str = None,
+def convert_to_dtype(data: NDArray, as_dtype: None | type | np._dtype | str = None,
                      in_range: None | NDArray | Collection = None,
-                     out_range: None | NDArray | Collection | str | type=None) -> NDArray:
+                     out_range: None | NDArray | Collection | str | type = None) -> NDArray:
     # TODO: is_needed - no_work - is_tested - usedin_both
     """Converts data to `as_dtype` and optionally rescales it.
 
@@ -561,25 +558,6 @@ def convert_to_dtype(data: NDArray,
     This is typically used if converting from a "limited" range, like `uint8`
     to a floating data type.
 
-    Examples:
-    >>> # simple conversion, no rescalingm
-    >>> y_data = np.array([0, 0.5, 1.], dtype=np.float64)
-    >>> convert_to_dtype(my_data, as_dtype='uint8')
-    array([0, 0, 1], dtype=uint8)
-    >>> # conversion with rescaling specifying in_range only
-    >>> new_data = convert_to_dtype(my_data, as_dtype='uint8', in_range=(0,1))
-    >>> new_data
-    array([  0, 127, 255], dtype=uint8)
-    >>> # convert with scaling specifying out_range only
-    >>> convert_to_dtype(data=new_data, as_dtype='float64', out_range=[-1, 1])
-    array([-1.        , -0.00392157,  1.        ])
-    >>> # only scaling, keeping data type
-    >>> convert_to_dtype(data=my_data, in_range=[0,1], out_range=[-1, 1])
-    array([-1.,  0.,  1.])
-    >>> # scaling with data type as range
-    >>> convert_to_dtype(data=my_data, in_range=[0,1], as_dtype='uint16', out_range='uint8')
-    array([  0, 127, 255], dtype=uint16)
-
     ..note::
 
       The default range for any floating type is `[0,1]`!
@@ -593,10 +571,10 @@ def convert_to_dtype(data: NDArray,
         `[0, 1]` (and `in_range` is not provided) then `in_range` is set to be
         `[0, 1]`.
 
-
     Parameters
     ----------
-    data: input numpy NDArray
+    data:
+        Input numpy NDArray
     as_dtype: desired data type to convert to (e.g. np.float64)
         If not provided then at least the `out_range` needs to be set in
         which case the data type remains unchanges, but the data is
@@ -612,6 +590,31 @@ def convert_to_dtype(data: NDArray,
       output.
       Alternatively, a data type can be specified, in which case the data
       will be scaled to the full range of the specified data type
+
+    Returns
+    ----------
+    NDArray
+        Converted numpy NDArray with desired data type.
+
+    Examples
+    --------
+    >>> # simple conversion, no rescalingm
+    >>> my_data = np.array([0, 0.5, 1.], dtype=np.float64)
+    >>> convert_to_dtype(my_data, as_dtype='uint8')
+    array([0, 0, 1], dtype=uint8)
+    >>> # conversion with rescaling specifying in_range only
+    >>> new_data = convert_to_dtype(my_data, as_dtype='uint8', in_range=(0,1))
+    >>> new_data
+    array([  0, 127, 255], dtype=uint8)
+    >>> # convert with scaling specifying out_range only
+    >>> convert_to_dtype(data=new_data, as_dtype='float64', out_range=[-1, 1])
+    array([-1.        , -0.00392157,  1.        ])
+    >>> # only scaling, keeping data type
+    >>> convert_to_dtype(data=my_data, in_range=[0,1], out_range=[-1, 1])
+    array([-1.,  0.,  1.])
+    >>> # scaling with data type as range
+    >>> convert_to_dtype(data=my_data, in_range=[0,1], as_dtype='uint16', out_range='uint8')
+    array([  0, 127, 255], dtype=uint16)
     """
     # is_needed
     # needs_work (formatting, fix type-hinting)
@@ -651,7 +654,6 @@ def convert_to_dtype(data: NDArray,
         # no output range but rescale due to input range
         # use the full range of output data type if scaling should be done
         _outmax, _outmin = dtype_range(as_dtype)
-
     if rescale:
         # we rescale
         if out_range is None and np.issubdtype(as_dtype, np.floating):
@@ -677,15 +679,13 @@ def convert_to_dtype(data: NDArray,
                 "If this is unwanted make sure that the input data does not "
                 "exceed the `in_range`."
             )
-
     else:
         # we simply change the data type - no rescaling
         out_data = data.astype(as_dtype)
-
     return out_data
 
 
-def aggregated_selector(masks:list[NDArray], logic:str='all')->NDArray:
+def aggregated_selector(masks: list[NDArray], logic: str = 'all') -> NDArray:
     # TODO: is_needed - no_work - is_tested - usedin_both
     """Turns several rasterio masks into a boolen selector for a numpy array
 
@@ -695,7 +695,7 @@ def aggregated_selector(masks:list[NDArray], logic:str='all')->NDArray:
     Parameters
     ----------
     masks:
-        Arbitrary number of numpy arrays resalting from
+        Arbitrary number of numpy arrays resulting from
         `rasterio.io.DatasetReader.dataset_mask` or
         `rasterio.io.DatasetReader.read_masks`
     logic:
@@ -703,25 +703,28 @@ def aggregated_selector(masks:list[NDArray], logic:str='all')->NDArray:
         If `all` (the default) a cell is only selected if **all** masks
         consider it valid data. `logic="any"` will lead to selecting
         all cells which **at least one** mask considers valid
+
+    Returns
+    ----------
+    NDArray
+        Boolean numpy array as result of logical mask applied.
     """
     # is_needed
     # no_work
     # is_tested
     # usedin_both (used in parallel.prepare_selector)
-    selector = masks[0]!=0  # values > 0 are selected (i.e. True)
+    selector = masks[0] != 0  # values > 0 are selected (i.e. True)
     if logic == 'any':
         _logic = np.logical_or
     else:
         _logic = np.logical_and
     if len(masks) > 1:
         for mask in masks[1:]:
-            _logic(selector, mask!=0, out=selector)
+            _logic(selector, mask != 0, out=selector)
     return selector
 
 
-def reduced_mask(array:NDArray,
-                nodata=0,
-                logic:str='all',):
+def reduced_mask(array: NDArray, nodata: float | int | np.nan = 0, logic: str = 'all') -> NDArray:
     # TODO: is_needed - no_work - is_tested - usedin_both
     """Computes a mask based on the value of several bands
 
@@ -729,28 +732,45 @@ def reduced_mask(array:NDArray,
     ----------
     array:
         3D array holding multiple bands of map data
+    nodata:
+        Nodata value to use. Defaults to 0.
     logic:
         Allowed strings are:
         - `"any"`: Masked will be each cell for which any of the bands matches the nodata value
         - `"all"`: Masked will be each cell for which all of the bands match the nodata value
+
+    Returns
+    ----------
+    NDArray
+        Boolean numpy array resulting from applied logic.
+
+    Examples
+    --------
+    >>> mydata = np.array([[[2, 4], [0, 1]], [[5, 5], [1, 0]]])
+    >>> # only mask if all are nodata
+    >>> reduced_mask(mydata)
+    array([[1, 1],
+           [1, 1]], dtype=uint8)
+    >>> # mask if any are nodata
+    >>> reduced_mask(mydata, logic='any')
+    array([[1, 1],
+           [0, 0]], dtype=uint8)
     """
     # is_needed
     # no_work (create test)
     # not_tested
     # usedin_both (used in parallel.compute_mask)
-    if logic=='any':
+    if logic == 'any':
         _logic = np.logical_and
     else:
         _logic = np.logical_or
     if np.isnan(nodata):
         return _logic.reduce(array=~np.isnan(array), axis=0).astype(np.uint8)
     else:
-        return _logic.reduce(array=array!=nodata, axis=0).astype(np.uint8)
+        return _logic.reduce(array=array != nodata, axis=0).astype(np.uint8)
 
 
-def count_contribution(data:NDArray,
-                       selector:NDArray[np.bool_],
-                       no_data:Union[int, float]=0)->int:
+def count_contribution(data: NDArray, selector: NDArray[np.bool_], no_data: Union[int, float] = 0) -> int:
     # TODO: is_needed - no_work - is_tested - usedin_both
     """The remaining number of data cells when applying the selector
 
@@ -764,6 +784,11 @@ def count_contribution(data:NDArray,
     no_data:
       The value that should be considered as invalid.
 
+    Returns
+    ----------
+    int
+       Count of valid cells (pixels in rasterfile).
+
       .. note::
         You might also provide `np.nan` as no data value.
 
@@ -775,7 +800,7 @@ def count_contribution(data:NDArray,
     if np.isnan(no_data):
         b_vals, b_counts = np.unique(~np.isnan(data[selector]), return_counts=True)
     else:
-        b_vals, b_counts = np.unique(data[selector]!=no_data, return_counts=True)
+        b_vals, b_counts = np.unique(data[selector] != no_data, return_counts=True)
     # b_vals is [True, False] and can be used as selector for b_counts
     # thus returning the count of True
     if True in b_vals:
@@ -784,13 +809,23 @@ def count_contribution(data:NDArray,
         return 0
 
 
-def rasterio_to_numpy_dtype(rasterio_dtype):
+def rasterio_to_numpy_dtype(rasterio_dtype: str) -> np.dtype | None:
+    # TODO: Technically this function is not needed, but I feel it could have some use for users.
     # TODO: is_needed (for testing later) - no_work - is_tested - usedin_both
-    """
-    Map Rasterio actual data types to NumPy data types.
+    """Map Rasterio actual data types to NumPy data types.
 
     Rasterio types like rasterio.dtypes.int16, rasterio.dtypes.float32
     are mapped to their NumPy equivalents.
+
+    Parameters
+    ----------
+    rasterio_dtype:
+        Output of rasterio.open(source).profile['dtype']
+
+    Returns
+    ----------
+    numpy.dtype
+        Data type as numpy dtype.
     """
     # not_needed
     # no_work
