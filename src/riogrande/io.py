@@ -1,25 +1,22 @@
+"""to be added
+"""
+
 from __future__ import annotations
 
 import os
 import glob
 
 from math import floor
+from numpy.typing import NDArray
 
-import rasterio  # TODO: choose either rio or rasterio as name
 import rasterio as rio
 from rasterio.io import DatasetWriter
 from rasterio.windows import Window
-from rasterio.mask import mask
 from rasterio.warp import (
     calculate_default_transform,
     reproject,
     Resampling,
 )
-
-from shapely.geometry import box as shbox
-
-from numpy.typing import NDArray
-
 from .exceptions import (
     BandSelectionNoMatchError,
     BandSelectionAmbiguousError,
@@ -34,7 +31,6 @@ from .helper import (
     view_to_window,
 )
 
-
 # TODO: Adapt this to rioG (or similar)
 # this is our namespace for tags
 NS = 'LANDIV'
@@ -43,7 +39,7 @@ NS = 'LANDIV'
 # TODO: General Idea - maybe we can merge some of these into io_.py class structure - so we avoid having both.
 #  --> yet it is nice to have the function by themselves as well without direct need of class structures
 
-def set_tags(src, bidx:int|None=None, ns:str=NS, **tags):
+def set_tags(src, bidx: int | None = None, ns: str = NS, **tags):
     # is_needed
     # needs_work (should be made internal?)
     # is_tested
@@ -99,11 +95,12 @@ def set_tags(src, bidx:int|None=None, ns:str=NS, **tags):
     serialized_tags = serialize(tags)
     src.update_tags(ns=ns, bidx=bidx, **serialized_tags)
 
-def get_tags(src, bidx:int|None=None, ns:str=NS):
-        # is_needed
-        # needs_work (should be internal)
-        # is_tested
-        """Get all the tags and deserialize the values
+
+def get_tags(src, bidx: int | None = None, ns: str = NS):
+    # is_needed
+    # needs_work (should be internal)
+    # is_tested
+    """Get all the tags and deserialize the values
 
         Parameters
         ----------
@@ -120,11 +117,12 @@ def get_tags(src, bidx:int|None=None, ns:str=NS):
             It is dicouraged to change this value from the default as all tagging
             related methods of this package use the same default namespace.
         """
-        if bidx is None:
-            bidx = 0  # get the tags for the files metadata
-        return deserialize(src.tags(bidx=bidx, ns=ns))
+    if bidx is None:
+        bidx = 0  # get the tags for the files metadata
+    return deserialize(src.tags(bidx=bidx, ns=ns))
 
-def find_bidxs(src, ns:str=NS, **tags):
+
+def find_bidxs(src, ns: str = NS, **tags):
     # is_needed
     # neews_work (should be internal)
     # not_tested
@@ -145,7 +143,7 @@ def find_bidxs(src, ns:str=NS, **tags):
       of the bands in the dataset.
     """
 
-    _tags = sanitize(tags) 
+    _tags = sanitize(tags)
     matching_bidxs = []
     for bidx in src.indexes:
         b_tags = get_tags(src=src, bidx=bidx, ns=ns)
@@ -153,7 +151,8 @@ def find_bidxs(src, ns:str=NS, **tags):
             matching_bidxs.append(bidx)
     return matching_bidxs
 
-def get_bidx(src, ns:str=NS, **tags)->None|int:
+
+def get_bidx(src, ns: str = NS, **tags) -> None | int:
     # is_needed
     # needs_work
     # not_tested (used in tests)
@@ -226,7 +225,7 @@ def get_bidx(src, ns:str=NS, **tags)->None|int:
         bidx = tags.get('indexes', 1)  # return 1 if nothing is provided
     else:
         # serialize/deserialize tags
-        _tags = sanitize(tags) 
+        _tags = sanitize(tags)
         matching_bidxs = find_bidxs(src=src, ns=ns, **_tags)
         matches = len(matching_bidxs)
         if matches > 1:
@@ -240,7 +239,8 @@ def get_bidx(src, ns:str=NS, **tags)->None|int:
         bidx = matching_bidxs[0]
     return bidx
 
-def get_bands(source:str, ns:str=NS, **tags)->list[tuple[str,int]]:
+
+def get_bands(source: str, ns: str = NS, **tags) -> list[tuple[str, int]]:
     # is_needed
     # needs_work
     # not_tested (used in tests)
@@ -280,7 +280,7 @@ def get_bands(source:str, ns:str=NS, **tags)->list[tuple[str,int]]:
     _sources = glob.glob(source)
     matches = []
     for source in _sources:
-        with rasterio.open(source, "r") as src:
+        with rio.open(source, "r") as src:
             ds_tags = get_tags(src=src, bidx=None, ns=ns)
             bidxs = find_bidxs(src=src, ns=ns, **_tags)
             if match_all(targets=_tags, tags=ds_tags):
@@ -290,7 +290,7 @@ def get_bands(source:str, ns:str=NS, **tags)->list[tuple[str,int]]:
     return matches
 
 
-def load_map(source:str, **tags)->dict:
+def load_map(source: str, **tags) -> dict:
     # is_needed (this is only used in tests)
     # needs_work (replace usage with `load_block` and get rid of it)
     # not_tested (used in tests)
@@ -306,10 +306,11 @@ def load_map(source:str, **tags)->dict:
     """
     return load_block(source=source, view=None, scaling_params=None, **tags)
 
-def load_block(source:str,
-               view:None|tuple[int,int,int,int]=None,
-               scaling_params:dict|None=None,
-               **tags)->dict:
+
+def load_block(source: str,
+               view: None | tuple[int, int, int, int] = None,
+               scaling_params: dict | None = None,
+               **tags) -> dict:
     # is_needed
     # needs_work
     # is_tested
@@ -350,8 +351,8 @@ def load_block(source:str,
        orig_meta: The meta information of the original .tif file
        orig_profile: The profile information of the original .tif file
     """
-    window=view_to_window(view)
-    with rasterio.open(source) as img:
+    window = view_to_window(view)
+    with rio.open(source) as img:
         # TODO: rasterio Window allows using slices. In doing so we could
         #       harmonize what we call blocks and views and just work with
         #       slices.
@@ -394,10 +395,11 @@ def load_block(source:str,
             'orig_profile': img.profile.copy()
         }
 
-def write_band(src:DatasetWriter,
-               data:NDArray,
-               bidx:int=1,
-               window:Window|None=None,
+
+def write_band(src: DatasetWriter,
+               data: NDArray,
+               bidx: int = 1,
+               window: Window | None = None,
                **tags):
     # is_needed
     # needs_work
@@ -421,9 +423,10 @@ def write_band(src:DatasetWriter,
     src.write(data, indexes=bidx, window=window)
     set_tags(src, bidx=bidx, **tags)
 
-def update_band(src:DatasetWriter,
-                data:NDArray,
-                window:Window|None=None,
+
+def update_band(src: DatasetWriter,
+                data: NDArray,
+                window: Window | None = None,
                 **tags):
     # not_needed (could be useful though)
     # no_work
@@ -458,9 +461,10 @@ def update_band(src:DatasetWriter,
     else:
         src.write(data, indexes=bidx, window=window)
 
-def export_to_tif(destination:str,
-                  data:NDArray,
-                  orig_profile:dict,
+
+def export_to_tif(destination: str,
+                  data: NDArray,
+                  orig_profile: dict,
                   start=(0, 0),
                   **pparams):
     # not_needed (could be useful though)
@@ -497,7 +501,7 @@ def export_to_tif(destination:str,
     profile.update(pparams)
     # write it:
     size = data.shape[::-1]  # since positions are inverted in numpy
-    with rasterio.open(destination, "w", **profile) as dest:
+    with rio.open(destination, "w", **profile) as dest:
         dest.write(data, window=Window(*start, *size), indexes=1)
 
 
@@ -528,11 +532,11 @@ def _coregister_raster(source, reference, output=None):
     if output is None:
         output = output_filename(source, out_type="coreg")
 
-    with rasterio.open(source) as src:
+    with rio.open(source) as src:
         src_transform = src.transform
         src_nodata = src.nodata
 
-        with rasterio.open(reference) as refsrc:
+        with rio.open(reference) as refsrc:
             dst_crs = refsrc.crs
 
             (dst_transform,
@@ -550,17 +554,18 @@ def _coregister_raster(source, reference, output=None):
                            "height": dst_height,
                            "nodata": src_nodata})
 
-        with rasterio.open(output, "w", **dst_kwargs) as dst:
+        with rio.open(output, "w", **dst_kwargs) as dst:
             for bidx in src.indexes:
                 reproject(
-                    source=rasterio.band(src, bidx),
-                    destination=rasterio.band(dst, bidx),
+                    source=rio.band(src, bidx),
+                    destination=rio.band(dst, bidx),
                     src_transform=src_transform,
                     src_crs=src.crs,
                     dst_transform=dst_transform,
                     dst_crs=dst_crs,
                     resampling=Resampling.nearest)
     return output
+
 
 def buffer_geometries_metric(geom_geoseries, buffer_meter, source_crs):
     # is_needed (internal only)
@@ -592,7 +597,8 @@ def buffer_geometries_metric(geom_geoseries, buffer_meter, source_crs):
     geom_buff = geom_buff[geom_buff.area > 0]
     return geom_buff.to_crs(source_crs)
 
-def compress_tif(source, output:str|None=None, compression:str|None='lzw'):
+
+def compress_tif(source, output: str | None = None, compression: str | None = 'lzw'):
     # is_needed
     # needs_work (docs)
     # is_tested
@@ -626,12 +632,12 @@ def compress_tif(source, output:str|None=None, compression:str|None='lzw'):
         overwrite = True
         output = output_filename(source, 'tmp')
 
-    with rasterio.Env():
-        with rasterio.open(source) as src:
+    with rio.Env():
+        with rio.open(source) as src:
             profile = src.profile
             profile.update(compress=compression)
 
-            with rasterio.open(output, 'w', **profile) as dst:
+            with rio.open(output, 'w', **profile) as dst:
                 set_tags(src=dst, bidx=None, **get_tags(src=src, bidx=None))
                 for i in range(1, src.count + 1):
                     for ji, window in src.block_windows(i):
