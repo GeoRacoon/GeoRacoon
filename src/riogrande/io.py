@@ -5,7 +5,7 @@ import glob
 
 from math import floor
 
-import rasterio # TODO: choose either rio or rasterio as name
+import rasterio  # TODO: choose either rio or rasterio as name
 import rasterio as rio
 from rasterio.io import DatasetWriter
 from rasterio.windows import Window
@@ -27,6 +27,7 @@ from .exceptions import (
 from .helper import (
     check_crs,
     outfile_suffix,
+    output_filename,
     serialize,
     deserialize,
     sanitize,
@@ -500,116 +501,6 @@ def export_to_tif(destination:str,
     with rasterio.open(destination, "w", **profile) as dest:
         dest.write(data, window=Window(*start, *size), indexes=1)
 
-def project_to(source, reference, output=None, nodata=None)->str | None:
-    # not_needed (used in examples)
-    # no_work
-    # not_tested
-    """Re-projects the source map into the coordinate system of a reference map
-
-    Parameters
-    ----------
-    source: str
-      The path to the tif file you want to change projection
-    reference: str
-      The path to the tif file with the projection to apply
-    output: str (optional)
-      The path to write the re-projected map to.
-    nodata: float, int (optional)
-      The `nodata` value to set for the output (e.g. np.nan or integer)
-
-    ..note::
-       If not provided, the output file will take the name of the input file
-       and add the CRS of the new projection at the end of the name.
-
-    Returns
-    -------
-    str:
-      The name of the file that hold the re-projected map
-    """
-    with rio.open(reference) as ref:
-        dst_crs = str(ref.profile['crs'])
-    with rio.open(source) as src:
-        src_crs = str(src.crs)
-        if src_crs == dst_crs:
-            print(f"There is nothing to project! {src_crs=} to {dst_crs=}")
-            return None
-
-        (transform, width, height) = calculate_default_transform(
-            src.crs,
-            dst_crs,
-            src.width,
-            src.height,
-            *src.bounds
-        )
-        kwargs = src.meta.copy()
-        # prepare the resulting profile
-        kwargs.update({
-          'crs': dst_crs,
-          'transform': transform,
-          'width': width,
-          'height': height
-        })
-        if nodata is not None:
-            kwargs['nodata'] = nodata
-
-        if output is None:
-            _base_name, _ext = os.path.splitext(source)
-            output = f"{_base_name}_{dst_crs}{_ext}"
-        with rio.open(output, 'w', **kwargs) as dst:
-            for bidx in src.indexes:
-                reproject(
-                    source=rio.band(src, bidx),
-                    destination=rio.band(dst, bidx),
-                    src_transform=src.transform,
-                    src_crs=src.crs,
-                    dst_transform=transform,
-                    dst_crs=dst_crs,
-                    resampling=Resampling.nearest
-                )
-        return output
-
-def clip_to_bounds(source, reference, output=None):
-    # not_needed (used in example only)
-    # no_work
-    # not_tested
-    """Clip raster to bounding box of reference raster
-
-    Parameters
-    ----------
-    source: str
-      The path to the tif file you want to clip
-    reference: str
-      The path to the tif file with the extent to use as clipping bounding box
-    output: str (optional)
-      The path to write the bounding box clipped map to
-
-    Returns
-    -------
-    str:
-      The name of the file that holds clipped map
-    """
-    check_crs(source, reference)
-
-    if output is None:
-        output = outfile_suffix(source, "bounds")
-
-    with rasterio.open(reference) as ref:
-        bounds = ref.bounds
-        bbox_geom = shbox(*bounds)
-
-    with rasterio.open(source) as src:
-        out_image, out_transform = mask(src, [bbox_geom], crop=True)
-
-        out_meta = src.meta.copy()
-        out_meta.update({
-            "height": out_image.shape[1],
-            "width": out_image.shape[2],
-            "transform": out_transform
-        })
-
-    with rasterio.open(output, 'w', **out_meta) as dst:
-        dst.write(out_image)
-    return output
 
 def _coregister_raster(source, reference, output=None):
     # is_needed (in tests only)
@@ -636,7 +527,7 @@ def _coregister_raster(source, reference, output=None):
     check_crs(source, reference)
 
     if output is None:
-        output = outfile_suffix(source, "coreg")
+        output = output_filename(source, out_type="coreg")
 
     with rasterio.open(source) as src:
         src_transform = src.transform

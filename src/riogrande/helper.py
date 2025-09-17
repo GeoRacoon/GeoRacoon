@@ -477,22 +477,6 @@ def check_compatibility(*sources: str) -> Tuple[list, list, list]:
     return crss, units, ress
 
 
-# TODO: STOPPED HERE FOR NOW
-#         We need to merge the two outfile functions maybe to one, or make them more flexible.
-#         I feel the second one is super specific to the convster package (and therefore needs adjustmen)
-
-
-def outfile_suffix(filename, suffix, separator:str='_'):
-    # TODO: is_needed (for now) - no_work - not_tested - usedin_both
-    """Insert suffix into filename and hand back basename_suffix.extension"""
-    # is_needed
-    # no_work
-    # not_tested (used in tests)
-    # usedin_both (used in io submodule)
-    base, ext = os.path.splitext(filename)
-    return f"{base}{separator}{suffix}{ext}"
-
-
 def output_filename(base_name: str, out_type: str, blur_params: None | dict = None) -> str:
     # TODO: is_needed - no_work - is_tested - usedin_both
     """Construct the filename for the specific output type.
