@@ -1,6 +1,6 @@
+"""This file provides helper functions including compatibility checks, dtype conversion, parallelization setup
 """
-To be added
-"""
+
 from __future__ import annotations
 
 import os
@@ -22,7 +22,6 @@ import multiprocessing as mpc
 from multiprocessing import context as _context_module
 
 MPC_STARTER_METHODS = ['spawn', 'fork', 'forkserver']
-
 
 def get_nbr_workers(number: Optional[int] = None) -> int:
     """Determine the number of worker processes to use in mulitprocessing.
