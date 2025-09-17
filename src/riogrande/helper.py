@@ -14,7 +14,7 @@ import rasterio as rio
 from rasterio.windows import Window
 
 from decimal import Decimal
-from typing import Any, Union
+from typing import Any, Union, Tuple
 
 from collections.abc import Collection
 
@@ -31,7 +31,7 @@ def get_nbr_workers(number: Optional[int] = None) -> int:
 
     Parameters
     ----------
-    number : int or None, optional
+    number: int or None, optional
         Desired number of workers. If ``None``, the function will use the
         number of CPUs available, but never less than 2.
 
@@ -197,8 +197,9 @@ def serialize(tags: dict[str, Any]) -> dict[str, str]:
 
     Parameters
     ----------
-    tags : Dictionary of tags with string keywords and any-type values,
-    which are serializable.
+    tags:
+        Dictionary of tags with string keywords and any-type values,
+        which are serializable.
 
     Returns
     -------
@@ -219,8 +220,8 @@ def deserialize(tags: dict[str, str]) -> dict[str, Any]:
 
     Parameters
     ----------
-    tags : Dictionary with tag as key and serialized value as value.
-    which are serializable.
+    tags:
+        Dictionary with tag as key and serialized values.
 
     Returns
     -------
@@ -245,8 +246,8 @@ def sanitize(tags: dict[str, Any]) -> Any:
 
     Parameters
     ----------
-    tags : Dictionary with tag as key and serialized value as value.
-    which are serializable.
+    tags:
+        Dictionary with tag as key and serializable value as value.
 
     Returns
     ---------
@@ -266,8 +267,10 @@ def match_all(targets: dict, tags: dict) -> bool:
 
     Parameters
     ----------
-    targets : Dictionary with tags to match to.
-    tags : Dictionary with tags to check for matching items.
+    targets:
+        Dictionary with tags to match to.
+    tags:
+        Dictionary with tags to check for matching items.
 
     Returns
     ---------
@@ -298,8 +301,10 @@ def match_any(targets: dict, tags: dict) -> bool:
 
     Parameters
     ----------
-    targets : Dictionary with tags to match to.
-    tags : Dictionary with tags to check for matching items.
+    targets:
+        Dictionary with tags to match to.
+    tags:
+        Dictionary with tags to check for matching items.
 
     Returns
     ---------
@@ -349,13 +354,13 @@ def view_to_window(view: None | tuple[int, int, int, int]) -> Window:
     return window
 
 
-def check_units(*sources: str | list) -> list:
+def check_units(*sources: str) -> list:
     # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all sources have the same linear units in the coordinate reference system (crs)
 
     Parameters
     ----------
-    sources :
+    sources:
         List of sources (paths to files) from which units are to be compared to each other.
 
     Returns
@@ -382,13 +387,13 @@ def check_units(*sources: str | list) -> list:
     return units
 
 
-def check_crs(*sources: str | list) -> list:
+def check_crs(*sources: str) -> list:
     # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all the sources have the same coordinate reference system (crs)
 
     Parameters
     ----------
-    sources :
+    sources:
         List of sources (paths to files) from which crs are to be compared to each other.
 
     Returns
@@ -410,13 +415,13 @@ def check_crs(*sources: str | list) -> list:
     return crss
 
 
-def check_resolution(*sources: str | list) -> list:
+def check_resolution(*sources: str) -> list:
     # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all the sources have the same spatial resolution
 
     Parameters
     ----------
-    sources :
+    sources:
         List of sources (paths to files) from which resolutions are to be compared to each other.
 
     Returns
@@ -439,7 +444,7 @@ def check_resolution(*sources: str | list) -> list:
     return ress
 
 
-def check_compatibility(*sources: str | list):
+def check_compatibility(*sources: str) -> Tuple[list, list, list]:
     # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all the sources are compatible with each other.
 
@@ -450,12 +455,17 @@ def check_compatibility(*sources: str | list):
 
     Parameters
     ----------
-    sources :
+    sources:
         List of sources (paths to files) from which are to be compared to each other.
 
     Returns
     ---------
-    # TODO: unsure what is best practice to report this here and above for multiple values returned
+    crss:
+        All unique units from sources in a list (see check_units()).
+    units:
+        All unique crs from sources in a list (see check_crs()).
+    ress:
+        All unique resolutions from sources in a list (see check_resolution()).
     """
     # is_needed
     # needs_work (better doc)
@@ -483,7 +493,7 @@ def outfile_suffix(filename, suffix, separator:str='_'):
     return f"{base}{separator}{suffix}{ext}"
 
 
-def output_filename(base_name: str, out_type: str, blur_params: dict):
+def output_filename(base_name: str, out_type: str, blur_params: None | dict = None) -> str:
     # TODO: is_needed - no_work - is_tested - usedin_both
     """Construct the filename for the specific output type.
 
