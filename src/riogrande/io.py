@@ -33,7 +33,7 @@ from .helper import (
 )
 
 # TODO: Adapt this to rioG (or similar)
-NS = 'LANDIV'
+NS = 'GEORACOON'
 
 # TODO: General Idea - maybe we can merge some of these into io_.py class structure - so we avoid having both.
 #  --> yet it is nice to have the function by themselves as well without direct need of class structures

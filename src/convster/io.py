@@ -22,7 +22,7 @@ from .helper import (
 
 # TODO: Adapt this to convster (or similar)
 # this is our namespace for tags
-NS = 'LANDIV'
+NS = 'GEORACOON'
 
 def clip_to_ecoregion(source, shapefile, ecoregion_number, output=None, buffer_meter=None):
     # not_needed (used in example)
