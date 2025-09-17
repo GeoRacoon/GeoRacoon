@@ -152,6 +152,9 @@ def _find_bidxs(src, ns: str = NS, **tags: dict[str, Any]) -> list[int]:
     return matching_bidxs
 
 
+# TODO: BOOKMARK - STOPPED HERE last time (did internalize _get_bidx, but not proceed with formating)
+
+
 def _get_bidx(src, ns: str = NS, **tags: dict[str, Any]) -> None | int:
     # TODO: actually I feel we should rename this function, as it is more than the io_.py get_bidx.
     #       Here we are actually matching by tags.
