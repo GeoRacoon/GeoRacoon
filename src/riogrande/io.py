@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import glob
+from typing import Any
 
 from math import floor
 from numpy.typing import NDArray
@@ -32,14 +33,13 @@ from .helper import (
 )
 
 # TODO: Adapt this to rioG (or similar)
-# this is our namespace for tags
 NS = 'LANDIV'
-
 
 # TODO: General Idea - maybe we can merge some of these into io_.py class structure - so we avoid having both.
 #  --> yet it is nice to have the function by themselves as well without direct need of class structures
 
-def set_tags(src, bidx: int | None = None, ns: str = NS, **tags):
+
+def _set_tags(src, bidx: int | None = None, ns: str = NS, **tags):
     # is_needed
     # needs_work (should be made internal?)
     # is_tested
@@ -91,12 +91,11 @@ def set_tags(src, bidx: int | None = None, ns: str = NS, **tags):
 
     if bidx is None:
         bidx = 0
-    # serialize the tag values:
     serialized_tags = serialize(tags)
     src.update_tags(ns=ns, bidx=bidx, **serialized_tags)
 
 
-def get_tags(src, bidx: int | None = None, ns: str = NS):
+def _get_tags(src, bidx: int | None = None, ns: str = NS) -> dict[str, Any]:
     # is_needed
     # needs_work (should be internal)
     # is_tested
@@ -122,7 +121,7 @@ def get_tags(src, bidx: int | None = None, ns: str = NS):
     return deserialize(src.tags(bidx=bidx, ns=ns))
 
 
-def find_bidxs(src, ns: str = NS, **tags):
+def _find_bidxs(src, ns: str = NS, **tags):
     # is_needed
     # neews_work (should be internal)
     # not_tested
@@ -146,7 +145,7 @@ def find_bidxs(src, ns: str = NS, **tags):
     _tags = sanitize(tags)
     matching_bidxs = []
     for bidx in src.indexes:
-        b_tags = get_tags(src=src, bidx=bidx, ns=ns)
+        b_tags = _get_tags(src=src, bidx=bidx, ns=ns)
         if match_all(targets=_tags, tags=b_tags):
             matching_bidxs.append(bidx)
     return matching_bidxs
@@ -226,7 +225,7 @@ def get_bidx(src, ns: str = NS, **tags) -> None | int:
     else:
         # serialize/deserialize tags
         _tags = sanitize(tags)
-        matching_bidxs = find_bidxs(src=src, ns=ns, **_tags)
+        matching_bidxs = _find_bidxs(src=src, ns=ns, **_tags)
         matches = len(matching_bidxs)
         if matches > 1:
             raise BandSelectionAmbiguousError(
@@ -281,8 +280,8 @@ def get_bands(source: str, ns: str = NS, **tags) -> list[tuple[str, int]]:
     matches = []
     for source in _sources:
         with rio.open(source, "r") as src:
-            ds_tags = get_tags(src=src, bidx=None, ns=ns)
-            bidxs = find_bidxs(src=src, ns=ns, **_tags)
+            ds_tags = _get_tags(src=src, bidx=None, ns=ns)
+            bidxs = _find_bidxs(src=src, ns=ns, **_tags)
             if match_all(targets=_tags, tags=ds_tags):
                 bidxs.append(None)  # use bidx None to indicate tags of the file
         for bidx in bidxs:
@@ -421,7 +420,7 @@ def write_band(src: DatasetWriter,
       before the tag is written to the file.
     """
     src.write(data, indexes=bidx, window=window)
-    set_tags(src, bidx=bidx, **tags)
+    _set_tags(src, bidx=bidx, **tags)
 
 
 def update_band(src: DatasetWriter,
@@ -638,13 +637,13 @@ def compress_tif(source, output: str | None = None, compression: str | None = 'l
             profile.update(compress=compression)
 
             with rio.open(output, 'w', **profile) as dst:
-                set_tags(src=dst, bidx=None, **get_tags(src=src, bidx=None))
+                _set_tags(src=dst, bidx=None, **_get_tags(src=src, bidx=None))
                 for i in range(1, src.count + 1):
                     for ji, window in src.block_windows(i):
                         array = src.read(i, window=window)
                         dst.write(array, i, window=window)
-                    tags = get_tags(src, bidx=i)
-                    set_tags(dst, bidx=i, **tags)
+                    tags = _get_tags(src, bidx=i)
+                    _set_tags(dst, bidx=i, **tags)
                     band_names = src.descriptions[(i - 1)]
                     dst.set_band_description(i, band_names)
     if overwrite:

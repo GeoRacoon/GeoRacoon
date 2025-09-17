@@ -1,3 +1,6 @@
+"""to be added
+"""
+
 from __future__ import annotations
 import os
 
@@ -25,11 +28,11 @@ from .exceptions import (
 
 from .io import (
     NS,
-    get_tags,
-    set_tags,
+    _get_tags,
+    _set_tags,
+    _find_bidxs,
     get_bidx,
     match_all,
-    find_bidxs,
     compress_tif,
     load_block
 )
@@ -38,6 +41,7 @@ from .helper import (
     count_contribution,
 )
 
+
 class Source:
     """Specifies a data source
     """
@@ -45,14 +49,15 @@ class Source:
     _mode_reading = ('r', 'r+')
     _mode_default = 'r'
     _modes = _mode_reading + _mode_writing
+
     # is_needed
     # needs_work (docs)
     # not_tested
 
-    def __init__(self, path:str|Path,
-                 tags: dict|None=None,
-                 profile: dict|None=None,
-                 ns: str=NS):
+    def __init__(self, path: str | Path,
+                 tags: dict | None = None,
+                 profile: dict | None = None,
+                 ns: str = NS):
         # is_needed
         # needs_work (docs)
         # not_tested (used in tests)
@@ -65,7 +70,7 @@ class Source:
         # is_needed
         # needs_work (docs - revisit what is printed)
         # not_tested (no need)
-        items = [f"path={str(self.path)}", f"exists: { self.exists }"]
+        items = [f"path={str(self.path)}", f"exists: {self.exists}"]
         return "{}({})".format(type(self).__name__, ", ".join(items))
 
     def __hash__(self):
@@ -83,7 +88,7 @@ class Source:
         return (self.path == other.path and self.tags == other.tags and
                 self._ns == other._ns)
 
-    def import_profile(self, update_self:bool=True):
+    def import_profile(self, update_self: bool = True):
         """Read the profile from the source file
 
         Parameters
@@ -102,14 +107,14 @@ class Source:
         return self.profile
 
     @property
-    def exists(self)->bool:
+    def exists(self) -> bool:
         # is_needed
         # needs_work (make internal, docs)
         # not_tested
         return self.path.is_file()
 
     @property
-    def shape(self)->tuple:
+    def shape(self) -> tuple:
         """Return the numpy shape of the data stored in this Source
 
         .. note::
@@ -123,16 +128,16 @@ class Source:
         height = self.profile['height']
         width = self.profile['width']
         return (height, width)
-    
-    def get_tags(self, bidx:int)->dict:
+
+    def get_tags(self, bidx: int) -> dict:
         # is_needed (noly internally)
         # needs_work (docs)
         # not_tested
         with self.open(mode='r') as src:
-            tags = get_tags(src=src, bidx=bidx, ns=self._ns)
+            tags = _get_tags(src=src, bidx=bidx, ns=self._ns)
         return tags
 
-    def get_tag_values(self, tag:str, bidx:int|list|None=None)->dict:
+    def get_tag_values(self, tag: str, bidx: int | list | None = None) -> dict:
         """Try to fetch for each band the value of this tag
         
         If the tag is not present, None is returned
@@ -145,21 +150,21 @@ class Source:
             if bidx is None:
                 bidxs = src.indexes
             elif isinstance(bidx, int):
-                bidxs = [bidx,]
+                bidxs = [bidx, ]
             else:
                 bidxs = bidx
             for _bidx in bidxs:
-                t_vals[_bidx] = get_tags(src=src,
+                t_vals[_bidx] = _get_tags(src=src,
                                          bidx=_bidx,
                                          ns=self._ns).get(tag, None)
         return t_vals
 
-    def set_tags(self, bidx:int|None, tags:dict):
+    def set_tags(self, bidx: int | None, tags: dict):
         # is_needed (noly internally)
         # needs_work (docs)
         # not_tested
         with self.open(mode='r+') as src:
-            set_tags(src=src, bidx=bidx, ns=self._ns, **tags)
+            _set_tags(src=src, bidx=bidx, ns=self._ns, **tags)
 
     @contextmanager
     def mask_reader(self, **kwargs):
@@ -203,7 +208,7 @@ class Source:
             with self.open(mode=mode, **kwargs) as src:
                 yield src.write_mask
 
-    def export_mask(self, mask:NDArray, window:Window):
+    def export_mask(self, mask: NDArray, window: Window):
         """Write the mask into the output file
 
         Parameters
@@ -219,7 +224,7 @@ class Source:
         with self.open(mode='r+') as src:
             src.write_mask(mask_array=mask, window=window)
 
-    def init_source(self, overwrite:bool=False, **kwargs):
+    def init_source(self, overwrite: bool = False, **kwargs):
         """Create or accesses source file
         """
         # is_needed (only internally for now)
@@ -229,7 +234,7 @@ class Source:
             with self.open(mode='w', **self.profile, **kwargs) as _:
                 print(f'Initiating empty file\n\t"{self.path}"\n')
 
-    def get_band(self, bidx:int|None=None, **tags)->Band:
+    def get_band(self, bidx: int | None = None, **tags) -> Band:
         """Find the wanted band and return a related band object
         """
         # is_needed
@@ -263,7 +268,7 @@ class Source:
             tags.update(band_tags)
         return Band(source=self, bidx=_bidx or _tb_bidx, tags=tags)
 
-    def get_bands(self)->list[Band]:
+    def get_bands(self) -> list[Band]:
         """Return a list with all Bands present in the dataset
         """
         # is_needed
@@ -272,7 +277,7 @@ class Source:
         bands = []
         with self.open(mode='r') as src:
             for bidx in src.indexes:
-                tags = get_tags(src=src, bidx=bidx, ns=self._ns)
+                tags = _get_tags(src=src, bidx=bidx, ns=self._ns)
                 _b = Band(source=self, bidx=bidx, tags=tags)
                 bands.append(_b)
         return bands
@@ -322,7 +327,7 @@ class Source:
             src.close()
 
     @contextmanager
-    def data_reader(self, bands:list[Band]|None=None, **kwargs):
+    def data_reader(self, bands: list[Band] | None = None, **kwargs):
         """Read out from mulitple bands and return a 3D data array
 
         Parameters
@@ -341,7 +346,7 @@ class Source:
             yield partial(src.read, indexes=bidxs)
 
     @property
-    def band_indexes(self,):
+    def band_indexes(self, ):
         # is_needed (only internally)
         # needs_work (docs, make internal?)
         # not_tested
@@ -349,7 +354,7 @@ class Source:
             bidxs = src.indexes
         return bidxs
 
-    def has_bidx(self, bidx:int)->bool:
+    def has_bidx(self, bidx: int) -> bool:
         # is_needed (only internally)
         # needs_work (docs; make internal?)
         # not_tested
@@ -359,31 +364,31 @@ class Source:
                 has_it = True
         return has_it
 
-    def has_tags(self, tags:dict)->bool:
+    def has_tags(self, tags: dict) -> bool:
         # not_needed (might be useful if working with tags
         # needs_work (doc)
         # not_tested
         all_tags = []
         with rio.open(self.path, 'r') as src:
             for bidx in src.indexes:
-                all_tags.append(get_tags(src=src, bidx=bidx, ns=self._ns))
+                all_tags.append(_get_tags(src=src, bidx=bidx, ns=self._ns))
         return any(match_all(tags, btags) for btags in all_tags)
 
-    def find_indexes(self, tags:dict, mode='all')->list:
+    def find_indexes(self, tags: dict, mode='all') -> list:
         """Check if one or several bands have matching tags
         """
         # is_needed (only internally)
         # needs_work (docs)
         # not_tested
         with self.open() as src:
-            if mode=='any':
+            if mode == 'any':
                 # TODO: match_any was implemented in !41
                 bidxs = []
             else:
-                bidxs = find_bidxs(src=src, ns=self._ns, **tags)
+                bidxs = _find_bidxs(src=src, ns=self._ns, **tags)
         return bidxs
 
-    def find_index(self, tags:dict)->int|None:
+    def find_index(self, tags: dict) -> int | None:
         # is_needed (only internally)
         # needs_work (docs)
         # not_tested
@@ -395,7 +400,7 @@ class Source:
             midx = matching_bidxs[0]
         return midx
 
-    def has_band(self, band:Band)->int:
+    def has_band(self, band: Band) -> int:
         # not_needed (might be useful if working with tags
         # needs_work (doc)
         # not_tested
@@ -408,7 +413,7 @@ class Source:
                 has_it = True
         return has_it
 
-    def get_bidx(self, band:Band)->int|None:
+    def get_bidx(self, band: Band) -> int | None:
         """Find an specific band to write to in the file
         """
         # is_needed (only internally)
@@ -445,7 +450,7 @@ class Source:
                 )
         return midx
 
-    def compress(self, output:str|None=None, compression:str|None='lzw', keep_original:bool=False):
+    def compress(self, output: str | None = None, compression: str | None = 'lzw', keep_original: bool = False):
         # is_needed
         # needs_work (docs)
         # not_tested
@@ -467,15 +472,15 @@ class Source:
         # is_needed
         # needs_work (docs)
         # not_tested
-        _sources = {self.path,}
+        _sources = {self.path, }
         for source in sources:
             _sources.add(source.path)
         return _check_compatibility(*_sources)
 
     def load_block(self,
-                   view:None|tuple[int,int,int,int]=None,
-                   scaling_params:dict|None=None,
-                   **tags)->dict:
+                   view: None | tuple[int, int, int, int] = None,
+                   scaling_params: dict | None = None,
+                   **tags) -> dict:
         """Get a block from a specific band along with the transform
 
         See `io.load_block` for further details
@@ -488,6 +493,7 @@ class Source:
                           scaling_params=scaling_params,
                           **tags)
 
+
 @dataclass
 class Band:
     # is_needed
@@ -495,7 +501,7 @@ class Band:
     # is_tested (partially)
     source: Source
     tags: dict = field(default_factory=dict)
-    bidx: int|None = None
+    bidx: int | None = None
     read_params: dict = field(default_factory=dict)
     _use_mask: str = 'self'
     _ns = NS
@@ -512,16 +518,16 @@ class Band:
         # no_work
         # not_tested (no need)
         return hash((self.bidx, *(self.tags.values())))
-            
+
     @property
-    def source_exists(self)->bool:
+    def source_exists(self) -> bool:
         # is_needed (internal only)
         # needs_work (docs; make internal?)
         # not_tested
         return self.source.exists
 
     @property
-    def index_exists(self,)->bool:
+    def index_exists(self, ) -> bool:
         # is_needed (internally)
         # needs_work (docs; make internal)
         # not_tested
@@ -529,7 +535,7 @@ class Band:
         if self.bidx is None:
             print(f"No index set for {self}")
         else:
-            i_exists = self.source.has_bidx(self.bidx) 
+            i_exists = self.source.has_bidx(self.bidx)
         return i_exists
 
     @property
@@ -623,7 +629,7 @@ class Band:
                         other = src_to_add.read(other_bidx, window=window)
                         write(pair_op(data, other, **op_kwargs), window=window)
 
-    def add(self, band, out_band:None|Band=None, **add_kwargs):
+    def add(self, band, out_band: None | Band = None, **add_kwargs):
         """Add another band to this one
 
         This performs the numpy.add operation between the data of the two bands
@@ -643,7 +649,7 @@ class Band:
         return self._pair_operation(pair_op=np.add, band=band,
                                     out_band=out_band, **add_kwargs)
 
-    def subtract(self, band, out_band:None|Band=None, **add_kwargs):
+    def subtract(self, band, out_band: None | Band = None, **add_kwargs):
         """Subtract another band from this one
 
         This performs the numpy.add operation with the data of this band
@@ -658,15 +664,17 @@ class Band:
           Optional destination band to store the data in.
           If not provided, then self is used.
         """
+
         # not_needed (though useful)
         # no_work
         # is_tested
         def _subtract(data1, data2, **kwargs):
-            return np.add(data1, (-1)*data2, **kwargs)
+            return np.add(data1, (-1) * data2, **kwargs)
+
         return self._pair_operation(pair_op=_subtract, band=band,
                                     out_band=out_band, **add_kwargs)
 
-    def export_tags(self, match:str|list|None=None):
+    def export_tags(self, match: str | list | None = None):
         """Write the defined tags to the band
 
         Parameters
@@ -697,7 +705,7 @@ class Band:
         bidx = self.get_bidx(match=match)
         self.source.set_tags(bidx=bidx, tags=self.tags)
 
-    def import_tags(self, match:str|list|None=None, keep:bool=True):
+    def import_tags(self, match: str | list | None = None, keep: bool = True):
         """Get the tags form the source file
 
         Parameters
@@ -717,7 +725,7 @@ class Band:
         else:
             self.tags = tags
 
-    def get_bidx(self, match:str|list|None=None)->int:
+    def get_bidx(self, match: str | list | None = None) -> int:
         """Compare with the source to get the correct band index.
 
         If the attribute `bidx` is set, it is simply checked if this index
@@ -767,11 +775,11 @@ class Band:
                 bidx = self.bidx
             else:
                 failed += f"The band has {self.bidx=} which is not present " \
-                          f"in  the source file \n'{self.source.path}'\n"\
+                          f"in  the source file \n'{self.source.path}'\n" \
                           f"Present are:\n{self.source.band_indexes}\n"
         else:
             if isinstance(match, int):
-                match = [match,]
+                match = [match, ]
             elif match is None:
                 match = list(self.tags)
             matching_tags = {tag: value
@@ -784,8 +792,8 @@ class Band:
         if failed or bidx is None:
             raise BandSelectionNoMatchError(failed)
         return bidx
-    
-    def init_source(self, profile:dict, overwrite:bool=False, **kwargs):
+
+    def init_source(self, profile: dict, overwrite: bool = False, **kwargs):
         """Create or accesses source file
 
         Parameters
@@ -806,7 +814,7 @@ class Band:
         self.source.profile.update(profile)
         return self.source.init_source(overwrite=overwrite, **kwargs)
 
-    def get_data(self, **kwargs)->NDArray:
+    def get_data(self, **kwargs) -> NDArray:
         """Read band out from the file
 
         With the exception of `okwargs` all keyword arguments are passed to
@@ -838,9 +846,8 @@ class Band:
         # not_tested
         return self.source.shape
 
-
-    def count_valid_pixels(self, selector:NDArray|None, no_data:Union[int,float],
-                           limit_count:int=0):
+    def count_valid_pixels(self, selector: NDArray | None, no_data: Union[int, float],
+                           limit_count: int = 0):
         """Count the number of valid pixels under some selector mask
 
         Parameters
@@ -879,8 +886,7 @@ class Band:
         else:
             return count
 
-
-    def get_min_max(self, no_data:Union[int,float], selector:NDArray|None=None):
+    def get_min_max(self, no_data: Union[int, float], selector: NDArray | None = None):
         """Get the minimum and maximum values in a band
         Parameters
         ----------
@@ -917,7 +923,7 @@ class Band:
             return None
 
     @contextmanager
-    def data_writer(self, match:str|list|None=None, **kwargs):
+    def data_writer(self, match: str | list | None = None, **kwargs):
         """
 
         Parameters
@@ -934,7 +940,7 @@ class Band:
             yield partial(src.write, indexes=bidx)
 
     @contextmanager
-    def data_reader(self, match:str|list|None=None, **kwargs):
+    def data_reader(self, match: str | list | None = None, **kwargs):
         """
 
         Parameters
@@ -950,7 +956,7 @@ class Band:
         with self.source.open(mode=mode, **kwargs) as src:
             yield partial(src.read, indexes=bidx)
 
-    def set_mask_reader(self, use:str='band'):
+    def set_mask_reader(self, use: str = 'band'):
         """Set what mask should be used, if at all
 
         Parameters
@@ -985,9 +991,8 @@ class Band:
             self._use_mask = 'self'
         else:
             self._use_mask = use
-            
-        
-    def get_mask_reader(self,):
+
+    def get_mask_reader(self, ):
         """Return the mask reader for this band.
 
         By default mask reader is `rasterio.io.DatasetReader.read_masks` with the corresponding
@@ -1018,9 +1023,9 @@ class Band:
                 '\n\t- "source": uses the bands own mask'
                 ' (i.e. rasterio.io.DataReader.dataset_mask)'
             )
-        
+
     @contextmanager
-    def mask_reader(self, match:str|list|None=None, **kwargs):
+    def mask_reader(self, match: str | list | None = None, **kwargs):
         """Get a read method for the band mask.
 
         ..Note::
@@ -1038,7 +1043,7 @@ class Band:
             yield partial(src.read_masks, indexes=bidx)
 
     @contextmanager
-    def _mask_full(self, match:str|list|None=None, fill_value:int|float|bool=False,
+    def _mask_full(self, match: str | list | None = None, fill_value: int | float | bool = False,
                    **kwargs):
         """Mocked maks read method of band mask returning all `True`/`False`
 
@@ -1066,17 +1071,16 @@ class Band:
         mode = kwargs.pop('mode', 'r')
         bidx = self.get_bidx(match=match)
 
-        def _mock_all(mask_reader:Callable, *args, **kwargs)->NDArray:
+        def _mock_all(mask_reader: Callable, *args, **kwargs) -> NDArray:
             _mask = mask_reader(indexes=bidx, *args, **kwargs)
-            full_array =  np.full(shape=_mask.shape, fill_value=fill_value)
+            full_array = np.full(shape=_mask.shape, fill_value=fill_value)
             del _mask
             return full_array
 
         with self.source.open(mode=mode, **kwargs) as src:
             yield partial(_mock_all, mask_reader=src.read_masks)
 
-
-    def set_data(self, data:NDArray, overwrite=False, **kwargs):
+    def set_data(self, data: NDArray, overwrite=False, **kwargs):
         """Write out the data from a band
         """
         # is_needed (tests only)
@@ -1092,9 +1096,9 @@ class Band:
             write(data)
 
     def load_block(self,
-                   view:None|tuple[int,int,int,int]=None,
-                   scaling_params:dict|None=None,
-                   match:str|list|None=None)->dict:
+                   view: None | tuple[int, int, int, int] = None,
+                   scaling_params: dict | None = None,
+                   match: str | list | None = None) -> dict:
         """Get a block from a specific band along with the transform
 
         See `io.load_block` for further details
@@ -1104,6 +1108,6 @@ class Band:
         # not_tested
         bidx = self.get_bidx(match=match)
         return self.source.load_block(
-                          view=view,
-                          scaling_params=scaling_params,
-                          indexes=bidx)
+            view=view,
+            scaling_params=scaling_params,
+            indexes=bidx)
