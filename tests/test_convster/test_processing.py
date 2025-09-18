@@ -543,7 +543,7 @@ def test_import_export(datafiles):
                                        normed=True,
                                        img_filter=gaussian)
     outfile = datafiles / 'out.tif'
-    rgio.export_to_tif(
+    rgio._export_to_tif(
         destination=str(outfile),
         data=entropy_array,
         orig_profile=block['orig_profile'],
