@@ -397,9 +397,8 @@ def update_band(src: DatasetWriter, data: NDArray, window: Window | None = None,
     # not_tested
     """Find a specific band and update it with data
 
-    ..Note::
-      If no band with the matching tags is found a
-      `BandSelectionNoMatchError` is raised.
+    This function writes a data array in a band specified with tags.
+    If no band with the matching tags is found a `BandSelectionNoMatchError` is raised.
 
     Parameters
     ----------
@@ -412,6 +411,10 @@ def update_band(src: DatasetWriter, data: NDArray, window: Window | None = None,
     **tags:
       Arbitrary number of keyword arguments that will be used to find
       the band to write into
+
+    Returns
+    --------
+    None
     """
     try:
         bidx = _get_bidx(src=src, **tags)
@@ -425,35 +428,35 @@ def update_band(src: DatasetWriter, data: NDArray, window: Window | None = None,
     else:
         src.write(data, indexes=bidx, window=window)
 
-# TODO: BOOK MARK WHERE TO STOP RN
 
-def export_to_tif(destination: str,
-                  data: NDArray,
-                  orig_profile: dict,
-                  start=(0, 0),
-                  **pparams):
+def _export_to_tif(destination: str, data: NDArray, orig_profile: dict, start=(0, 0), **pparams: Any) -> None:
+    # TODO: at the moment I think we should either (a) delet it , or (b) make it a usuefull function with a lot of
+    #  default parametes (but it is neither easy to use with argparse (due to the params needed) nor within functions
     # not_needed (could be useful though)
     # no_work
     # not_tested
     """Export a np.array to tif, only updating a window if data is smaller
 
-    .. note::
-      This function will overwrite the dtype of the destination tif with the
-      value provided in `pparams` or the data type of `data`.
+    This function will overwrite the dtype of the destination tif with the
+    value provided in `pparams` or the data type of `data`.
 
     Parameters
     ----------
-    destination: str
+    destination:
         location to export save the .tif file
-    data: np.array
+    data:
         The map to export
-    start: tuple
+    start:
       horizontal and vertical starting coordinate
-    orig_profile: dict
+    orig_profile:
         the profile of the original map
         (see https://rasterio.readthedocs.io/en/stable/topics/profiles.html)
     **pparams:
         further parameter to be added to the profile
+
+    Returns
+    --------
+    None
     """
     profile = orig_profile.copy()
     # Note: we no longer update the size automatically as for Windows this is
@@ -470,7 +473,8 @@ def export_to_tif(destination: str,
         dest.write(data, window=Window(*start, *size), indexes=1)
 
 
-def _coregister_raster(source, reference, output=None):
+def _coregister_raster(source: str, reference: str, output: str | None = None) -> str:
+    # TODO: this is actually not so bad, as it is quite usefull for geographic operations
     # is_needed (in tests only)
     # needs_work (format doc)
     # not_tested
@@ -480,11 +484,11 @@ def _coregister_raster(source, reference, output=None):
 
     Parameters
     ----------
-    source: str
+    source:
       The path to the tif file you want to co-register
-    reference: str
+    reference:
       The path to the tif file with the pixel registration to use as reference for co-registration
-    output: str (optional)
+    output:
       The path to write the co-registered map to
 
     Returns
@@ -503,14 +507,9 @@ def _coregister_raster(source, reference, output=None):
 
         with rio.open(reference) as refsrc:
             dst_crs = refsrc.crs
-
             (dst_transform,
              dst_width,
-             dst_height) = calculate_default_transform(src.crs,
-                                                       dst_crs,
-                                                       refsrc.width,
-                                                       refsrc.height,
-                                                       *refsrc.bounds)
+             dst_height) = calculate_default_transform(src.crs, dst_crs, refsrc.width, refsrc.height, *refsrc.bounds)
 
         dst_kwargs = src.meta.copy()
         dst_kwargs.update({"crs": dst_crs,
@@ -532,42 +531,10 @@ def _coregister_raster(source, reference, output=None):
     return output
 
 
-def buffer_geometries_metric(geom_geoseries, buffer_meter, source_crs):
-    # is_needed (internal only)
-    # needs_work (docs)
-    # not_tested
-    """ Applies a buffer to the geometries in GeoSeries given.
-
-    ..Note: This function re-projects the GeoSeries to the respective UTM zone in order to use metric buffer and best
-    distance calculations. Further empty geometries are dropped before handing back the results.
-
-    Parameters
-    ----------
-    geom_geoseries: GeoPandas GeoSeries
-      The geoseries holding the polygons to perform the buffer on
-    buffer_meter: float, int
-      The buffer in meters to apply to the ecoregion polygon before clipping.
-      Needs to be negative for reducing the polygon e.g. -1000
-    source_crs:
-      The coordinate system of the inptu GeoSeries (taken from GeoDataframe before by user) to project to after buffer.
-
-    Returns
-    -------
-    GeoSeries object:
-      The buffered GeoSeries object
-    """
-    geom_utm = geom_geoseries.to_crs(geom_geoseries.estimate_utm_crs())
-    geom_buff = geom_utm.buffer(buffer_meter,
-                                resolution=10, cap_style='round', join_style='round')
-    geom_buff = geom_buff[geom_buff.area > 0]
-    return geom_buff.to_crs(source_crs)
-
-
-def compress_tif(source, output: str | None = None, compression: str | None = 'lzw'):
+def compress_tif(source, output: str | None = None, compression: str | None = 'lzw') -> str:
     # is_needed
     # needs_work (docs)
     # is_tested
-    # TODO: once this goes, we may also remove the outfile_suffix I believe (but double-check)
     """Compress tif file with LZW compression
 
     Parameters
@@ -579,10 +546,13 @@ def compress_tif(source, output: str | None = None, compression: str | None = 'l
       If not set, the resulting file will inherit the filename from `source` and get
       a `_compress` appended to the filename.
       If compression is `'none'`, i.e. no compression the appendix will be '_decompressed'
+    compression:
+        Type of compression to use, default is LZW. See GDAL documentation for details
+         https://gdal.org/en/stable/drivers/raster/gtiff.html
 
     Returns
     -------
-    str:
+    str
       The name of the compressed file
     """
     if compression is None:
