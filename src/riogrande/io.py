@@ -38,7 +38,7 @@ NS = 'GEORACOON'
 #  --> yet it is nice to have the function by themselves as well without direct need of class structures
 
 
-def _set_tags(src, bidx: int | None = None, ns: str = NS, **tags: dict[str, Any]) -> None:
+def _set_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS, **tags: Any) -> None:
     # is_needed
     # needs_work (should be made internal?)
     # is_tested
@@ -87,7 +87,7 @@ def _set_tags(src, bidx: int | None = None, ns: str = NS, **tags: dict[str, Any]
     src.update_tags(ns=ns, bidx=bidx, **serialized_tags)
 
 
-def _get_tags(src, bidx: int | None = None, ns: str = NS) -> dict[str, Any]:
+def _get_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS) -> dict[str, Any]:
     # is_needed
     # needs_work (should be internal)
     # is_tested
@@ -118,7 +118,7 @@ def _get_tags(src, bidx: int | None = None, ns: str = NS) -> dict[str, Any]:
     return deserialize(src.tags(bidx=bidx, ns=ns))
 
 
-def _find_bidxs(src, ns: str = NS, **tags: dict[str, Any]) -> list[int]:
+def _find_bidxs(src: DatasetWriter, ns: str = NS, **tags: Any) -> list[int]:
     # is_needed
     # neews_work (should be internal)
     # not_tested
@@ -152,10 +152,7 @@ def _find_bidxs(src, ns: str = NS, **tags: dict[str, Any]) -> list[int]:
     return matching_bidxs
 
 
-# TODO: BOOKMARK - STOPPED HERE last time (did internalize _get_bidx, but not proceed with formating)
-
-
-def _get_bidx(src, ns: str = NS, **tags: dict[str, Any]) -> None | int:
+def _get_bidx(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
     # TODO: actually I feel we should rename this function, as it is more than the io_.py get_bidx.
     #       Here we are actually matching by tags.
     # is_needed
@@ -163,53 +160,12 @@ def _get_bidx(src, ns: str = NS, **tags: dict[str, Any]) -> None | int:
     # not_tested (used in tests)
     """Get the index of the band with matching tags
 
-    ..Note::
-      This function returns (if any) only a single band index!
-
-      If you want to get potentially multiple bands that match
-      the criterion use the `get_bands` method instead.
-
-      An exception is when passing `indexes=None`, in which case
-      all bands are returned.
-
     You can specify an arbitrary number of tags by passing keyword arguments
-    to this selector.
-    Make sure that the provided tags identify one and only one specific band.
-    Multiple matching bands lead to a `BandSelectionAmbiguousError`.
-
-    If no band with matching tags if found a
-    `BandSelectionNoMatchError` is raised.
-
-
+    to this selector. Make sure that the provided tags identify one and only one specific band,
+    as only a single band index is returned. If no band with matching tags is found,
+    or if multiple matching bands are found a `BandSelectionNoMatchError` is raised.
+    To return potentially multiple bands matching, use the `get_bands` method instead.
     If no tags are provided then the index of the first band is returned.
-
-    ..Note::
-      If `indexes` is provided then all other tags are ignored and
-      the indexes are directly passed as band indexes to rasterio
-
-    ..Example::
-
-      Get the band with the tags
-
-      - 'category': 1
-      - foo: 'bar'
-
-      ```python
-      bidx = get_bidx(src=src, category=1, foo='bar')
-      ```
-
-    ..Note::
-      The values of the provided tags are first serialized and then
-      deserialized again with `helper.serialize`, resp. `helper.deserialize`,
-      before comparing to the tags from the provided file.
-
-      The reason for this procedure is the fact that the values of tags are
-      converted to and stored as strings in the tif metadata.
-      Serializing the values with `helper.serialize` allows us to know how
-      arbitrary python objects are converted.
-      As a consequence, we serialize/deserialize the values of the provided
-      tags to bring them into the form they will we when loading them from
-      the tif.
 
     Parameters
     ----------
@@ -217,18 +173,39 @@ def _get_bidx(src, ns: str = NS, **tags: dict[str, Any]) -> None | int:
       `tif` file openend with `rasterio.open`
     ns:
       The namespace to set the tags in.
-
-      ..Note::
-        It is dicouraged to change this value from the default as all tagging
-        related methods of this package use the same default namespace.
+      It is dicouraged to change this value from the default as all tagging
+      related methods of this package use the same default namespace.
     **tags:
       Arbitrary number of keyword arguments that will be compared to the tags
-      of the bands in the dataset.
+      of the bands in the dataset. If `indexes` is provided as tag key then all other tags are ignored and
+      the indexes are directly passed as band indexes to rasterio
 
     Returns
     ----------
     int | None
         Band index (integer) of band matching provided tags. If no match was found None is returned.
+
+    Notes
+    ----------
+    The values of the provided tags are first serialized and then
+    deserialized again with `helper.serialize`, resp. `helper.deserialize`,
+    before comparing to the tags from the provided file.
+
+    The reason for this procedure is the fact that the values of tags are
+    converted to and stored as strings in the tif metadata.
+    Serializing the values with `helper.serialize` allows us to know how
+    arbitrary python objects are converted.
+    As a consequence, we serialize/deserialize the values of the provided
+    tags to bring them into the form they will we when loading them from
+    the tif.
+
+    Examples
+    ----------
+    Get the band with the tags
+
+    - 'category': 1
+    - foo: 'bar'
+    >>> bidx = _get_bidx(src=src, foo='bar', category=1)
     """
     if 'indexes' in tags or not tags:
         bidx = tags.get('indexes', 1)  # return 1 if nothing is provided
@@ -248,7 +225,7 @@ def _get_bidx(src, ns: str = NS, **tags: dict[str, Any]) -> None | int:
     return bidx
 
 
-def get_bands(source: str, ns: str = NS, **tags) -> list[tuple[str, int]]:
+def get_bands(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, int]]:
     # is_needed
     # needs_work
     # not_tested (used in tests)
@@ -273,17 +250,18 @@ def get_bands(source: str, ns: str = NS, **tags) -> list[tuple[str, int]]:
       A string that is fed to `glob.glob` leading to (potentially) multiple
       source files that will be checked
     ns:
-      The namespace to search the tags in.
-
-      ..Note::
-        It is dicouraged to change this value from the default as all tagging
-        related methods of this package use the same default namespace.
+      The namespace to search the tags in. It is dicouraged to change this value from the default as all tagging
+    related methods of this package use the same default namespace.
 
     **tags:
       Arbitrary number of keyword arguments that will be compared to the tags
       of each tif file
-    """
 
+    Returns
+    ----------
+    list
+        List of tuples with source (path) and bandindex entries in tuples.
+    """
     _tags = sanitize(tags)
     _sources = glob.glob(source)
     matches = []
@@ -298,27 +276,8 @@ def get_bands(source: str, ns: str = NS, **tags) -> list[tuple[str, int]]:
     return matches
 
 
-def load_map(source: str, **tags) -> dict:
-    # is_needed (this is only used in tests)
-    # needs_work (replace usage with `load_block` and get rid of it)
-    # not_tested (used in tests)
-    """Load a specific band from a tif file
-
-    See `load_block` for details
-
-    Returns
-    -------
-    dict:
-       Returns the callback of
-       `load_block(source=source, view=None, scaling_params=None, **tags)`
-    """
-    return load_block(source=source, view=None, scaling_params=None, **tags)
-
-
-def load_block(source: str,
-               view: None | tuple[int, int, int, int] = None,
-               scaling_params: dict | None = None,
-               **tags) -> dict:
+def load_block(source: str, view: None | tuple[int, int, int, int] = None, scaling_params: dict | None = None,
+               **tags: Any) -> dict[str, Any]:
     # is_needed
     # needs_work
     # is_tested
@@ -329,11 +288,10 @@ def load_block(source: str,
 
     Parameters
     ----------
-    source: str
+    source:
       The path to the tif file to load
     view:
       An optional tuple (x, y, width, height) defining the area to load.
-
       If `None` is provided (the default) then the entire file is loaded.
 
     scaling_params:
@@ -348,12 +306,11 @@ def load_block(source: str,
 
     **tags:
       Arbitrary number of keyword arguments to describe the band to select.
-
       See `get_bidx` for further details
 
     Returns
     -------
-    dict:
+    dict
        data: holding a numpy array with the actual data
        transform: an ???.Affine object that encodes the transformation used
        orig_meta: The meta information of the original .tif file
@@ -365,7 +322,7 @@ def load_block(source: str,
         #       harmonize what we call blocks and views and just work with
         #       slices.
 
-        bidx = get_bidx(src=img, **tags)
+        bidx = _get_bidx(src=img, **tags)
         if window is not None:
             transform = img.window_transform(window)
             width = window.width
@@ -404,38 +361,37 @@ def load_block(source: str,
         }
 
 
-def write_band(src: DatasetWriter,
-               data: NDArray,
-               bidx: int = 1,
-               window: Window | None = None,
-               **tags):
+def write_band(src: DatasetWriter, data: NDArray, bidx: int = 1, window: Window | None = None,
+               **tags: Any) -> None:
     # is_needed
     # needs_work
     # not_tested
     """Write data to a specific band of a tif file and set the tags
 
-
     Parameters
     ----------
     src:
-      An opened file to write into
+        `tif` file openend with `rasterio.open`
     data:
-      The array to write into the file
+        The array to write into the file
+    bidx:
+        Band index to write into the file
     window:
-      An optional window to specify an area to write
+        An optional window to specify an area to write
     **tags:
       Arbitrary number of keyword arguments that will be set as tags.
       The value provided is converted to a string with `helper.serialize`
       before the tag is written to the file.
+
+    Returns
+    -------
+    None
     """
     src.write(data, indexes=bidx, window=window)
     _set_tags(src, bidx=bidx, **tags)
 
 
-def update_band(src: DatasetWriter,
-                data: NDArray,
-                window: Window | None = None,
-                **tags):
+def update_band(src: DatasetWriter, data: NDArray, window: Window | None = None, **tags: Any) -> None:
     # not_needed (could be useful though)
     # no_work
     # not_tested
@@ -448,7 +404,7 @@ def update_band(src: DatasetWriter,
     Parameters
     ----------
     src:
-      An opened file to write into
+      `tif` file openend with `rasterio.open`
     data:
       The array to write into the file
     window:
@@ -458,7 +414,7 @@ def update_band(src: DatasetWriter,
       the band to write into
     """
     try:
-        bidx = get_bidx(src=src, **tags)
+        bidx = _get_bidx(src=src, **tags)
     except BandSelectionNoMatchError as e:
         raise BandSelectionNoMatchError(
             "There was no band with matching tags. "
@@ -469,6 +425,7 @@ def update_band(src: DatasetWriter,
     else:
         src.write(data, indexes=bidx, window=window)
 
+# TODO: BOOK MARK WHERE TO STOP RN
 
 def export_to_tif(destination: str,
                   data: NDArray,

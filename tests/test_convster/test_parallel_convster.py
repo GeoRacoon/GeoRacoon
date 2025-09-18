@@ -43,7 +43,7 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
     border = (100, 100)
     # load the data
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ch_map = rgio.load_map(ch_map_tif, indexes=1)
+    ch_map = rgio.load_block(ch_map_tif, indexes=1)
     ch_data = ch_map['data']
     profile = ch_map['orig_profile']
     width = profile['width']
@@ -134,13 +134,13 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
 
         # check if tags were set correctly
         with rio.open(blur_output_file) as src:
-            tags = rgio.get_tags(src, bidx=index)
-            bidx = rgio.get_bidx(src, category=category)
+            tags = rgio._get_tags(src, bidx=index)
+            bidx = rgio._get_bidx(src, category=category)
             np.testing.assert_equal(tags['category'], category)
             np.testing.assert_equal(bidx, index)
 
         # now we can read out the tif with the blurred category and compare
-        blurred_cat_map = rgio.load_map(blur_output_file, indexes=index)
+        blurred_cat_map = rgio.load_block(blur_output_file, indexes=index)
         blurred_cat_data = blurred_cat_map['data']
 
         # plt.imshow(blurred_data)
@@ -182,7 +182,7 @@ def test_entropy_recombination(datafiles, set_mpc_strategy):
         print(f"{min_border=}, {border=}")
         # load the data
         ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-        ch_map = rgio.load_map(ch_map_tif, indexes=1)
+        ch_map = rgio.load_block(ch_map_tif, indexes=1)
         ch_data = ch_map['data']
         profile = ch_map['orig_profile']
         width = profile['width']
@@ -281,13 +281,13 @@ def test_entropy_recombination(datafiles, set_mpc_strategy):
 
         # check if tags were set correctly
         with rio.open(entropy_output_file) as src:
-            tags = rgio.get_tags(src, bidx=1)
-            bidx = rgio.get_bidx(src, category="entropy")
+            tags = rgio._get_tags(src, bidx=1)
+            bidx = rgio._get_bidx(src, category="entropy")
             np.testing.assert_equal(tags['category'], "entropy")
             np.testing.assert_equal(bidx, 1)
 
         # now we can read out the tif with the blurred category and compare
-        entropy_recomb_map = rgio.load_map(entropy_output_file, indexes=1)
+        entropy_recomb_map = rgio.load_block(entropy_output_file, indexes=1)
         entropy_recomb_data = entropy_recomb_map['data']
 
         # plt.imshow(entropy_data)
@@ -329,7 +329,7 @@ def test_entropy_2_step(datafiles):
         border = (50, 50)
         # load the data
         ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-        ch_map = rgio.load_map(ch_map_tif, indexes=1)
+        ch_map = rgio.load_block(ch_map_tif, indexes=1)
         ch_data = ch_map['data']
         profile = ch_map['orig_profile']
         width = profile['width']
@@ -429,8 +429,8 @@ def test_entropy_2_step(datafiles):
         # get the somewhat weird output filename
         # check if tags were set correctly for the blurred layers
         with rio.open(blurred_tif) as src:
-            tags = rgio.get_tags(src, bidx=1)
-            bidx = rgio.get_bidx(src, category=categories[0])
+            tags = rgio._get_tags(src, bidx=1)
+            bidx = rgio._get_bidx(src, category=categories[0])
             np.testing.assert_equal(tags['category'], categories[0])
             np.testing.assert_equal(bidx, 1)
 
@@ -452,7 +452,7 @@ def test_entropy_2_step(datafiles):
         )
 
         # now we can read out the tif with the blurred category and compare
-        entropy_map = rgio.load_map(entropy_output_file, indexes=1)
+        entropy_map = rgio.load_block(entropy_output_file, indexes=1)
         entropy_data = entropy_map['data']
 
         # for the 2-step approach
