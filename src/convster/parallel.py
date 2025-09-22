@@ -49,6 +49,8 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
     # is_needed
     # needs_work (docs)
     # is_tested
+    # TODO: should we think about combining this a bit with "combine_views" in riogrande/parallel?
+    #       Or, should we maybe leave them separate as the one in riogrande is really broad (no nodata etc)
     """Listen to queue (blur_q) and write blurred blocks to a single file
 
     Parameters
