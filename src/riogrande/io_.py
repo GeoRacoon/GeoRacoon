@@ -535,15 +535,28 @@ class Source:
             )
         return src_open(*args, **kwargs)
 
+    # TODO: I am here
     @contextmanager
     def open(self, *args, **kwargs):
-        f"""Opens the file for I/O operations.
+        """
+        Open the source file for I/O operations.
 
-        .. note::
-          If the file is openend in writing mode the profile is ijected into the open function.
+        This context manager wraps the underlying rasterio dataset, yielding
+        an open dataset object. If the file is openend in writing mode the profile is
+        injected into the open function.
+        Therefore: **the profile needs to be set when calling this method with writing mode!**
 
-          Therefore: **the profile needs to be set when calling this method with writing mode!**
+        Parameters
+        ----------
+        *args :
+            Positional arguments forwarded to :meth:`_get_source`.
+        **kwargs :
+            Keyword arguments forwarded to :meth:`_get_source`.
 
+        Yields
+        ------
+        DatasetReader or DatasetWriter
+            Open rasterio dataset object, ready for reading or writing.
         """
         # is_needed
         # needs_work (docs)
@@ -556,12 +569,26 @@ class Source:
 
     @contextmanager
     def data_reader(self, bands: list[Band] | None = None, **kwargs):
-        """Read out from mulitple bands and return a 3D data array
+        """
+        Context manager for reading multiple bands as a 3D array.
+
+        Opens the source file and prepares a callable that reads the requested
+        bands as a 3-dimensional array (band, row, column).
 
         Parameters
         ----------
-        bands:
-            Collection of Band objects.
+        bands :
+            A collection of ``Band`` objects specifying which bands to read.
+            If None, all bands in the dataset are used.
+        **kwargs :
+            Additional keyword arguments forwarded to :meth:`open` (e.g., mode,
+            driver options).
+
+        Yields
+        ------
+        callable
+            A callable equivalent to ``src.read(indexes=...)`` that returns a
+            3D numpy array with shape `(len(bands), height, width)`.
         """
         # is_needed
         # needs_work (docs)
@@ -574,7 +601,15 @@ class Source:
             yield partial(src.read, indexes=bidxs)
 
     @property
-    def band_indexes(self, ):
+    def band_indexes(self):
+        """
+        Band indexes available in the source.
+
+        Returns
+        -------
+        list
+          The band indexes present in the dataset.
+        """
         # is_needed (only internally)
         # needs_work (docs, make internal?)
         # not_tested
@@ -583,6 +618,19 @@ class Source:
         return bidxs
 
     def has_bidx(self, bidx: int) -> bool:
+        """
+        Check whether a band index exists in the source.
+
+        Parameters
+        ----------
+        bidx :
+            The band index to check for (1-based, as in rasterio).
+
+        Returns
+        -------
+        bool
+            True if the band index exists in the dataset.
+        """
         # is_needed (only internally)
         # needs_work (docs; make internal?)
         # not_tested
@@ -593,6 +641,19 @@ class Source:
         return has_it
 
     def has_tags(self, tags: dict) -> bool:
+        """
+        Check whether any band contains all of the provided tags.
+
+        Parameters
+        ----------
+        tags :
+           Dictionary of tag key–value pairs to look for.
+
+        Returns
+        -------
+        bool
+           True if at least one band contains all provided tags.
+        """
         # not_needed (might be useful if working with tags
         # needs_work (doc)
         # not_tested
@@ -602,21 +663,51 @@ class Source:
                 all_tags.append(_get_tags(src=src, bidx=bidx, ns=self._ns))
         return any(match_all(tags, btags) for btags in all_tags)
 
-    def find_indexes(self, tags: dict, mode='all') -> list:
-        """Check if one or several bands have matching tags
+    def find_indexes(self, tags: dict, mode: str ='all') -> list:
+        """
+        Find band indexes matching the given tags.
+
+        Parameters
+        ----------
+        tags :
+            Tag key–value pairs to search for.
+        mode :
+            Matching mode:
+
+            - 'all': All provided tags must be present.
+            - 'any': Any one of the provided tags may match
+              (currently not implemented, placeholder).
+
+        Returns
+        -------
+        list of int
+            The list of band indexes matching the tags.
         """
         # is_needed (only internally)
         # needs_work (docs)
         # not_tested
         with self.open() as src:
             if mode == 'any':
-                # TODO: match_any was implemented in !41
+                print('WARNING: mode "any" not implemented yet. Emtpy list returned')
                 bidxs = []
             else:
                 bidxs = _find_bidxs(src=src, ns=self._ns, **tags)
         return bidxs
 
     def find_index(self, tags: dict) -> int | None:
+        """
+        Find a single band index matching the given tags.
+
+        Parameters
+        ----------
+        tags :
+            Tag key–value pairs to search for.
+
+        Returns
+        -------
+        int or None
+            The band index if exactly one match is found, None otherwise.
+        """
         # is_needed (only internally)
         # needs_work (docs)
         # not_tested
@@ -629,6 +720,19 @@ class Source:
         return midx
 
     def has_band(self, band: Band) -> int:
+        """
+        Check whether a given Band is present in the source.
+
+        Parameters
+        ----------
+        band :
+            The band object to test for.
+
+        Returns
+        -------
+        bool
+            True if the band is present.
+        """
         # not_needed (might be useful if working with tags
         # needs_work (doc)
         # not_tested
@@ -642,7 +746,28 @@ class Source:
         return has_it
 
     def get_bidx(self, band: Band) -> int | None:
-        """Find an specific band to write to in the file
+        """
+        Resolve the band index of a given Band object in the source.
+
+        Attempts to identify the band index (`bidx`) associated with
+        the provided Band, based on either its explicit index or its tags. If both
+        are given, they must resolve to the same unique band.
+
+        Parameters
+        ----------
+        band :
+           The Band object for which to resolve the band index.
+
+        Returns
+        -------
+        int or None
+           The resolved band index if a unique match is found, otherwise None.
+
+        Raises
+        ------
+        BandSelectionAmbiguousError
+           If only tags are provided, and they match multiple bands, or if both
+           `bidx` and `tags` are given, but they are inconsistent.
         """
         # is_needed (only internally)
         # needs_work (docs)
@@ -661,8 +786,7 @@ class Source:
                     )
                 else:
                     print(
-                        "WARNING: The tags are not unique, several bands "
-                        "share them"
+                        "WARNING: The tags are not unique, several bands share them"
                     )
                     if not any(tidx == midx for tidx in tidxs):
                         missmatch = True
@@ -678,24 +802,59 @@ class Source:
                 )
         return midx
 
-    def compress(self, output: str | None = None, compression: str | None = 'lzw', keep_original: bool = False):
+    def compress(self, output: str | None = None, compression: str | None = 'lzw',
+                 keep_original: bool = False) -> None:
+        """
+        Compress the source file using a given compression algorithm.
+
+        A new compressed GeoTIFF is created. By default, the original file is
+        replaced with the compressed one unless `keep_original` is set.
+
+        Parameters
+        ----------
+        output :
+            Path to the output file. If None (default), the compressed file
+            overwrites the current source path.
+        compression :
+            Compression algorithm to use. Default is ``'lzw'``.
+            Type of compression to use, default is LZW. See GDAL documentation for details
+            https://gdal.org/en/stable/drivers/raster/gtiff.html
+        keep_original :
+            If True, the original uncompressed file is preserved.
+            If False (default), the uncompressed file is deleted after
+            compression.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        - Updates the `path` attribute of the Source to point to the new
+          compressed file.
+        """
         # is_needed
         # needs_work (docs)
         # not_tested
         uncompressed = self.path
-        # create a compressed file
-        self.path = Path(compress_tif(str(self.path),
-                                      output=output,
-                                      compression=compression))
-        # remove uncompressed file:
+        self.path = Path(compress_tif(str(self.path), output=output, compression=compression))
         if not keep_original and uncompressed != self.path:
             os.remove(uncompressed)
 
     def check_compatibility(self, *sources: Source):
-        """Make sure the provided bands are compatible with this one
+        """
+        Check whether this source is compatible with one or more other sources.
+        See ``helper._check_compatibility`` for the precise definition.
 
-        See `helper.check_compatibility` for details
+        Parameters
+        ----------
+        *sources :
+           One or more additional Source objects to check against this one.
 
+        Returns
+        -------
+        bool
+           True if all provided sources are compatible with this one.
         """
         # is_needed
         # needs_work (docs)
@@ -705,21 +864,48 @@ class Source:
             _sources.add(source.path)
         return _check_compatibility(*_sources)
 
-    def load_block(self,
-                   view: None | tuple[int, int, int, int] = None,
-                   scaling_params: dict | None = None,
-                   **tags) -> dict:
-        """Get a block from a specific band along with the transform
+    def load_block(self, view: None | tuple[int, int, int, int] = None,
+                   scaling_params: dict | None = None, **tags) -> dict[str, Any]:
+        """
+        Load a block of raster data from the source along with the transform.
 
         See `io.load_block` for further details
+
+        Parameters
+        ----------
+        view :
+            The window to read, given as (row_start, row_stop, col_start, col_stop).
+            If None (default), the entire raster is read.
+        scaling_params : dict, optional
+            Parameters controlling rescaling of the data. If provided, the
+            dictionary may include:
+
+            - ``scaling`` : tuple of float
+              Factors to rescale the raster dimensions. Values > 1 upscale,
+              values < 1 downscale.
+            - ``method`` : rasterio.enums.Resampling, optional
+              Resampling method to use. Defaults to
+              :data:`rasterio.enums.Resampling.bilinear`.
+        **tags : dict
+            Band selection criteria. See :meth:`Source.get_bidx` for details.
+
+        Returns
+        -------
+        dict
+            A dictionary with the following entries:
+
+            - ``data`` :
+              The loaded raster data. Shape depends on band selection and scaling.
+            - ``transform`` :
+              Affine transform mapping array coordinates to spatial coordinates.
+            - ``orig_profile`` :
+              Copy of the original raster profile metadata.
         """
         # is_needed (internal only)
         # needs_work (docs)
         # not_tested
-        return load_block(source=str(self.path),
-                          view=view,
-                          scaling_params=scaling_params,
-                          **tags)
+        return load_block(source=str(self.path), view=view,
+                          scaling_params=scaling_params, **tags)
 
 
 @dataclass
