@@ -185,7 +185,7 @@ class Source:
         return self.path.is_file()
 
     @property
-    def shape(self) -> tuple:
+    def shape(self) -> tuple[int, int]:
         """
         Return the numpy shape of the data stored in this Source.
 
@@ -342,21 +342,21 @@ class Source:
     @contextmanager
     def mask_writer(self, **kwargs):
         """
-           Context manager for writing to the dataset mask.
+        Context manager for writing to the dataset mask.
 
-           Opens the source file with internal TIFF mask support enabled and
-           yields the ``write_mask`` method of the underlying dataset.
+        Opens the source file with internal TIFF mask support enabled and
+        yields the ``write_mask`` method of the underlying dataset.
 
-           Parameters
-           ----------
-           **kwargs :
-               Keyword arguments passed to :meth:`open`.
+        Parameters
+        ----------
+        **kwargs :
+           Keyword arguments passed to :meth:`open`.
 
-           Yields
-           ------
-           callable
-               A callable that can be used to write a mask array.
-           """
+        Yields
+        ------
+        callable
+           A callable that can be used to write a mask array.
+        """
         # is_needed
         # needs_work (docs)
         # not_tested (used in tests)
@@ -535,7 +535,6 @@ class Source:
             )
         return src_open(*args, **kwargs)
 
-    # TODO: I am here
     @contextmanager
     def open(self, *args, **kwargs):
         """
@@ -869,6 +868,8 @@ class Source:
         """
         Load a block of raster data from the source along with the transform.
 
+        Band where data is loaded from needs to be identified with tags.
+        If no tags are provided data from bidx=1 is returned.
         See `io.load_block` for further details
 
         Parameters
@@ -888,6 +889,7 @@ class Source:
               :data:`rasterio.enums.Resampling.bilinear`.
         **tags : dict
             Band selection criteria. See :meth:`Source.get_bidx` for details.
+            Tags need to present to the source file.
 
         Returns
         -------
@@ -912,7 +914,7 @@ class Source:
 class Band:
     """
     A ``Band`` object encapsulates metadata and configuration for accessing
-    a band in a raster dataset. It references a parent ``Source`` object,
+    a band in a raster dataset. It references a parent :class:`Source` object,
     contains band-specific tags, and holds parameters for reading.
 
     Parameters
@@ -962,6 +964,13 @@ class Band:
     _use_mask: str = 'self'
     _ns = NS
 
+    # TODO: I feel we might need an __init__ here
+    #  Rational: if you initate a new Band and use a source object, the tags are not taken from that source object
+    #            therefore, you can have a Source object where e.g. in bidx=1 the tags live, but if you initiate
+    #            the Band object directly here, they dont exist (not copied there) only if you use get_band
+    # TODO: BUT maybe we dont want this !!!!
+    #       as the method "import_tags" does exactly this (we could however put it here) I dont know
+
     def __repr__(self) -> str:
         """
         Return a string representation of the Band's tags.
@@ -987,13 +996,33 @@ class Band:
 
     @property
     def source_exists(self) -> bool:
+        """
+        Check whether the parent source file of the Band exists on disk.
+
+        This property queries the parent ``Source`` object to determine
+        if the underlying file is present.
+
+        Returns
+        -------
+        bool
+            True if the file exists.
+        """
         # is_needed (internal only)
         # needs_work (docs; make internal?)
         # not_tested
         return self.source.exists
 
     @property
-    def index_exists(self, ) -> bool:
+    def index_exists(self) -> bool:
+        """
+        Check whether the band's index exists in the source dataset.
+
+        Returns
+        -------
+        bool
+           True if the band's index (`bidx`) is set and exists in the parent
+           ``Source``. False if no `bidx` is set or if the index is absent.
+        """
         # is_needed (internally)
         # needs_work (docs; make internal)
         # not_tested
@@ -1005,7 +1034,17 @@ class Band:
         return i_exists
 
     @property
-    def status(self):
+    def status(self) -> None:
+        """
+        Print the current status of the Band.
+
+        Reports include:
+            - Existence of the source file.
+            - Presence of the band's index in the source.
+            - Exact and partial matches for the band's tags.
+            - Warnings if the index or tags are inconsistent.
+
+        """
         # not_needed (might be useful?)
         # needs_work (docs)
         # not_tested
@@ -1073,11 +1112,29 @@ class Band:
                 )
         print("###")
 
-    def _pair_operation(self, pair_op: Callable, band, out_band=None, **op_kwargs):
+    def _pair_operation(self, pair_op: Callable, band: Band, out_band: Band=None, **op_kwargs):
         # TODO: important note, when out_band is used it does not create a new band (if you target Raster has only
-        # one band (bidx 2 does not exist) using out_band will not work as you will not create an extra band here, we
-        # may want to implement this.
-        """Internal method for performing operations on data arrays
+        #  one band (bidx 2 does not exist) using out_band will not work as you will not create an extra band here, we
+        #  may want to implement this.
+        """
+        Internal helper to perform element-wise operations between two bands.
+
+        This method reads data from this band and another ``Band`` object
+        in blocks, applies the provided operation, and writes the result to
+        a destination band.
+
+        Parameters
+        ----------
+        pair_op :
+            Function that performs an element-wise operation on two arrays.
+            Should accept two arrays as first arguments and return an array.
+        band :
+            The second band participating in the operation.
+        out_band :
+            Destination band for storing the result. If None, this band is
+            overwritten.
+        **op_kwargs : dict
+            Additional keyword arguments to pass to ``pair_op``.
         """
         # is_needed (only internally)
         # needs_work (docs)
@@ -1095,19 +1152,22 @@ class Band:
                         other = src_to_add.read(other_bidx, window=window)
                         write(pair_op(data, other, **op_kwargs), window=window)
 
-    def add(self, band, out_band: None | Band = None, **add_kwargs):
-        """Add another band to this one
+    def add(self, band: Band, out_band: None | Band = None, **add_kwargs):
+        """
+        Add the values of another band to this band, element-wise.
 
-        This performs the numpy.add operation between the data of the two bands
-        and stores the resulting data back in the source of this band.
+        The data from both bands are added using NumPy's ``add`` function,
+        and the result is stored in ``out_band`` or overwrites this band by default.
 
         Parameters
         ----------
-        bans:
-          A band object to add
-        out_band:
-          Optional destination band to store the data in.
-          If not provided, then self is used.
+        band :
+           Band whose values will be added.
+        out_band :
+           Destination band for storing the result. If None (default), the
+           operation overwrites this band.
+        **add_kwargs : dict
+           Additional keyword arguments passed to NumPy's ``add``.
         """
         # not_needed (though useful)
         # no_work
@@ -1115,22 +1175,24 @@ class Band:
         return self._pair_operation(pair_op=np.add, band=band,
                                     out_band=out_band, **add_kwargs)
 
-    def subtract(self, band, out_band: None | Band = None, **add_kwargs):
-        """Subtract another band from this one
+    def subtract(self, band: Band, out_band: None | Band = None, **add_kwargs):
+        """
+        Subtract another band from this band, element-wise.
 
-        This performs the numpy.add operation with the data of this band
-        and the negative version of the data form the other band
-        and stores the resulting data back in the source of this band.
+        The operation computes ``self - band`` (Numpy's add) by adding the negative
+        of the second band to this band. The result is stored in ``out_band`` or
+        overwrites this band by default.
 
         Parameters
         ----------
-        bans:
-          A band object to subtract
-        out_band:
-          Optional destination band to store the data in.
-          If not provided, then self is used.
+        band :
+          Band to subtract from this band.
+        out_band :
+          Destination band for storing the result. If None (default), the
+          operation overwrites this band.
+        **sub_kwargs : dict
+          Additional keyword arguments passed to the underlying operation.
         """
-
         # not_needed (though useful)
         # no_work
         # is_tested
@@ -1141,30 +1203,26 @@ class Band:
                                     out_band=out_band, **add_kwargs)
 
     def export_tags(self, match: str | list | None = None):
-        """Write the defined tags to the band
+        """
+        Write the band’s set tags back to the source file.
 
         Parameters
         ----------
-        match:
-          Optional selection of tags to identify a matching band.
-          If provided, the routine tries to find a single band in the
-          source file for which only the tags specified in this list
-          have matching values.
-          It can be used if you want to export some new tags or if you
-          have updated some tags and want to export these new values.
+        match :
+            Optional selection of tags to identify a matching band.
+            If provided, the routine tries to find a single band in the
+            source file for which only the tags specified in this list
+            have matching values.
+            It can be used if you want to export some new tags or if you
+            have updated some tags and want to export these new values.
 
-          .. Example::
-
-             To identify the layer in the source via the value of the
-             `category` tag and then update all (other) tags:
-             ```python
-             b1.export_tags(match='category')
-             ```
-
-          ..Note::
-            If the band has the `bidx` attribute set, `match` will be ignored
-
-        """
+        Notes
+        -----
+        - If the band has the ``bidx`` attribute set, ``match`` is ignored.
+        - Example:
+        >>> b1.export_tags(match='category')
+        # Identifies the band via the 'category' tag and updates other tags
+         """
         # is_needed
         # no_work
         # is_tested
@@ -1172,14 +1230,18 @@ class Band:
         self.source.set_tags(bidx=bidx, tags=self.tags)
 
     def import_tags(self, match: str | list | None = None, keep: bool = True):
-        """Get the tags form the source file
+        """
+        Import tags from the source file (at its band index) into this Band object.
 
         Parameters
         ----------
-        keep:
-          If set to true the `tags` are simply updated with the tags form the
-          file. `keep=False` will empty the `tags` before fetching them from
-          the source.
+        match :
+            Optional selection of tags to match a band in the source file.
+            Used internally by ``get_bidx`` to locate the correct band.
+        keep :
+            If True, update the existing ``tags`` dictionary with the imported
+            tags. If False, replace the existing ``tags`` dictionary with the
+            imported tags.
         """
         # is_needed (only used in tests)
         # needs_work (docs)
@@ -1192,44 +1254,40 @@ class Band:
             self.tags = tags
 
     def get_bidx(self, match: str | list | None = None) -> int:
-        """Compare with the source to get the correct band index.
+        """
+        Determine the correct band index in the source file.
 
-        If the attribute `bidx` is set, it is simply checked if this index
-        exists in the source file. If `bidx` is unset (i.e. equal to `None`)
-        then the routine tries to infer the right band index based on the
-        `tags` attribute. In this case it is possible to limit the considered
-        tags to a single tag or a selection of tags specified by the optional
-        argument `match`.
-
-        ..Note::
-          A `BandSelectionNoMatchError' is raised if there is not clear match
-          with a band from the source file.
+        If the ``bidx`` attribute is already set, it is checked for existence
+        in the ``Source`` file. If ``bidx`` is None, the method tries to infer
+        the correct band index using the ``tags`` attribute. The optional
+        ``match`` argument can limit which tags are considered for matching.
 
         Parameters
         ----------
-        match:
-          Optional selection of tags to identify a matching band.
-          If provided, the routine tries to find a single band in the
-          source file for which only the tags specified in this list
-          have matching values.
-          It can be used if you want to export some new tags or if you
-          have updated some tags and want to export these new values.
+        match :
+         Selection of tags to identify the correct band. If an integer is
+         provided, it is converted to a single-element list. If None (default),
+         all tags in ``self.tags`` are considered. Ignored if ``bidx`` is set.
 
-          .. Example::
+         Notes
+         -----
+         - Can be used when exporting or updating tags to identify a single
+           band in the source.
+         - Example:
 
-             To identify the layer in the source via the value of the
-             `category` tag and then update all (other) tags:
-             ```python
-             b1.export_tags(match='category')
-             ```
-
-          ..Note::
-            If the band has the `bidx` attribute set, `match` will be ignored
+           >>> b1.get_bidx(match='category')
+           # Finds the band whose 'category' tag matches
 
         Returns
         -------
-        bidx:
-            The index of the band in the source that matches this band
+        int
+         Index of the band in the ``Source`` that matches this band.
+
+        Raises
+        ------
+        BandSelectionNoMatchError
+         If there is no clear match for the band in the source file or if the
+         specified ``bidx`` does not exist.
         """
         # is_needed
         # no_work
@@ -1260,20 +1318,23 @@ class Band:
         return bidx
 
     def init_source(self, profile: dict, overwrite: bool = False, **kwargs):
-        """Create or accesses source file
-
-        Parameters
-        ----------
-        overwrite:
-          Determines if an existing file should be overwritten
-
-          ..Note::
-            Setting this to `True` is equivalent to deleting the existing source
-            and creating a new file.
-        profile:
-          Specifies the profile of the data set (see `rasterio.profile` for an
-          example)
         """
+         Initialize the source file for this band, creating it if necessary.
+
+         Updates the source's profile and optionally overwrites an existing file.
+
+         Parameters
+         ----------
+         profile :
+             Dictionary specifying the profile of the dataset.
+             This will update the source's profile before creating or opening the file.
+         overwrite :
+             If True, any existing file at the source path will be overwritten.
+             Equivalent to deleting the existing source and creating a new one.
+         **kwargs
+             Additional keyword arguments passed to the underlying ``Source.init_source``
+             method.
+         """
         # is_needed
         # needs_work (docs)
         # not_tested (but used in tests)
@@ -1281,19 +1342,27 @@ class Band:
         return self.source.init_source(overwrite=overwrite, **kwargs)
 
     def get_data(self, **kwargs) -> NDArray:
-        """Read band out from the file
+        """
+        Read the full data array of this band from the source file.
 
-        With the exception of `okwargs` all keyword arguments are passed to
-        the `read` method of the source.
+        All keyword arguments except `okwargs` are passed to the ``read`` method
+        of the underlying ``Source``. The optional `okwargs` are passed to the
+        ``read`` method of the ``Source``.
 
         Parameters
         ----------
-        **kwargs:
-          Optional set of keyword arguments to pass to the `read` method of the source.
-          Notable exception:
+        **kwargs
+           Optional keyword arguments for ``Source.read``. Common options include
+           `window`, `out_shape`, `resampling`, etc.
 
-          `okwargs`: dict
-            These arguments will be passed to the `open` method of the source
+           Special keyword:
+           okwargs : dict, optional
+               Arguments passed to ``Source.open`` when opening the file.
+
+        Returns
+        -------
+        NDArray
+           A NumPy array containing the data of this band.
         """
         # is_needed
         # no_work
@@ -1304,8 +1373,17 @@ class Band:
         return data
 
     @property
-    def shape(self):
-        """Get the np.array shape of this band
+    def shape(self) -> tuple[int, int]:
+        """
+        Return the shape of the band as a tuple (height, width).
+
+        This corresponds to the shape of the NumPy array.
+
+        Returns
+        -------
+        tuple of int
+          Tuple (height, width) representing the number of rows and columns
+          in the band.
         """
         # is_needed (not sure - check)
         # needs_work (this should be renamed to avoid confusion w np.array.shape
@@ -1313,19 +1391,32 @@ class Band:
         return self.source.shape
 
     def count_valid_pixels(self, selector: NDArray | None, no_data: Union[int, float],
-                           limit_count: int = 0):
-        """Count the number of valid pixels under some selector mask
+                           limit_count: int = 0) -> int | bool:
+        """
+        Count the number of valid pixels in the band, optionally under a selector.
+
+        Valid pixels are those that are not equal to `no_data`. If a selector
+        mask is provided, only pixels where the selector is True are counted.
 
         Parameters
         ----------
-        selector:
-          A boolean array in the same shape as the data stored in the band
-        no_data:
-          Value of a cell considered as invalid value.
-        limit_count:
-          An optional number to use as limit count. If set, then this method
-          returns True/False if the count of valid cells is bigger/smaller than
-          this limit value.
+        selector :
+            Boolean array of the same shape as the band, indicating which pixels
+            to include in the count. If None, all pixels are considered.
+        no_data :
+            Pixel value considered invalid (e.g., nodata value).
+        limit_count :
+            Optional early-exit threshold. If > 0, the method returns a boolean:
+            - True if the number of valid pixels exceeds `limit_count`
+            - False otherwise
+            If `limit_count` is 0, the method returns the actual count.
+
+        Returns
+        -------
+        int or bool
+            - If `limit_count` is 0, returns the total count of valid pixels.
+            - If `limit_count` > 0, returns True/False depending on whether the
+              count exceeds the limit.
         """
         # is_needed
         # needs_work (check if definition in helper or io and import here)
@@ -1352,14 +1443,25 @@ class Band:
         else:
             return count
 
-    def get_min_max(self, no_data: Union[int, float], selector: NDArray | None = None):
-        """Get the minimum and maximum values in a band
+    def get_min_max(self, no_data: Union[int, float], selector: NDArray | None = None) -> tuple | None:
+        """
+        Compute the minimum and maximum values of the band, optionally under a selector.
+
+        Only pixels not equal to `no_data` and selected by the `selector` are considered.
+
         Parameters
         ----------
-        selector:
-          A boolean array in the same shape as the data stored in the band
-        no_data:
-          Value of a cell considered as invalid value.
+        no_data :
+            Value considered invalid; these pixels are ignored.
+        selector :
+            Boolean array of the same shape as the band, indicating which pixels
+            to include. If None, all pixels are considered.
+
+        Returns
+        -------
+        tuple of (float, float) or None
+            Tuple (min_value, max_value) over the selected valid pixels.
+            Returns None if no valid pixels are found.
         """
         # not_needed (useful?)
         # no_work
@@ -1391,11 +1493,24 @@ class Band:
     @contextmanager
     def data_writer(self, match: str | list | None = None, **kwargs):
         """
+        Context manager for writing data to this band.
+
+        Opens the underlying ``Source`` for writing and yields a callable
+        that writes data to the specified band index.
 
         Parameters
         ----------
-        **kwargs:
-          Optional keword arguments that will be passed to `rasterio.io.DatasetWriter.write`
+        match :
+            Optional selection of tags to identify a matching band. Ignored if
+            the band has ``bidx`` set.
+        **kwargs
+            Additional keyword arguments passed to ``rasterio.io.DatasetWriter.write``,
+            e.g., window specification.
+
+        Yields
+        ------
+        Callable
+         A partial function that writes data to the band.
         """
         # is_needed
         # needs_work (docs)
@@ -1408,11 +1523,24 @@ class Band:
     @contextmanager
     def data_reader(self, match: str | list | None = None, **kwargs):
         """
+        Context manager for reading data from this band.
+
+        Opens the underlying ``Source`` for reading and yields a callable
+        that reads data from the specified band index.
 
         Parameters
         ----------
-        **kwargs:
-          Optional keword arguments that will be passed to `rasterio.io.DatasetReader.read`
+        match :
+            Optional selection of tags to identify a matching band. Ignored if
+            the band has ``bidx`` set.
+        **kwargs
+            Additional keyword arguments passed to ``rasterio.io.DatasetReader.read``,
+            e.g., window, masked, out_dtype.
+
+        Yields
+        ------
+        Callable
+            A partial function that reads data from the band.
         """
         # is_needed
         # needs_work (docs; tests)
@@ -1423,27 +1551,23 @@ class Band:
             yield partial(src.read, indexes=bidx)
 
     def set_mask_reader(self, use: str = 'band'):
-        """Set what mask should be used, if at all
+        """
+        Set which mask should be used when reading data for this band.
 
         Parameters
         ----------
-        use:
-          Determines the mask to use.
+        use : {'self', 'band', 'source', 'mask_none', 'mask_all'}, default 'band'
+            Determines how the mask is applied:
 
-          Options are:
+            - 'self' or 'band': use the band-specific mask (i.e., `read_masks`).
+            - 'source': use the dataset mask from the source (i.e., `dataset_mask`).
+            - 'mask_none': consider all pixels valid (returns an array of 1s).
+            - 'mask_all': consider all pixels invalid (returns an array of 0s).
 
-          `'self'` or `'band'`:
-            The band mask should be used
-          `'source'`:
-            The mask of the source file should be used,
-            i.e. either `nodata` or the associated mask bandl
-          `'mask_none'`:
-            This instructs to consider all pixels as valid data, i.e.
-            an array containg all `1`s is returned
-          `'mask_all'`:
-            This simply assumes all values are invalid, i.e. an array
-            containing only `0`s is returend.
-            It is likely only useful in some edge-cases
+        Raises
+        ------
+        AssertionError
+            If `use` is not one of the allowed options.
         """
         # is_needed (only in tests)
         # needs work(doc)
@@ -1459,12 +1583,19 @@ class Band:
             self._use_mask = use
 
     def get_mask_reader(self, ):
-        """Return the mask reader for this band.
+        """
+        Return the appropriate mask reader for this band based on `_use_mask`.
 
-        By default mask reader is `rasterio.io.DatasetReader.read_masks` with the corresponding
-        band index set. However, other readers can be specified. See `set_mask_reader` for more
-        details.
+        Returns
+        -------
+        Callable
+          A callable that reads a mask array when called. Depending on `_use_mask`,
+          it may read the band mask, dataset mask, or return a fully True/False array.
 
+        Raises
+        ------
+        InvalidMaskSelectorError
+          If `_use_mask` has an invalid value.
         """
         # is_needed
         # needs_work (docs)
@@ -1492,13 +1623,22 @@ class Band:
 
     @contextmanager
     def mask_reader(self, match: str | list | None = None, **kwargs):
-        """Get a read method for the band mask.
+        """
+        Context manager for reading the band-specific mask.
 
-        ..Note::
+        Always returns the mask associated with this specific band.
 
-          This yields always the band specific mask reader (i.e. the
-          'rasterio.io.DatasetReader.read_masks(indexes=<bidx of self>)`
+        Parameters
+        ----------
+        match :
+            Optional selection of tags to identify the band.
+        **kwargs
+            Keyword arguments passed to `Source.open`.
 
+        Yields
+        ------
+        Callable
+            Partial function to read the band mask.
         """
         # is_needed (only internally)
         # needs_work (docs; make internal?)
@@ -1511,25 +1651,31 @@ class Band:
     @contextmanager
     def _mask_full(self, match: str | list | None = None, fill_value: int | float | bool = False,
                    **kwargs):
-        """Mocked maks read method of band mask returning all `True`/`False`
+        """
+        Context manager for a mocked band mask returning a constant array.
 
-        The mocked read method first calls the normal band read method 
+        This can be used to override the actual band or dataset mask with a
+        True/False or numeric values.
+        The mocked read method first calls the normal band read method
         (i.e. rasterios `read_masks`) in order to assure than transformation,
         rescaling, window, etc. is performed correctly.
         It then returns a similar numpy array holding exclusively
         `True` or `False` as values effectively ignoring the actual mask
 
-        ..Note::
-
-          This uses always the band specific mask reader (i.e. the
-          'rasterio.io.DatasetReader.read_masks(indexes=<bidx of self>)`
-
         Parameters
         ----------
-        value:
-          Either `True` or `False` (but also numbers are accepted) that will be used
-          in the array
+        match :
+            Optional selection of tags to identify the band.
+        fill_value :
+            Value to fill in the mask array. Accepts also True/False.
+        **kwargs
+            Keyword arguments passed to `Source.open`.
 
+        Yields
+        ------
+        Callable
+            Partial function returning a mask array filled with `fill_value`,
+            while respecting windowing, rescaling, and transformations.
         """
         # is_needed (only internally)
         # needs_work (make internal)
@@ -1546,14 +1692,23 @@ class Band:
         with self.source.open(mode=mode, **kwargs) as src:
             yield partial(_mock_all, mask_reader=src.read_masks)
 
-    def set_data(self, data: NDArray, overwrite=False, **kwargs):
-        """Write out the data from a band
+    def set_data(self, data: NDArray, overwrite: bool = False, **kwargs):
+        """
+        Write data to the band in the underlying source file.
+
+        Parameters
+        ----------
+        data :
+           NumPy array containing the data to write.
+        overwrite :
+           If True, overwrite an existing source file. If False and the source
+           exists, the file is opened in update mode ('r+').
+        **kwargs
+           Additional keyword arguments passed to the band `data_writer`.
         """
         # is_needed (tests only)
         # needs_work (docs)
         # not_tested
-
-        # with self.source.open(mode='w', **kwargs) as src:
         if self.source.exists and not overwrite:
             mode = 'r+'
         else:
@@ -1564,16 +1719,38 @@ class Band:
     def load_block(self,
                    view: None | tuple[int, int, int, int] = None,
                    scaling_params: dict | None = None,
-                   match: str | list | None = None) -> dict:
-        """Get a block from a specific band along with the transform
+                   match: str | list | None = None) -> dict[str, Any]:
+        """Load a block of data from this band along with its transform.
 
+        This reads a portion of the band data from the source, optionally applying
+        scaling/resampling. The block can be limited to a rectangular region (`view`),
+        and the specific band can be selected via `match` (tags or `bidx`).
         See `io.load_block` for further details
+
+        Parameters
+        ----------
+        view :
+            Optional window defined as (x, y, width, height) in pixels.
+            If `None`, the entire band is read.
+        scaling_params :
+            Optional dictionary specifying rescaling parameters:
+              - `scaling`: tuple[float, float], factors to rescale the number of pixels.
+                           Values >1 will upscale.
+              - `method`: rasterio.enums.Resampling, resampling method (default: bilinear)
+        match :
+            Optional tag(s) or criteria to identify the band in the source.
+            If `None`, the current `bidx` or all tags are used.
+
+        Returns
+        -------
+        dict[str, Any]
+            Dictionary containing:
+              - `data`: numpy array with the band data of shape (1, height, width)
+              - `transform`: Affine transformation object for the loaded block
+              - `orig_profile`: Original raster profile of the source band
         """
         # is_needed
         # needs_work (docs)
         # not_tested
         bidx = self.get_bidx(match=match)
-        return self.source.load_block(
-            view=view,
-            scaling_params=scaling_params,
-            indexes=bidx)
+        return self.source.load_block(view=view, scaling_params=scaling_params, indexes=bidx)
