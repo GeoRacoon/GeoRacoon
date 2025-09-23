@@ -86,10 +86,6 @@ class Source:
     _mode_default = 'r'
     _modes = _mode_reading + _mode_writing
 
-    # is_needed
-    # needs_work (docs)
-    # not_tested
-
     def __init__(self, path: str | Path,
                  tags: dict | None = None,
                  profile: dict | None = None,
@@ -97,9 +93,6 @@ class Source:
         """
         Initialize a new Source object.
         """
-        # is_needed
-        # needs_work (docs)
-        # not_tested (used in tests)
         self.path = Path(path)
         self.tags = tags or dict()
         self._ns = ns
@@ -114,9 +107,6 @@ class Source:
         str
             String representation of the object.
         """
-        # is_needed
-        # needs_work (docs - revisit what is printed)
-        # not_tested (no need)
         items = [f"path={str(self.path)}", f"exists: {self.exists}"]
         return "{}({})".format(type(self).__name__, ", ".join(items))
 
@@ -129,9 +119,6 @@ class Source:
         int
             Hash based on path, namespace, and tag values.
         """
-        # is_needed
-        # no_work
-        # not_tested (no need)
         return hash((self.path, self._ns, *(self.tags.values())))
 
     def __eq__(self, other: Source) -> bool:
@@ -150,7 +137,7 @@ class Source:
              tags, and namespace.
          """
         # is_needed
-        # needs_work (docs)0
+        # needs_work (docs)
         # not_tested
         if not isinstance(other, type(self)):
             return NotImplemented
@@ -565,9 +552,51 @@ class Source:
 
 @dataclass
 class Band:
-    # is_needed
-    # needs_work (mostly docs)
-    # is_tested (partially)
+    """
+    A ``Band`` object encapsulates metadata and configuration for accessing
+    a band in a raster dataset. It references a parent ``Source`` object,
+    contains band-specific tags, and holds parameters for reading.
+
+    Parameters
+    ----------
+    source : Source
+       The ``Source`` object from which this band originates.
+    tags :
+       Optional dictionary of key-value metadata associated with the band.
+       Defaults to an empty dictionary.
+    bidx :
+       Band index in the source dataset (1-based). If ``None``, defaults to
+       an implicit index or is determined at runtime.
+    read_params :
+       Dictionary of parameters controlling how the band is read (e.g.,
+       windowing, resampling). Defaults to an empty dictionary.
+
+    Attributes
+    ----------
+    source : Source
+       Reference to the parent data source.
+    tags : dict
+       Metadata associated with the band.
+    bidx : int or None
+       Band index in the source dataset.
+    read_params : dict
+       Parameters for reading this band.
+    _use_mask : str
+       Internal flag for controlling masking behavior (default: "self").
+    _ns : str
+       Namespace identifier inherited from the source.
+
+    Examples
+    --------
+    >>> s = Source("example.tif")
+    >>> b = Band(source=s, bidx=1, tags={"type": "NIR"})
+    >>> b
+    Band(tags={'type': 'NIR'})
+    >>> b._use_mask
+    'self'
+    >>> b._ns
+    'GEORACOON'
+    """
     source: Source
     tags: dict = field(default_factory=dict)
     bidx: int | None = None
@@ -575,17 +604,27 @@ class Band:
     _use_mask: str = 'self'
     _ns = NS
 
-    def __repr__(self):
-        # is_needed
-        # needs_work (docs - revisit what is printed)
-        # not_tested (no need)
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the Band's tags.
+
+        Returns
+        -------
+        str
+            String representation of the tags.
+        """
         items = [f"tags={self.tags}", ]
         return "{}({})".format(type(self).__name__, ", ".join(items))
 
-    def __hash__(self):
-        # is_needed
-        # no_work
-        # not_tested (no need)
+    def __hash__(self) -> hash:
+        """
+        Compute a hash value for the Band.
+
+        Returns
+        -------
+        int
+            Hash value for the object.
+        """
         return hash((self.bidx, *(self.tags.values())))
 
     @property
