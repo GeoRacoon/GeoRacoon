@@ -123,19 +123,19 @@ class Source:
 
     def __eq__(self, other: Source) -> bool:
         """
-         Test equality between two Source objects.
+        Test equality between two Source objects.
 
-         Parameters
-         ----------
-         other :
-             Source object to compare against.
+        Parameters
+        ----------
+        other :
+         Source object to compare against.
 
-         Returns
-         -------
-         bool
-             True if both objects are Source instances with the same path,
-             tags, and namespace.
-         """
+        Returns
+        -------
+        bool
+         True if both objects are Source instances with the same path,
+         tags, and namespace.
+        """
         # is_needed
         # needs_work (docs)
         # not_tested
@@ -144,14 +144,21 @@ class Source:
         return (self.path == other.path and self.tags == other.tags and
                 self._ns == other._ns)
 
-    def import_profile(self, update_self: bool = True):
-        """Read the profile from the source file
+    def import_profile(self, update_self: bool = True) -> dict:
+        """
+        Read the profile from the source file
 
         Parameters
         ----------
-        update_self:
-          If set, the profile property will be updated with the profile fetched
-          from the source file.
+        update_self :
+            If True (default), update the ``profile`` attribute with the values
+            fetched from the source file. If False, the object's profile remains
+            unchanged.
+
+        Returns
+        -------
+        dict
+            The profile dictionary retrieved from the source file.
         """
         # is_needed
         # needs_work (better docs)
@@ -164,6 +171,14 @@ class Source:
 
     @property
     def exists(self) -> bool:
+        """
+        Check whether the source file exists on disk.
+
+        Returns
+        -------
+        bool
+            True if the file exists, False otherwise.
+        """
         # is_needed
         # needs_work (make internal, docs)
         # not_tested
@@ -171,11 +186,16 @@ class Source:
 
     @property
     def shape(self) -> tuple:
-        """Return the numpy shape of the data stored in this Source
+        """
+        Return the numpy shape of the data stored in this Source.
 
-        .. note::
-          Requesting the shape will synchronize the profile with the data
-          written on disk.
+        Requesting the shape will synchronize the profile with the data
+        written on disk.
+
+        Returns
+        -------
+        tuple
+            A 2-tuple ``(height, width)`` representing the dataset dimensions.
         """
         # is_needed (not sure - check)
         # needs_work (this should be renamed to avoid confusion w np.array.shape
@@ -183,9 +203,22 @@ class Source:
         self.import_profile()
         height = self.profile['height']
         width = self.profile['width']
-        return (height, width)
+        return height, width
 
     def get_tags(self, bidx: int) -> dict:
+        """
+        Retrieve all tags for a specific band.
+
+        Parameters
+        ----------
+        bidx :
+            The band index to query.
+
+        Returns
+        -------
+        dict
+            A dictionary of tag key-value pairs associated with the band.
+        """
         # is_needed (noly internally)
         # needs_work (docs)
         # not_tested
@@ -194,9 +227,24 @@ class Source:
         return tags
 
     def get_tag_values(self, tag: str, bidx: int | list | None = None) -> dict:
-        """Try to fetch for each band the value of this tag
-        
-        If the tag is not present, None is returned
+        """
+        Fetch the value of a tag for one or more bands.
+
+        If a tag is not present for a given band, the value will be ``None``
+        and a mapping `{bidx: value}` for all bands will be returned.
+
+        Parameters
+        ----------
+        tag :
+           The tag key to look up.
+        bidx :
+           Band index (int), list of indices, or None.
+           If None, all bands are queried.
+
+        Returns
+        -------
+        dict
+           A mapping of band index to the tag value (or None if missing).
         """
         # is_needed
         # needs_work (docs)
@@ -210,12 +258,26 @@ class Source:
             else:
                 bidxs = bidx
             for _bidx in bidxs:
-                t_vals[_bidx] = _get_tags(src=src,
-                                         bidx=_bidx,
-                                         ns=self._ns).get(tag, None)
+                t_vals[_bidx] = _get_tags(src=src, bidx=_bidx,
+                                          ns=self._ns).get(tag, None)
         return t_vals
 
     def set_tags(self, bidx: int | None, tags: dict):
+        """
+        Set one or more tags for a specific band or the dataset.
+
+        Parameters
+        ----------
+        bidx :
+            The band index to set tags for. If None, tags are applied to the
+            Source metadata (bidx=0).
+        tags :
+            A dictionary of key-value pairs to assign as tags.
+
+        Returns
+        -------
+        None
+        """
         # is_needed (noly internally)
         # needs_work (docs)
         # not_tested
@@ -224,6 +286,22 @@ class Source:
 
     @contextmanager
     def mask_reader(self, **kwargs):
+        """
+        Context manager for reading the dataset mask.
+
+        Opens the source file and yields its ``dataset_mask`` method, which can
+        be called to read the internal mask as an array.
+
+        Parameters
+        ----------
+        **kwargs :
+         Keyword arguments passed to :meth:`open`.
+
+        Yields
+        ------
+        callable
+         A callable that can be used to read the mask.
+        """
         # is_needed
         # needs_work (docs)
         # is_tested
@@ -231,20 +309,27 @@ class Source:
         with self.open(mode=mode, **kwargs) as src:
             yield src.dataset_mask
 
-    def get_mask(self, **kwargs):
-        """Read band dataset mask from the file
+    def get_mask(self, **kwargs) -> NDArray:
+        """
+        Read the dataset mask from the file.
 
         With the exception of `okwargs` all keyword arguments are passed to
         the `dataset_mask` method of the source.
 
         Parameters
         ----------
-        **kwargs:
-          Optional set of keyword arguments to pass to the `read` method of the source.
-          Notable exception:
+        **kwargs :
+            Optional set of keyword arguments to pass to the `read` method of the source.
+            Notable exception:
 
-          `okwargs`: dict
-            These arguments will be passed to the `open` method of the source
+            okwargs : dict
+                Keyword arguments passed to :meth:`open` when accessing the source.
+
+        Returns
+        -------
+        NDArray
+            An array representing the dataset mask. Non-zero values indicate
+            valid pixels, and 0 indicates masked/invalid pixels.
         """
         # is_needed
         # no_work
@@ -256,6 +341,22 @@ class Source:
 
     @contextmanager
     def mask_writer(self, **kwargs):
+        """
+           Context manager for writing to the dataset mask.
+
+           Opens the source file with internal TIFF mask support enabled and
+           yields the ``write_mask`` method of the underlying dataset.
+
+           Parameters
+           ----------
+           **kwargs :
+               Keyword arguments passed to :meth:`open`.
+
+           Yields
+           ------
+           callable
+               A callable that can be used to write a mask array.
+           """
         # is_needed
         # needs_work (docs)
         # not_tested (used in tests)
@@ -265,14 +366,20 @@ class Source:
                 yield src.write_mask
 
     def export_mask(self, mask: NDArray, window: Window):
-        """Write the mask into the output file
+        """
+        Write a mask into the source file.
 
         Parameters
         ----------
-        mask:
-            Array to use as a mask. Values > 0 representa valid data
-        window:
-            Optional subset to write to
+        mask :
+            Array to use as a mask. Values greater than 0 represent valid pixels;
+            0 represents invalid/masked pixels.
+        window :
+            The raster window to which the mask should be written.
+
+        Returns
+        -------
+        None
         """
         # not_needed (useful?)
         # no_work
@@ -281,7 +388,22 @@ class Source:
             src.write_mask(mask_array=mask, window=window)
 
     def init_source(self, overwrite: bool = False, **kwargs):
-        """Create or accesses source file
+        """Initialize or create the source file.
+
+        This method either creates a new file (empty dataset) on disk or opens an existing one.
+        If ``overwrite`` is True, the existing file will be replaced.
+
+        Parameters
+        ----------
+        overwrite :
+            If True, overwrite an existing file.
+        **kwargs :
+            Additional keyword arguments passed to the :meth:`open` method when
+            creating the dataset (e.g., driver options, compression).
+
+        Returns
+        -------
+        None
         """
         # is_needed (only internally for now)
         # needs_work (docs)
@@ -291,7 +413,33 @@ class Source:
                 print(f'Initiating empty file\n\t"{self.path}"\n')
 
     def get_band(self, bidx: int | None = None, **tags) -> Band:
-        """Find the wanted band and return a related band object
+        """
+        Retrieve a specific band as a Band object.
+
+        A Band can be selected either by its index (`bidx`) or by matching
+        tags. If both are provided, they must match the same band.
+
+        Parameters
+        ----------
+        bidx :
+            Optional band index to select.
+        **tags :
+            Optional tag key-value pairs to match the band.
+
+        Returns
+        -------
+        Band
+            A ``Band`` object corresponding to the requested band, including
+            associated tags.
+
+        Raises
+        ------
+        SourceNotSavedError
+            If the source file does not exist on disk.
+        BandSelectionNoMatchError
+            If no band matches the provided index or tags.
+        AssertionError
+            If the index and tag selection refer to different bands.
         """
         # is_needed
         # needs_work (dcos)
@@ -325,7 +473,13 @@ class Source:
         return Band(source=self, bidx=_bidx or _tb_bidx, tags=tags)
 
     def get_bands(self) -> list[Band]:
-        """Return a list with all Bands present in the dataset
+        """
+        Return all bands present in the dataset.
+
+        Returns
+        -------
+        list
+            A list of ``Band`` objects for all bands in the dataset.
         """
         # is_needed
         # needs_work (dcos)
@@ -339,12 +493,31 @@ class Source:
         return bands
 
     def _get_source(self, *args, **kwargs):
-        """Partially evaluate `rasterio.open` by passing fp and further kwargs
+        """
+        Prepare a partially-evaluated ``rasterio.open`` call for this source.
 
-        .. note::
+        If the file is opened in writing mode, the source's profile is injected
+        automatically.
 
-          If the file is opened in writing mode, the profile is injected
-          into rio.open
+        Parameters
+        ----------
+        *args :
+           Positional arguments forwarded to ``rasterio.open``.
+        **kwargs :
+           Keyword arguments forwarded to ``rasterio.open``. The ``mode`` argument
+           defaults to the source's default mode.
+
+        Returns
+        -------
+        DatasetReader or DatasetWriter
+           Partially-evaluated rasterio open object ready to be used or called.
+
+        Raises
+        ------
+        AssertionError
+            If the requested mode is not recognized.
+        UnknownExtensionError
+            If the file extension is not supported (currently only ".tif").
         """
         # is_needed (internal only)
         # no_work
@@ -358,8 +531,7 @@ class Source:
                 src_open = partial(rio.open, fp=self.path)
         else:
             raise UnknownExtensionError(
-                f'"{self.path.suffix}" is not supported.\nCurrently only '
-                '.tif" is.'
+                f'"{self.path.suffix}" is not supported.\nCurrently only ".tif" is.'
             )
         return src_open(*args, **kwargs)
 
