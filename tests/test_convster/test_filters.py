@@ -4,8 +4,8 @@ from itertools import product
 
 import numpy as np
 
-from riogrande import io as lbio
-from convster import processing as lbproc
+from riogrande import io as rgio
+from convster import processing as convproc
 from convster.filters import _filters
 from convster.filters import _get_kernel_diam
 from convster.filters import _get_kernel_size
@@ -38,8 +38,8 @@ def test_filter_signal_preservation(datafiles):
     """Filtering shouldn't lose more than 0.1% of the initial signal in the map
     """
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ch_data = lbio.load_map(ch_map_tif)['data']
-    lctypes = lbproc.get_categories(ch_data)
+    ch_data = rgio.load_block(ch_map_tif)['data']
+    lctypes = convproc.get_categories(ch_data)
     sigma = 10
     truncate = 3
     params = dict(
@@ -49,9 +49,9 @@ def test_filter_signal_preservation(datafiles):
     for cat in lctypes:
         dtype = np.uint8
         dmax = np.iinfo(dtype).max
-        category_data = lbproc.get_category_data(ch_data, category=cat,
+        category_data = convproc.get_category_data(ch_data, category=cat,
                                                  as_dtype=dtype)
-        filtered_data = lbproc.get_category_data(ch_data, category=cat,
+        filtered_data = convproc.get_category_data(ch_data, category=cat,
                                                  img_filter=gaussian,
                                                  filter_params=params)
         signal = (category_data.astype(float)/dmax).sum()
@@ -68,7 +68,7 @@ def test_signal_preservation():
     square[246:257, 246:257] = 1
     signal = square.sum()
     # convert it to the expected format
-    data = lbproc.select_category(data=square, category=1, as_dtype=np.uint8)
+    data = convproc.select_category(data=square, category=1, as_dtype=np.uint8)
     sigma = 3
     truncate = 3
     for _filter, _get_kd, _get_ks in zip(_filters,

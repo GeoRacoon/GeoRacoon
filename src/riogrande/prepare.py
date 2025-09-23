@@ -1,21 +1,20 @@
 """
-Add sth here
+Functions used to create windows/ views for parallelization processes in 2D raster maps.
 """
 from __future__ import annotations
 
-from numpy.typing import ArrayLike, NDArray
 import math
+import numpy as np
+from numpy.typing import ArrayLike, NDArray
 
 
-def update_view(data:NDArray,
-                view:tuple[int,int,int,int],
-                block:ArrayLike)->None:
+def update_view(data: NDArray, view: tuple[int, int, int, int], block: ArrayLike) -> None:
     # TODO: is_needed - needs_work - is_tested - usedin_both
     """Update a view from the data array with a block
 
-    ..Note::
-       `block.shape must be equal to height and width of `view`, so
-       `block.shape == (view[3], view[2])`
+    The block must exactly match the shape of the view:
+    `block.shape == (view[3], view[2])`, where
+    `view = (x, y, width, height)`.
 
     Parameters
     ----------
@@ -26,23 +25,32 @@ def update_view(data:NDArray,
     block:
       np.array with the updated values.
 
+    Returns
+    --------
+    None
+
+    Examples
+    --------
+    >>> data = np.zeros((5, 5))
+    >>> block = np.ones((2, 3))
+    >>> update_view(data, (1, 2, 3, 2), block)
+    >>> data
+    array([[0., 0., 0., 0., 0.],
+           [0., 0., 0., 0., 0.],
+           [0., 1., 1., 1., 0.],
+           [0., 1., 1., 1., 0.],
+           [0., 0., 0., 0., 0.]])
     """
     # is_needed
     # no_work
     # not_tested (used in test)
     # usedin_both
-
-    # data[slice(view[0], view[0] + view[2]),
-    #      slice(view[1], view[1] + view[3])] = block
-    data[slice(view[1], view[1] + view[3]),
-         slice(view[0], view[0] + view[2])] = block
+    data[slice(view[1], view[1] + view[3]), slice(view[0], view[0] + view[2])] = block
 
 
-def create_views(view_size:tuple[int, int],
-                 border:tuple[int, int],
-                 size:tuple[int, int])->tuple[list, ...]:
+def create_views(view_size: tuple[int, int], border: tuple[int, int], size: tuple[int, int]) -> tuple[list, ...]:
     # TODO: is_needed - needs_work - is_tested - usedin_both
-    """Returns a set of views on which the filter can be applied independently
+    """Returns a set of views on which an operation can be applied independently
 
     Parameters
     ----------
@@ -55,34 +63,42 @@ def create_views(view_size:tuple[int, int],
 
     Return
     ------
-
-    tuple:
+    tuple
       The first element is a list of tuples (x, y, width, height) defining each
-      view on which to apply a filter.
+      view on which to apply an operation.
       The second element is a list of tuples (x, y, width, height) defining for
       each view the usable region.
       A region is usable if it does not contain any artificial border effects
       that were introduced from splitting up a bigger view into smaller chunks
+
+    Notes
+    -----
+    - Handles cases where the region cannot be divided evenly by `view_size`.
+    The last row/column of views may be smaller (`leftovers`) and are still included.
+    - Borders on the outer edges are reduced to fit within the total size.
+
+    Examples
+    --------
+    >>> views, usable = create_views((5, 5), (1, 1), (9, 9))
+    >>> len(views), len(usable)
+    (4, 4)
+    >>> views
+    [(0, 0, 6, 6), (3, 0, 6, 5), (0, 3, 6, 6), (3, 3, 6, 6)]
+    >>> usable
+    [(0, 0, 4, 4), (4, 0, 5, 4), (0, 4, 4, 5), (4, 4, 5, 5)]
     """
     # is_needed
     # no_work
     # is_tested
     # usedin_both
     assert all(len(x) == 2 for x in (view_size, border, size)), \
-           f"{len(view_size)=},{len(border)=},{len(size)=} all need to be of "\
-           "length 2 (width, height)"
+        f"{len(view_size)=},{len(border)=},{len(size)=} all need to be of " \
+        "length 2 (width, height)"
     # calculate the leftovers along both axes
     leftovers = list(map(lambda x: x[0] % x[1], zip(size, view_size)))
     # number of full block along each axis that do not cover the leftovers
     nbr_views = list(map(lambda x: math.floor((x[1] - x[2]) / x[0]),
                          zip(view_size, size, leftovers)))
-    # print("\n")
-    # print(f"\t{size=}")
-    # print(f"\t{view_size=}")
-    # print(f"\t{leftovers=}")
-    # print(f"\t{nbr_views=}")
-    # print(f"\t{border=}")
-    # print("\n")
 
     xstarts = []
     ystarts = []
@@ -178,20 +194,15 @@ def create_views(view_size:tuple[int, int],
         inner_ys.append(size[1] - view_size[1])
         inner_w.append(view_size[0])
         inner_h.append(view_size[1])
-    # print(f"{xstarts=}\n{ystarts=}")
-    # print(f"{widths=}\n{heights=}")
-    # print(f"{inner_xs=}\n{inner_ys=}")
-    # print(f"{inner_w=}\n{inner_h=}")
-    return (
-        list(zip(xstarts, ystarts, widths, heights)),
-        list(zip(inner_xs, inner_ys, inner_w, inner_h))
-    )
+
+    return (list(zip(xstarts, ystarts, widths, heights)),
+            list(zip(inner_xs, inner_ys, inner_w, inner_h)))
 
 
-def get_view(data:NDArray, view:tuple[int,int,int,int])->NDArray:
+def get_view(data: NDArray, view: tuple[int, int, int, int]) -> NDArray:
     # TODO: is_needed - needs_work - is_tested - usedin_processing
     # TODO: This was moved here to riogrand as it makes more sense, despite it may only be used in processing
-    """Return a view of the data array
+    """Return a recatangular view of the data array
 
     ..Note::
       data.shape == height, width!
@@ -203,38 +214,69 @@ def get_view(data:NDArray, view:tuple[int,int,int,int])->NDArray:
     view:
       tuple (x, y, width, height) defining the view
 
+    Returns
+    -------
+    NDArray
+        A view (slice) of `data` with shape `(height, width)` as specified
+        by the `view` tuple.
+
+    Examples
+    --------
+    >>> arr = np.arange(16).reshape(4, 4)
+    >>> arr
+    array([[ 0,  1,  2,  3],
+           [ 4,  5,  6,  7],
+           [ 8,  9, 10, 11],
+           [12, 13, 14, 15]])
+    >>> get_view(arr, (1, 1, 2, 2))
+    array([[ 5,  6],
+           [ 9, 10]])
     """
     # is_needed
     # not_tested (used in test)
     # no_work
     # usedin_processing (maybe both)
-
-    # return data[slice(view[0], view[0] + view[2]),
-    #             slice(view[1], view[1] + view[3])]
     return data[slice(view[1], view[1] + view[3]),
                 slice(view[0], view[0] + view[2])]
 
 
-def relative_view(view:tuple[int,int,int,int],
-                  inner_view:tuple[int,int,int,int])->tuple[int,int,int,int]:
+def relative_view(view: tuple[int, int, int, int],
+                  inner_view: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
     # TODO: is_needed - needs_work - is_tested - usedin_processing
     # TODO: This was moved here to riogrand as it makes more sense, despite it may only be used in processing
     """Return the `inner_view` relative to `view`
 
+    Given two rectangular regions defined as `(x, y, width, height)`,
+    this function returns the coordinates of `inner_view` relative
+    to the origin of `view`.
+
     Parameters
     ----------
-    view:
-      (x, y, width, height) defining a view
-    inner_view:
-      (x, y, width, height) defining a view
+    view :
+        A 4-tuple `(x, y, width, height)` defining the outer view.
+    inner_view :
+        A 4-tuple `(x, y, width, height)` defining a subregion inside `view`.
+
+    Returns
+    --------
+    tuple
+        A 4-tuple `(x, y, width, height)` giving the position and size of
+        `inner_view` relative to `view`. The width and height are unchanged.
+
+    Examples
+    --------
+    >>> outer = (10, 20, 100, 50)
+    >>> inner = (15, 30, 20, 10)
+    >>> outer
+    (10, 20, 100, 50)
+    >>> inner
+    (15, 30, 20, 10)
+    >>> relative_view(outer, inner)
+    (5, 10, 20, 10)
     """
     # is_needed
     # needs_work (better docs)
     # not_tested (used in tests)
     # usedin_processing (maybe both)
-    return (inner_view[0] - view[0],
-            inner_view[1] - view[1],
-            inner_view[2],
-            inner_view[3])
-
-
+    return (inner_view[0] - view[0], inner_view[1] - view[1],
+            inner_view[2], inner_view[3])

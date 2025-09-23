@@ -68,7 +68,7 @@ def test_nbr_lct(datafiles):
     """Make sure the detection of land-cover types works as expected
     """
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ch_data = rgio.load_map(ch_map_tif)['data']
+    ch_data = rgio.load_block(ch_map_tif)['data']
     categories = csproc.get_categories(ch_data)
     unique_values = np.unique(categories)
     unique_values.sort()
@@ -80,7 +80,7 @@ def test_single_category_filter(datafiles):
     """Make sure the detection of categories works as expected
     """
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ch_data = rgio.load_map(ch_map_tif)['data']
+    ch_data = rgio.load_block(ch_map_tif)['data']
     categories = csproc.get_categories(ch_data)
     categories = np.unique(categories)
     categories.sort()  # those are our categories
@@ -107,7 +107,7 @@ def test_filter_data(datafiles):
     """Make sure the detection of categories works as expected
     """
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ch_data = rgio.load_map(ch_map_tif)['data']
+    ch_data = rgio.load_block(ch_map_tif)['data']
     categories = csproc.get_categories(ch_data)
     categories = np.unique(categories)
     categories.sort()  # those are our categories
@@ -152,7 +152,7 @@ def test_filter_data_float(datafiles):
         truncate=truncate,
         preserve_range=False,
     )
-    ch_f_data = rgio.load_map(ch_f_map_tif)['data']  # this will automatically take the first band (okay here)
+    ch_f_data = rgio.load_block(ch_f_map_tif)['data']  # this will automatically take the first band (okay here)
     # First without replacint NaN values (so the image will be cropped)
     with pytest.warns(UserWarning) as record:
         filtered_data = csproc.filter_data(data=ch_f_data,
@@ -184,7 +184,7 @@ def test_entropy_normalization_conversion(datafiles):
     """
     # TODO: these tests become a bit unnecessary as get_entropy should be removed
     map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    map_data = rgio.load_map(map_tif)
+    map_data = rgio.load_block(map_tif)
     data = map_data['data']
     blur_output_dtype = "uint8"  # convert the blurred data to uint8 before
     categories = csproc.get_categories(data)
@@ -285,7 +285,7 @@ def test_interaction_computation(datafiles):
     test_dtype = np.uint8
 
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ch_data = rgio.load_map(ch_map_tif)['data']
+    ch_data = rgio.load_block(ch_map_tif)['data']
     categories = csproc.get_categories(ch_data)
     diameter = 1000  # 1km
     truncate = 3  # after 3 sigma
@@ -543,7 +543,7 @@ def test_import_export(datafiles):
                                        normed=True,
                                        img_filter=gaussian)
     outfile = datafiles / 'out.tif'
-    rgio.export_to_tif(
+    rgio._export_to_tif(
         destination=str(outfile),
         data=entropy_array,
         orig_profile=block['orig_profile'],
@@ -562,7 +562,7 @@ def test_convert_to_dtype_real_range_handling(datafiles):
     """Make sure datatypes are properly converted
     """
     ch_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ch_data = rgio.load_map(ch_tif)['data']
+    ch_data = rgio.load_block(ch_tif)['data']
     ch_range = np.nanmin(ch_data), np.nanmax(ch_data)
     print(ch_range)
 

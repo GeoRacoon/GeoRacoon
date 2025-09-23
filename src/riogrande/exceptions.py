@@ -3,7 +3,7 @@
 
 
 class BandSelectionAmbiguousError(Exception):
-    """If multiple bands match the provided tags
+    """Multiple bands match the provided tags
     """
     # is_needed
     # no_work
@@ -23,8 +23,7 @@ class BandSelectionNoMatchError(Exception):
 
 
 class SourceNotSavedError(Exception):
-    """This source cannot be found at the specified location.
-
+    """Source cannot be found at the specified location.
     Either the path is wrong or the related data is not (yet) saved to file.
     """
     # is_needed
@@ -35,7 +34,7 @@ class SourceNotSavedError(Exception):
 
 
 class UnknownExtensionError(Exception):
-    """Unclear how to handle a file with the given extension.
+    """Handeling of file with the given extension unclear.
     """
     # is_needed
     # no_work

@@ -95,13 +95,13 @@ def test_band_tagging(datafiles):
     with rio.open(outfile, 'r+') as src:
         # file wide tags
         # src.update_tags(ns=our_namespace, **gen_tag1)
-        rgio.set_tags(src=src, **gen_tag1)
+        rgio._set_tags(src=src, **gen_tag1)
         # src.update_tags(ns=our_namespace, **gen_tag2)
-        rgio.set_tags(src=src, **gen_tag2)
+        rgio._set_tags(src=src, **gen_tag2)
         # now we add tags per band
         for idx in src.indexes:
             # src.update_tags(ns=our_namespace, bidx=idx, **band_tags[idx])
-            rgio.set_tags(src=src, bidx=idx, **band_tags[idx])
+            rgio._set_tags(src=src, bidx=idx, **band_tags[idx])
     # read the tif
     # print('\nAnd now we read the tags again form the tif:')
     with rio.open(outfile, 'r') as src:
@@ -145,32 +145,32 @@ def test_tag_matching(datafiles):
     with rio.open(outfile1, 'r+') as src:
         # file wide tags
         # src.update_tags(ns=our_namespace, **gen_tag1)
-        rgio.set_tags(src=src, **gen_tag1)
+        rgio._set_tags(src=src, **gen_tag1)
         # now we add tags per band
         for idx in src.indexes:
             # src.update_tags(ns=our_namespace, bidx=idx, **band_tags[idx])
-            rgio.set_tags(src=src, bidx=idx, **band_tags[idx])
+            rgio._set_tags(src=src, bidx=idx, **band_tags[idx])
     # now to the second file
     band_tags[2]['category'] = 101  # change one category to not match
     with rio.open(outfile2, 'r+') as src:
         # file wide tags
-        rgio.set_tags(src=src, **gen_tag2)
+        rgio._set_tags(src=src, **gen_tag2)
         for idx in src.indexes:
             # src.update_tags(ns=our_namespace, bidx=idx, **band_tags[idx])
-            rgio.set_tags(src=src, bidx=idx, **band_tags[idx])
+            rgio._set_tags(src=src, bidx=idx, **band_tags[idx])
     # now we check the matching:
     with rio.open(outfile1, 'r') as src:
         # category matches to band 1:
         _bidx = 1
         _category = band_tags[_bidx]['category']
-        assert rgio.get_bidx(src=src,
+        assert rgio._get_bidx(src=src,
                              category=_category) == _bidx
         # category 222 does not exist
         with pytest.raises(BandSelectionNoMatchError):
-            rgio.get_bidx(src=src,
+            rgio._get_bidx(src=src,
                           category=222)
         with pytest.raises(BandSelectionAmbiguousError):
-            rgio.get_bidx(src=src, some='value')
+            rgio._get_bidx(src=src, some='value')
         # check that serialization works
         _bidx = 2
         _tag = 'extra'
@@ -178,7 +178,7 @@ def test_tag_matching(datafiles):
         _bla = _extra['bla']  # this is an int
         _blu = _extra['blu']  # this is a list
         # we read the serialized tags from the tif and convert them
-        tags = rgio.get_tags(src=src, bidx=_bidx)
+        tags = rgio._get_tags(src=src, bidx=_bidx)
         assert tags[_tag]['bla'] == _bla
         assert tags[_tag]['blu'] == _blu
     # now test the get_bands
@@ -230,18 +230,18 @@ def test_compression_tagging(datafiles):
         ds_tag='test'
     )
     for file in test_data:
-        orig_file_tagged = rgio.outfile_suffix(file, "orig_tagged")
+        orig_file_tagged = rgio.output_filename(file, "orig_tagged")
         # create file copy with tags
         target = {}
         with rio.open(file) as src:
             profile = src.profile
             with rio.open(orig_file_tagged, 'w', **profile) as dst:
-                rgio.set_tags(dst, **dataset_tags)
+                rgio._set_tags(dst, **dataset_tags)
                 for bidx in range(1, src.count + 1):
                     dst.write(src.read(bidx), bidx)
-                    rgio.set_tags(dst, bidx, category=np.random.randint(low=0, high=255))
-                    target[bidx] = rgio.get_tags(src=dst, bidx=bidx)
-        file_tagged = rgio.outfile_suffix(file, "tagged")
+                    rgio._set_tags(dst, bidx, category=np.random.randint(low=0, high=255))
+                    target[bidx] = rgio._get_tags(src=dst, bidx=bidx)
+        file_tagged = rgio.output_filename(file, "tagged")
         # uncompress it
         file_tagged = rgio.compress_tif(orig_file_tagged, compression=None)
 
@@ -249,9 +249,9 @@ def test_compression_tagging(datafiles):
         file_compress = rgio.compress_tif(file_tagged)
         test = {}
         with rio.open(file_compress) as src:
-            dataset_tags_copied = rgio.get_tags(src=src)
+            dataset_tags_copied = rgio._get_tags(src=src)
             for bidx in range(1, src.count + 1):
-                tags = rgio.get_tags(src=src, bidx=bidx)
+                tags = rgio._get_tags(src=src, bidx=bidx)
                 test[bidx] = tags
 
         assert dataset_tags_copied == dataset_tags

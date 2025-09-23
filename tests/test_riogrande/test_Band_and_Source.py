@@ -79,7 +79,7 @@ def test_Band_tagging(datafiles):
     }
     with rio.open(test_file, 'w+', **profile) as src:
         # setting a tag via rasterio directly
-        src.update_tags(1, ns='LANDIV', **b1_tags_0)
+        src.update_tags(1, ns='GEORACOON', **b1_tags_0)
     # create source objcet
     mysrc = Source(path=test_file)
     b1 = mysrc.get_band(bidx=1)

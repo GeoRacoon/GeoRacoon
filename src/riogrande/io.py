@@ -1,32 +1,30 @@
+"""Holds [...] as well as internal functions largely used for Source and Band Classes
+"""
+
 from __future__ import annotations
 
 import os
 import glob
+from typing import Any
 
 from math import floor
+from numpy.typing import NDArray
 
-import rasterio # TODO: choose either rio or rasterio as name
 import rasterio as rio
 from rasterio.io import DatasetWriter
 from rasterio.windows import Window
-from rasterio.mask import mask
 from rasterio.warp import (
     calculate_default_transform,
     reproject,
     Resampling,
 )
-
-from shapely.geometry import box as shbox
-
-from numpy.typing import NDArray
-
 from .exceptions import (
     BandSelectionNoMatchError,
     BandSelectionAmbiguousError,
 )
 from .helper import (
-    check_crs_raster,
-    outfile_suffix,
+    check_crs,
+    output_filename,
     serialize,
     deserialize,
     sanitize,
@@ -34,16 +32,13 @@ from .helper import (
     view_to_window,
 )
 
-
-# TODO: Adapt this to rioG (or similar)
-# this is our namespace for tags
-NS = 'LANDIV'
-
+NS = 'GEORACOON'
 
 # TODO: General Idea - maybe we can merge some of these into io_.py class structure - so we avoid having both.
 #  --> yet it is nice to have the function by themselves as well without direct need of class structures
 
-def set_tags(src, bidx:int|None=None, ns:str=NS, **tags):
+
+def _set_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS, **tags: Any) -> None:
     # is_needed
     # needs_work (should be made internal?)
     # is_tested
@@ -51,27 +46,9 @@ def set_tags(src, bidx:int|None=None, ns:str=NS, **tags):
 
     Since metadata in a tif file is stored as a string the value of each tag is
     serialized and converted to a string with `helper.serialize`.
-
-    ..Example::
-
-      Setting the tags
-
-      - 'category': 1
-      - foo: 'bar'
-
-      on band with index 2 in some opened tif file (`src`) is done with:
-
-      ```python
-      set_tags(src=src, bidx=2, category=1, foo='bar')
-      ```
-
-    ..Note::
-      A tag name must satisfy the python variable naming convention and
-      must be different from `src`, `bidx` and `ns` as these are reserved
-      for the arguments of this function.
-
-    ..Note::
-      Existing tags are either kept or updated
+    A tag name must satisfy the python variable naming convention and must be different from `src`,
+    `bidx` and `ns` as these are reserved for the arguments of this function.
+    Existing tags are either kept or updated.
 
     Parameters
     ----------
@@ -83,7 +60,6 @@ def set_tags(src, bidx:int|None=None, ns:str=NS, **tags):
       dataset.
     ns:
       The namespace to set the tags in.
-      
       ..Note::
         It is dicouraged to change this value from the default as all tagging
         related methods of this package use the same default namespace.
@@ -91,40 +67,58 @@ def set_tags(src, bidx:int|None=None, ns:str=NS, **tags):
       Arbitrary number of keyword arguments that will be set as tags.
       The value provided is converted to a string with `helper.serialize`
       before the tag is written to the file.
-    """
 
+    Examples
+    ----------
+      Setting the tags
+
+      - 'category': 1
+      - foo: 'bar'
+
+      on band with index 2 in some opened tif file (`src`) is done with:
+
+      ```python
+      set_tags(src=src, bidx=2, category=1, foo='bar')
+      ```
+    """
     if bidx is None:
         bidx = 0
-    # serialize the tag values:
     serialized_tags = serialize(tags)
     src.update_tags(ns=ns, bidx=bidx, **serialized_tags)
 
-def get_tags(src, bidx:int|None=None, ns:str=NS):
-        # is_needed
-        # needs_work (should be internal)
-        # is_tested
-        """Get all the tags and deserialize the values
 
-        Parameters
-        ----------
-        src:
-          `tif` file openend with `rasterio.open`
-        bidx:
-          Index of the band to get tags from (starting from 1 as is the convention
-          in rasterio). If set to `None` then the tags for the entire dataset are
-          returned.
-        ns:
-          The namespace to get the tags from.
-          
-          ..Note::
-            It is dicouraged to change this value from the default as all tagging
-            related methods of this package use the same default namespace.
-        """
-        if bidx is None:
-            bidx = 0  # get the tags for the files metadata
-        return deserialize(src.tags(bidx=bidx, ns=ns))
+def _get_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS) -> dict[str, Any]:
+    # is_needed
+    # needs_work (should be internal)
+    # is_tested
+    """Get all the tags and deserialize the values
 
-def find_bidxs(src, ns:str=NS, **tags):
+    Parameters
+    ----------
+    src:
+      `tif` file openend with `rasterio.open`
+    bidx:
+      Index of the band to get tags from (starting from 1 as is the convention
+      in rasterio). If set to `None` then the tags for the entire dataset are
+      returned.
+    ns:
+      The namespace to get the tags from.
+
+      ..Note::
+        It is dicouraged to change this value from the default as all tagging
+        related methods of this package use the same default namespace.
+
+    Returns
+    ----------
+    dict
+        Tags from queried band are returned in a dictionary form.
+    """
+    if bidx is None:
+        bidx = 0  # get the tags for the files metadata
+    return deserialize(src.tags(bidx=bidx, ns=ns))
+
+
+def _find_bidxs(src: DatasetWriter, ns: str = NS, **tags: Any) -> list[int]:
     # is_needed
     # neews_work (should be internal)
     # not_tested
@@ -143,69 +137,35 @@ def find_bidxs(src, ns:str=NS, **tags):
     **tags:
       Arbitrary number of keyword arguments that will be compared to the tags
       of the bands in the dataset.
-    """
 
-    _tags = sanitize(tags) 
+    Returns
+    ----------
+    list[int]
+        List of all indexes (integer) for bands where tags match.
+    """
+    _tags = sanitize(tags)
     matching_bidxs = []
     for bidx in src.indexes:
-        b_tags = get_tags(src=src, bidx=bidx, ns=ns)
+        b_tags = _get_tags(src=src, bidx=bidx, ns=ns)
         if match_all(targets=_tags, tags=b_tags):
             matching_bidxs.append(bidx)
     return matching_bidxs
 
-def get_bidx(src, ns:str=NS, **tags)->None|int:
+
+def _get_bidx(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
+    # TODO: actually I feel we should rename this function, as it is more than the io_.py get_bidx.
+    #       Here we are actually matching by tags.
     # is_needed
     # needs_work
     # not_tested (used in tests)
     """Get the index of the band with matching tags
 
-    ..Note::
-      This function returns (if any) only a single band index!
-
-      If you want to get potentially multiple bands that match
-      the criterion use the `get_bands` method instead.
-
-      An exception is when passing `indexes=None`, in which case
-      all bands are returned.
-
     You can specify an arbitrary number of tags by passing keyword arguments
-    to this selector.
-    Make sure that the provided tags identify one and only one specific band.
-    Multiple matching bands lead to a `BandSelectionAmbiguousError`.
-
-    If no band with matching tags if found a
-    `BandSelectionNoMatchError` is raised.
-
-
+    to this selector. Make sure that the provided tags identify one and only one specific band,
+    as only a single band index is returned. If no band with matching tags is found,
+    or if multiple matching bands are found a `BandSelectionNoMatchError` is raised.
+    To return potentially multiple bands matching, use the `get_bands` method instead.
     If no tags are provided then the index of the first band is returned.
-
-    ..Note::
-      If `indexes` is provided then all other tags are ignored and
-      the indexes are directly passed as band indexes to rasterio
-
-    ..Example::
-
-      Get the band with the tags
-
-      - 'category': 1
-      - foo: 'bar'
-
-      ```python
-      bidx = get_bidx(src=src, category=1, foo='bar')
-      ```
-
-    ..Note::
-      The values of the provided tags are first serialized and then
-      deserialized again with `helper.serialize`, resp. `helper.deserialize`,
-      before comparing to the tags from the provided file.
-
-      The reason for this procedure is the fact that the values of tags are
-      converted to and stored as strings in the tif metadata.
-      Serializing the values with `helper.serialize` allows us to know how
-      arbitrary python objects are converted.
-      As a consequence, we serialize/deserialize the values of the provided
-      tags to bring them into the form they will we when loading them from
-      the tif.
 
     Parameters
     ----------
@@ -213,21 +173,45 @@ def get_bidx(src, ns:str=NS, **tags)->None|int:
       `tif` file openend with `rasterio.open`
     ns:
       The namespace to set the tags in.
-
-      ..Note::
-        It is dicouraged to change this value from the default as all tagging
-        related methods of this package use the same default namespace.
+      It is dicouraged to change this value from the default as all tagging
+      related methods of this package use the same default namespace.
     **tags:
       Arbitrary number of keyword arguments that will be compared to the tags
-      of the bands in the dataset.
-    """
+      of the bands in the dataset. If `indexes` is provided as tag key then all other tags are ignored and
+      the indexes are directly passed as band indexes to rasterio
 
+    Returns
+    ----------
+    int | None
+        Band index (integer) of band matching provided tags. If no match was found None is returned.
+
+    Notes
+    ----------
+    The values of the provided tags are first serialized and then
+    deserialized again with `helper.serialize`, resp. `helper.deserialize`,
+    before comparing to the tags from the provided file.
+
+    The reason for this procedure is the fact that the values of tags are
+    converted to and stored as strings in the tif metadata.
+    Serializing the values with `helper.serialize` allows us to know how
+    arbitrary python objects are converted.
+    As a consequence, we serialize/deserialize the values of the provided
+    tags to bring them into the form they will we when loading them from
+    the tif.
+
+    Examples
+    ----------
+    Get the band with the tags
+
+    - 'category': 1
+    - foo: 'bar'
+    >>> bidx = _get_bidx(src=src, foo='bar', category=1)
+    """
     if 'indexes' in tags or not tags:
         bidx = tags.get('indexes', 1)  # return 1 if nothing is provided
     else:
-        # serialize/deserialize tags
-        _tags = sanitize(tags) 
-        matching_bidxs = find_bidxs(src=src, ns=ns, **_tags)
+        _tags = sanitize(tags)
+        matching_bidxs = _find_bidxs(src=src, ns=ns, **_tags)
         matches = len(matching_bidxs)
         if matches > 1:
             raise BandSelectionAmbiguousError(
@@ -240,7 +224,8 @@ def get_bidx(src, ns:str=NS, **tags)->None|int:
         bidx = matching_bidxs[0]
     return bidx
 
-def get_bands(source:str, ns:str=NS, **tags)->list[tuple[str,int]]:
+
+def get_bands(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, int]]:
     # is_needed
     # needs_work
     # not_tested (used in tests)
@@ -265,24 +250,25 @@ def get_bands(source:str, ns:str=NS, **tags)->list[tuple[str,int]]:
       A string that is fed to `glob.glob` leading to (potentially) multiple
       source files that will be checked
     ns:
-      The namespace to search the tags in.
-
-      ..Note::
-        It is dicouraged to change this value from the default as all tagging
-        related methods of this package use the same default namespace.
+      The namespace to search the tags in. It is dicouraged to change this value from the default as all tagging
+    related methods of this package use the same default namespace.
 
     **tags:
       Arbitrary number of keyword arguments that will be compared to the tags
       of each tif file
-    """
 
+    Returns
+    ----------
+    list
+        List of tuples with source (path) and bandindex entries in tuples.
+    """
     _tags = sanitize(tags)
     _sources = glob.glob(source)
     matches = []
     for source in _sources:
-        with rasterio.open(source, "r") as src:
-            ds_tags = get_tags(src=src, bidx=None, ns=ns)
-            bidxs = find_bidxs(src=src, ns=ns, **_tags)
+        with rio.open(source, "r") as src:
+            ds_tags = _get_tags(src=src, bidx=None, ns=ns)
+            bidxs = _find_bidxs(src=src, ns=ns, **_tags)
             if match_all(targets=_tags, tags=ds_tags):
                 bidxs.append(None)  # use bidx None to indicate tags of the file
         for bidx in bidxs:
@@ -290,26 +276,8 @@ def get_bands(source:str, ns:str=NS, **tags)->list[tuple[str,int]]:
     return matches
 
 
-def load_map(source:str, **tags)->dict:
-    # is_needed (this is only used in tests)
-    # needs_work (replace usage with `load_block` and get rid of it)
-    # not_tested (used in tests)
-    """Load a specific band from a tif file
-
-    See `load_block` for details
-
-    Returns
-    -------
-    dict:
-       Returns the callback of
-       `load_block(source=source, view=None, scaling_params=None, **tags)`
-    """
-    return load_block(source=source, view=None, scaling_params=None, **tags)
-
-def load_block(source:str,
-               view:None|tuple[int,int,int,int]=None,
-               scaling_params:dict|None=None,
-               **tags)->dict:
+def load_block(source: str, view: None | tuple[int, int, int, int] = None, scaling_params: dict | None = None,
+               **tags: Any) -> dict[str, Any]:
     # is_needed
     # needs_work
     # is_tested
@@ -320,11 +288,10 @@ def load_block(source:str,
 
     Parameters
     ----------
-    source: str
+    source:
       The path to the tif file to load
     view:
       An optional tuple (x, y, width, height) defining the area to load.
-
       If `None` is provided (the default) then the entire file is loaded.
 
     scaling_params:
@@ -339,24 +306,23 @@ def load_block(source:str,
 
     **tags:
       Arbitrary number of keyword arguments to describe the band to select.
-
       See `get_bidx` for further details
 
     Returns
     -------
-    dict:
+    dict
        data: holding a numpy array with the actual data
        transform: an ???.Affine object that encodes the transformation used
        orig_meta: The meta information of the original .tif file
        orig_profile: The profile information of the original .tif file
     """
-    window=view_to_window(view)
-    with rasterio.open(source) as img:
+    window = view_to_window(view)
+    with rio.open(source) as img:
         # TODO: rasterio Window allows using slices. In doing so we could
         #       harmonize what we call blocks and views and just work with
         #       slices.
 
-        bidx = get_bidx(src=img, **tags)
+        bidx = _get_bidx(src=img, **tags)
         if window is not None:
             transform = img.window_transform(window)
             width = window.width
@@ -394,50 +360,50 @@ def load_block(source:str,
             'orig_profile': img.profile.copy()
         }
 
-def write_band(src:DatasetWriter,
-               data:NDArray,
-               bidx:int=1,
-               window:Window|None=None,
-               **tags):
+
+def write_band(src: DatasetWriter, data: NDArray, bidx: int = 1, window: Window | None = None,
+               **tags: Any) -> None:
     # is_needed
     # needs_work
     # not_tested
     """Write data to a specific band of a tif file and set the tags
 
-
     Parameters
     ----------
     src:
-      An opened file to write into
+        `tif` file openend with `rasterio.open`
     data:
-      The array to write into the file
+        The array to write into the file
+    bidx:
+        Band index to write into the file
     window:
-      An optional window to specify an area to write
+        An optional window to specify an area to write
     **tags:
       Arbitrary number of keyword arguments that will be set as tags.
       The value provided is converted to a string with `helper.serialize`
       before the tag is written to the file.
+
+    Returns
+    -------
+    None
     """
     src.write(data, indexes=bidx, window=window)
-    set_tags(src, bidx=bidx, **tags)
+    _set_tags(src, bidx=bidx, **tags)
 
-def update_band(src:DatasetWriter,
-                data:NDArray,
-                window:Window|None=None,
-                **tags):
+
+def update_band(src: DatasetWriter, data: NDArray, window: Window | None = None, **tags: Any) -> None:
     # not_needed (could be useful though)
     # no_work
     # not_tested
     """Find a specific band and update it with data
 
-    ..Note::
-      If no band with the matching tags is found a
-      `BandSelectionNoMatchError` is raised.
+    This function writes a data array in a band specified with tags.
+    If no band with the matching tags is found a `BandSelectionNoMatchError` is raised.
 
     Parameters
     ----------
     src:
-      An opened file to write into
+      `tif` file openend with `rasterio.open`
     data:
       The array to write into the file
     window:
@@ -445,9 +411,13 @@ def update_band(src:DatasetWriter,
     **tags:
       Arbitrary number of keyword arguments that will be used to find
       the band to write into
+
+    Returns
+    --------
+    None
     """
     try:
-        bidx = get_bidx(src=src, **tags)
+        bidx = _get_bidx(src=src, **tags)
     except BandSelectionNoMatchError as e:
         raise BandSelectionNoMatchError(
             "There was no band with matching tags. "
@@ -458,33 +428,35 @@ def update_band(src:DatasetWriter,
     else:
         src.write(data, indexes=bidx, window=window)
 
-def export_to_tif(destination:str,
-                  data:NDArray,
-                  orig_profile:dict,
-                  start=(0, 0),
-                  **pparams):
+
+def _export_to_tif(destination: str, data: NDArray, orig_profile: dict, start=(0, 0), **pparams: Any) -> None:
+    # TODO: at the moment I think we should either (a) delet it , or (b) make it a usuefull function with a lot of
+    #  default parametes (but it is neither easy to use with argparse (due to the params needed) nor within functions
     # not_needed (could be useful though)
     # no_work
     # not_tested
     """Export a np.array to tif, only updating a window if data is smaller
 
-    .. note::
-      This function will overwrite the dtype of the destination tif with the
-      value provided in `pparams` or the data type of `data`.
+    This function will overwrite the dtype of the destination tif with the
+    value provided in `pparams` or the data type of `data`.
 
     Parameters
     ----------
-    destination: str
+    destination:
         location to export save the .tif file
-    data: np.array
+    data:
         The map to export
-    start: tuple
+    start:
       horizontal and vertical starting coordinate
-    orig_profile: dict
+    orig_profile:
         the profile of the original map
         (see https://rasterio.readthedocs.io/en/stable/topics/profiles.html)
     **pparams:
         further parameter to be added to the profile
+
+    Returns
+    --------
+    None
     """
     profile = orig_profile.copy()
     # Note: we no longer update the size automatically as for Windows this is
@@ -497,122 +469,12 @@ def export_to_tif(destination:str,
     profile.update(pparams)
     # write it:
     size = data.shape[::-1]  # since positions are inverted in numpy
-    with rasterio.open(destination, "w", **profile) as dest:
+    with rio.open(destination, "w", **profile) as dest:
         dest.write(data, window=Window(*start, *size), indexes=1)
 
-def project_to(source, reference, output=None, nodata=None)->str | None:
-    # not_needed (used in examples)
-    # no_work
-    # not_tested
-    """Re-projects the source map into the coordinate system of a reference map
 
-    Parameters
-    ----------
-    source: str
-      The path to the tif file you want to change projection
-    reference: str
-      The path to the tif file with the projection to apply
-    output: str (optional)
-      The path to write the re-projected map to.
-    nodata: float, int (optional)
-      The `nodata` value to set for the output (e.g. np.nan or integer)
-
-    ..note::
-       If not provided, the output file will take the name of the input file
-       and add the CRS of the new projection at the end of the name.
-
-    Returns
-    -------
-    str:
-      The name of the file that hold the re-projected map
-    """
-    with rio.open(reference) as ref:
-        dst_crs = str(ref.profile['crs'])
-    with rio.open(source) as src:
-        src_crs = str(src.crs)
-        if src_crs == dst_crs:
-            print(f"There is nothing to project! {src_crs=} to {dst_crs=}")
-            return None
-
-        (transform, width, height) = calculate_default_transform(
-            src.crs,
-            dst_crs,
-            src.width,
-            src.height,
-            *src.bounds
-        )
-        kwargs = src.meta.copy()
-        # prepare the resulting profile
-        kwargs.update({
-          'crs': dst_crs,
-          'transform': transform,
-          'width': width,
-          'height': height
-        })
-        if nodata is not None:
-            kwargs['nodata'] = nodata
-
-        if output is None:
-            _base_name, _ext = os.path.splitext(source)
-            output = f"{_base_name}_{dst_crs}{_ext}"
-        with rio.open(output, 'w', **kwargs) as dst:
-            for bidx in src.indexes:
-                reproject(
-                    source=rio.band(src, bidx),
-                    destination=rio.band(dst, bidx),
-                    src_transform=src.transform,
-                    src_crs=src.crs,
-                    dst_transform=transform,
-                    dst_crs=dst_crs,
-                    resampling=Resampling.nearest
-                )
-        return output
-
-def clip_to_bounds(source, reference, output=None):
-    # not_needed (used in example only)
-    # no_work
-    # not_tested
-    """Clip raster to bounding box of reference raster
-
-    Parameters
-    ----------
-    source: str
-      The path to the tif file you want to clip
-    reference: str
-      The path to the tif file with the extent to use as clipping bounding box
-    output: str (optional)
-      The path to write the bounding box clipped map to
-
-    Returns
-    -------
-    str:
-      The name of the file that holds clipped map
-    """
-    if not check_crs_raster(source, reference):
-        raise ValueError("Cannot clip by BBOX - projections are not the same.")
-
-    if output is None:
-        output = outfile_suffix(source, "bounds")
-
-    with rasterio.open(reference) as ref:
-        bounds = ref.bounds
-        bbox_geom = shbox(*bounds)
-
-    with rasterio.open(source) as src:
-        out_image, out_transform = mask(src, [bbox_geom], crop=True)
-
-        out_meta = src.meta.copy()
-        out_meta.update({
-            "height": out_image.shape[1],
-            "width": out_image.shape[2],
-            "transform": out_transform
-        })
-
-    with rasterio.open(output, 'w', **out_meta) as dst:
-        dst.write(out_image)
-    return output
-
-def _coregister_raster(source, reference, output=None):
+def _coregister_raster(source: str, reference: str, output: str | None = None) -> str:
+    # TODO: this is actually not so bad, as it is quite usefull for geographic operations
     # is_needed (in tests only)
     # needs_work (format doc)
     # not_tested
@@ -622,11 +484,11 @@ def _coregister_raster(source, reference, output=None):
 
     Parameters
     ----------
-    source: str
+    source:
       The path to the tif file you want to co-register
-    reference: str
+    reference:
       The path to the tif file with the pixel registration to use as reference for co-registration
-    output: str (optional)
+    output:
       The path to write the co-registered map to
 
     Returns
@@ -634,27 +496,20 @@ def _coregister_raster(source, reference, output=None):
     str:
       The name of the file that holds co-registered map
     """
-
-    if not check_crs_raster(source, reference):
-        raise ValueError("Cannot co-register sources - projections are not the same.")
+    check_crs(source, reference)
 
     if output is None:
-        output = outfile_suffix(source, "coreg")
+        output = output_filename(source, out_type="coreg")
 
-    with rasterio.open(source) as src:
+    with rio.open(source) as src:
         src_transform = src.transform
         src_nodata = src.nodata
 
-        with rasterio.open(reference) as refsrc:
+        with rio.open(reference) as refsrc:
             dst_crs = refsrc.crs
-
             (dst_transform,
              dst_width,
-             dst_height) = calculate_default_transform(src.crs,
-                                                       dst_crs,
-                                                       refsrc.width,
-                                                       refsrc.height,
-                                                       *refsrc.bounds)
+             dst_height) = calculate_default_transform(src.crs, dst_crs, refsrc.width, refsrc.height, *refsrc.bounds)
 
         dst_kwargs = src.meta.copy()
         dst_kwargs.update({"crs": dst_crs,
@@ -663,11 +518,11 @@ def _coregister_raster(source, reference, output=None):
                            "height": dst_height,
                            "nodata": src_nodata})
 
-        with rasterio.open(output, "w", **dst_kwargs) as dst:
+        with rio.open(output, "w", **dst_kwargs) as dst:
             for bidx in src.indexes:
                 reproject(
-                    source=rasterio.band(src, bidx),
-                    destination=rasterio.band(dst, bidx),
+                    source=rio.band(src, bidx),
+                    destination=rio.band(dst, bidx),
                     src_transform=src_transform,
                     src_crs=src.crs,
                     dst_transform=dst_transform,
@@ -675,41 +530,11 @@ def _coregister_raster(source, reference, output=None):
                     resampling=Resampling.nearest)
     return output
 
-def buffer_geometries_metric(geom_geoseries, buffer_meter, source_crs):
-    # is_needed (internal only)
-    # needs_work (docs)
-    # not_tested
-    """ Applies a buffer to the geometries in GeoSeries given.
 
-    ..Note: This function re-projects the GeoSeries to the respective UTM zone in order to use metric buffer and best
-    distance calculations. Further empty geometries are dropped before handing back the results.
-
-    Parameters
-    ----------
-    geom_geoseries: GeoPandas GeoSeries
-      The geoseries holding the polygons to perform the buffer on
-    buffer_meter: float, int
-      The buffer in meters to apply to the ecoregion polygon before clipping.
-      Needs to be negative for reducing the polygon e.g. -1000
-    source_crs:
-      The coordinate system of the inptu GeoSeries (taken from GeoDataframe before by user) to project to after buffer.
-
-    Returns
-    -------
-    GeoSeries object:
-      The buffered GeoSeries object
-    """
-    geom_utm = geom_geoseries.to_crs(geom_geoseries.estimate_utm_crs())
-    geom_buff = geom_utm.buffer(buffer_meter,
-                                resolution=10, cap_style='round', join_style='round')
-    geom_buff = geom_buff[geom_buff.area > 0]
-    return geom_buff.to_crs(source_crs)
-
-def compress_tif(source, output:str|None=None, compression:str|None='lzw'):
+def compress_tif(source, output: str | None = None, compression: str | None = 'lzw') -> str:
     # is_needed
     # needs_work (docs)
     # is_tested
-    # TODO: once this goes, we may also remove the outfile_suffix I believe (but double-check)
     """Compress tif file with LZW compression
 
     Parameters
@@ -721,10 +546,13 @@ def compress_tif(source, output:str|None=None, compression:str|None='lzw'):
       If not set, the resulting file will inherit the filename from `source` and get
       a `_compress` appended to the filename.
       If compression is `'none'`, i.e. no compression the appendix will be '_decompressed'
+    compression:
+        Type of compression to use, default is LZW. See GDAL documentation for details
+         https://gdal.org/en/stable/drivers/raster/gtiff.html
 
     Returns
     -------
-    str:
+    str
       The name of the compressed file
     """
     if compression is None:
@@ -732,26 +560,26 @@ def compress_tif(source, output:str|None=None, compression:str|None='lzw'):
     overwrite = False
     if output is None:
         if compression != 'none':
-            output = outfile_suffix(source, "compress")
+            output = output_filename(source, "compress")
         else:
-            output = outfile_suffix(source, "decompressed")
+            output = output_filename(source, "decompressed")
     elif output == source:
         overwrite = True
-        output = outfile_suffix(source, 'tmp')
+        output = output_filename(source, 'tmp')
 
-    with rasterio.Env():
-        with rasterio.open(source) as src:
+    with rio.Env():
+        with rio.open(source) as src:
             profile = src.profile
             profile.update(compress=compression)
 
-            with rasterio.open(output, 'w', **profile) as dst:
-                set_tags(src=dst, bidx=None, **get_tags(src=src, bidx=None))
+            with rio.open(output, 'w', **profile) as dst:
+                _set_tags(src=dst, bidx=None, **_get_tags(src=src, bidx=None))
                 for i in range(1, src.count + 1):
                     for ji, window in src.block_windows(i):
                         array = src.read(i, window=window)
                         dst.write(array, i, window=window)
-                    tags = get_tags(src, bidx=i)
-                    set_tags(dst, bidx=i, **tags)
+                    tags = _get_tags(src, bidx=i)
+                    _set_tags(dst, bidx=i, **tags)
                     band_names = src.descriptions[(i - 1)]
                     dst.set_band_description(i, band_names)
     if overwrite:

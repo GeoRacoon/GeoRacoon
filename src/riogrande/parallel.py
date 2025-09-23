@@ -1,14 +1,10 @@
 """
-This module contains various helper functions to parallelize the application
-of filters on a tif
-
+This module contains various helper functions to parallelize
 """
-# is_needed
-# needs_work (the module is too big!)
-# not_tested (partially)
-# usedin_both (should be split up!)
+
 from __future__ import annotations
 
+import warnings
 from typing import Any
 from copy import copy
 from collections.abc import Callable, Collection
@@ -18,22 +14,22 @@ import numpy as np
 
 from numpy.typing import NDArray
 
-
 from .io_ import Source, Band
 from .helper import (view_to_window,
-                      reduced_mask,
-                      aggregated_selector,
-                      get_or_set_context,
-                      get_nbr_workers, )
+                     reduced_mask,
+                     aggregated_selector,
+                     get_or_set_context,
+                     get_nbr_workers, )
 from .prepare import create_views, update_view
 from .timing import TimedTask
 
 
-def combine_views(output_params: dict,
-                  job_out_q: Queue):
+def combine_views(output_params: dict, job_out_q: Queue):
     # not_needed (could become a general combiner method - remove for now)
     # needs_work (docs)
     # not_tested
+    # TODO: I would keep this (it is used actually rn)
+    #       We may think about actually formulating this more broadly so we can use it in convster
     """Listens to a queue and writes provided view into a file
     """
     # usedin_both (potentially
@@ -44,16 +40,15 @@ def combine_views(output_params: dict,
         out_band = output_params.pop('band')
         out_tag = output_params.pop('tags')
         verbose = output_params.get('verbose', False)
+
         if out_band is None:
             out_band = Band(source=Source(path=output_file),
                             bidx=1,
-                            tags=out_tag) # create the file
+                            tags=out_tag)  # create the file
         out_band.init_source(profile=profile)
-        # write out the tags
         out_band.export_tags()
-        with out_band.data_writer(mode='r+') as write:
+        with out_band.data_writer(mode='r+') as write:  # write until done, i.e. receiving no more jobs - kill
             while True:
-                # get the next output from a block job
                 output = job_out_q.get()
                 signal = output.get('signal', None)
                 if signal:
@@ -93,35 +88,25 @@ def data_writer(writer: Callable, writer_params: dict, aggr_q: Queue) -> TimedTa
     -------
     TimedTask:
         Can report the duration of the task
-
     """
     with TimedTask() as timer:
         with writer(**writer_params) as write:
             while True:
-                # load the entropy_q
                 job_out = aggr_q.get()
                 signal = job_out.get('signal', None)
                 if signal:
                     if signal == "kill":
-                        # print(f"\n\nTerminating data writer.\n\n")
                         break
                 data = job_out.pop('data')
                 view = copy(job_out.pop('view'))
                 w = view_to_window(view)
-                # 
                 write(data, window=w)
-                # print(f"Wrote out block {view=}")
                 timer.new_lab()
     return timer
 
-def process_block(task: Callable,
-                  source: str | Source,
-                  bands: Collection[Band] | None,
-                  view: tuple[int, int, int, int],
-                  task_params: dict,
-                  read_params: dict,
-                  open_params: dict,
-                  out_q: Queue) -> TimedTask:
+
+def process_block(task: Callable, source: str | Source, bands: Collection[Band] | None, view: tuple[int, int, int, int],
+                  task_params: dict, read_params: dict, open_params: dict, out_q: Queue) -> TimedTask:
     # is_needed (internally only)
     # needs_work (check if this can be used as general purpose in all paralellizations)
     # not_tested (should be)
@@ -151,7 +136,6 @@ def process_block(task: Callable,
         Keyword arguments that are passed to the reader method of the `source` object
     out_q: 
         The queue this job will put the output of the callable `task` into
-        
 
     Returns
     -------
@@ -162,8 +146,10 @@ def process_block(task: Callable,
         if not isinstance(source, Source):
             source = Source(path=source)
         if bands is None:
-            # print('No specific bands selected, using all')
             bands = source.get_bands()
+            warnings.warn(
+                "No specific bands selected, using all"
+            )
         assert all(band.source == source for band in bands), "Not all bands point to the correct source!"
         window = view_to_window(view)
         with source.data_reader(bands=bands, **open_params) as read:
@@ -176,15 +162,9 @@ def process_block(task: Callable,
     return timer
 
 
-def process_masks(task: Callable,
-                  bands: Collection[Band],
-                  view: tuple[int, int, int, int],
-                  task_params: dict,
-                  read_params: dict,
-                  open_params: dict,
-                  aggr_q: Queue,
-                  extra_masking_band:Band|None=None,
-                  ) -> TimedTask:
+def process_masks(task: Callable, bands: Collection[Band], view: tuple[int, int, int, int],
+                  task_params: dict, read_params: dict, open_params: dict, aggr_q: Queue,
+                  extra_masking_band: Band | None = None) -> TimedTask:
     # is_needed (internally only)
     # needs_work (make internal)
     # not_tested
@@ -219,7 +199,7 @@ def process_masks(task: Callable,
 
     Returns
     -------
-    TimedTask:
+    TimedTask
         Can report the duration of the task
     """
     window = view_to_window(view)
@@ -243,19 +223,32 @@ def process_masks(task: Callable,
     return timer
 
 
-def runner_call(queue: Queue[Any],
-                callback: Callable,
-                params: dict,
-                wrapper: Callable | None = None):
+def runner_call(queue: Queue[Any], callback: Callable, params: dict, wrapper: Callable | None = None) -> dict:
     # is_needed (internally only)
-    # needs_work (better docs; make internal; check if can be used for generalization)
+    # needs_work (better docs; make internal; check if it can be used for generalization)
     # not_tested (used in tests)
     """Put the results of callback using parameter into the queue
 
-    If provided `wrapper(callback(**params))` is put into the queue.
+    The function calls ``callback(**params)``, and optionally passes the result
+    through a wrapper function if provided.
 
+    Parameters
+    ----------
+    queue :
+        A queue into which the result (wrapped or unwrapped) will be placed.
+    callback :
+        A callable object (function or method) to be executed.
+    params :
+        A dictionary of keyword arguments passed to the callback.
+    wrapper :
+        A function applied to the callback result before it is placed into the
+        queue. If ``None``, the raw result is placed into the queue.
+
+    Returns
+    -------
+    dict
+        The unwrapped output.
     """
-
     output = callback(**params)
     if wrapper is not None:
         queue.put(wrapper(output))
@@ -264,82 +257,78 @@ def runner_call(queue: Queue[Any],
     return output
 
 
-def compute_mask(source: str | Source,
-                 block_size: tuple[int, int],
-                 nodata=0,
-                 logic: str = 'all',
-                 bands: list[Band] | None = None,
-                 verbose: bool = False,
-                 **params):
+def compute_mask(source: str | Source, block_size: tuple[int, int], nodata=0, logic: str = 'all',
+                 bands: list[Band] | None = None, verbose: bool = False, **params) -> None:
     # is_needed
     # needs_work (docs)
     # not_tested (used in various tests)
-    """Compute the mask of a dataset in parallel and write it it out to the file
+    """Compute the mask of a dataset in parallel and write it out to the file
+
+    This function is checking validiaty against the nodata rule across all bands, provided the
+    selected logic.
 
     Parameters
     ----------
     source : str
-        Path to the land cover type tif file
+        Path to the tif file
+    block_size: tuple of int
+        Size (width, height) in #pixel of the block that a single job processes
     nodata:
         Supply nodata value to use for mask computation
     logic:
         Either a string or a callable.
         Allowed strings are:
-        - `"any"`: Masekd will be each cell for which any of the bands matches the nodata value
-        - `"all"`: Masked will be each cell for which all of the bands match the nodata value
 
+        - ``"any"`` : Mask each cell where *any* of the bands matches the nodata value.
+        - ``"all"`` : Mask each cell where *all* of the bands match the nodata value.
+
+        # TODO: delete this note?
         .. note::
-
             We might, at some point in the future, allow callables here.
-
             If a callable is provided it takes the data of a window (3D array if multiple
             bands are present, 2D otherwise) and must return a 2D array of
             np.uint8 with 0 for invalid pixels and any value > 0 for valid ones
-
-    block_size: tuple of int
-        Size (width, height) in #pixel of the block that a single job processes
     bands:
-        An optional selection of bands to use. If not provided all bands are
-        used.
+        An optional selection of bands to use. If not provided all bands are used.
     verbose:
         Print out processing step infos
     **params:
         Optional arguments for the multiprocessing:
 
-        nbrcpu: int
-          The number of cpu's to use. If not set then then the available number
-          of threads -1 are used.
-        start_method: str
-          Starting method for multiprocessing jobs
-    
+        - ``nbrcpu`` : int
+          Number of CPUs to use. If not set, the available number of threads
+          minus one is used.
+        - ``start_method`` : str
+          Starting method for multiprocessing jobs.
+
+    Returns
+    -------
+    None
     """
     print(f'compute_mask - {source=}')
     if isinstance(source, str):
         source = Source(path=source)
-    # make sure the profile is up to date
-    source.import_profile()
 
+    source.import_profile()
     width = source.profile.get('width')
     height = source.profile.get('height')
 
     if bands is None:
         bands = source.get_bands()
     else:
-        # make sure the profile is up to date for Bands (if not taken from source but provided as parameter)
         for band in bands:
             band.source.import_profile()
 
     # set the per-block parameter
     _, inner_views = create_views(view_size=block_size,
                                   border=(0, 0),
-                                  size=(width, height))
-
+                                  size=(width, height)
+                                  )
     block_params = []
     for view in inner_views:
         task_params = dict(
             nodata=nodata,
             logic=logic,
-            #  inner_view=inner_view,
         )
         read_params = dict()
         open_params = dict(mode='r', )
@@ -351,25 +340,22 @@ def compute_mask(source: str | Source,
                        open_params=open_params,
                        read_params=read_params,
                        )
-        # inner_view=inner_view,
         block_params.append(bparams)
 
-    # ###
     # prepare multiprocessing
-    # ###
     manager = Manager()
     aggr_q = manager.Queue()
     start_method = params.get('start_method', None)
-    # get number of workers
     nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
     if verbose:
         print(f"using {nbr_workers=}")
+
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
         # start the aggregator task
-        aggr_params = dict(mode='r+')  # nothing else to pass
+        aggr_params = dict(mode='r+')
         aggregator_job = pool.apply_async(
-            func=data_writer,  # the callable
-            kwds=dict(  # its arguments:
+            func=data_writer,   # TODO: this is the only use of the data_writer function I believ
+            kwds=dict(
                 writer=source.mask_writer,
                 writer_params=aggr_params,
                 aggr_q=aggr_q,
@@ -385,13 +371,10 @@ def compute_mask(source: str | Source,
         # collect results
         job_timers = []
         for job in block_jobs:
-            # await for the jobs to return (i.e. complete) by calling .get
-            # get the duration from the timer object that is returned by .get()
             job_timers.append(job.get().get_duration())
 
         aggr_q.put(dict(signal='kill'))
         pool.close()
-        # wait for the *_combiner tasks to finish
         pool.join()
         total_duration = aggregator_job.get().get_duration()
 
@@ -400,18 +383,18 @@ def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
     # is_needed (internally only)
     # needs_work (docs; make internal)
     # not_tested
-    """Filling up a matrix
+    """Fill a matrix with data received through a queue.
 
     Parameters
     ----------
-    matrix:
-      ...
+    matrix :
+        The matrix to fill with data.
     aggr_q:
-        The queue this job listens to.
-        Each element in the queue must be a `dict` containing either:
-        - "view" + "data" specifying where to write what
-        - "signal" with value:
-          - "kill": will terminate the process and return the filled matrix
+        The queue this job listens to. Each element in the queue must be a
+        `dict` containing either:
+
+        - ``{"view": ..., "data": ...}`` specifying where to write what.
+        - ``{"signal": "kill"}`` to terminate the process and return the filled matrix.
 
     Returns
     -------
@@ -425,7 +408,6 @@ def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
             signal = output.get('signal', None)
             if signal:
                 if signal == "kill":
-                    # print(f"\n\nDone with the matrix aggregation.\n\n")
                     break
             view = output.pop('view')
             block_data = output.pop('data')
@@ -434,16 +416,16 @@ def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
     return matrix, (timer,)
 
 
-def prepare_selector(*bands: Band,
-                     block_size: tuple[int, int],
-                     extra_masking_band: Band|None=None,
-                     verbose=False,
-                     **params) -> NDArray:
+def prepare_selector(*bands: Band, block_size: tuple[int, int], extra_masking_band: Band | None = None,
+                     verbose=False, **params) -> NDArray:
     # is_needed (internally only - also tests)
     # needs_work (make internal; docs)
     # not_tested (not directly)
     """Compute a boolean selector from masks of the provided `io_.Band` objects
 
+    Band masks are aggregated into a boolean selector that can be used to identify valid pixels
+    across all provided bands. Optionally, an extra masking band may be applied where values
+    equal to 0 are masked out.
 
     Parameters
     ----------
@@ -451,22 +433,23 @@ def prepare_selector(*bands: Band,
         A collection of strings or `io_.Band` object the specify which bands to use
     block_size:
         Size (width, height) in #pixel of the block that a single job processes
-    extra_masking_band: Optional `io_.Band` object thas is treated as a rasterio mask, i.e. values equal to 0
-      will be masked.
+    extra_masking_band:
+        Optional `io_.Band` object thas is treated as a rasterio mask, i.e. values equal to 0
+        will be masked.
     verbose:
         Print out processing step infos
     **params:
         Optional arguments for the multiprocessing:
 
-        nbrcpu: int
-          The number of cpu's to use. If not set then then the available number
-          of threads -1 are used.
-        start_method: str
-          Starting method for multiprocessing jobs
+        - ``nbrcpu`` : int
+          The number of CPUs to use. If not set, then the available number of
+          threads -1 is used.
+        - ``start_method`` : str
+          Starting method for multiprocessing jobs.
 
     Returns
     -------
-    NDArray:
+    NDArray
        A boolean array that can be used as selector
     """
     print(f'prepare_selector - {bands=}')
@@ -483,7 +466,8 @@ def prepare_selector(*bands: Band,
     # set the per-block parameter
     _, inner_views = create_views(view_size=block_size,
                                   border=(0, 0),
-                                  size=(width, height))
+                                  size=(width, height)
+                                  )
     # set the per job parameter
     block_params = []
     for view in inner_views:
@@ -497,26 +481,24 @@ def prepare_selector(*bands: Band,
             extra_masking_band=extra_masking_band,
         )
         block_params.append(bparams)
-    # ###
+
     # prepare multiprocessing
-    # ###
     manager = Manager()
     aggr_q = manager.Queue()
     start_method = params.get('start_method', None)
-    # get number of workers
     nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
     if verbose:
         print(f"using {nbr_workers=}")
+
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
         # start the aggregator job
-        # set the aggregator parameter - just an all-False selector
         aggr_params = dict(
             matrix=np.full((height, width), False),
             aggr_q=aggr_q
-        )
+        )   # set the aggregator parameter - just an all-False selector
         aggregator_job = pool.apply_async(
-            func=fill_matrix,  # the callable
-            kwds=aggr_params,  # and its arguments
+            func=fill_matrix,
+            kwds=aggr_params,
         )
         # start the block jobs
         block_jobs = []
@@ -529,10 +511,8 @@ def prepare_selector(*bands: Band,
         job_timers = []
         for job in block_jobs:
             job_timers.append(job.get().get_duration())
-        # now initiate shutdown of aggregator
         aggr_q.put(dict(signal='kill'))
         pool.close()
-        # wait for the *_combiner tasks to finish
         pool.join()
         selector, (timer,) = aggregator_job.get()
         if selector is None:
