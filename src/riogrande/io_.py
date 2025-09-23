@@ -1,4 +1,4 @@
-"""to be added
+"""Classes Source and Bands to use for GeoTifs
 """
 
 from __future__ import annotations
@@ -43,7 +43,43 @@ from .helper import (
 
 
 class Source:
-    """Specifies a data source
+    """
+    A ``Source`` object represents a file-based dataset (GeoTIFF) along with associated
+    tags, profile metadata, and namespace information.
+
+    Parameters
+    ----------
+    path :
+        Path to the dataset file.
+    tags :
+        Optional dictionary of key-value metadata associated with the source.
+        Defaults to an empty dictionary.
+    profile :
+        Optional dictionary of dataset profile information (e.g. width, height,
+        dtype). Defaults to an empty dictionary.
+    ns :
+        Namespace string used to distinguish sources. Defaults to "GEORACOON".
+
+    Attributes
+    ----------
+    path : Path
+        Path to the dataset file.
+    tags : dict
+        Metadata tags associated with the source.
+    profile : dict
+        Profile information about the dataset.
+    _ns : str
+        Namespace string associated with the source.
+
+    Examples
+    --------
+    >>> s1 = Source("example.tif", tags={"type": "satellite"})
+    >>> s1
+    Source(path=example.tif, exists: False)
+    >>> s1.tags
+    {'type': 'satellite'}
+    >>> s1._ns
+    'GEORACOON'
     """
     _mode_writing = ('w', 'w+')
     _mode_reading = ('r', 'r+')
@@ -58,6 +94,9 @@ class Source:
                  tags: dict | None = None,
                  profile: dict | None = None,
                  ns: str = NS):
+        """
+        Initialize a new Source object.
+        """
         # is_needed
         # needs_work (docs)
         # not_tested (used in tests)
@@ -66,20 +105,50 @@ class Source:
         self._ns = ns
         self.profile = profile or dict()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the Source.
+
+        Returns
+        -------
+        str
+            String representation of the object.
+        """
         # is_needed
         # needs_work (docs - revisit what is printed)
         # not_tested (no need)
         items = [f"path={str(self.path)}", f"exists: {self.exists}"]
         return "{}({})".format(type(self).__name__, ", ".join(items))
 
-    def __hash__(self):
+    def __hash__(self) -> hash:
+        """
+        Compute a hash value for the Source.
+
+        Returns
+        -------
+        int
+            Hash based on path, namespace, and tag values.
+        """
         # is_needed
         # no_work
         # not_tested (no need)
         return hash((self.path, self._ns, *(self.tags.values())))
 
-    def __eq__(self, other):
+    def __eq__(self, other: Source) -> bool:
+        """
+         Test equality between two Source objects.
+
+         Parameters
+         ----------
+         other :
+             Source object to compare against.
+
+         Returns
+         -------
+         bool
+             True if both objects are Source instances with the same path,
+             tags, and namespace.
+         """
         # is_needed
         # needs_work (docs)0
         # not_tested
