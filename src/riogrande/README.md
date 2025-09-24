@@ -1,10 +1,11 @@
 # RioGrande
 
-![coverage](https://img.shields.io/badge/coverage-80%25-yellowgreen) 
-![version](https://img.shields.io/badge/version-1.2.3-blue)
+![coverage](https://img.shields.io/badge/coverage-75%25-yellowgreen) 
+![version](https://img.shields.io/badge/version-1.0.0-blue)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/) (all of these not linked)
 
-This package is an extinsion of RasterIO (rio) allowing to work with Sources (GeoTIFFS) and Bands. 
+This package is an extinsion of [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) allowing to work with Sources (GeoTIFFS) and Bands as objects, which easily incorporate the use of tags.
+RioGrande adds functionality for parallel processing using Windows, dataset compatibility checks, data type conversion, mask and selector creation as well as simple file compression.
 
 
 <img alt="raster image" height="200" src="../../results/test_france.png" width="200"/>
@@ -92,7 +93,7 @@ To contribute to the development of RioGrande, follow the steps below:
 
 ## Release History
 
-- 0.0.1
+- 1.0.0
     - First working version
 
 ## License
