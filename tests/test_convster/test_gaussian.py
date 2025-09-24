@@ -1,7 +1,7 @@
 import numpy as np
 from skimage.filters import gaussian
 
-from convster import array_processing as ap
+from convster import helper as cshlp
 from convster import processing as csproc
 
 
@@ -15,8 +15,8 @@ def test_sigma_absolut():
         z[half, half] = 255
         sigma = 1
         blurred = csproc._apply_filter(z, gaussian, sigma=sigma)
-        diameter = max(np.unique(ap.last_nonzero(blurred, axis=1)
-                       - ap.first_nonzero(blurred, axis=1)))
+        diameter = max(np.unique(cshlp.last_nonzero(blurred, axis=1)
+                       - cshlp.first_nonzero(blurred, axis=1)))
         kernel_dims.append(diameter)
     assert len(list(set(kernel_dims))) == 1, "sigma scales with the map size!"
 

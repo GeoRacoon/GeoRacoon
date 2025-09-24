@@ -10,7 +10,8 @@ from numpy.typing import NDArray
 
 from skimage.filters import gaussian
 
-from .. import array_processing as ap
+from ..helper import (first_nonzero,
+                      last_nonzero)
 
 # we abstract the specific filter so that wie can to:
 # from landiv_blur.filters.<some_filter> import img_filter
@@ -46,8 +47,8 @@ def get_kernel_diameter(sigma, **params):
         half = int(0.5 * (msize - 1))
         tmap[half, half] = 255
         blurred = gaussian(tmap, sigma=sigma, **params)
-        diameter = max(np.unique(ap.last_nonzero(blurred, axis=1)
-                                 - ap.first_nonzero(blurred, axis=1))) + 1
+        diameter = max(np.unique(last_nonzero(blurred, axis=1)
+                                 - first_nonzero(blurred, axis=1))) + 1
     return diameter
 
 
