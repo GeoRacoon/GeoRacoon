@@ -1,8 +1,9 @@
 """
-Add sth here
+Preparing parameters for convolution
 """
 from __future__ import annotations
 
+# TODO: move this to helper?
 
 def get_blur_params(diameter: float | None = None,
                     sigma: float | None = None,
@@ -55,7 +56,7 @@ def get_blur_params(diameter: float | None = None,
     if diameter is None and sigma is None:
         raise TypeError("Either the `diameter` or the `sigma` parameter "
                         f"must be provided. \nGot: {diameter=}, {sigma=}")
-    
+
     if diameter:
         if sigma:
             truncate = 0.5 * diameter / sigma
