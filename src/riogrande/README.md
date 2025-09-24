@@ -6,7 +6,6 @@
 
 This package is an extinsion of RasterIO (rio) allowing to work with Sources (GeoTIFFS) and Bands. 
 
-< Add an optional screenshot of your project below >
 
 <img alt="raster image" height="200" src="../../results/test_france.png" width="200"/>
 
@@ -16,10 +15,8 @@ This package is an extinsion of RasterIO (rio) allowing to work with Sources (Ge
 - [Usage](#usage)
 - [Technologies](#technologies)
 - [Features](#features)
-- [Contributing](#contributing)
-- [Contributors](#contributors)
-- [Author](#author)
-- [Change log](#change-log)
+- [Authors](#authors)
+- [Release History](#release-history)
 - [License](#license)
 
 ## Installation
@@ -47,7 +44,15 @@ $ <project>
 Here are a few examples of using the riogrande library in your code:
 
 ```python
-from riogrande import 
+from riogrande.io_ import Source, Band
+
+s = Source("example.tif")
+s
+
+b1 = s.get_band(bidx=1)
+b1
+
+b1.tags
 
 ...
 ```
@@ -63,7 +68,7 @@ RioGrande uses the following technologies and tools:
 
 ## Features
 
-RioGrandecurrently has the following set of features:
+RioGrande currently has the following set of features:
 
 - Support for...
 - ...
@@ -82,7 +87,7 @@ To contribute to the development of RioGrande, follow the steps below:
 
 ## Authors
 <a href="https://github.com/GeoRacoon">
-<img src="../../images/georacoon_v02_202509.svg" alt="GeoRacoon Logo" width="60">
+<img src="../../images/georacoon_v02_202509.svg" alt="GeoRacoon Logo" width="50">
 </a>
 
 ## Release History
@@ -93,3 +98,7 @@ To contribute to the development of RioGrande, follow the steps below:
 ## License
 
 RioGrande is distributed under the < license > license.
+
+## Acknowledgements
+
+Mention
