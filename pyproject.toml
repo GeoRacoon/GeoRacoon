@@ -22,7 +22,7 @@ file = ["tests/requirements.txt"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["landiv_blur", "convster", "riogrande", "linfit"]
+include = ["landiv_blur", "convster", "riogrande", "linfit", "convster.filters"]
 exclude = ["tests*"]
 
 [project.urls]
@@ -48,6 +48,7 @@ relative_files = true
 source = [
     "src/riogrande",
     "src/convster",
+    "src/convster/filters",
     "src/linfit"
 ]
 omit = [
@@ -57,6 +58,7 @@ omit = [
 [tool.coverage.paths]
 source = [
   "src/riogrande/", 
-  "src/convster/", 
+  "src/convster/",
+  "src/convster/filters",
   "src/linfit/", 
 ]
