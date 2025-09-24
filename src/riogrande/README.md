@@ -38,7 +38,7 @@ PS> python -m pip install riogrande
 
 ## Usage
 
-To run < project's name >, fire up a terminal window and run the following command:
+To run RioGrande, fire up a terminal window and run the following command:
 
 ```sh
 $ <project>
@@ -52,11 +52,11 @@ from riogrande import
 ...
 ```
 
-For more examples, please refer to the project's [Wiki](wiki) or [documentation page](docs).
+For more examples, please refer to the project's [documentation page](docs).
 
 ## Technologies
 
-< Project's name > uses the following technologies and tools:
+RioGrande uses the following technologies and tools:
 
 - [Python](https://www.python.org/): ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
 
@@ -79,25 +79,17 @@ To contribute to the development of RioGrande, follow the steps below:
 5. Push to the branch (`git push origin feature-new`)
 6. Create a new pull request
 
-## Contributors
 
-Here's the list of people who have contributed to < project's name >:
+## Authors
+<a href="https://github.com/GeoRacoon">
+<img src="../../images/georacoon_v02_202509.svg" alt="GeoRacoon Logo" width="60">
+</a>
 
-- John Doe – [@JohnDoeTwitter](https://twitter.com/< username >) – john@example.com
-- Jane Doe – [@JaneDoeTwitter](https://twitter.com/< username >) – jane@example.com
+## Release History
 
-## Author
-
-< Author's name > – [@AuthorTwitter](https://twitter.com/< username >) – author@example.com
-
-## Change log
-
-- 0.0.2
-    - Polish the user interface
 - 0.0.1
     - First working version
-- ...
 
 ## License
 
-RioGrande is distributed under the < license > license. See [`LICENSE`](LICENSE.md) for more details.
+RioGrande is distributed under the < license > license.
