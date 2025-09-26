@@ -63,8 +63,17 @@ def test_apply_filter_gaussian():
     assert set(np.unique(blurred)) != {1, 0}
 
 
+@pytest.mark.parametrize("catnbr", [2, 8, 100])
+def test_get_max_entropy_matches_log(catnbr):
+    """Test whether entropy returns log
+    """
+    expected = np.log(catnbr)
+    result = csproc.get_max_entropy(catnbr)
+    assert result == pytest.approx(expected, rel=1e-12)
+
+
 @ALL_MAPS
-def test_nbr_lct(datafiles):
+def test_get_categories_lct(datafiles):
     """Make sure the detection of land-cover types works as expected
     """
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
