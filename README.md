@@ -1,12 +1,44 @@
-# Landiv Blur
+# RioGrande (Gernal needs to be added)
 
 <!-- badges: start -->
 [![Coverage](https://github.com/GeoRacoon/landiv/raw/python-coverage-comment-action-data/badge.svg)](https://github.com/GeoRacoon/landiv/tree/python-coverage-comment-action-data)
+![version](https://img.shields.io/badge/version-1.0.0-blue)
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/) (all of these not linked)
 <!-- badges: end -->
 
-Package to compute diversity measures in land-cover type maps
+This package is an extinsion of [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) allowing to work with Sources (GeoTIFFS) and Bands as objects, which easily incorporate the use of tags.
+RioGrande adds functionality for parallel processing using Windows, dataset compatibility checks, data type conversion, mask and selector creation as well as simple file compression.
+
+
+<img alt="raster image" height="200" src="../../results/test_france.png" width="200"/>
+
+**Table of Contents**
+
+- [Installation](#installation)
+- [Usage](#usage)
+- [Technologies](#technologies)
+- [Features](#features)
+- [Authors](#authors)
+- [Release History](#release-history)
+- [License](#license)
 
 ## Installation
+
+To install:
+1. Clone this repository
+1. `cd` into the repository
+
+On macOS and Linux:
+
+```sh
+$ python -m pip install .
+```
+
+On Windows:
+
+```sh
+PS> python -m pip install .
+```
 
 _Note:_
 _This package relies on [rasterio](https://rasterio.readthedocs.io/en/latest/index.html)_
@@ -22,14 +54,29 @@ _It is important to install matching version, so first check with `gdalinfo --ve
 _you have installed and then install the corresponding python package with `pip install gdal==x.x.x`._
 
 
-To install `landiv_blur`:
-
-1. Clone this repository
-1. `cd` into the repository
-1. Run `pip3 install .`
-
-
 ## Usage
+
+To run RioGrande, fire up a terminal window and run the following command:
+
+```sh
+$ <project>
+```
+
+Here are a few examples of using the riogrande library in your code:
+
+```python
+from riogrande.io_ import Source, Band
+
+s = Source("example.tif")
+s
+
+b1 = s.get_band(bidx=1)
+b1
+
+b1.tags
+
+...
+```
 
 Head over to the [examples/](examples/) folder for some usage examples.
 
@@ -38,176 +85,48 @@ Installed along with the `landiv_blur` package is also a command line executable
 After installation, type `landiv --help` in your terminal for further details
 on how to use it.
 
-<!--- quickstart --->
+For more examples, please refer to the project's [documentation page](docs).
 
-### Running on a SLURM cluster (like cluster.s3it.uzh.ch)
+## Technologies
 
-In order to apply the filters to sizeable maps we are in need of adequate
-resources that are provided, for example, by the SLURM cluster maintained by
-s3it.uzh.ch.
+RioGrande uses the following technologies and tools:
 
-The approach we chose here is as follows:
-
-- We submit a single job to the cluster that requires multiple CPU's and enough RAM to process a map in parallel.
-- `landiv` then takes care of splitting up the map into multiple blocks (or `views`) and uses python's
-  `multiprocessing` library to efficiently make use of the reserved CPUs. `landiv` also handles the recombination
-  of the resulting blocks back into a single file.
-
-This approach distributes the workload much like one would parallelize on a single multi-core
-server and can, in fact, be used in an identical approach on a laptop or workstation.
-
-#### Setup environment on the cluster
-
-1. Login to cluster.s3it.uzh.ch with `ssh -l shortname cluster.s3it.uzh.ch`
-1. Create ssh key-pair with `ssh-keygen`. Make sure to **set a password
-   protection** for the key.
-1. Add the just generate public key (the \<something\>.pub) to your ssh keys
-   on https://git.math.uzh.ch/-/profile/keys
-1. Clone the landiv project into your home folder on the cluster
-1. Build and configure the python environment to use the `landiv_blur` package
-   and the `landiv` command in particular:
-   ```
-   chmod +x landiv_env_setup.sh
-   bash ./landiv_env_setup.sh
-   ```
-
-#### Data and storage of output files
-
-We have to deal with two constraints on the cluster:
-
-- storage capacity
-- accessibility
-
-Given that we deal with several GBs of data, produce even more as output
-files and we are at least two to use the cluster, the best option seems to use
-the groups share under `/shares/niklaus.ieu.uzh`.
-
-How exactly we want to structure the data and output files there remains to be decided.
-For now the land-cover type maps are located under `/shares/niklaus.ieu.uzh/first_approach/Europe/landcover`
-and the output files are put under `/shares/niklaus.ieu.uzh/first_approach/Europe/output`, if we use
-the [example script](examples/console_launcher.sh).
+- [Python](https://www.python.org/): ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
 
 
-#### Launching jobs on the cluster
-1. Create a launcher script that reserves the desired resources and calls `landiv`.
-   _Have a look at [examples/console_launcher.sh](examples/console_launcher.sh) if you
-   are uncertain how such a script should look like._
+## Features
 
-   The recommended configuration (which is also used in the mentioned example
-   script) is as follows:
+RioGrande currently has the following set of features:
 
-   - 32 CPUs
-   - 120GB RAM
-   - Max duration: 4 Hours
-   - Block size 4000x4000 pixels
+- Support for...
+- ...
 
-   _For further information see issue #27_
-1. Launch your script (here we assume it's called `console_launcher.sh`) with
+## Contributing
 
-   ```
-   sbatch console_launcher.sh
-   ```
-1. Now you can monitor the progress.
-   
-   In the folder you launched the previous command a file called `slurm-<job_id>.out` will be created
-   that will gather all the output of the `landiv` script.
+To contribute to the development of RioGrande, follow the steps below:
 
-   Here are a few options to monitor your job:
-
-   - Run `squeue --me` to see the status of your job.
-   - Run `tail -f slurm-<job_id>.out` to have a live view of the output that the job is generating
-   - Run `sacct -j <job_id>` to see an overview of the consumed resources, job state, etc.
-     
-     For a better formatting of the output, I recommend configuring the `sacct` command with:
-
-     ```
-     export SACCT_FORMAT="JobID%20,JobName,Elapsed,CPUTime,State,MaxRSS,AllocTRES%32,ExitCode,User,Partition,NodeList"
-     ```
-   Once the jobs are terminated you will find the resulting maps in the location you specified in the `--output`
-   parameter of the `landiv` command.
+1. Fork RioGrande from <https://github.com/yourusername/yourproject/fork>
+2. Create your feature branch (`git checkout -b feature-new`)
+3. Make your changes
+4. Commit your changes (`git commit -am 'Add some new feature'`)
+5. Push to the branch (`git push origin feature-new`)
+6. Create a new pull request
 
 
----
----
+## Authors
+<a href="https://github.com/GeoRacoon">
+<img src="../../images/georacoon_v02_202509.svg" alt="GeoRacoon Logo" width="50">
+</a>
 
+## Release History
 
-## Exemplary output
+- 1.0.0
+    - First working version
 
-![France-CH border](./results/test_france.png)
+## License
 
-### Individual categories
+RioGrande is distributed under the < license > license.
 
-![France-CH border](./results/test_france_layers.png)
+## Acknowledgements
 
-#### Individual categories with Gaussian filter
-
-![France-CH border](./results/test_france_layers_filtered_1.0.png)
-_sigma = 1_
-![France-CH border](./results/test_france_layers_filtered_10.0.png)
-_sigma = 10_
-![France-CH border](./results/test_france_layers_filtered_40.0.png)
-_sigma = 40_
-
-### Entropy after diffusion
-
-![France-CH border](./results/test_france.png)
-![France-CH border](./results/test_france_layers_entropy_1.0.png)
-_sigma = 1_
-
----
-
-![France-CH border](./results/test_france_layers_entropy_10.0.png)
-_sigma = 10_
-
----
-
-![France-CH border](./results/test_france_layers_entropy_40.0.png)
-_sigma = 40_
-
----
-
-<br>
-
-<p align="center">
-<img 
-   alt="Test area FR-CH border"
-   src="./results/test_france.png"
-   height="900"
-/>
-<img 
-  alt="Test area FR-CH border - entropy"
-  src="./results/test_france_layers_entropy_40.0.png"
-  height="900"
-/>
-</p>
-
-<br>
-
----
----
-
-### Bigger map
-
-<br>
-
-<p align="center">
-<img 
-   alt="all france"
-   src="./results/all_france.png" 
-   height="900"
-/>
-<img 
-  alt="All france - entropy sigma 200"
-  src="./results/all_france_layers_entropy_200.0.png"
-  height="900"
-/>
-</p>
-
-<br>
-
-
-In principle this approach can be adapted also for landscape blocks consisting of a block of pixels and thus an initial distributions with resulting entropy.
-Therefore, there are two way to include scale effects:
-
-- the standard deviation of the diffusion kernel
-- the landscape block size
+Mention
