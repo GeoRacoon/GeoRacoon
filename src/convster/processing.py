@@ -64,10 +64,6 @@ def select_category(data: NDArray, category: int | list[int],
           [ 1000,  1000, -1000],
           [ 1000, -1000,  1000]], dtype=int16)
     """
-    # is_needed (only internally)
-    # needs_work (docs)
-    # is_tested
-    # usedin_processing (though might be part of the io module)
     if isinstance(as_dtype, str):
         _as_dtype = np.dtype(as_dtype)
     else:
@@ -103,10 +99,6 @@ def _apply_filter(data: NDArray, img_filter: Callable, **params) -> NDArray:
     NDArray
         The filtered result from calling `img_filter(data, **params)`.
     """
-    # is_needed (internally and for tests)
-    # needs_work (docs)
-    # not_tested (directly)
-    # usedin_processing (part of io)
     return img_filter(data, **params)
 
 
@@ -134,10 +126,6 @@ def get_max_entropy(nbr: int) -> float:
     >>> get_max_entropy(10)
     2.302585092994046
     """
-    # is_needed (internally)
-    # needs_work (make internal; docs)
-    # not_tested (but used in tests)
-    # usedin_processing
     return entropy(np.ones(nbr))
 
 
@@ -163,10 +151,6 @@ def get_categories(data: NDArray) -> list[int]:
     >>> get_categories(a)
     [0, 1, 2]
     """
-    # is_needed (tests; motly internal - only plotting otherwise)
-    # no_work
-    # not_tested (used in tests)
-    # usedin_processing (primarily, but ideally part of a io module)
     categories = np.unique(data)
     categories.sort()
     print("Inferring the number of categories from the provided data."
