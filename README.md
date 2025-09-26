@@ -10,7 +10,7 @@ This package is an extinsion of [RasterIO](https://rasterio.readthedocs.io/en/st
 RioGrande adds functionality for parallel processing using Windows, dataset compatibility checks, data type conversion, mask and selector creation as well as simple file compression.
 
 
-<img alt="raster image" height="200" src="../../results/test_france.png" width="200"/>
+<img alt="raster image" height="200" src="./results/test_france.png" width="200"/>
 
 **Table of Contents**
 
@@ -115,7 +115,7 @@ To contribute to the development of RioGrande, follow the steps below:
 
 ## Authors
 <a href="https://github.com/GeoRacoon">
-<img src="../../images/georacoon_v02_202509.svg" alt="GeoRacoon Logo" width="50">
+<img src="./images/georacoon_v02_202509.svg" alt="GeoRacoon Logo" width="50">
 </a>
 
 ## Release History
