@@ -1,8 +1,10 @@
-# RioGrande
+# RioGrande (Gernal needs to be added)
 
-![coverage](https://img.shields.io/badge/coverage-75%25-yellowgreen) 
+<!-- badges: start -->
+[![Coverage](https://github.com/GeoRacoon/landiv/raw/python-coverage-comment-action-data/badge.svg)](https://github.com/GeoRacoon/landiv/tree/python-coverage-comment-action-data)
 ![version](https://img.shields.io/badge/version-1.0.0-blue)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/) (all of these not linked)
+<!-- badges: end -->
 
 This package is an extinsion of [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) allowing to work with Sources (GeoTIFFS) and Bands as objects, which easily incorporate the use of tags.
 RioGrande adds functionality for parallel processing using Windows, dataset compatibility checks, data type conversion, mask and selector creation as well as simple file compression.
@@ -22,17 +24,35 @@ RioGrande adds functionality for parallel processing using Windows, dataset comp
 
 ## Installation
 
+To install:
+1. Clone this repository
+1. `cd` into the repository
+
 On macOS and Linux:
 
 ```sh
-$ python -m pip install riogrande
+$ python -m pip install .
 ```
 
 On Windows:
 
 ```sh
-PS> python -m pip install riogrande
+PS> python -m pip install .
 ```
+
+_Note:_
+_This package relies on [rasterio](https://rasterio.readthedocs.io/en/latest/index.html)_
+_which partially depends on [libgdal](https://gdal.org/)._
+_If you follow the installation instructions below you will attempt to install_
+_rasterio from the Python Package Index in which chase the libgdal library_
+_will be shipped along._
+_However, if you encounter any issues with the installaiton of rasterio, head_
+_over to the [rasterio installation insructions](https://rasterio.readthedocs.io/en/stable/installation.html) for more details._
+
+_We also use the python package `gdal` which depends on `libgdal` that has been installed (see comment above)._
+_It is important to install matching version, so first check with `gdalinfo --version` what version of `libgdal`_
+_you have installed and then install the corresponding python package with `pip install gdal==x.x.x`._
+
 
 ## Usage
 
@@ -58,6 +78,13 @@ b1.tags
 ...
 ```
 
+Head over to the [examples/](examples/) folder for some usage examples.
+
+Installed along with the `landiv_blur` package is also a command line executable
+`landiv` that can be used to process `.tif` files in a parallelized manner.
+After installation, type `landiv --help` in your terminal for further details
+on how to use it.
+
 For more examples, please refer to the project's [documentation page](docs).
 
 ## Technologies
@@ -78,7 +105,7 @@ RioGrande currently has the following set of features:
 
 To contribute to the development of RioGrande, follow the steps below:
 
-1. Fork RioGrandefrom <https://github.com/yourusername/yourproject/fork>
+1. Fork RioGrande from <https://github.com/yourusername/yourproject/fork>
 2. Create your feature branch (`git checkout -b feature-new`)
 3. Make your changes
 4. Commit your changes (`git commit -am 'Add some new feature'`)
