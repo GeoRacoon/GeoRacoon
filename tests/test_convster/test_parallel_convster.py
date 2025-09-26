@@ -14,7 +14,7 @@ from riogrande import prepare as rgprep
 from riogrande import parallel as rgpara
 
 from convster import processing as csproc
-from convster import prepare as csprep
+from convster.filters import get_blur_params
 from convster import parallel as cspara
 from convster.filters import gaussian as csf_gauss
 
@@ -37,7 +37,7 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
     truncate = 3  # property of the gaussian filter
     view_size = (500, 400)
     output_dtype = "uint8"  # data type to use for the blurred arrays
-    blur_params = csprep.get_blur_params(diameter=_diameter, truncate=truncate)
+    blur_params = get_blur_params(diameter=_diameter, truncate=truncate)
     min_border = csf_gauss.compatible_border_size(sigma=blur_params['sigma'],
                                                   truncate=truncate)
     border = (100, 100)
@@ -175,7 +175,7 @@ def test_entropy_recombination(datafiles, set_mpc_strategy):
         blur_output_dtype = test_dtype  # blurred maps will be saved in this format
         output_dtype = test_dtype
         normed = True
-        blur_params = csprep.get_blur_params(diameter=_diameter, truncate=truncate)
+        blur_params = get_blur_params(diameter=_diameter, truncate=truncate)
         min_border = csf_gauss.compatible_border_size(sigma=blur_params['sigma'],
                                                       truncate=truncate)
         border = (50, 50)
@@ -323,7 +323,7 @@ def test_entropy_2_step(datafiles):
         output_dtype = test_dtype  # data type to use for the entropy array
         blur_output_dtype = test_dtype
         normed = True
-        blur_params = csprep.get_blur_params(diameter=_diameter, truncate=truncate)
+        blur_params = get_blur_params(diameter=_diameter, truncate=truncate)
         min_border = csf_gauss.compatible_border_size(sigma=blur_params['sigma'],
                                                       truncate=truncate)
         border = (50, 50)
@@ -534,7 +534,7 @@ def test_apply_filter(datafiles):
     truncate = 3  # property of the gaussian filter
     block_size = (500, 400)
     output_dtype = np.uint8  # data type to use for the blurred arrays
-    blur_params = csprep.get_blur_params(diameter=_diameter, truncate=truncate)
+    blur_params = get_blur_params(diameter=_diameter, truncate=truncate)
     img_filter=csf_gauss.gaussian
     filter_params = blur_params.copy()
     _ = filter_params.pop('diameter')
@@ -690,7 +690,7 @@ def test_reduced_mask(datafiles):
     view_size = (500, 400)
     categories = [1, 2, 3, 4, 5]
     _diameter = diameter / scale
-    blur_params = csprep.get_blur_params(diameter=_diameter, truncate=truncate)
+    blur_params = get_blur_params(diameter=_diameter, truncate=truncate)
     filter_params = blur_params.copy()
     _ = filter_params.pop('diameter')
     blurred_tif = cspara.extract_categories(

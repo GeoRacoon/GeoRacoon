@@ -2,17 +2,15 @@ import os
 import pytest
 import glob
 
-from convster.prepare import get_blur_params
+from convster.filters import get_blur_params
 from convster.parallel import (
-    extract_categories,
-)
+    extract_categories,)
 from convster.filters.gaussian import gaussian
 
 from riogrande.helper import get_or_set_context
 from riogrande.io_ import Source, Band
 from riogrande.parallel import (
-    compute_mask,
-)
+    compute_mask,)
 
 FIXTURE_DIR = os.path.abspath(os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
