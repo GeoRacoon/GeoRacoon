@@ -18,11 +18,7 @@ from rasterio.warp import (
     reproject,
     Resampling,
 )
-from .exceptions import (
-    BandSelectionNoMatchError,
-    BandSelectionAmbiguousError,
-)
-from .helper import (
+from ..helper import (
     check_crs,
     output_filename,
     serialize,
@@ -30,6 +26,10 @@ from .helper import (
     sanitize,
     match_all,
     view_to_window,
+)
+from .exceptions import (
+    BandSelectionNoMatchError,
+    BandSelectionAmbiguousError,
 )
 
 NS = 'GEORACOON'
@@ -225,6 +225,8 @@ def _get_bidx(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
     return bidx
 
 
+# TODO: we should rename this function as it is inconsistent with the naming
+#       paradigm we use: Source.get_band does not use this function at all
 def get_bands(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, int]]:
     # is_needed
     # needs_work

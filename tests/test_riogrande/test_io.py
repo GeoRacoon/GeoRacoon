@@ -5,7 +5,7 @@ import numpy as np
 
 from .conftest import ALL_MAPS, get_example_data, get_file
 
-from riogrande.exceptions import (
+from riogrande.io.exceptions import (
     BandSelectionAmbiguousError,
     BandSelectionNoMatchError
 )

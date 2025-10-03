@@ -19,7 +19,7 @@ from collections.abc import Callable
 from typing import Union
 
 from ..helper import (
-    check_compatibility as _check_compatibility,
+    check_compatibility,
     count_contribution,
 )
 
@@ -834,7 +834,7 @@ class Source:
     def check_compatibility(self, *sources: Source):
         """
         Check whether this source is compatible with one or more other sources.
-        See ``helper._check_compatibility`` for the precise definition.
+        See ``helper.check_compatibility`` for the precise definition.
 
         Parameters
         ----------
@@ -852,7 +852,7 @@ class Source:
         _sources = {self.path, }
         for source in sources:
             _sources.add(source.path)
-        return _check_compatibility(*_sources)
+        return check_compatibility(*_sources)
 
     def load_block(self, view: None | tuple[int, int, int, int] = None,
                    scaling_params: dict | None = None, **tags) -> dict[str, Any]:
