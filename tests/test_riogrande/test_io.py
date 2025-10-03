@@ -9,7 +9,7 @@ from riogrande.io.exceptions import (
     BandSelectionAmbiguousError,
     BandSelectionNoMatchError
 )
-from riogrande.helper import check_compatibility
+from riogrande.helper import check_compatibility, output_filename
 from riogrande import io as rgio
 
 
@@ -229,7 +229,7 @@ def test_compression_tagging(datafiles):
         ds_tag='test'
     )
     for file in test_data:
-        orig_file_tagged = rgio.output_filename(file, "orig_tagged")
+        orig_file_tagged = output_filename(file, "orig_tagged")
         # create file copy with tags
         target = {}
         with rio.open(file) as src:
@@ -240,7 +240,7 @@ def test_compression_tagging(datafiles):
                     dst.write(src.read(bidx), bidx)
                     rgio._set_tags(dst, bidx, category=np.random.randint(low=0, high=255))
                     target[bidx] = rgio._get_tags(src=dst, bidx=bidx)
-        file_tagged = rgio.output_filename(file, "tagged")
+        file_tagged = output_filename(file, "tagged")
         # uncompress it
         file_tagged = rgio.compress_tif(orig_file_tagged, compression=None)
 

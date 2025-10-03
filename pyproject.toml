@@ -25,9 +25,9 @@ where = ["src"]
 include = [
   "landiv_blur",  # TODO: should be removed
   "riogrande",
-  "riogrande.io"
+  "riogrande.io",
   "convster",
-  "convster.filters"
+  "convster.filters",
   "linfit",
 ]
 exclude = ["tests*"]
@@ -57,7 +57,7 @@ source = [
     "src/riogrande/io",
     "src/convster",
     "src/convster/filters",
-    "src/linfit"
+    "src/linfit",
 ]
 omit = [
   "tests",
