@@ -5,7 +5,7 @@ import numpy as np
 import numpy.ma as ma
 import rasterio as rio
 
-from riogrande.io_ import Source, Band
+from riogrande.io import Source, Band
 from riogrande.io.exceptions import (
     BandSelectionNoMatchError,
 )

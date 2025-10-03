@@ -9,7 +9,6 @@ from functools import partial
 
 from riogrande import helper as rghelp
 from riogrande import io as rgio
-from riogrande import io_ as rgio_
 from riogrande import prepare as rgprep
 from riogrande import parallel as rgpara
 
@@ -413,7 +412,7 @@ def test_entropy_2_step(datafiles):
         ###
         # Now calculate first the map with blurred layers and then the entropy
         ###
-        source = rgio_.Source(path=ch_map_tif)
+        source = rgio.Source(path=ch_map_tif)
         blurred_tif = cspara.extract_categories(
             source=source,
             categories=categories,
@@ -434,9 +433,9 @@ def test_entropy_2_step(datafiles):
             np.testing.assert_equal(tags['category'], categories[0])
             np.testing.assert_equal(bidx, 1)
 
-        blurred_source = rgio_.Source(path=blurred_tif)
+        blurred_source = rgio.Source(path=blurred_tif)
         for bidx in blurred_source.band_indexes:
-            b = rgio_.Band(source=blurred_source, bidx=bidx)
+            b = rgio.Band(source=blurred_source, bidx=bidx)
             with rio.open(blurred_source.path, 'r') as src:
                 data = src.read(indexes=bidx)
                 np.testing.assert_equal(data, b.get_data())
@@ -456,7 +455,7 @@ def test_entropy_2_step(datafiles):
         entropy_data = entropy_map['data']
 
         # for the 2-step approach
-        entropy_source = rgio_.Source(path=entropy_tif)
+        entropy_source = rgio.Source(path=entropy_tif)
         # get the entropy band as a object
         eband = entropy_source.get_band(category='entropy')
         entropy_data_2step = eband.get_data()
@@ -490,7 +489,7 @@ def test_interaction_parallel_computation(datafiles, create_blurred_tif):
     dtype_tests = {"uint8": (0, 255),
                    "float32": None}
     for test_dtype, _ in dtype_tests.items():
-        out_source = rgio_.Source(path=create_blurred_tif)
+        out_source = rgio.Source(path=create_blurred_tif)
         categories = [b.tags['category'] for b in out_source.get_bands()]
         # Pairs
         all_possible_pairs = [list(x) for x in itertools.combinations(categories, r=2)]
@@ -507,7 +506,7 @@ def test_interaction_parallel_computation(datafiles, create_blurred_tif):
                                                           output_dtype=test_dtype,                                                          standardize=True,
                                                           normed=True,
                                                           verbose=False)
-        int_band = rgio_.Band(source=rgio_.Source(path=para_interaction_tif), bidx=1)
+        int_band = rgio.Band(source=rgio.Source(path=para_interaction_tif), bidx=1)
         para_interaction_data = int_band.get_data()
 
         # Interaction (single process
@@ -580,11 +579,11 @@ def test_apply_filter(datafiles):
                                        output_dtype=output_dtype,
                                        verbose=True)
     for cat in categories:
-        b_nope = rgio_.Band(source=rgio_.Source(path=bands_tif),
+        b_nope = rgio.Band(source=rgio.Source(path=bands_tif),
                             bidx=cat)
-        b_twostep = rgio_.Band(source=rgio_.Source(path=blurred_para),
+        b_twostep = rgio.Band(source=rgio.Source(path=blurred_para),
                                bidx=cat)
-        b_single = rgio_.Band(source=rgio_.Source(path=blurred_tif),
+        b_single = rgio.Band(source=rgio.Source(path=blurred_tif),
                               bidx=cat)
         b_nope.import_tags()
         b_twostep.import_tags()
@@ -597,7 +596,7 @@ def test_extract_categories(datafiles):
     """
     verbose = True
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    lct_source = rgio_.Source(path=landcover_map)
+    lct_source = rgio.Source(path=landcover_map)
     source_profile = lct_source.import_profile()
     source_band = lct_source.get_band(bidx=1)
     print(f"{source_profile=}")
@@ -616,7 +615,7 @@ def test_extract_categories(datafiles):
             dtype=to_dtype
         ),
     )
-    category_source = rgio_.Source(category_tif)
+    category_source = rgio.Source(category_tif)
     assert len(category_source.get_bands()) == len(categories)
     source_data = source_band.get_data()
     for cat in categories:
@@ -634,7 +633,7 @@ def test_extract_categories(datafiles):
     nodatas = [np.nan, 0, None]
     for nodata, to_dtype in zip(nodatas, to_dtypes):
         tmp_map = str(datafiles / 'bands_out.tif')
-        tmp_source = rgio_.Source(path=tmp_map)
+        tmp_source = rgio.Source(path=tmp_map)
         tmp_profile = source_profile.copy()
         tmp_profile['nodata'] = nodata
         tmp_profile['dtype'] = to_dtype
@@ -645,7 +644,7 @@ def test_extract_categories(datafiles):
             _profile = src.profile.copy()
         np.testing.assert_equal(_profile['nodata'], nodata)
 
-        tmp_band = rgio_.Band(source=tmp_source, bidx=1)
+        tmp_band = rgio.Band(source=tmp_source, bidx=1)
         # write out data as 
         tmp_band.set_data(source_band.get_data().astype(to_dtype))
         filter_params = dict(
@@ -666,7 +665,7 @@ def test_extract_categories(datafiles):
                 dtype=to_dtype
             ),
         )
-        out_source = rgio_.Source(path=blurred_tif)
+        out_source = rgio.Source(path=blurred_tif)
         out_profile = out_source.import_profile()
         print(f"{out_profile=}")
         np.testing.assert_equal(out_profile['nodata'], nodata)
@@ -679,7 +678,7 @@ def test_reduced_mask(datafiles):
     """Compute a mask from multiple bands in one go and then in parallel
     """
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    source = rgio_.Source(path=ch_map_tif)
+    source = rgio.Source(path=ch_map_tif)
     blur_out = str(datafiles / 'blur_out.tif')
     # create the blurred bands
     img_filter = csf_gauss.gaussian
@@ -703,7 +702,7 @@ def test_reduced_mask(datafiles):
         block_size=view_size,
         compress=True
     )
-    blurr_source = rgio_.Source(path=blurred_tif)
+    blurr_source = rgio.Source(path=blurred_tif)
     initial_mask = blurr_source.get_mask()
     # get the mask loading the entire dataset
     with blurr_source.data_reader(mode='r') as read:

@@ -14,7 +14,6 @@ from matplotlib.collections import PatchCollection
 
 from riogrande import helper as rghelp
 from riogrande import io as rgio
-from riogrande import io_ as rgio_
 from riogrande import prepare as rgprep
 
 from convster import processing as csproc

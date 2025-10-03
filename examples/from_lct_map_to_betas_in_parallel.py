@@ -2,9 +2,10 @@ import os
 
 import numpy as np
 
+from riogrande.io import Source, Band
+# old:
 from landiv_blur import prepare as lbprep
 from landiv_blur import io as lbio
-from landiv_blur import io_ as lbio_
 from landiv_blur import parallel as lbpara
 from landiv_blur.filters import gaussian as lb_filter
 
@@ -48,7 +49,7 @@ blur_output_dtype = "uint8"  # data type to use for computing the entropy array
 blur_params = lbprep.get_blur_params(diameter=_diameter, truncate=truncate)
 filter_params = dict(sigma=blur_params['sigma'], truncate=blur_params['truncate'])
 # now we can start with generating the blurred layers
-source = lbio_.Source(path=lct_map)
+source = Source(path=lct_map)
 blurred_tif = lbpara.extract_categories(
     source=source,
     categories=categories,
@@ -60,7 +61,7 @@ blurred_tif = lbpara.extract_categories(
     compress = True
 )
 # we directly create a Source object for this file
-blurred_source = lbio_.Source(path=blurred_tif)
+blurred_source = Source(path=blurred_tif)
 
 # ###
 # Second we prepare the mask for this blurred tif
@@ -85,7 +86,7 @@ entropy_tif = lbpara.compute_entropy(
     normed=normed,
 )
 # also create a Source object for this file
-entropy_source = lbio_.Source(path=entropy_tif)
+entropy_source = Source(path=entropy_tif)
 
 # ###
 # Finally we perform a multiple linear regression to predict the ndiv values
@@ -95,7 +96,7 @@ include_intercept = True  # we want to fit the intercept as well
 as_dtype = np.float64  # data type to use for the weights
 block_size = (500, 500)
 # define the response
-response_band = lbio_.Band(source=lbio_.Source(path=ndvi_map), bidx=1)
+response_band = Band(source=Source(path=ndvi_map), bidx=1)
 # and define what to use as predictors
 predictors = blurred_source.get_bands()  # we use all bands with the blurred
                                          # categories

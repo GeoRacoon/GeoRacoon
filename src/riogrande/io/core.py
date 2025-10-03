@@ -34,9 +34,6 @@ from .exceptions import (
 
 NS = 'GEORACOON'
 
-# TODO: General Idea - maybe we can merge some of these into io_.py class structure - so we avoid having both.
-#  --> yet it is nice to have the function by themselves as well without direct need of class structures
-
 
 def _set_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS, **tags: Any) -> None:
     # is_needed
@@ -155,6 +152,8 @@ def _find_bidxs(src: DatasetWriter, ns: str = NS, **tags: Any) -> list[int]:
 def _get_bidx(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
     # TODO: actually I feel we should rename this function, as it is more than the io_.py get_bidx.
     #       Here we are actually matching by tags.
+    # j-i-l: Agreed, the get_bidx in Source and Band models also do not inherit
+    #        from this method, so it might make sense to rename this.
     # is_needed
     # needs_work
     # not_tested (used in tests)

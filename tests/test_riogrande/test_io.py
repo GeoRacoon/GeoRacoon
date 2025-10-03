@@ -11,7 +11,6 @@ from riogrande.io.exceptions import (
 )
 from riogrande.helper import check_compatibility
 from riogrande import io as rgio
-from riogrande import io_ as rgio_
 
 
 def test_load_block():
@@ -267,7 +266,7 @@ def test_band_count_contrib(datafiles):
         get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     )
     for test_file in test_data:
-        band = rgio_.Band(source=rgio_.Source(path=test_file), bidx=1)
+        band = rgio.Band(source=rgio.Source(path=test_file), bidx=1)
         valids = band.count_valid_pixels(selector=None, no_data=0)
         print(f"{valids=}")
         assert isinstance(valids, int)

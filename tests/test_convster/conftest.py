@@ -4,7 +4,7 @@ import glob
 
 from riogrande import parallel as rgpara
 from riogrande.helper import get_or_set_context
-from riogrande.io_ import Source
+from riogrande.io import Source
 
 from convster.prepare import get_blur_params
 from convster.filters.gaussian import gaussian

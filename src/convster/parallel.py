@@ -22,7 +22,7 @@ from numpy.typing import NDArray
 from multiprocessing import (Queue, Manager)
 
 
-from riogrande.io_ import Source, Band
+from riogrande.io import Source, Band, write_band
 from riogrande.helper import (
     view_to_window,
     output_filename,
@@ -32,7 +32,6 @@ from riogrande.helper import (
 
 from riogrande.timing import TimedTask
 from riogrande.prepare import create_views
-from riogrande.io import write_band
 from riogrande.parallel import runner_call
 
 from .plotting import plot_entropy
@@ -912,7 +911,7 @@ def extract_categories(source: str | Source,
     Parameters
     ----------
     source:
-      Either the path to, or a `io_.Source` object representing a the `.tif`
+      Either the path to, or a `io.Source` object representing a the `.tif`
       file to load the data from.
     categories:
       The categorical values to separate into single bands

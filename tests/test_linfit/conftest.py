@@ -9,7 +9,7 @@ from convster.parallel import (
 from convster.filters.gaussian import gaussian
 
 from riogrande.helper import get_or_set_context
-from riogrande.io_ import Source, Band
+from riogrande.io import Source
 from riogrande.parallel import (
     compute_mask,
 )

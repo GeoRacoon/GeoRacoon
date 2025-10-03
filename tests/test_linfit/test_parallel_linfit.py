@@ -5,8 +5,8 @@ import rasterio as rio
 
 from skimage.filters import gaussian
 
-from riogrande import io as rgio
-from riogrande import io_ as rgio_
+from riogrande.io import Source, Band, coregister_raster
+
 from riogrande import helper as rghelp
 from riogrande import parallel as rgpara
 from riogrande import prepare as rgprep
@@ -30,10 +30,10 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     """
     verbose = True
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    lct_source = rgio_.Source(path=landcover_map)
+    lct_source = Source(path=landcover_map)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     # scale it down to 100x100m (from 30x30)
-    rgio.coregister_raster(ndvi_map, landcover_map, output=str(ndvi_map))
+    coregister_raster(ndvi_map, landcover_map, output=str(ndvi_map))
     # create a mask for ndvi_map masking the nan's
     with rio.open(ndvi_map, 'r+') as src:
         data = src.read(indexes=1)
@@ -62,7 +62,7 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
         block_size=(500, 500),
         compress = True
     )
-    blurr_source = rgio_.Source(path=blurred_tif)
+    blurr_source = Source(path=blurred_tif)
     # compute the mask
     view_size = (500, 400)
     rgpara.compute_mask(source=blurr_source, block_size=view_size, logic='all')
@@ -152,11 +152,11 @@ def test_model_output(datafiles, create_blurred_tif):
     """Test the parallelized model prediction calculation.
     """
     as_dtype = 'float32'
-    blurred_source = rgio_.Source(path=create_blurred_tif)
+    blurred_source = Source(path=create_blurred_tif)
     predictors = blurred_source.get_bands()
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    rgio.coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
-    resp_source = rgio_.Source(path=ndvi_map)
+    coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
+    resp_source = Source(path=ndvi_map)
     resp_profile = resp_source.import_profile()
     resp_profile['count'] = 1
     print('computing weights')
@@ -190,7 +190,7 @@ def test_model_output(datafiles, create_blurred_tif):
     for pred in predictors:
         model_data += (optimal_weights[pred] * pred.get_data()).astype(as_dtype)
 
-    model_source = rgio_.Source(model_out)
+    model_source = Source(model_out)
     model_band = model_source.get_band(bidx=1)
     # make sure we get the same
     print(f"{np.unique(model_band.get_data())=}")
@@ -209,7 +209,7 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
     _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio.coregister_raster(_ndvi_map, landcover_map, output=ndvi_map)
+    coregister_raster(_ndvi_map, landcover_map, output=ndvi_map)
     # create a mask for ndvi_map masking the nan's
     with rio.open(ndvi_map, 'r+') as src:
         data = src.read(indexes=1)
@@ -218,7 +218,7 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
     # create the predicotrs 
     response = ndvi_map
 
-    blurred_source = rgio_.Source(path=create_blurred_tif)
+    blurred_source = Source(path=create_blurred_tif)
     predictors = blurred_source.get_bands()
     # choose the write mask
     for pred in predictors:
@@ -268,11 +268,11 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
 def test_get_XT_X_dependency(datafiles, create_blurred_tif):
     """Test wether rank deficiency is captured when layers would be linear dependent
     """
-    blur_source = rgio_.Source(path=create_blurred_tif)
+    blur_source = Source(path=create_blurred_tif)
     predictors = blur_source.get_bands()
 
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    rgio.coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
+    coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
 
     # Generally it should be empty (as there is no linear dependency by nature)
     result = lfpara.get_XT_X_dependency(response=ndvi_map,
@@ -300,11 +300,11 @@ def test_compute_weights(datafiles, create_blurred_tif):
         1) normal
         2) with rank deficiency and all zero column
     """
-    blur_source = rgio_.Source(path=create_blurred_tif)
+    blur_source = Source(path=create_blurred_tif)
     predictors = blur_source.get_bands()
 
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    rgio.coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
+    coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
 
     rgpara.compute_mask(blur_source, block_size=(500, 500))
     for p in predictors:
@@ -353,11 +353,11 @@ def test_calculate_rmse(datafiles, create_blurred_tif):
     """Test the parallelized RSME calculation.
       """
     block_size = (500, 500)
-    blurred_source = rgio_.Source(path=create_blurred_tif)
+    blurred_source = Source(path=create_blurred_tif)
     predictors = blurred_source.get_bands()
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    rgio.coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
-    resp_source = rgio_.Source(path=ndvi_map)
+    coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
+    resp_source = Source(path=ndvi_map)
     resp_profile = resp_source.import_profile()
     resp_profile['count'] = 1
 
@@ -397,7 +397,7 @@ def test_calculate_rmse(datafiles, create_blurred_tif):
 
     # make sure we get the same
     ndvi_band = resp_source.get_band(bidx=1)
-    model_band = rgio_.Source(path=model_out).get_band(bidx=1)
+    model_band = Source(path=model_out).get_band(bidx=1)
     ndvi_array = ndvi_band.get_data()
     model_array = model_band.get_data()
 
@@ -462,8 +462,8 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
 
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
-    blurred_source = rgio_.Source(path=create_blurred_tif)
+    coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+    blurred_source = Source(path=create_blurred_tif)
     # set the mask
     rgpara.compute_mask(source=blurred_source,
                         block_size=block_size,
@@ -471,7 +471,7 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
                         logic='all',
                         )
     # create the inputs
-    response = rgio_.Band(source=rgio_.Source(path=ndvi_map))
+    response = Band(source=Source(path=ndvi_map))
     predictors = blurred_source.get_bands()
     # Each band should use the dataset mask:
     for pred_band in predictors:
@@ -490,13 +490,13 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
     # Create extra masking band
     resp_profile = response.source.import_profile()
     tmp_map = str(datafiles / 'extra_mask_band.tif')
-    tmp_source = rgio_.Source(path=tmp_map)
+    tmp_source = Source(path=tmp_map)
     tmp_profile = resp_profile.copy()
     tmp_profile['nodata'] = 0
     tmp_profile['dtype'] = np.uint8 
     tmp_source.profile = tmp_profile
     tmp_source.init_source(overwrite=True)
-    extra_masking_band = rgio_.Band(source=tmp_source, bidx=1)
+    extra_masking_band = Band(source=tmp_source, bidx=1)
     # write out data as (mask all)
     extra_mask_data = np.full(shape=response.shape, fill_value=0, dtype=np.uint8)
     extra_masking_band.set_data(data=extra_mask_data)
@@ -538,16 +538,16 @@ def test_selector_computation(datafiles, create_blurred_tif):
 
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+    coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
 
-    lct_source = rgio_.Source(path=landcover_map)
-    ndvi_source = rgio_.Source(path=ndvi_map)
-    blurred_source = rgio_.Source(path=create_blurred_tif)
+    lct_source = Source(path=landcover_map)
+    ndvi_source = Source(path=ndvi_map)
+    blurred_source = Source(path=create_blurred_tif)
     # set the mask
     rgpara.compute_mask(source=blurred_source, block_size=(1000, 1000),
                         nodata=0, logic='all')
     # create the inputs
-    response = rgio_.Band(source=rgio_.Source(path=ndvi_map))
+    response = Band(source=Source(path=ndvi_map))
     predictors = blurred_source.get_bands()
     # Each band should use the dataset mask:
     for pred_band in predictors:

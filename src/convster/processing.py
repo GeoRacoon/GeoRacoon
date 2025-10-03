@@ -9,8 +9,7 @@ from scipy.stats import entropy
 from skimage.filters import gaussian
 
 from riogrande.helper import dtype_range, convert_to_dtype
-from riogrande.io import load_block
-from riogrande.io_ import Source, Band
+from riogrande.io import Source, Band, load_block
 from riogrande.prepare import get_view, relative_view
 
 from .filters import bpgaussian
@@ -226,7 +225,7 @@ def view_data(source:Source|str,
     source:
       The path to the tif file to load
     bands:
-        A collection of strings or `io_.Band` object the specify which bands to use
+        A collection of strings or `io.Band` object the specify which bands to use
     view:
       defines the view of the data array to update
     in_range:
