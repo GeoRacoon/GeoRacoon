@@ -20,6 +20,9 @@ file = ["requirements.txt"]
 [tool.setuptools.dynamic.optional-dependencies.testing]
 file = ["tests/requirements.txt"]
 
+[tool.setuptools.dynamic.optional-dependencies.docs]
+file = ["docs/requirements.txt"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["landiv_blur", "convster", "riogrande", "linfit", "convster.filters"]
