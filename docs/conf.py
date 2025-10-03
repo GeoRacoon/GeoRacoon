@@ -2,17 +2,19 @@ import os
 import sys
 from importlib.metadata import version as get_version
 sys.path.insert(0, os.path.abspath('../'))
-sys.path.insert(0, os.path.abspath('../src/landiv_blur'))
+sys.path.insert(0, os.path.abspath('../src/riogrande'))
+sys.path.insert(0, os.path.abspath('../src/convster'))
+sys.path.insert(0, os.path.abspath('../src/linfit'))
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'LanDiv Blur'
-copyright = '2024, Jonas Liechti'
-author = 'Jonas I. Liechti'
+project = 'GeoRacoon'
+copyright = '2025, GeoRacoon'
+author = 'Simon Landauer, Jonas I. Liechti'
 
 master_doc = 'index'
 
-release = ".".join(get_version('landiv_blur').split('.')[:2])
+release = ".".join(get_version('GeoRacoon').split('.')[:2])
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -51,7 +53,7 @@ html_theme = 'pydata_sphinx_theme'
 #html_theme = 'sphinx_book_theme'
 # html_css_files = ["custom.css"]
 # html_logo = '_static/<logo>.png'
-html_title = 'LanDiv Blur'
+html_title = 'GeoRacoon'
 html_theme_options = {
     "navbar_start": ["navbar-logo"],
     "navbar_center": ["navbar-nav"],
