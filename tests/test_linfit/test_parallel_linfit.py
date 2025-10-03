@@ -33,7 +33,7 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     lct_source = rgio_.Source(path=landcover_map)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     # scale it down to 100x100m (from 30x30)
-    rgio._coregister_raster(ndvi_map, landcover_map, output=str(ndvi_map))
+    rgio.coregister_raster(ndvi_map, landcover_map, output=str(ndvi_map))
     # create a mask for ndvi_map masking the nan's
     with rio.open(ndvi_map, 'r+') as src:
         data = src.read(indexes=1)
@@ -155,7 +155,7 @@ def test_model_output(datafiles, create_blurred_tif):
     blurred_source = rgio_.Source(path=create_blurred_tif)
     predictors = blurred_source.get_bands()
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    rgio._coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
+    rgio.coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
     resp_source = rgio_.Source(path=ndvi_map)
     resp_profile = resp_source.import_profile()
     resp_profile['count'] = 1
@@ -209,7 +209,7 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
     _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, landcover_map, output=ndvi_map)
+    rgio.coregister_raster(_ndvi_map, landcover_map, output=ndvi_map)
     # create a mask for ndvi_map masking the nan's
     with rio.open(ndvi_map, 'r+') as src:
         data = src.read(indexes=1)
@@ -272,7 +272,7 @@ def test_get_XT_X_dependency(datafiles, create_blurred_tif):
     predictors = blur_source.get_bands()
 
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    rgio._coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
+    rgio.coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
 
     # Generally it should be empty (as there is no linear dependency by nature)
     result = lfpara.get_XT_X_dependency(response=ndvi_map,
@@ -304,7 +304,7 @@ def test_compute_weights(datafiles, create_blurred_tif):
     predictors = blur_source.get_bands()
 
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    rgio._coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
+    rgio.coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
 
     rgpara.compute_mask(blur_source, block_size=(500, 500))
     for p in predictors:
@@ -356,7 +356,7 @@ def test_calculate_rmse(datafiles, create_blurred_tif):
     blurred_source = rgio_.Source(path=create_blurred_tif)
     predictors = blurred_source.get_bands()
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    rgio._coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
+    rgio.coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
     resp_source = rgio_.Source(path=ndvi_map)
     resp_profile = resp_source.import_profile()
     resp_profile['count'] = 1
@@ -462,7 +462,7 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
 
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+    rgio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
     blurred_source = rgio_.Source(path=create_blurred_tif)
     # set the mask
     rgpara.compute_mask(source=blurred_source,
@@ -538,7 +538,7 @@ def test_selector_computation(datafiles, create_blurred_tif):
 
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+    rgio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
 
     lct_source = rgio_.Source(path=landcover_map)
     ndvi_source = rgio_.Source(path=ndvi_map)

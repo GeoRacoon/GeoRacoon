@@ -475,7 +475,7 @@ def _export_to_tif(destination: str, data: NDArray, orig_profile: dict, start=(0
         dest.write(data, window=Window(*start, *size), indexes=1)
 
 
-def _coregister_raster(source: str, reference: str, output: str | None = None) -> str:
+def coregister_raster(source: str, reference: str, output: str | None = None) -> str:
     # TODO: this is actually not so bad, as it is quite usefull for geographic operations
     # is_needed (in tests only)
     # needs_work (format doc)

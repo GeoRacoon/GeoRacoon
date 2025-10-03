@@ -29,7 +29,7 @@ _ndvi_map = os.path.join(DATA_DIR, 'testing', 'ndvi',
 # Before we start we need to resample the ndvi map as it has a different resolution
 # scale it down to 100x100m (from 30x30)
 ndvi_map = os.path.join(INTERIM_DIR, 'resampled_NDVI_CH_map_toDELETE.tif')
-lbio._coregister_raster(_ndvi_map, lct_map, output=ndvi_map)
+lbio.coregister_raster(_ndvi_map, lct_map, output=ndvi_map)
 # now we are good to go
 
 # ###

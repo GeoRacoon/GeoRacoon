@@ -34,7 +34,7 @@ def test_resampling(datafiles):
     with pytest.raises(TypeError):
         check_compatibility(ndvi_map, landcover_map)
     # re-sample the landcover_map to match the resolution of the ndvi_map
-    rgio._coregister_raster(landcover_map, ndvi_map, output=str(landcover_map))
+    rgio.coregister_raster(landcover_map, ndvi_map, output=str(landcover_map))
     # now check that the shape of the data actually matches
     with rio.open(ndvi_map, 'r') as src:
         # get the shape and the projection

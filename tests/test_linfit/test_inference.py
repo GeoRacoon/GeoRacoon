@@ -30,7 +30,7 @@ def test_preparation(datafiles, create_blurred_tif, set_mpc_strategy):
     print(f"{ndvi_map=}")
 
     landcover_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_landcover_map, ndvi_map, output=landcover_map)
+    rgio.coregister_raster(_landcover_map, ndvi_map, output=landcover_map)
     # work with strings first
     lfinf.prepare_predictors(ndvi_map,
                              landcover_map,
@@ -101,7 +101,7 @@ def test_optimal_weights_example_data(datafiles, create_blurred_tif):
     # scale it down to 100x100m (from 30x30)
 
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, landcover_map, output=ndvi_map)
+    rgio.coregister_raster(_ndvi_map, landcover_map, output=ndvi_map)
 
     # create a mask for ndvi_map masking the nan's
     with rio.open(ndvi_map, 'r+') as src:
@@ -147,7 +147,7 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif,
 
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+    rgio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
 
     lct_source = rgio_.Source(path=landcover_map)
     ndvi_source = rgio_.Source(path=ndvi_map)
@@ -197,7 +197,7 @@ def test_extra_masking_band(datafiles, create_blurred_tif, set_mpc_strategy):
 
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+    rgio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
     blurred_source = rgio_.Source(path=create_blurred_tif)
     # set the mask
     rgpara.compute_mask(source=blurred_source,
@@ -258,7 +258,7 @@ def test_transposed_prod_blurred_example_data(datafiles, create_blurred_tif):
     sigma = 10
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, blurred_source.path, output=ndvi_map)
+    rgio.coregister_raster(_ndvi_map, blurred_source.path, output=ndvi_map)
     # create a mask for ndvi_map masking the nan's
     with rio.open(ndvi_map, 'r+') as src:
         data = src.read(indexes=1)
@@ -310,7 +310,7 @@ def test_optimal_beta(datafiles, create_blurred_tif):
     # scale it down to 100x100m (from 30x30)
 
     ndvi_map = str(datafiles / 'ndvi_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+    rgio.coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
     # create a mask for ndvi_map masking the nan's
     with rio.open(ndvi_map, 'r+') as src:
         data = src.read(indexes=1)
