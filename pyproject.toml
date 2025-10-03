@@ -22,7 +22,13 @@ file = ["tests/requirements.txt"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["landiv_blur", "convster", "riogrande", "linfit", "convster.filters"]
+include = [
+  "landiv_blur",
+  "convster",
+  "convster.filters"
+  "riogrande",
+  "linfit",
+]
 exclude = ["tests*"]
 
 [project.urls]
@@ -58,6 +64,7 @@ omit = [
 [tool.coverage.paths]
 source = [
   "src/riogrande/", 
+  "src/riogrande/io", 
   "src/convster/",
   "src/convster/filters",
   "src/linfit/", 
