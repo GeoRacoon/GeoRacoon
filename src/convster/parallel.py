@@ -3,10 +3,6 @@ This module contains various helper functions to parallelize the application
 of filters on a tif
 
 """
-# is_needed
-# needs_work (the module is too big!)
-# not_tested (partially)
-# usedin_both (should be split up!)
 from __future__ import annotations
 
 import warnings
@@ -20,7 +16,6 @@ from typing import Union
 from collections.abc import Callable, Collection
 from numpy.typing import NDArray
 from multiprocessing import (Queue, Manager)
-
 
 from riogrande.io_ import Source, Band
 from riogrande.helper import (
@@ -111,8 +106,8 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
                     print(f"Wrote out bands for blurred block {inner_view=}")
                 timer.new_lab()
         # print(f"\n\n########\n\nProfile")
-
     return timer
+
 
 def combine_entropy_blocks(output_params: dict,
                            entropy_q: Queue):
@@ -196,6 +191,7 @@ def combine_entropy_blocks(output_params: dict,
                 timer.new_lab()
     return timer
 
+
 def combine_interaction_blocks(output_params: dict,
                                interaction_q: Queue):
     # is_needed (internally_only)
@@ -253,7 +249,8 @@ def compute_entropy(source: str | Source,
                     blur_params: dict,  # TODO: is only used to format output_file
                     categories: list | None = None,
                     output_dtype: type | str | None = None,
-                    output_range: tuple | None = None, # TODO: Do we want to infer for np.integer? (see compute entropy)
+                    output_range: tuple | None = None,
+                    # TODO: Do we want to infer for np.integer? (see compute entropy)
                     normed: bool = True,
                     max_entropy_categories: int | None = None,
                     verbose: bool = False,
@@ -379,7 +376,7 @@ def compute_entropy(source: str | Source,
                        output_dtype=output_dtype,
                        output_range=output_range,
                        normed=normed,
-                       max_entropy_categories=max_entropy_categories,)
+                       max_entropy_categories=max_entropy_categories, )
         block_params.append(bparams)
 
     # ###
@@ -484,7 +481,6 @@ def compute_interaction(source: str | Source,
        Path to the resulting tif file
 
     """
-
     if isinstance(source, str):
         source = Source(path=source)
     with source.open(mode='r') as src:
@@ -555,7 +551,7 @@ def compute_interaction(source: str | Source,
                        output_dtype=output_dtype,
                        output_range=output_range,
                        standardize=standardize,
-                       normed=normed,)
+                       normed=normed, )
         block_params.append(bparams)
 
     # ###
@@ -577,7 +573,7 @@ def compute_interaction(source: str | Source,
         all_jobs = []
         for bparams in block_params:
             all_jobs.append(pool.apply_async(block_interaction,
-                                            (bparams, interaction_q)))
+                                             (bparams, interaction_q)))
         # collect results
         job_timers = []
         for job in all_jobs:
@@ -604,6 +600,7 @@ def compute_interaction(source: str | Source,
     print(f"{total_duration=}")
     print(f"maximal duration of single job: {max(job_timers)=}")
     return interaction_output_file
+
 
 def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
     # is_needed (internally only)
@@ -730,6 +727,7 @@ def block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
             interaction_params
         )
     return timer
+
 
 def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedTask:
     # is_needed
@@ -881,16 +879,17 @@ def block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
         )
     return timer
 
+
 # TODO: check how much extract_categories and apply_filter are redundant
 def extract_categories(source: str | Source,
                        categories: list,
                        output_file: str,
                        block_size: tuple[int, int],
-                       img_filter: None|Callable=None,
-                       filter_params: dict|None=None,
-                       output_dtype: type|str|None=None,
-                       output_params:None|dict = None,
-                       filter_output_range:tuple|None=None,
+                       img_filter: None | Callable = None,
+                       filter_params: dict | None = None,
+                       output_dtype: type | str | None = None,
+                       output_params: None | dict = None,
+                       filter_output_range: tuple | None = None,
                        verbose: bool = False,
                        **params):
     # is_needed (internally only and in tests)
@@ -1023,7 +1022,7 @@ def extract_categories(source: str | Source,
     # set the block size in pixels
     if verbose:
         print("The chosen source tif has a dimension of:"
-            f"\n\t{width=}\n\t{height=}")
+              f"\n\t{width=}\n\t{height=}")
         print(f"The block size without border is {block_size=} pixels")
     if img_filter is None:  # no filter means blocks with 0 transition region
         border = (0, 0)
@@ -1034,7 +1033,6 @@ def extract_categories(source: str | Source,
 
     # now let's prepare the output parameters:
     count = len(categories)
-
 
     blur_output_params = dict(
         profile=profile,
@@ -1109,25 +1107,26 @@ def extract_categories(source: str | Source,
     print(f"maximal duration of single job: {max(job_timers)=}")
     return output_file
 
+
 # TODO: This could be called in extract_categories
 def apply_filter(source: str | Source,
                  output_file: str,
                  block_size: tuple[int, int],
                  bands: list[Band] | None = None,
-                 data_in_range:None|NDArray|Collection=None,
-                 data_as_dtype:type|None=np.uint8,
-                 data_output_range:None|NDArray|Collection=None,
+                 data_in_range: None | NDArray | Collection = None,
+                 data_as_dtype: type | None = np.uint8,
+                 data_output_range: None | NDArray | Collection = None,
                  replace_nan_with: Union[int, float] | None = None,
                  img_filter=None,
-                 filter_params:dict|None=None,
-                 filter_output_range:Collection|None=(0.,1.),
-                 output_dtype:type|None=np.uint8,
-                 output_range:tuple|None=None,
+                 filter_params: dict | None = None,
+                 filter_output_range: Collection | None = (0., 1.),
+                 output_dtype: type | None = np.uint8,
+                 output_range: tuple | None = None,
                  selector_band: Band | None = None,
                  verbose: bool = False,
-                 output_params:None|dict = None,
+                 output_params: None | dict = None,
                  **params
-                 )->str:
+                 ) -> str:
     # is_needed (only in tests)
     # needs_work (docs - if not jsut deleted; see TODOs)
     # is_tested
@@ -1209,7 +1208,7 @@ def apply_filter(source: str | Source,
         height = src.height
     if verbose:
         print("The chosen source tif has a dimension of:"
-            f"\n\t{width=}\n\t{height=}")
+              f"\n\t{width=}\n\t{height=}")
         print(f"The block size without border is {block_size=} pixels")
     if bands is None:
         bands = source.get_bands()
@@ -1218,7 +1217,7 @@ def apply_filter(source: str | Source,
         sources.add(source)
         for band in bands:
             sources.add(band.source)
-        assert len(sources) == 1, "Only bands with the same source are "\
+        assert len(sources) == 1, "Only bands with the same source are " \
                                   f"allowed!\nWe have\n\t{sources=}"
         source = sources.pop()
 
@@ -1283,7 +1282,7 @@ def apply_filter(source: str | Source,
     nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
     if verbose:
         print(f"using {nbr_workers=}")
-    
+
     start_method = params.get('start_method', None)
 
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
