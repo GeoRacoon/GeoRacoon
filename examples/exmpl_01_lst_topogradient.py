@@ -27,9 +27,11 @@ import rasterio as rio
 from matplotlib import pyplot as plt
 
 # Our package(s)
-from landiv_blur.io_ import Source, Band
-from landiv_blur import parallel as ldpara
-from landiv_blur import filters as ldfilter
+from riogrande.io_ import Source, Band
+from riogrande import parallel as rgpara
+from convster import parallel as cvpara
+from convster.filters import bpgaussian
+from linfit import parallel as lfpara
 
 # Parameters
 base_dir = os.path.dirname(__file__)
@@ -115,14 +117,14 @@ def main():
 
     # 2.2.1 Actual convolution
     # TODO: We need to implement that files will be initated if they dont exist
-    ldpara.apply_filter(
+    cvpara.apply_filter(
         source=lst_source,
         output_file=lst_conv_file,
         block_size=block_size,
         data_in_range=None,
         data_as_dtype=data_type,
         data_output_range=None,
-        img_filter=ldfilter.bpgaussian, # border preserving gaussian
+        img_filter=bpgaussian, # border preserving gaussian
         filter_params=params_filter,
         filter_output_range=None,
         output_dtype=data_type,
@@ -150,7 +152,7 @@ def main():
     elev_conv_band = Band(elev_conv_source, bidx=1)
 
     # 2.3.1 Actual convolution (again)
-    ldpara.apply_filter(
+    cvpara.apply_filter(
         source=topo_source,
         output_file=elev_conv_file,
         bands=[elev_band],
@@ -158,7 +160,7 @@ def main():
         data_in_range=None,
         data_as_dtype=data_type,
         data_output_range=None,
-        img_filter=ldfilter.bpgaussian, # border preserving gaussian
+        img_filter=bpgaussian, # border preserving gaussian
         filter_params=params_filter,
         filter_output_range=None,
         output_dtype=data_type,
@@ -183,7 +185,7 @@ def main():
     predictors = []
 
     # We want to compute a mask which speeds up things later and helps us identify which values we are not interested in
-    ldpara.compute_mask(topo_source,
+    rgpara.compute_mask(topo_source,
                         bands=[elev_band],
                         logic='all',
                         nodata=np.nan,
@@ -197,7 +199,7 @@ def main():
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # 3.2 Full model fit (very simple form)
-    band_weight = ldpara.compute_weights(
+    band_weight = lfpara.compute_weights(
         response=lst_band,
         predictors=predictors,
         block_size=block_size,
@@ -243,7 +245,7 @@ def main():
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # 4.1 Compute the model
     model_file = os.path.join(base_dir, f"../data/example/_tmp_model_conv_{kernel_m_sigma}_m.tif")
-    model_data_tif = ldpara.compute_model(
+    model_data_tif = lfpara.compute_model(
         predictors=predictors,
         optimal_weights=band_weight,
         output_file=model_file,
@@ -259,7 +261,7 @@ def main():
     # Set up the filter for the data
     lst_org_source = Source(path=lst_file_org)
     lst_org_band = Band(lst_org_source, bidx=1)
-    ldpara.compute_mask(lst_org_source,
+    rgpara.compute_mask(lst_org_source,
                         bands=[lst_org_band],
                         logic='all',
                         nodata=np.nan,
@@ -267,20 +269,20 @@ def main():
                         **params)
     lst_org_band.set_mask_reader(use='source')
 
-    _selector_all = ldpara.prepare_selector(lst_org_band, *predictors,
+    _selector_all = rgpara.prepare_selector(lst_org_band, *predictors,
                                             block_size=block_size, )
 
     # ATTENTION: the R2 might already get high, as the convouted image explains quite a lot, so we want to calculate both R2
     # 1) for the full model, 2) for the residual model we actually fit above
 
     # 4.2.1
-    rmse = ldpara.calculate_rmse(response=lst_band, # Here we need the diff band
+    rmse = lfpara.calculate_rmse(response=lst_band, # Here we need the diff band
                                  model=model_data_tif,
                                  selector=_selector_all,
                                  block_size=block_size,
                                  **params)
 
-    r2 = ldpara.calculate_r2(response=lst_band,
+    r2 = lfpara.calculate_r2(response=lst_band,
                              model=model_data_tif,
                              selector=_selector_all,
                              block_size=block_size,
@@ -295,7 +297,7 @@ def main():
     model_band.add(band=lst_conv_band)
 
 
-    r2 = ldpara.calculate_r2(response=lst_org_band,
+    r2 = lfpara.calculate_r2(response=lst_org_band,
                              model=model_data_tif,
                              selector=_selector_all,
                              block_size=block_size,
