@@ -39,28 +39,70 @@ from .processing import (
 from .filters.gaussian import compatible_border_size
 
 
-def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
-    # is_needed
-    # needs_work (docs)
-    # is_tested
+def _combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
     # TODO: should we think about combining this a bit with "combine_views" in riogrande/parallel?
     #       Or, should we maybe leave them separate as the one in riogrande is really broad (no nodata etc)
-    """Listen to queue (blur_q) and write blurred blocks to a single file
+    """
+    Listen to a queue for blurred category blocks and write them to an output file.
+
+    This function continuously listens to a queue of blurred category data blocks
+    and writes each block to the specified output file. Each item received from
+    the queue represents a spatial region containing multiple categorical bands.
+    The function initializes the output raster according to the provided
+    parameters and writes each band sequentially until a termination signal is
+    received.
 
     Parameters
     ----------
-    output_params:
-      dtype:
-          Data type to use for the output data
-      nodata:
-        Value to be used as nodata value (if not provided `None` is used)
+    output_params :
+        Configuration parameters for the output file. Expected keys include:
+
+        - **as_dtype** : str or numpy.dtype
+          The data type to cast written arrays to before saving.
+        - **output_file** : str
+          Path to the output file to be written.
+        - **profile** : dict
+          Raster I/O profile used for file creation (e.g., driver, width, height).
+        - **nodata** : int or float, optional
+          Value used to represent nodata in the output. If not provided,
+          inherits from the profile or defaults to ``None``.
+        - **count** : int, optional
+          Number of bands in the output raster. If provided, overrides
+          ``profile["count"]``.
+        - **bigtiff** : bool, optional
+          If ``True``, forces creation of a BigTIFF file. Defaults to ``False``.
+        - **verbose** : bool, optional
+          If ``True``, print progress and debug messages during execution.
+          Defaults to ``False``.
+
+    blur_q : Queue
+        A multiprocessing or threading queue providing blurred data blocks.
+        Each item in the queue is expected to be a dictionary with the following
+        keys:
+
+        - **signal** : str, optional
+          Control signal (e.g., ``"kill"``) used to terminate processing.
+        - **data** : dict[str, numpy.ndarray]
+          Mapping of category names (band identifiers) to data arrays.
+        - **view** : dict
+          Metadata describing the spatial region corresponding to the data block
+          (used to compute the write window).
 
     Returns
     -------
-    TimedTask:
-        Can report the duration of the task
-    """
+    TimedTask
+        A `TimedTask` instance tracking the duration of the operation.
+        This can be used for profiling or performance analysis.
 
+    Notes
+    -----
+    The function blocks while waiting for items in the queue and terminates
+    gracefully when an item with ``signal="kill"`` is received. Proper queue
+    management is essential to avoid deadlocks or unfinished writes.
+
+    The `write_band` helper function is called for each band to handle writing
+    and metadata tagging. Each output band is named ``LC_<band>`` for clarity.
+    """
     with TimedTask() as timer:
         as_dtype = output_params.pop('as_dtype')
         if isinstance(as_dtype, str):
@@ -109,50 +151,56 @@ def combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
     return timer
 
 
-def combine_entropy_blocks(output_params: dict,
-                           entropy_q: Queue):
-    # is_needed
-    # needs_work
-    # is_tested
-    """Listen to queue (entropy_q) and write computed blocks to a single file.
+def _combine_entropy_blocks(output_params: dict, entropy_q: Queue):
+    # TODO: needs testing
+    """
+    Listen to a queue for entropy blocks and write them to an output file.
 
-    This function continuously listens to a queue for entropy blocks and writes
-    them to a specified output file.
-    It initializes the output file based on the provided parameters and handles
-    the writing of data until a termination signal is received.
+    This function continuously monitors a queue for entropy data blocks,
+    writing them sequentially to an output file until a termination signal
+    is received. It initializes the output file based on the provided
+    configuration and ensures proper cleanup when the process ends.
 
     Parameters
     ----------
     output_params : dict
-        A dictionary containing parameters for output configuration.
-        Expected keys include:
-        - 'output_dtype': The data type of the output.
-        - 'output_file': The path to the output file where data will be written.
-        - 'profile': A dictionary containing additional profile settings for the output.
-        - 'out_band': (optional) An instance of a Band object for managing output;
-          if not provided, a new Band will be created.
+        Configuration parameters for the output file. Expected keys include:
+
+        - **output_dtype** : str or numpy.dtype
+          The data type of the output array.
+        - **output_file** : str
+          Path to the file where output data will be written.
+        - **profile** : dict
+          Dictionary of metadata or configuration options for the output.
+        - **out_band** : Band, optional
+          An existing `Band` object for writing output. If not provided,
+          a new `Band` will be created and initialized.
 
     entropy_q : Queue
-        A queue from which entropy blocks are read. Each item in the queue
-        is expected to be a dictionary containing:
-        - 'signal': A control signal (e.g., "kill" to terminate the process).
-        - 'data': The actual data block to be written to the output file.
-        - 'view': Metadata related to the data block, used for windowing during writing.
+        A multiprocessing or threading queue that provides entropy blocks.
+        Each item in the queue is expected to be a dictionary with the
+        following keys:
+
+        - **signal** : str, optional
+          Control signal (e.g., ``"kill"``) to terminate the process.
+        - **data** : numpy.ndarray
+          The data block to be written to the output.
+        - **view** : dict
+          Metadata describing the spatial or logical region corresponding
+          to the data block (used to compute the output window).
 
     Returns
     -------
     TimedTask
-        An instance of TimedTask that tracks the duration of the operation.
-        This can be used for performance monitoring or logging purposes.
+        A `TimedTask` instance tracking the total time taken for the operation.
+        This object can be used for profiling or performance analysis.
 
     Notes
     -----
-    The function will block while waiting for items in the queue and will
-    terminate gracefully when a "kill" signal is received.
-    It is important to ensure that the queue is properly managed to avoid
-    deadlocks or resource leaks.
+    The function blocks while waiting for new items in the queue. It terminates
+    gracefully when a dictionary with ``signal="kill"`` is received. Proper
+    queue management is required to prevent deadlocks or resource leaks.
     """
-
     with TimedTask() as timer:
         output_dtype = output_params.pop('output_dtype')
         if isinstance(output_dtype, str):
@@ -192,14 +240,60 @@ def combine_entropy_blocks(output_params: dict,
     return timer
 
 
-def combine_interaction_blocks(output_params: dict,
-                               interaction_q: Queue):
-    # is_needed (internally_only)
-    # needs_work (docs; make internal)
-    # not_tested
-    """Listen to queue (interaction_q) and write computed block to single file
+def _combine_interaction_blocks(output_params: dict, interaction_q: Queue):
+    # TODO: needs testing
     """
+    Listen to a queue for interaction blocks and write them to an output file.
 
+    This function continuously monitors a queue for interaction data blocks,
+    writing them sequentially to a specified output file until a termination
+    signal is received. It initializes the output file according to the
+    provided configuration parameters and handles tagged metadata output.
+
+    Parameters
+    ----------
+    output_params : dict
+        Configuration parameters for the output file. Expected keys include:
+
+        - **output_dtype** : str or numpy.dtype
+          The data type of the output array.
+        - **output_file** : str
+          Path to the file where output data will be written.
+        - **profile** : dict
+          Dictionary of metadata or configuration options for the output file.
+        - **out_band** : Band, optional
+          An existing `Band` instance to handle writing. If not provided,
+          a new `Band` is created using `output_file`.
+        - **output_tag** : dict, optional
+          Metadata tags for the output file. Defaults to
+          ``dict(category='interaction')``.
+        - **verbose** : bool, optional
+          If ``True``, print progress and debug messages. Defaults to ``False``.
+
+    interaction_q : Queue
+        A multiprocessing or threading queue that provides interaction blocks.
+        Each item in the queue is expected to be a dictionary with keys:
+
+        - **signal** : str, optional
+          Control signal (e.g., ``"kill"``) to terminate processing.
+        - **data** : numpy.ndarray
+          The data block to be written to the output file.
+        - **view** : dict
+          Metadata describing the region of the output file corresponding
+          to the data block (used for calculating the write window).
+
+    Returns
+    -------
+    TimedTask
+        A `TimedTask` instance tracking the duration of the operation.
+        This object can be used for profiling or performance analysis.
+
+    Notes
+    -----
+    The function blocks while waiting for new items in the queue and terminates
+    gracefully when a message with ``signal="kill"`` is received.
+    Proper queue management is required to prevent deadlocks or resource leaks.
+    """
     with TimedTask() as timer:
         output_dtype = output_params.pop('output_dtype')
         if isinstance(output_dtype, str):
@@ -391,7 +485,7 @@ def compute_entropy(source: str | Source,
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
         # start the entropy writer task
-        entropy_combiner = pool.apply_async(combine_entropy_blocks,
+        entropy_combiner = pool.apply_async(_combine_entropy_blocks,
                                             (entropy_output_params, entropy_q))
 
         # start the block processing
@@ -566,7 +660,7 @@ def compute_interaction(source: str | Source,
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
         # start the interaction writer task
-        interaction_combiner = pool.apply_async(combine_interaction_blocks,
+        interaction_combiner = pool.apply_async(_combine_interaction_blocks,
                                                 (interaction_output_params, interaction_q))
 
         # start the block processing
@@ -1072,7 +1166,7 @@ def extract_categories(source: str | Source,
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
         # start the blurred category writer task
-        blur_combiner = pool.apply_async(combine_blurred_categories,
+        blur_combiner = pool.apply_async(_combine_blurred_categories,
                                          (blur_output_params, blur_q))
 
         # start the block processing
@@ -1289,7 +1383,7 @@ def apply_filter(source: str | Source,
 
         # start the blurred category writer task
         blur_combiner = pool.apply_async(
-            func=combine_blurred_categories,
+            func=_combine_blurred_categories,
             kwds=dict(output_params=blur_output_params, blur_q=blur_q)
         )
         # start the block processing

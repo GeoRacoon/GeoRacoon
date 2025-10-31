@@ -105,7 +105,7 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
         pool = set_mpc_strategy.Pool(nbr_workers)
         # start the blurred category writer task
         blur_combiner = pool.apply_async(
-            cspara.combine_blurred_categories,
+            cspara._combine_blurred_categories,
             (blur_output_params, blur_q,)
         )
         # start the block processing
