@@ -80,26 +80,157 @@ def select_category(data: NDArray, category: int | list[int],
     return np.where(np.isin(data, _selected), _is, _is_not)
 
 
-def _apply_filter(data: NDArray, img_filter: Callable, **params) -> NDArray:
+def get_categories(data: NDArray) -> list[int]:
     """
-    Apply a filter function to an array.
+    Return the sorted list of categories present in the data.
 
     Parameters
     ----------
     data :
-        Input array to be filtered.
-    img_filter :
-        A callable that accepts `data` as the first argument, along with any
-        keyword arguments, and returns a filtered array.
-    **params :
-        Additional keyword arguments passed directly to `img_filter`.
+        Array of integers indicating the category of each pixel.
 
     Returns
     -------
-    NDArray
-        The filtered result from calling `img_filter(data, **params)`.
+    list of int
+        Sorted list of unique categories present in the data.
+
+    Examples
+    --------
+    >>> a = np.array([[0, 1, 2],
+    ...               [2, 1, 0],
+    ...               [1, 0, 2]])
+    >>> get_categories(a)
+    [0, 1, 2]
     """
-    return img_filter(data, **params)
+    categories = np.unique(data)
+    categories.sort()
+    print("Inferring the number of categories from the provided data."
+          f"\nGot:\t{categories}")
+    return list(map(int, categories))
+
+
+def get_category_data(data: NDArray,
+                      category: int | list[int],
+                      img_filter: Callable | None = None,
+                      filter_params: dict | None = None,
+                      filter_output_range: tuple | None = None,
+                      as_dtype: type | str | None = None,
+                      output_range: tuple | None = None,
+                      data_as_dtype: type | str = "uint8") -> NDArray:
+    """
+    Return the data of one or more categories, optionally after applying a filter.
+
+    Parameters
+    ----------
+    data
+        Matrix indicating the per-cell category.
+    category
+        The category (or categories) to extract.
+    img_filter
+        Filter function applied to the selected category data (e.g.,
+        ``skimage.filters.gaussian``).
+    filter_params
+        Parameters passed to ``img_filter``.
+    filter_output_range
+        Output value range to apply after filtering, if applicable.
+    as_dtype
+        Desired data type of the output array.
+    output_range
+        Custom value range ``(min, max)`` to which the output will be scaled.
+        Useful when filters produce floating-point values.
+
+        For example, a Gaussian filter returns a ``float64`` array with
+        values in ``[0, 1]``. With ``as_dtype="uint8"``, these values are
+        mapped to ``[0, 255]``, reducing memory usage.
+    data_as_dtype
+        Data type of the array used to encode the category mask before filtering.
+        Default is ``"uint8"``. For datasets with more than 255 categories,
+        ``"uint16"`` may be more appropriate.
+
+    Returns
+    -------
+    Filtered or unfiltered array of the selected category, converted and
+    scaled according to the specified options.
+
+    Notes
+    -----
+    - If no image filter is provided, either ``as_dtype`` or ``output_range``
+      must be set to define the data type or range of the output array.
+    - If an image filter is provided, ``as_dtype`` converts the data before
+      the filter is applied.
+    """
+    # is_needed (mostly for tests)
+    # no_work
+    # not_tested
+    # usedin_processing (but could go to io)
+
+    # strip the category/categories
+    _data = select_category(data, category, as_dtype=data_as_dtype)
+    filter_params = filter_params or dict()
+    # apply the image filter if provided
+    _data = _filter_data(data=_data,
+                         img_filter=img_filter,
+                         filter_params=filter_params,
+                         filter_output_range=filter_output_range,
+                         as_dtype=as_dtype,
+                         output_range=output_range)
+    return _data
+
+
+def get_filtered_categories(data: NDArray,
+                            categories: None | Collection = None,
+                            img_filter: None | Callable = None,
+                            output_dtype: type | str | None = "uint8",
+                            output_range: tuple | None = None,
+                            filter_output_range: tuple | None = None,
+                            filter_params: dict | None = None) -> dict[int, NDArray]:
+    """
+    Extract each category from a data array into separate arrays and optionally apply a filter.
+
+    Parameters
+    ----------
+    data
+        Array containing integer categories, e.g., a land-cover type matrix.
+    categories
+        Collection of categories to extract. If None, all categories in `data` are extracted.
+    img_filter
+        Callable to apply as a filter to each category array (e.g., `skimage.filters.gaussian`).
+    output_dtype
+        Data type for the returned arrays (default: "uint8").
+    output_range
+        Range to rescale the filtered arrays.
+    filter_output_range
+        Expected output range of the filter for proper scaling.
+    filter_params
+        Dictionary of parameters to pass to the filter function.
+
+    Returns
+    -------
+    dict
+        A dictionary mapping each category to its filtered and optionally rescaled array.
+
+    Notes
+    -----
+    - See `get_category_data` for details on extracting category-specific data.
+    """
+    # is_needed (only in tests)
+    # needs_work (docs)
+    # not_tested (used in tests thought)
+    # usedin_processing
+
+    if categories is None:
+        categories = get_categories(data)
+    all_categories = dict()
+    for category in categories:
+        _data = get_category_data(data=data, category=category,
+                                  img_filter=img_filter,
+                                  filter_params=filter_params,
+                                  filter_output_range=filter_output_range,
+                                  as_dtype=output_dtype,
+                                  output_range=output_range,
+                                  )
+        all_categories[category] = _data
+    return all_categories
 
 
 def get_max_entropy(nbr: int) -> float:
@@ -129,162 +260,353 @@ def get_max_entropy(nbr: int) -> float:
     return entropy(np.ones(nbr))
 
 
-def get_categories(data: NDArray) -> list[int]:
+def compute_entropy(data_arrays: Sequence[NDArray],
+                    normed: bool = True,
+                    max_entropy_categories: int | None = None,
+                    as_dtype: type | str | None = None,
+                    output_range: tuple | None = None,
+                    **entropy_params) -> NDArray:
     """
-    Return the sorted list of categories present in the data.
+    Compute per-cell entropy over a series of data arrays.
+
+    The input arrays are stacked along a new axis, and entropy is calculated for each cell.
+    The resulting array can be normalized, converted to a different dtype, and rescaled
+    to a specified output range.
 
     Parameters
     ----------
-    data : NDArray
-        Array of integers indicating the category of each pixel.
+    data_arrays
+        Sequence of arrays to compute per-cell entropy over. All arrays must have the same shape.
+    normed
+        If True (default), entropy values are normalized according to the maximum possible entropy.
+        If False, the raw entropy is returned without rescaling.
+    max_entropy_categories
+        Maximum number of categories to use for normalization when `normed=True`.
+        Ignored if `normed=False`.
+    as_dtype
+        Data type for the output array. Useful to reduce memory usage when `normed=True`.
+    output_range
+        Range to rescale normalized entropy values. Ignored if `normed=False`.
+    **entropy_params
+        Additional keyword arguments passed to `scipy.stats.entropy`.
 
     Returns
     -------
-    list of int
-        Sorted list of unique categories present in the data.
+    np.ndarray
+        Array of the same shape as the input arrays, containing the per-cell entropy.
+
+    Notes
+    -----
+    - When `normed=True`, the entropy is mapped to [0, 1] for float outputs by default,
+      or to the full range of the specified integer type if `as_dtype` is integer.
+    - Converting to a different dtype without normalization may produce unbounded results.
+    - For large arrays, using a smaller `as_dtype` (e.g., 'uint8') can save memory.
 
     Examples
     --------
-    >>> a = np.array([[0, 1, 2],
-    ...               [2, 1, 0],
-    ...               [1, 0, 2]])
-    >>> get_categories(a)
-    [0, 1, 2]
+    >>> data1 = np.array([[10, 5],
+    ...                   [4, 1]])
+    >>> data2 = np.array([[1, 5],
+    ...                   [2, 9]])
+    >>> compute_entropy([data1, data2], normed=True, as_dtype='float32')
+    array([[0.439497  , 1.        ],
+           [0.91829586, 0.4689956 ]], dtype=float32)
     """
-    categories = np.unique(data)
-    categories.sort()
-    print("Inferring the number of categories from the provided data."
-          f"\nGot:\t{categories}")
-    return list(map(int, categories))
+    # calculate the entropy
+    _stacked = np.stack(data_arrays, axis=2)
+    entropy_array = entropy(_stacked, axis=2, **entropy_params)
+    in_dtype = entropy_array.dtype
 
-# TODO: Here I stopped
+    if isinstance(as_dtype, str):
+        _as_dtype = np.dtype(as_dtype)
+    else:
+        _as_dtype = as_dtype
 
-def get_category_data(data: NDArray,
-                      category: int | list[int],
-                      img_filter: Callable | None = None,
-                      filter_params: dict | None = None,
-                      filter_output_range: tuple | None = None,
-                      as_dtype: type | str | None = None,
-                      output_range: tuple | None = None,
-                      data_as_dtype: type | str = "uint8") -> NDArray:
-    """Return the data of a single category, optionally after applying a filter
+    if normed:
+        if max_entropy_categories is None:
+            max_entropy = get_max_entropy(len(data_arrays))
+        else:
+            max_entropy = get_max_entropy(max_entropy_categories)
+        # We normalize the entropy by setting the in_range accordingly
+        if np.issubdtype(_as_dtype, np.floating) and output_range is None:
+            # use the normalization range [0, 1] for float output by default
+            output_range = (0.0, 1.0)
+        elif np.issubdtype(_as_dtype, np.integer) and output_range is None:
+            # TODO: we should decide whether we want this for entropy - but if normed I feel it helps with usability
+            #       useres will not want to sset this if they use uint8 I guess
+            # use the general possible range for Integers
+            _intmax, _intmin = dtype_range(_as_dtype)
+            output_range = (_intmin, _intmax)
+        input_range = [0.0, max_entropy],
+    else:
+        if output_range is not None:
+            warnings.warn(
+                f"Calculating the entropy with {normed=} ignores "
+                f"{output_range=} as a non-normalized entropy value is not "
+                "bounded and can thus not be mapped to a data range."
+            )
+        if as_dtype is not None and str(in_dtype) != str(as_dtype):
+            # we do not normalize but convert
+            warnings.warn(
+                f"The computed entropy will be converted from {str(in_dtype)} "
+                f"to {as_dtype} without rescaling. If this is not what you "
+                "want set the `output_range` parameter."
+            )
+        output_range = None
+        input_range = None
 
-    .. note::
+    # convert (and rescale if normed)
+    entropy_array = convert_to_dtype(data=entropy_array,
+                                     as_dtype=_as_dtype,
+                                     in_range=input_range,
+                                     out_range=output_range)
+    return entropy_array
 
-      If no image filter is provided then either `as_type` or `output_dtype`
-      must be set to the data type the output array should be in.
 
-      If an image filter is provided then `as_type` will convert the data prior to
-      applying the filter.
+def get_entropy(data: NDArray,
+                categories: Collection | None = None,
+                normed: bool = False,
+                max_entropy_categories: int | None = None,
+                img_filter: Callable | None = None,
+                as_dtype: type | str | None = None,
+                output_range: tuple | None = None,
+                filter_params: dict | None = None,
+                entropy_params: dict | None = None,
+                filter_output_range: tuple | None = None,
+                **params) -> NDArray:
+    """
+    Compute the Shannon entropy per cell from a 2D categorical array.
 
     Parameters
     ----------
-    data: np.array
-      Matrix of type `int` indicating the per-cell category
-    category:
-      The specific category (or categories) to select
-    img_filter:
-      a filter function that can be applied to the data. See e.g.
-      skimage.filter.gaussian
-    filter_params:
-      Parameter to pass to the filter callable
-    filter_output_range:
-      Optional tuple to pass the output range of the applied filter
-    output_dtype:
-      Set the data-type of the resulting image
-    output_range:
-      Optional tuple to overwrite the [min,max] range of the output dtype.
+    data
+        2D array of integer categorical values.
+    categories
+        Collection of categories to extract. If None, all categories in `data` are used.
+    normed
+        If True, entropy values are normalized by the maximum possible entropy
+        given the number of categories.
+    max_entropy_categories
+        Maximum number of categories to use for normalization. Ignored if `normed=False`.
+    img_filter
+        Filter function applied to the per-category arrays, e.g., `skimage.filters.gaussian`.
+    filter_params
+        Parameters to pass to `img_filter`.
+    filter_output_range
+        Expected output range of the filter for proper scaling.
+    as_dtype
+        Output data type for the entropy array. Only applied if `normed=True`.
+    output_range
+        Range to rescale normalized entropy values. Only applied if `normed=True`.
+    entropy_params
+        Additional keyword arguments passed to `compute_entropy`.
+    **params
+        Additional arguments, e.g., `blur_output_dtype` for intermediate filtered arrays.
 
-      .. note::
+    Returns
+    -------
+    np.ndarray
+        Array of the same shape as `data`, containing the per-cell Shannon entropy.
 
-        This can be particularly useful if you apply an image filter.
-
-        For example, a Gaussian filter returns a map of type `np.float64` with
-        values in $[0, 1]$.
-        With `output_dtype="uint8"` these values are mapped to the range [0, 255]
-        and an array of type `np.uint8` is returned with a considerably smaller
-        memory footprint.
-
-    data_as_dtype:
-      The data-type of the `np.array` that will encode the category prior to
-      applying the (optional) filter.
-
-      ..Note::
-        The default value of `np.uint8` should be the best choice in most cases.
-        Only if the data contains more than 255 different categories it would make
-        sense to change it to `np.uint16`.
+    Notes
+    -----
+    - This function relies on `get_filtered_categories` to create per-category arrays.
+    - The filtered arrays are passed to `compute_entropy` to calculate entropy.
+    - Normalization scales values to [0,1] (or to the range of `as_dtype` if integer).
+    - The `as_dtype` and `output_range` parameters only affect the normalized output.
     """
-    # is_needed (mostly for tests)
-    # no_work
-    # not_tested
-    # usedin_processing (but could go to io)
-
-    # strip the category/categories
-    _data = select_category(data, category, as_dtype=data_as_dtype)
+    # TODO: This function does not allow the set `as_dtype` of
+    # `get_filtered_categories`
+    # > Change call signature to
+    #   `get_entropy(blur_params:dict, entropy_params:dict,...)`
     filter_params = filter_params or dict()
-    # apply the image filter if provided
-    _data = filter_data(data=_data,
-                        img_filter=img_filter,
-                        filter_params=filter_params,
-                        filter_output_range=filter_output_range,
-                        as_dtype=as_dtype,
-                        output_range=output_range)
-    return _data
+    blur_output_dtype = params.pop('blur_output_dtype', None)
+    blurred_categories = get_filtered_categories(data=data,
+                                                 categories=categories,
+                                                 img_filter=img_filter,
+                                                 filter_output_range=filter_output_range,
+                                                 output_dtype=blur_output_dtype,
+                                                 filter_params=filter_params)
+    entropy_params = entropy_params or dict()
+    return compute_entropy(data_arrays=tuple(blurred_categories.values()),
+                           normed=normed,
+                           max_entropy_categories=max_entropy_categories,
+                           as_dtype=as_dtype,
+                           output_range=output_range,
+                           **entropy_params)
 
 
-def view_data(source: Source | str,
-              bands: list[Band | int] | None,
-              view: tuple[int, int, int, int],
-              in_range: None | NDArray | Collection,
-              as_dtype: type | str | None,
-              output_range: None | NDArray | Collection,
-              ):
-    # TODO: is_needed - needs_work - is_tested - usedin_processing
-    """Get a data view from tif file + optionally convert and rescale the values
+def compute_interaction(data_arrays: Sequence[NDArray],
+                        input_dtype: type | str | None = None,
+                        standardize: bool = False,
+                        normed: bool = True,
+                        output_dtype: type | str | None = None,
+                        output_range: tuple | None = None
+                        ) -> NDArray:
+    r"""
+    Compute per-cell interaction (inspired by the Simpson Index) across a series of data arrays.
+
+    The interaction is calculated as the element-wise product of the input arrays.
+    Optionally, the interaction can be standardized, normalized, and converted to
+    a specified output data type.
+
+    For float inputs:
+       .. math::
+           interaction = LC_1 \times LC_2 \times \dots \times LC_n
+
+    For integer (e.g., uint8) inputs:
+       .. math::
+           interaction = \frac{\left(\frac{LC_1}{\text{max}} \times \frac{LC_2}{\text{max}} \times \dots \right)}{(1/n^n)} \times \text{max}
+
+    Parameters
+    ----------
+    data_arrays : Sequence[np.ndarray]
+        Sequence of arrays to compute per-cell interaction over. All arrays must have the same shape.
+    input_dtype : type | str | None, default=None
+        Expected data type of the input arrays. Raises an error if actual dtype does not match.
+    standardize : bool, default=False
+        If True, interaction is standardized by the sum of the layers:
+        :math:`interaction = \frac{A \cdot B \cdot ...}{A + B + ...}`.
+    normed : bool, default=True
+        If True, interaction values are normalized to the theoretical maximum interaction:
+        :math:`(1/n)^n` for n arrays.
+    output_dtype : type | str | None, default=None
+        Data type for the output array. Values are rescaled appropriately for integer outputs.
+    output_range : tuple | None, default=None
+        Target range for output values (currently used only for integer outputs; reserved for future use).
+
+    Returns
+    -------
+    np.ndarray
+        Array of the same shape as the input arrays, containing the per-cell interaction.
+
+    Notes
+    -----
+    - Standardization (`standardize=True`) scales the interaction by the sum of input layers.
+    - Conversion to integer types uses scaling and `np.ceil` to avoid rounding artifacts.
+    - `normed=True` ensures the maximum possible interaction corresponds to 1 (float) or the maximum of the integer type.
+
+    Examples
+    --------
+    # Example 1: float inputs, 2 arrays
+    >>> a = np.array([[0.5, 0.25], [0.0, 0.05]])
+    >>> b = np.array([[0.5, 0.25], [0.0, 0.3]])
+    >>> compute_interaction([a, b], standardize=True, normed=True)
+    array([[1.        , 0.5       ],
+           [0.        , 0.17142857]])
+    >>> compute_interaction([a, b], standardize=True, normed=False)
+    array([[0.25      , 0.125     ],
+           [0.        , 0.04285714]])
+    # Example 2: integer inputs (uint8), 3 arrays, float output
+    >>> a = np.array([[85, 100], [50, 60]], dtype=np.uint8)
+    >>> b = np.array([[85, 50], [100, 80]], dtype=np.uint8)
+    >>> c = np.array([[85, 105], [100, 10]], dtype=np.uint8)
+    >>> compute_interaction([a, b, c], standardize=True, normed=True, output_dtype=np.float64)
+    array([[1.        , 0.85487482],
+           [0.83044983, 0.13287197]])
+    """
+    array_dtype = data_arrays[0].dtype
+
+    # define rescaling based on input type
+    if input_dtype is None:
+        input_dtype = array_dtype
+    if isinstance(input_dtype, str):
+        input_dtype = np.dtype(input_dtype)
+    if array_dtype != input_dtype:
+        raise ValueError(f"Array data type {array_dtype} does not match provided input data type {input_dtype}")
+
+    # determine scaling for input
+    _max_scale, _ = dtype_range(input_dtype)
+    if np.issubdtype(input_dtype, np.floating):
+        _max_scale = 1.0
+
+    # calculate the interaction (A * B)
+    interaction_array = np.ones_like(data_arrays[0], dtype=float)
+    for arr in data_arrays:
+        interaction_array *= (arr / _max_scale)
+
+    # standardize by the sum (A + B) -> result is A*B/(A+B)
+    if standardize:
+        standardize_array = np.zeros_like(data_arrays[0], dtype=float)
+        for arr in data_arrays:
+            standardize_array += (arr / _max_scale)
+        interaction_array = np.divide(interaction_array, standardize_array,
+                                      out=np.zeros_like(interaction_array, dtype=float),
+                                      where=standardize_array != 0)
+    if normed:
+        n = len(data_arrays)
+        max_interaction = 1 / (n ** n)
+        interaction_array /= max_interaction
+
+    if output_dtype:
+        if isinstance(output_dtype, str):
+            output_dtype = np.dtype(output_dtype)
+        _max, _ = dtype_range(output_dtype)
+        if np.issubdtype(output_dtype, np.floating):
+            _max = 1
+            interaction_array = (interaction_array * _max).astype(output_dtype)
+        else:
+            # when rescaling to uint8 it is important to not have values > 1 before rescaling (else 256 would be 0)
+            interaction_array[interaction_array > 1] = 1
+            # np.ceil relevant to avoid artefacts from rounding (when using unit8)
+            interaction_array = np.ceil((interaction_array * _max)).astype(output_dtype)
+    return interaction_array
+
+
+# - - - - - - - - - -
+# Internal functions
+# - - - - - - - - - -
+
+
+def _view_data(source: Source | str,
+               bands: list[Band | int] | None,
+               view: tuple[int, int, int, int],
+               in_range: None | NDArray | Collection,
+               as_dtype: type | str | None,
+               output_range: None | NDArray | Collection,
+               ) -> dict:
+    """
+    Load a view from a TIFF file and optionally convert and rescale the data.
 
     You may use the `**tags` to specify which band to read, by default only the
-    first band is read.
-
-    If tags for multiple bands are provided then all matching bands are returned
+    first band is read. If tags for multiple bands are provided then all
+    matching bands are returned.
 
     Parameters
     ----------
-    source:
-      The path to the tif file to load
-    bands:
-        A collection of strings or `io_.Band` object the specify which bands to use
-    view:
-      defines the view of the data array to update
-    in_range:
-        an array or list from which min and max will be used as input range
-    as_dtype:
-      Set the data type of the arrays that are returned.
+    source
+        The path to the TIFF file or a `Source` object to load.
+    bands
+        Collection of bands to read. Can be `Band` objects or band indices. If None,
+        all bands are loaded.
+    view
+        A tuple defining the subset of the data to read (e.g., (x_start, y_start, x_end, y_end)).
+    in_range
+        Optional input range to use for rescaling.
+    as_dtype
+        Optional data type to convert the returned data to. The data will be rescaled
+        to match this type if provided.
+    output_range
+        Optional tuple to overwrite the [min,max] range of the output.
+        See `io.load_block` for further details.
 
-      ..note::
-        If provided, the loaded data will be rescaled to the range of
-        this data type or `out_range` (if provided).
-
-    output_range:
-      Optional tuple to overwrite the [min,max] range of the output
-
-      See `io.load_block` for further details.
+    Returns
+    -------
+    dict
+        A dictionary mapping each `Band` object to a dictionary containing:
+        - 'data': the loaded and optionally rescaled data array
+        - 'view': the view tuple used for loading the data
     """
-    # is_needed (internal only)
-    # no_work
-    # not_tested
-    # usedin_processing (if at all; but might become part of io module)
-
     # read out block from original file
-
     if not isinstance(source, Source):
         source = Source(path=source)
     if bands is None:
-        # print('No specific bands selected, using all')
+        print('No specific bands selected, using all')
         bands = source.get_bands()
     elif any(isinstance(band, int) for band in bands):
         bands = [band if isinstance(band, Band) else source.get_band(bidx=band)
                  for band in bands]
-    # print(f"{bands=}")
+
     data_views = dict()
     for band in bands:
         result = band.load_block(view=view, scaling_params=None)
@@ -298,61 +620,84 @@ def view_data(source: Source | str,
     return data_views
 
 
-def filter_data(data: NDArray,
-                replace_nan_with: int | float | None = None,
-                img_filter=None,
-                filter_output_range: tuple | None = None,
-                filter_params: dict | None = None,
-                as_dtype: type | str | None = None,
-                output_range: tuple | None = None,
-                ) -> NDArray:
-    # TODO: is_needed - no_work - is_tested - usedin_processing
-    # TODO: remove all default arguments!
-    """Applies a filter to an `np.array`
+def _apply_filter(data: NDArray, img_filter: Callable, **params) -> NDArray:
+    """
+    Apply a filter function to an array.
 
     Parameters
     ----------
-    data: np.array
-      A 2D numpy array
-
-    replace_nan_with:
-      Replace nan values in `data` with the provided value
-
-    img_filter: callable
-      a filter function to apply on the np.array
-
-      See e.g. skimage.filter.gaussian
-
-    as_dtype:
-      Specify what data type to use for the returned data.
-
-    filter_output_range:
-      Optional tuple to specify the data range returned by the filter
-
-    output_range:
-      Optional tuple to specify the data range into which the data returend
-      by the filter should be rescaled into.
-
-      ..note::
-        This can be used to map to the range `[0,1]` for `floats`:
-
-        ```python
-            `as_dtype="float64"`
-            `output_range=(0.0, 1.0)`
-        ```
-    filter_params:
-      Parameter to pass to the filter callable
+    data :
+        Input array to be filtered.
+    img_filter :
+        A callable that accepts `data` as the first argument, along with any
+        keyword arguments, and returns a filtered array.
+    **params :
+        Additional keyword arguments passed directly to `img_filter`.
 
     Returns
     -------
-    np.array:
-      Resulting data array
+    NDArray
+        The filtered result from calling `img_filter(data, **params)`.
     """
-    # is_needed (internally only )
-    # needs_work (see TODO)
-    # is_tested
-    # usedin_processing (part of io)
+    return img_filter(data, **params)
 
+
+def _filter_data(data: NDArray,
+                 replace_nan_with: int | float | None = None,
+                 img_filter=None,
+                 filter_output_range: tuple | None = None,
+                 filter_params: dict | None = None,
+                 as_dtype: type | str | None = None,
+                 output_range: tuple | None = None,
+                 ) -> NDArray:
+    """
+    Apply a filter to a 2D NumPy array with optional NaN handling, type conversion,
+    and output rescaling.
+
+    Parameters
+    ----------
+    data :
+        A 2D numpy array to be filtered.
+    replace_nan_with :
+        Value to replace NaNs in `data`. If None, NaNs remain unchanged.
+    img_filter :
+        Filter function to apply to the array (e.g., `skimage.filters.gaussian`).
+    filter_output_range :
+        Range of values produced by the filter. Used when converting or rescaling the output.
+    filter_params :
+        Additional parameters to pass to the filter callable.
+    as_dtype :
+        Data type for the returned array. For example, `np.float64` or `'float32'`.
+    output_range :
+        Target range to rescale the filtered data into. Useful to map the data to [0, 1]
+        or any custom range.
+
+    Returns
+    -------
+    np.ndarray
+        The filtered (and optionally rescaled) array with NaNs restored if applicable.
+
+    Notes
+    -----
+    - NaNs in the original array are restored after filtering if the output dtype supports
+      floating-point NaNs.
+    - `filter_output_range` should be set when `as_dtype` or `output_range` is used to
+      avoid unexpected scaling.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from skimage.filters import gaussian
+    >>> data = np.array([[1, 2, 1], [np.nan, 4, 5], [2, 4, 6]] )
+    >>> data
+    array([[ 1.,  2.,  1.],
+           [nan,  4.,  5.],
+           [ 2.,  4.,  6.]])
+    >>> _filter_data(data, replace_nan_with=0, img_filter=gaussian, filter_params={'sigma': 1})
+    array([[1.33293744, 1.9624767 , 2.25847273],
+           [       nan, 2.85862763, 3.7419668 ],
+           [2.27905522, 3.62953263, 4.84767823]])
+    """
     # check if nan exists
     # TODO: move this out of this function
     if np.isnan(np.sum(data)) and replace_nan_with is None:
@@ -406,35 +751,68 @@ def filter_data(data: NDArray,
     return _data
 
 
-def view_filtered(source: Source | str,
-                  view: tuple[int, int, int, int],
-                  inner_view: tuple[int, int, int, int],
-                  data_in_range: None | NDArray | Collection = None,
-                  data_as_dtype: type | str | None = None,
-                  data_output_range: None | NDArray | Collection = None,
-                  replace_nan_with: int | float | None = None,
-                  img_filter: Callable | None = None,
-                  filter_params: dict | None = None,
-                  filter_output_range: tuple | None = None,
-                  as_dtype: type | str | None = None,
-                  output_range: tuple | None = None,
-                  bands: list[Band | int] | None = None,
-                  selector_band: Band | None = None,
-                  ):
-    # TODO: is_needed - needs_work - is_tested - usedin_processing
-    """Extracts and possibly converts a view from the source file
-
+def _view_filtered(source: Source | str,
+                   view: tuple[int, int, int, int],
+                   inner_view: tuple[int, int, int, int],
+                   data_in_range: None | NDArray | Collection = None,
+                   data_as_dtype: type | str | None = None,
+                   data_output_range: None | NDArray | Collection = None,
+                   replace_nan_with: int | float | None = None,
+                   img_filter: Callable | None = None,
+                   filter_params: dict | None = None,
+                   filter_output_range: tuple | None = None,
+                   as_dtype: type | str | None = None,
+                   output_range: tuple | None = None,
+                   bands: list[Band | int] | None = None,
+                   selector_band: Band | None = None,
+                   ) -> dict:
     """
-    # not_needed (used in a unneeded function in parallel)
-    # needs_work (docs)
-    # not_tested
-    # usedin_both (probably not used at all!)
-    data_views = view_data(source=source,
-                           bands=bands,
-                           view=view,
-                           in_range=data_in_range,
-                           as_dtype=data_as_dtype,
-                           output_range=data_output_range)
+    Extract a view from a source file and apply filtering and rescaling.
+
+    Parameters
+    ----------
+    source
+        Path to the source file or a `Source` object.
+    view
+        Region to load from the source (x_start, y_start, x_end, y_end).
+    inner_view
+        Subregion to extract from the filtered result.
+    data_in_range
+        Input range used for loading the raw data.
+    data_as_dtype
+        Data type to convert the loaded data to before filtering.
+    data_output_range
+        Range to rescale the data after loading.
+    replace_nan_with
+        Value to replace NaNs during filtering.
+    img_filter
+        Filter function to apply to the data.
+    filter_params
+        Parameters to pass to the filter function.
+    filter_output_range
+        Expected output range of the filter for proper scaling.
+    as_dtype
+        Data type for the final filtered output.
+    output_range
+        Range to rescale the final filtered output.
+    bands
+        Bands to load from the source. Defaults to all available bands.
+    selector_band
+        Band used to select regions for filtering and aggregation.
+
+    Returns
+    -------
+    dict
+        A dictionary with keys:
+        - 'data': maps band indices to filtered arrays corresponding to `inner_view`
+        - 'view': the `inner_view` tuple representing the returned region
+    """
+    data_views = _view_data(source=source,
+                            bands=bands,
+                            view=view,
+                            in_range=data_in_range,
+                            as_dtype=data_as_dtype,
+                            output_range=data_output_range)
 
     if selector_band is not None:
         selector_data = selector_band.load_block(view=view)['data']
@@ -466,7 +844,7 @@ def view_filtered(source: Source | str,
             _selector = np.where(selector_data == select, True, False)
             select_data_view = np.where(_selector, data_view['data'], _nodata)
 
-            _part_filtered_data = filter_data(
+            _part_filtered_data = _filter_data(
                 data=select_data_view,
                 replace_nan_with=replace_nan_with,
                 img_filter=img_filter,
@@ -483,346 +861,8 @@ def view_filtered(source: Source | str,
     return dict(data=filtered_datas, view=inner_view)
 
 
-def get_filtered_categories(data: NDArray,
-                            categories: None | Collection = None,
-                            img_filter: None | Callable = None,
-                            output_dtype: type | str | None = "uint8",
-                            output_range: tuple | None = None,
-                            filter_output_range: tuple | None = None,
-                            filter_params: dict | None = None) -> dict[int, NDArray]:
-    # TODO: is_needed - needs_work - is_tested - usedin_processing
-    """Extract each category into a separate `np.array` and apply an image filter
 
-    ..Note::
-
-      See `get_category_data` for further details about the category extraction
-      from `data`.
-
-    Parameters
-    ----------
-    data: np.array
-      A land-cover type matrix or any other matrix with integers
-    categories: Collection or None
-      A list or other collection with the categories to extract.
-      If not provided then all categories found in `data` are included.
-    img_filter: callable
-      a filter function to apply on the np.array of each category.
-      See e.g. skimage.filter.gaussian
-    output_dtype:
-      Specify what data type to use for the returned data.
-    filter_params:
-      Parameter to pass to the filter callable
-
-    Returns
-    -------
-    dict:
-      For each category (key) the filtered data
-    """
-    # is_needed (only in tests)
-    # needs_work (docs)
-    # not_tested (used in tests thought)
-    # usedin_processing
-
-    if categories is None:
-        categories = get_categories(data)
-    all_categories = dict()
-    for category in categories:
-        _data = get_category_data(data=data, category=category,
-                                  img_filter=img_filter,
-                                  filter_params=filter_params,
-                                  filter_output_range=filter_output_range,
-                                  as_dtype=output_dtype,
-                                  output_range=output_range,
-                                  )
-        all_categories[category] = _data
-    return all_categories
-
-
-def compute_entropy(data_arrays: Sequence[NDArray],
-                    normed: bool = True,
-                    max_entropy_categories: int | None = None,
-                    as_dtype: type | str | None = None,
-                    output_range: tuple | None = None,
-                    **entropy_params) -> NDArray:
-    # TODO: is_needed - no_work - is_tested - usedin_processing
-    """Per cell entropy computed over a series of data arrays
-
-    Parameters
-    ----------
-    data_arrays:
-      A series of data arrays to stack and compute the per-cell entropy for
-    normed:
-      Determines if the values in the provided arrays should be normed or not.
-
-      .. note::
-
-        If `normed=False` then the entropy is not rescaled before it is
-        returned.
-
-    max_entropy_categories:
-      If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
-      Same as the `as_dtype`, this argument is ignored if `normed=False`.
-
-    as_dtype:
-
-      Set the data-type of the resulting `np.array`
-
-      .. note::
-
-        In most cases you want to use this argument only if `normed=True`
-        (the default).
-
-        scipy.stats.entropy returns data of type `np.float64` which might consume
-        a considerable amount of memory, when applied to larger arrays.
-
-        With `as_dtype="uint8"` and `normed=True` entropy values are mapped to
-        the range [0, 255] and an array of type `np.uint8` is returned with a
-        considerably smaller memory footprint.
-
-    output_range:
-      Set the output range for the resulting `np.array`
-
-      ..Note::
-        This argument is ignored if `normed=False` as the entropy is not
-        bounded.
-
-    **entropy_params:
-      You might add further keyword arguments that will be passed to
-      `scipy.stats.entropy`
-
-    Returns
-    -------
-    entropy:
-      A `np.array` with identical shape as the elements in `data_arrays` holding the
-      per-cell entropy
-    """
-    # is_needed (internally and in tests)
-    # no_work
-    # not_tested
-    # usedin_processing
-
-    # calculate the entropy
-    _stacked = np.stack(data_arrays, axis=2)
-    entropy_array = entropy(_stacked, axis=2, **entropy_params)
-    in_dtype = entropy_array.dtype
-
-    if isinstance(as_dtype, str):
-        _as_dtype = np.dtype(as_dtype)
-    else:
-        _as_dtype = as_dtype
-
-    if normed:
-        if max_entropy_categories is None:
-            max_entropy = get_max_entropy(len(data_arrays))
-        else:
-            max_entropy = get_max_entropy(max_entropy_categories)
-        # We normalize the entropy by setting the in_range accordingly
-        if np.issubdtype(_as_dtype, np.floating) and output_range is None:
-            # use the normalization range [0, 1] for float output by default
-            output_range = (0.0, 1.0)
-        elif np.issubdtype(_as_dtype, np.integer) and output_range is None:
-            # TODO: we should decide whether we want this for entropy - but if normed I feel it helps with usability
-            #       useres will not want to sset this if they use uint8 I guess
-            # use the general possible range for Integers
-            _intmax, _intmin = dtype_range(_as_dtype)
-            output_range = (_intmin, _intmax)
-        input_range = [0.0, max_entropy],
-    else:
-        if output_range is not None:
-            warnings.warn(
-                f"Calculating the entropy with {normed=} ignores "
-                f"{output_range=} as a non-normalized entropy value is not "
-                "bounded and can thus not be mapped to a data range."
-            )
-        if as_dtype is not None and str(in_dtype) != str(as_dtype):
-            # we do not normalize but convert
-            warnings.warn(
-                f"The computed entropy will be converted from {str(in_dtype)} "
-                f"to {as_dtype} without rescaling. If this is not what you "
-                "want set the `output_range` parameter."
-            )
-        output_range = None
-        input_range = None
-
-    # convert (an rescale if normed)
-    entropy_array = convert_to_dtype(data=entropy_array,
-                                     as_dtype=_as_dtype,
-                                     in_range=input_range,
-                                     out_range=output_range)
-    return entropy_array
-
-
-def compute_interaction(data_arrays: Sequence[NDArray],
-                        input_dtype: type | str | None = None,
-                        standardize: bool = False,
-                        normed: bool = True,
-                        output_dtype: type | str | None = None,
-                        output_range: tuple | None = None,
-                        **interaction_params) -> NDArray:
-    # TODO: is_needed - no_work - is_tested - usedin_processing
-    r"""Per cell interaction computed over a series of data arrays
-    For 'float' inputs:
-        .. math::
-            LC_i \times LC_j
-
-    For 'uint8' inputs:
-        .. math::
-            \frac{\left(\frac{LC_i}{255} \times \frac{LC_j}{255}\right)}{\frac{1}{n^2}} \times 255
-
-    Parameters
-    ----------
-    data_arrays:
-      A series of data arrays to stack and compute the per-cell interaction for
-    standardize:
-      Whether the interaction (strength) should be standardized by the fraction of area used (A*B)/(A+B)
-    normed:
-      Determines if the values in the provided arrays should be normed or not.
-    output_dtype:
-      Set the data-type of the resulting `np.array`
-
-    Returns
-    -------
-    interaction:
-      A `np.array` with identical shape as the elements in `data_arrays` holding the
-      per-cell interaction between given layers
-    """
-    # is_needed (internally; as non-parallelized version)
-    # no_work
-    # is_tested
-    # usedin_processing
-
-    # TODO: all of this does not work with floats yet --> implement
-
-    array_dtype = data_arrays[0].dtype
-    if array_dtype != input_dtype:
-        raise ValueError(f"Array data type {array_dtype} does not match provided input data type {input_dtype}")
-
-    # define rescaling based on input type
-    if input_dtype:
-        if isinstance(input_dtype, str):
-            input_dtype = np.dtype(input_dtype)
-        _max_scale, _ = dtype_range(input_dtype)
-        if np.issubdtype(input_dtype, np.floating):
-            _max_scale = 1
-
-    # calculate the interaction (A * B)
-    interaction_array = np.ones_like(data_arrays[0], dtype=float)
-    for arr in data_arrays:
-        interaction_array *= (arr / _max_scale)
-
-    # standardize by the sum (A + B) -> result is A*B/(A+B)
-    if standardize:
-        standardize_array = np.zeros_like(data_arrays[0], dtype=float)
-        for arr in data_arrays:
-            standardize_array += (arr / _max_scale)
-        interaction_array = np.divide(interaction_array, standardize_array,
-                                      out=np.zeros_like(interaction_array, dtype=float),
-                                      where=standardize_array != 0)
-    if normed:
-        max_interaction = 1 / len(data_arrays) ** len(data_arrays)
-        interaction_array = interaction_array / max_interaction
-        if output_dtype:
-            if isinstance(output_dtype, str):
-                output_dtype = np.dtype(output_dtype)
-            _max, _ = dtype_range(output_dtype)
-            if np.issubdtype(output_dtype, np.floating):
-                _max = 1
-                interaction_array = (interaction_array * _max).astype(output_dtype)
-            else:
-                # when rescaling to uint8 it is important to not have values > 1 before rescaling (else 256 would be 0)
-                interaction_array[interaction_array > 1] = 1
-                # np.ceil relevant to avoid artefacts from rounding (when using unit8)
-                interaction_array = np.ceil((interaction_array * _max)).astype(output_dtype)
-    return interaction_array
-
-
-def get_entropy(data: NDArray,
-                categories: Collection | None = None,
-                normed: bool = False,
-                max_entropy_categories: int | None = None,
-                img_filter: Callable | None = None,
-                as_dtype: type | str | None = None,
-                output_range: tuple | None = None,
-                filter_params: dict | None = None,
-                entropy_params: dict | None = None,
-                filter_output_range: tuple | None = None,
-                **params) -> NDArray:
-    # TODO: is_needed - no_work - is_tested - usedin_processing
-    """Compute the Shannon entropy per cell directly from a 2D array of categorical data
-
-
-    ..Note::
-      This function relies on `get_filtered_categories` to create per category indicator
-      arrays on which then a filter is applied, i.e. `img_filter` if provided.
-      The resulting sequence of arrays is then passed to `compute_entropy` to calculate
-      the per-cell entropy.
-
-    Parameters
-    ----------
-    data:
-      A categorical matrix (i.e. with integer values)
-    categories:
-      A collection of categories to extract individual bands for.
-      If not provided then all categories are included
-    normed:
-      Determine whether or not the entropy should be normalized.
-      If set to `True` each cell is normed by the maximal entropy value
-      possible, i.e. `entropy(np.ones(len(categories)))`.
-    max_entropy_categories:
-      If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
-      This argument is ignored if `normed=False`.
-    as_dtype:
-      The data-type to use for the returned array.
-
-      ..note::
-
-        This argument is only taken into account if `normed=True`.
-    output_range:
-      The data-range to use for the returned array.
-
-      ..note::
-        This argument is only taken into account if `normed=True`.
-
-    img_filter:
-      A filter function that can be applied to the data. See e.g.
-      skimage.filter.gaussian
-
-    filter_params:
-      Optional parameter to pass to the filter callable, `img_filter`
-    entropy_params:
-      Optional parameter to pass to scipy.stats.entropy
-
-    Returns
-    -------
-    entropy:
-      A `np.array` with identical shape as the elements in `data_arrays` holding the
-      per-cell entropy
-    """
-    # is_needed
-    # needs_work (docs; see TODO)
-    # is_tested
-    # usedin_processing
-
-    # TODO: This function does not allow the set `as_dtype` of
-    # `get_filtered_categories`
-    # > Change call signature to
-    #   `get_entropy(blur_params:dict, entropy_params:dict,...)`
-    filter_params = filter_params or dict()
-    blur_output_dtype = params.pop('blur_output_dtype', None)
-    blurred_categories = get_filtered_categories(data=data,
-                                                 categories=categories,
-                                                 img_filter=img_filter,
-                                                 filter_output_range=filter_output_range,
-                                                 output_dtype=blur_output_dtype,
-                                                 filter_params=filter_params)
-    entropy_params = entropy_params or dict()
-    return compute_entropy(data_arrays=tuple(blurred_categories.values()),
-                           normed=normed,
-                           max_entropy_categories=max_entropy_categories,
-                           as_dtype=as_dtype,
-                           output_range=output_range,
-                           **entropy_params)
-
+# TODO -----------------------------------------------
 
 def view_blurred(source: str,
                  view: tuple[int, int, int, int],

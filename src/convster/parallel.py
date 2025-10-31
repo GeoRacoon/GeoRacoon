@@ -39,7 +39,7 @@ from .plotting import plot_entropy
 from .processing import (
     view_blurred,
     view_entropy,
-    view_filtered,
+    _view_filtered,
     view_interaction
 )
 from .filters.gaussian import compatible_border_size
@@ -1309,8 +1309,8 @@ def apply_filter(source: str | Source,
             all_jobs.append(pool.apply_async(
                 func=runner_call,
                 kwds=dict(queue=blur_q,
-                        callback=view_filtered,
-                        params=bparams)
+                          callback=_view_filtered,
+                          params=bparams)
             ))
         # collect results
         job_outputs = []
