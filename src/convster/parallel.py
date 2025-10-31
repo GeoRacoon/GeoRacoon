@@ -1124,6 +1124,7 @@ def compute_interaction(source: str | Source,
 
 
 # TODO: check how much extract_categories and apply_filter are redundant
+# TODO: I was thinking to delete this and stay with apply_filter
 def extract_categories(source: str | Source,
                        categories: list,
                        output_file: str,
@@ -1135,95 +1136,58 @@ def extract_categories(source: str | Source,
                        filter_output_range: tuple | None = None,
                        verbose: bool = False,
                        **params):
-    # is_needed (internally only and in tests)
-    # needs_work (make internal?)
-    # is_tested
-    # usedin_both (potentially)
-    """Load per-category maps from resource, apply a filter and export.
+    """
+    Extract per-category maps from a raster, optionally apply a filter, and export to a file.
+
+    This function processes a categorical raster by separating specified categories
+    into individual bands. Optionally, a filter function (e.g., Gaussian smoothing)
+    can be applied to each category band. The processing is performed block-wise
+    with multiprocessing, and the results are combined into a single output raster.
 
     Parameters
     ----------
-    source:
-      Either the path to, or a `io_.Source` object representing a the `.tif`
-      file to load the data from.
-    categories:
-      The categorical values to separate into single bands
-    output_file:
-      The path to write the resulting data to
-    img_filter:
-      An optional filter function that can be applied to the data. See e.g.
-      skimage.filter.gaussian
-
-      .. note::
-        If `img_filter` is not set `filter_params` is ignored.
-
-    filter_params:
-      Parameter to pass to the filter callable.
-
-      .. note::
-        This argument is mandatory if `img_filter` is provided and ignored
-        otherwise.
-
-    block_size:
-        Size (width, height) in #pixel of the block that a single job processes
-
-    output_dtype:
-      Set the data type of the blurred categories that are returned.
-      
-      .. warning::
-        
-        This parameter is deprecated, please use `output_params['as_dtype']`
-        instead.
-
-    output_params:
-        Keyword arguments for the output file:
-        nodata:
-          Value to be used as nodata value (if not provided `None` is used)
-        as_dtype:
-          Data type into which the output of the filer function will be converted
-        bigtiff:
-          Boolean whether to create a BIGTIFF file or not, for files larger than 4 GB
-          TODO: (see apply_filter - on question to make this standard)
-
-          .. note::
-            This overwrites `output_dtype`, which will me deprecated in the future
-
-        output_range: tuple
-          Specify the range into which the filter output should be mapped.
-
-     filter_output_range: tuple
-       Specify the data range expected as output from the applied filter.
-
-       If you expect floats as output but want to set a different range
-       than `[0, 1]`, specify it with this parameter.
-
-       .. note::
-         Consider setting this if you encounter warning messages issued
-         by the `convert_to_dtype` function.
-
-    verbose:
-        Print out processing step infos
-    **params:
-        Optional arguments
-
-        - Data conversion:
-              
-          output_range: tuple
-            Specify the range into which the filter output should be mapped.
-
-        - For the multiprocessing:
-          nbrcpu: int
-            The number of cpu's to use. If not set then then the available number
-            of threads -1 are used.
-          start_method: str
-            Starting method for multiprocessing jobs
+    source : str or Source
+        Path to the input `.tif` file or a `Source` object providing access to it.
+    categories : list
+        List of categorical values to separate into individual bands.
+    output_file : str
+        Path where the resulting raster will be written.
+    block_size : tuple of int
+        Size of processing blocks in pixels as ``(width, height)``.
+    img_filter : callable, optional
+        A function to apply to each category band (e.g., ``skimage.filters.gaussian``).
+        If None, no filtering is applied and ``filter_params`` is ignored.
+    filter_params : dict, optional
+        Parameters to pass to `img_filter`. Required if `img_filter` is provided.
+    output_dtype : str or type, optional
+        Data type of the output bands. Deprecated; use ``output_params['as_dtype']`` instead.
+    output_params : dict, optional
+        Dictionary of output settings:
+        - **as_dtype** : data type for the filtered output (overrides `output_dtype`)
+        - **nodata** : value used for missing data (default: None)
+        - **bigtiff** : bool, whether to create a BIGTIFF for >4GB files
+        - **output_range** : tuple, output value range for data conversion
+    filter_output_range : tuple, optional
+        Expected value range of the filtered data. Recommended when `img_filter` is used.
+    verbose : bool, default=False
+        Print processing information and progress.
+    **params
+        Additional optional arguments:
+        - **nbrcpu** : int, number of CPU cores to use (default: available cores minus one)
+        - **start_method** : str, multiprocessing start method (e.g., 'spawn' or 'fork')
+        - **compress** : bool, if True, compress the final output with LZW
 
     Returns
     -------
-    output_file:
-       Path to the resulting tif file
-    """
+    output_file : str
+        Path to the resulting raster file containing extracted and optionally filtered category bands.
 
+    Notes
+    -----
+    - Deprecated parameters (`blur_as_int`, `output_dtype`) are internally
+      mapped to `output_params['as_dtype']` with warnings.
+    - Borders for filtering are automatically computed based on the filter kernel.
+    """
     if output_params is None:
         output_params = dict()
     # handle deprecated parameters
@@ -1351,7 +1315,7 @@ def extract_categories(source: str | Source,
     return output_file
 
 
-# TODO: This could be called in extract_categories
+# TODO: This is actually the better function (allows for float etc) - we should keep this (or both)
 def apply_filter(source: str | Source,
                  output_file: str,
                  block_size: tuple[int, int],
@@ -1370,80 +1334,70 @@ def apply_filter(source: str | Source,
                  output_params: None | dict = None,
                  **params
                  ) -> str:
-    # is_needed (only in tests)
-    # needs_work (docs - if not jsut deleted; see TODOs)
-    # is_tested
     """
+    Apply a filter to one or more bands of a raster and export the result.
+
+    This function processes the raster in blocks to allow for memory-efficient
+    and parallelized computation. Each block is filtered and then combined into
+    a single output raster. Optionally, categorical masking can be used with
+    `selector_band`.
+
     Parameters
     ----------
-    source : str
-        Path to the file with the bands
-    output_file:
-      The path to write the resulting data to
-    bands:
-        An optional selection of bands to apply the filter to.
-        If not provided all bands are used.
-    block_size:
-        Size (width, height) in #pixel of the block that a single job processes
-    data_in_range:
-        an array or list from which min and max will be used as range of the
-        input data
-    data_as_dtype:
-      Set the data type that the input data should be converted to before
-      applying the filter
-
-      .. note::
-        If provided, the loaded data will be rescaled to the range of
-        this data type or `out_range` (if provided).
-
-    data_output_range:
-      an array or list from which min and max will be used as limits loaded
-      data if its data type is changed
-    replace_nan_with:
-      Replace nan values in the source with the provided value.
-      Avoid having areas 'cropped' due to NaN replacement - yet effects filter output.
-    img_filter: Callable
-        A filter function that can be applied to the data. See e.g.
-        skimage.filter.gaussian
-    filter_params:
-      Parameter to pass to the filter callable
-    filter_output_range:
-      The range of values the applied filter function can return
-    output_dtype:
-        Data type into which the output of the filter function will be converted
-    output_nodata:
-        Set what value should be used as nodata value in the output file
-        Default: None
-    output_range:
-      an array or list from which min and max will be used as limits for the
-      returned output, if `output_dtype` is provided
-    output_params:
-        Keyword arguments for the output file:
-
-        nodata:
-          Value to be used as nodata value (if not provided `None` is used)
-        dtype:
-          Data type into which the output of the filer function will be converted
-        bigtiff:
-          Boolean whether to create a BIGTIFF file or not, for files larger than 4 GB
+    source : str or Source
+        Path to the input raster file or a `Source` object.
+    output_file : str
+        Path where the filtered raster will be written.
+    block_size : tuple of int
+        Size of the processing blocks in pixels as ``(width, height)``.
+    bands : list of Band, optional
+        Specific bands to process. If None, all bands in the raster are used.
+    data_in_range : array-like, optional
+        Input range used for rescaling loaded data before filtering.
+    data_as_dtype : type, optional, default=np.uint8
+        Data type to which input data is converted before filtering.
+    data_output_range : array-like, optional
+        Output range for data rescaling after conversion to `data_as_dtype`.
+    replace_nan_with : int or float, optional
+        Value used to replace NaNs in the input before filtering.
+    img_filter : callable, optional
+        Filter function to apply to the data (e.g., `skimage.filters.gaussian`).
+    filter_params : dict, optional
+        Parameters to pass to `img_filter`.
+    filter_output_range : collection, default=(0., 1.)
+        Expected output range of the applied filter function.
+    output_dtype : type, optional, default=np.uint8
+        Data type of the filtered output raster.
+    output_range : tuple, optional
+        Value range to rescale the final output raster.
+    selector_band : Band, optional
+        Optional categorical band used as a mask to apply the filter
+        selectively across categories.
+    output_params : dict, optional
+        Additional output configuration:
+        - **as_dtype** : data type for filtered output (overrides `output_dtype`)
+        - **nodata** : value for missing data (default: None)
+        - **bigtiff** : bool, whether to create a BIGTIFF for >4GB files
           TODO: We can think about either making this standard or allowing for the rasteiro implementation from GDAL:
              https://rasterio.readthedocs.io/en/latest/topics/image_options.html
-             YET then we need to capitalize the input and it needs to perfectly match the lettering
-          .. note::
-            This overwrites `output_dtype`, which will me deprecated in the future
-    selector_band:
-        A band object with categorical data which will be used as a mask for iterative performance of the blurring.
-        If provided, the blurring will be done for each categorical data. Use border preserving gaussian filter to
-        avoid removing borders between categorical datas of selector_band
+    verbose : bool, default=False
+        Print progress and debug information.
+    **params
+        Additional optional arguments:
+        - **nbrcpu** : int, number of CPU cores for multiprocessing.
+        - **start_method** : str, multiprocessing start method.
+        - **compress** : bool, whether to compress the final output with LZW.
 
-    verbose:
-        Print out processing step infos
-    **params:
-        Optional arguments for the multiprocessing (e.g. nbr_cpus)
-        start_method: str
-          Starting method for multiprocessing jobs
+    Returns
+    -------
+    output_file : str
+        Path to the resulting filtered raster file.
+
+    Notes
+    -----
+    - Deprecated parameters (`output_dtype` vs `output_params['as_dtype']`) are internally handled with warnings.
+    - Borders for filtering are automatically computed from the filter kernel.
     """
-
     if isinstance(source, str):
         source = Source(path=source)
     with source.open() as src:
