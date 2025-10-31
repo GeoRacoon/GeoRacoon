@@ -13,7 +13,8 @@ from convster.filters.gaussian import (
     gaussian,
     compatible_border_size
 )
-from convster.filters import bpgaussian
+from convster.filters import (bpgaussian,
+                              get_blur_params)
 
 from .conftest import ALL_MAPS, get_file
 
@@ -130,3 +131,26 @@ def test_border_preserving_filter():
     bpblurred_ones_nan = bpgaussian(ones_nan, **filter_params)
     print(bpblurred_ones_nan)
     np.testing.assert_allclose(bpblurred_ones_nan, ones_nan)
+
+def test_get_blur_params():
+    # Only diameter
+    result = get_blur_params(diameter=15)
+    assert result['diameter'] == 15
+    assert result['sigma'] == 15 / 2 / 3
+    assert result['truncate'] == 3
+
+    # sigma
+    result = get_blur_params(sigma=2.0)
+    assert result['sigma'] == 2.0
+    assert result['diameter'] == 2.0 * 2 * 3
+    assert result['truncate'] == 3
+
+    # Diameter and sigma
+    result = get_blur_params(diameter=15, sigma=3)
+    assert result['diameter'] == 15
+    assert result['sigma'] == 3
+    assert result['truncate'] == 0.5 * 15 / 3
+
+    # Neither provided
+    with pytest.raises(TypeError):
+        get_blur_params()

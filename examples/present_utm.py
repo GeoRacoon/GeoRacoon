@@ -10,7 +10,7 @@ from landiv_blur import plotting as lbplot
 utm_zone = 'utm32U'
 # we are going to re-scale the maps by changing the resolution by this factor:
 scaling_params = dict(
-    scaling = (0.5, 0.5)
+    scaling = (0.5, 0.5),
     method = Resampling.nearest
 )
 # the land-cover types to plot
