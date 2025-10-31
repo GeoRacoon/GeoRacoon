@@ -723,55 +723,77 @@ def compute_entropy(source: str | Source,
                     max_entropy_categories: int | None = None,
                     verbose: bool = False,
                     **params):
-    # is_needed (only in example)
-    # needs_work (doc)
-    # is_tested
-    """Compute the entropy-based heterogeneity from several category bands
+    """
+    Compute entropy-based heterogeneity from categorical raster bands.
+
+    This function orchestrates a parallel computation of entropy-based
+    heterogeneity across multiple raster blocks, combining per-block results
+    into a single output GeoTIFF. Each block is processed independently via
+    multiprocessing workers that read subsets of the input raster, compute
+    entropy over selected categorical bands, and write results to a queue
+    for aggregation.
 
     Parameters
     ----------
-    source : str
-        Path to the land cover type tif file
+    source : str or Source
+        Path to the categorical raster file (e.g., land-cover map) or an
+        initialized `Source` object providing access to the dataset.
     output_file : str
-        Path to where the heterogeneity tif should be saved
-    categories: list
-        Specify which of the land-cover types to use as categories.
-        If not provided then all the land-cover types are used.
-    block_size: tuple of int
-        Size (width, height) in #pixel of the block that a single job processes
+        Path where the final entropy GeoTIFF will be written.
+    block_size : tuple of int
+        Block dimensions ``(width, height)`` in pixels. Determines the size
+        of the chunks processed by each worker.
     blur_params : dict
-        Parameters for the Gaussian blur. It must contain at least either
-        `diameter` or `sigma` in a in meters or any other measure of distance.
-    output_dtype:
-      Set the data type of the entropy file that is returned.
-    output_range:
-      an array or list from which min and max will be used as limits for the
-      returned output.
-      By default if `output_dtype` is provided and of type np.floating it will be set to [0, 1], if of type np.integer
-      to the min max of possible dtype e.g. uin8 [0, 255]
-    normed:
-        If the entropy should be normalized
-    max_entropy_categories:
-      If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
-      Same as the output_dtype, this argument is ignored if `normed=False`.
-    verbose:
-        Print out processing steps
-    **params:
-        Optional arguments for the multiprocessing:
+        Dictionary of parameters for Gaussian blur or other preprocessing.
+        Typically includes at least one of ``'sigma'`` or ``'diameter'`` in
+        spatial units (e.g., meters). Used primarily for output file naming.
+    categories : list, optional
+        List of category names or identifiers to include in entropy
+        computation. If not provided, all available categories in the source
+        raster are used.
+    output_dtype : str, type, or None, optional
+        Desired data type for the output entropy raster. If not provided,
+        defaults to ``numpy.uint8``.
+    output_range : tuple of float, optional
+        Minimum and maximum output values. If not set, the range is inferred
+        from ``output_dtype`` — [0, 1] for floating-point types, or the
+        valid range for integer types (e.g., [0, 255] for uint8).
+    normed : bool, default=True
+        Whether to normalize the entropy values. When True, entropy is scaled
+        relative to the maximum possible entropy determined by the number of
+        categories.
+    max_entropy_categories : int, optional
+        Specifies the number of categories to assume for maximum entropy
+        normalization. Ignored if ``normed=False``.
+    verbose : bool, default=False
+        If True, prints progress updates and diagnostic information.
+    **params
+        Additional optional parameters controlling multiprocessing and output:
 
-        nbrcpu: int
-          The number of cpu's to use. If not set then then the available number
-          of threads -1 are used.
-        start_method: str
-          Starting method for multiprocessing jobs
+        - **nbrcpu** : int
+          Number of CPU cores to use. Defaults to the number of available
+          cores minus one.
+        - **start_method** : str
+          Multiprocessing start method (e.g., ``"spawn"`` or ``"fork"``).
+        - **entropy_as_ubyte** : bool, optional
+          Deprecated. Use ``output_dtype="uint8"`` instead.
+        - **compress** : bool, default=False
+          If True, compresses the final GeoTIFF using LZW compression.
 
     Returns
     -------
-    output_file:
-       Path to the resulting tif file
+    output_file : str
+        Path to the resulting entropy raster file.
 
+    Notes
+    -----
+    - Each processing block computes entropy over the given categories using
+      the internal `_block_entropy` function and sends results to a queue.
+    - The function `_combine_entropy_blocks` merges these intermediate
+      results into a single raster file.
+    - The operation can be parallelized across multiple CPUs to handle
+      large raster datasets efficiently.
     """
-
     print(f'compute_entropy - {source=}, {categories=}')
     if isinstance(source, str):
         source = Source(path=source)
@@ -906,48 +928,79 @@ def compute_interaction(source: str | Source,
                         normed: bool = True,
                         verbose: bool = False,
                         **params):
-    # is_needed (only used in tests)
-    # needs_work (doc)
-    # is_tested
-    """Compute the interaction-strength from heterogeneity from several category bands in a pairwise,
-    tree-way-interaction, four-way-interaction.... manner
+    """
+    Compute interaction strength between categorical raster bands.
+
+    This function computes pairwise, three-way, or higher-order interaction
+    measures among categorical raster bands (e.g., land-cover classes).
+    The computation is performed block-wise using multiprocessing, where
+    each worker processes a subset of the raster and pushes intermediate
+    results to a queue. The results are then combined into a single output
+    raster representing spatial interaction strength.
 
     Parameters
     ----------
-    source : str
-        Path to the land cover type tif file
+    source : str or Source
+        Path to the categorical raster file (e.g., a land-cover map) or an
+        initialized `Source` object providing access to the dataset.
     output_file : str
-        Path to where the heterogeneity tif should be saved
-    categories: list
-        Specify which of the land-cover types to use as categories.
-        If not provided then all the land-cover types are used.
-    output_dtype:
-      Set the data type of the interaction file that is returned.
-    output_range:
-      an array or list from which min and max will be used as limits for the
-      returned output.
-      By default if `output_dtype` is provided and of type np.floating it will be set to [0, 1], if of type np.integer
-      to the min max of possible dtype e.g. uin8 [0, 255]
-    block_size: tuple of int
-        Size (width, height) in #pixel of the block that a single job processes
+        Path where the final interaction raster will be saved.
+    block_size : tuple of int
+        Block dimensions ``(width, height)`` in pixels that define the size
+        of the chunks processed by each multiprocessing worker.
     blur_params : dict
-        Parameters for the Gaussian blur. It must contain at least either
-        `diameter` or `sigma` in a in meters or any other measure of distance.
-    interaction_as_ubyte:
-        Should the interaction be normalized and returned as ubyte?
-    standardize:
-    normed:
-    verbose:
-        Print out processing steps
-    **params:
-        Optional arguments for the multiprocessing (e.g. nbr_cpus)
+        Dictionary containing parameters for Gaussian blur or other
+        preprocessing. Used primarily for formatting the output filename.
+        Should include either ``'sigma'`` or ``'diameter'`` in spatial units.
+    categories : list, optional
+        List of categories (e.g., land-cover types) to include in the
+        interaction computation. If not provided, all categories available
+        in the source raster are used.
+    output_dtype : str, type, or None, optional
+        Desired data type for the output raster. If not provided, defaults
+        to ``numpy.uint8``.
+    output_range : tuple of float, optional
+        Minimum and maximum values for scaling the output. If not specified,
+        inferred automatically from ``output_dtype``—[0, 1] for floats, or
+        the valid integer range for integer types (e.g., [0, 255] for uint8).
+    standardize : bool, default=False
+        Whether to standardize the data prior to computing interactions.
+        This can improve comparability across categories with different
+        magnitudes or distributions.
+    normed : bool, default=True
+        If True, normalizes the computed interaction strengths relative to
+        their theoretical maximum values.
+    verbose : bool, default=False
+        If True, prints detailed progress and diagnostic messages during
+        processing.
+    **params
+        Additional optional parameters controlling multiprocessing and output:
 
+        - **nbrcpu** : int
+          Number of CPU cores to use. Defaults to the number of available
+          cores minus one.
+        - **start_method** : str
+          Multiprocessing start method (e.g., ``"spawn"`` or ``"fork"``).
+        - **interaction_as_ubyte** : bool, optional
+          Deprecated. Use ``output_dtype="uint8"`` instead.
+        - **compress** : bool, default=False
+          If True, compresses the final GeoTIFF using LZW compression.
 
     Returns
     -------
-    output_file:
-       Path to the resulting tif file
+    output_file : str
+        Path to the resulting interaction raster file.
 
+    Notes
+    -----
+    - The computation proceeds in parallel by dividing the raster into
+      independent processing blocks.
+    - Each worker executes an internal `_block_interaction` task and writes
+      its results to a multiprocessing queue.
+    - The `_combine_interaction_blocks` function merges all block results
+      into a single output file.
+    - Designed for efficient large-scale raster analysis on multi-core
+      systems.
     """
     if isinstance(source, str):
         source = Source(path=source)
