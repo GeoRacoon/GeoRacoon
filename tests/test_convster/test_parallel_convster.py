@@ -157,8 +157,8 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
 
 
 @ALL_MAPS
-def test_entropy_2_step(datafiles):
-    """Assert that the 2 step approach (blur->entropy) yields identical results
+def test_entropy_parallel(datafiles):
+    """Assert that the parallel approach and the processing approach yield the same result
     """
     dtype_tests = {"uint8": (0, 255),
                    "float32": None}
@@ -196,73 +196,24 @@ def test_entropy_2_step(datafiles):
         filter_params.update(dict(preserve_range=True))
         _ = filter_params.pop('diameter')
 
-        # ###
-        # use single step approach
-        # ###
-        entropy_output_file = rghelp.output_filename(
-            base_name=blur_partial,
-            out_type=f"entropy_lct",
-            blur_params=blur_params.copy()
+        ###
+        # Non-parallel approach
+        ###
+        blurred_categories = csproc.get_filtered_categories(ch_data,
+                                                            categories=categories,
+                                                            img_filter=img_filter,
+                                                            filter_params=filter_params,
+                                                            output_dtype=blur_output_dtype,
+                                                            filter_output_range=test_filter_out_range,
+                                                            )
+        entropy_data = csproc.compute_entropy(
+            data_arrays=tuple(blurred_categories.values()),
+            normed=True,
+            as_dtype=output_dtype
         )
-        entropy_output_params = dict(
-            profile=profile,
-            output_dtype=output_dtype,
-            output_file=entropy_output_file,
-            count=len(categories)
-        )
-        # now the parameter for the per block blur tasks
-        views, inner_views = rgprep.create_views(view_size=view_size,
-                                                 border=border,
-                                                 size=(width, height))
-        block_params = []
-        for view, inner_view in zip(views, inner_views):
-            bparams = dict(
-                    source=ch_map_tif,
-                    categories=categories,
-                    view=view,
-                    inner_view=inner_view,
-                    img_filter=img_filter,
-                    filter_params=filter_params,
-                    filter_output_range=test_filter_out_range,
-                    output_dtype=output_dtype,
-                    normed=normed,
-                    blur_output_dtype=blur_output_dtype,)
-            block_params.append(bparams)
-        manager = mproc.Manager()
-        entropy_q = manager.Queue()
-        nbr_workers = rghelp.get_nbr_workers()
-        pool = mproc.Pool(nbr_workers)
-        # start the blurred category writer task
-        blur_combiner = pool.apply_async(
-            cspara.combine_entropy_blocks,
-            (entropy_output_params, entropy_q,)
-        )
-        # start the block processing
-        all_jobs = []
-        for bparams in block_params:
-            all_jobs.append(pool.apply_async(
-                rgpara.runner_call,
-                (entropy_q,
-                 csproc.get_entropy_view,
-                 bparams)
-            ))
-        # now lets wait for all of these jobs to finish
-        job_timers = []
-        for job in all_jobs:
-            # await for the jobs to return (i.e. complete) by calling .get
-            # get the duration from the timer object that is returned by .get()
-            job_timers.append(job.get())
-        # send the final kill job to the queue
-        entropy_q.put(dict(signal='kill'))
-        # wait for the recombination job to terminate
-        duration = blur_combiner.get().get_duration()
-        # free up the resources
-        pool.close()
-        pool.join()
-        # print(f"job took {duration} seconds")
 
         ###
-        # Now calculate first the map with blurred layers and then the entropy
+        # Parallel approach
         ###
         source = rgio_.Source(path=ch_map_tif)
         blurred_tif = cspara.extract_categories(
@@ -274,7 +225,7 @@ def test_entropy_2_step(datafiles):
             filter_output_range=test_filter_out_range,
             output_dtype=blur_output_dtype,
             block_size=view_size,
-            compress = True
+            compress=True
         )
         # TODO: this should change in parallel.extract_categories
         # get the somewhat weird output filename
@@ -302,32 +253,15 @@ def test_entropy_2_step(datafiles):
             normed=normed,
         )
 
-        # now we can read out the tif with the blurred category and compare
-        entropy_map = rgio.load_block(entropy_output_file, indexes=1)
-        entropy_data = entropy_map['data']
-
-        # for the 2-step approach
+        # for the Parallel approach
         entropy_source = rgio_.Source(path=entropy_tif)
         # get the entropy band as a object
         eband = entropy_source.get_band(category='entropy')
-        entropy_data_2step = eband.get_data()
+        entropy_data_parallel = eband.get_data()
 
-        # plt.imshow(entropy_data)
-        # plt.savefig(f'{datafiles}/entropy_single.png')
-        # plt.imshow(entropy_recomb_data)
-        # plt.savefig(f'{datafiles}/entropy_recombined.png')
-        # plt.imshow(entropy_recomb_data - entropy_data)
-        # plt.savefig(f'{datafiles}/entropy_diff.png')
-        # import matplotlib.pyplot as plt
-        # plt.imshow(entropy_data)
-        # plt.savefig('/home/.../1step.pdf')
-        # plt.imshow(entropy_data_2step)
-        # plt.savefig('/home/.../2step.pdf')
-        # plt.imshow(entropy_data_2step-entropy_data)
-        # plt.savefig('/home/.../test.pdf')
         np.testing.assert_array_equal(
             entropy_data,
-            entropy_data_2step,
+            entropy_data_parallel,
             'The recombined entropy map in the 1 step and the 2 step process ' \
             'are different!'
         )
