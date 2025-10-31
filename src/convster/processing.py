@@ -553,11 +553,6 @@ def compute_interaction(data_arrays: Sequence[NDArray],
     return interaction_array
 
 
-# - - - - - - - - - -
-# Internal functions
-# - - - - - - - - - -
-
-
 def _view_data(source: Source | str,
                bands: list[Band | int] | None,
                view: tuple[int, int, int, int],
@@ -861,9 +856,6 @@ def _view_filtered(source: Source | str,
     return dict(data=filtered_datas, view=inner_view)
 
 
-
-# TODO -----------------------------------------------
-
 def view_blurred(source: str,
                  view: tuple[int, int, int, int],
                  inner_view: tuple[int, int, int, int],
@@ -874,60 +866,54 @@ def view_blurred(source: str,
                  output_dtype: type | str | None = "uint8",
                  output_range: tuple | None = None,
                  **tags):
-    # TODO: is_needed - needs_work - is_tested - usedin_processing
-    """Uses a tif file with categorical data to compute blurred binary arrays
+    """
+    Compute blurred binary arrays for each category in a categorical TIFF file.
 
-    The provided tif file must contain a band with categorical data (i.e. of type `uint`).
-    You may use the `**tags` to specify which band to read, by default only the
-    first band is read.
-    The method then generates for each of the category first an indicator array
-    (i.e. a dichotomous array indicating the presence/absence of a category)
-    and then applies the filter method to each of these arrays.
+    The provided TIFF file must contain at least one band with categorical data
+    (e.g., of type `uint`). For each specified category, an indicator array is
+    created (dichotomous array marking presence/absence of that category), which
+    is then filtered using the provided `img_filter` function.
 
-    ..Note::
-      This method will move to the `parallel` sub-module
+    .. note::
+       This method will be moved to the `parallel` sub-module in a future release.
 
     Parameters
     ----------
-    source:
-      The path to the tif file to load
-    view:
-      defines the view of the data array to update
-    inner_view:
-      defines the inner part of the view without border effects
-    categories:
-      A collection of categories to extract and create individual arrays for
-    img_filter:
-      a filter function that will be applied to each category indicator array
-    filter_params:
-      A dictionary with the keyword arguments to pass to the filter function
-    output_dtype:
-      Set the data type of the arrays that are returned.
+    source : str
+        Path to the TIFF file to load.
+    view : tuple of int
+        A 4-tuple defining the view of the data array to update: `(start_row, end_row, start_col, end_col)`.
+    inner_view : tuple of int
+        A 4-tuple defining the inner part of the view, excluding border effects.
+    categories : Collection, optional
+        A collection of category values to extract. If `None`, all categories are processed.
+    img_filter : Callable
+        A function that will be applied to each category indicator array.
+    filter_params : dict, optional
+        Keyword arguments to pass to `img_filter`. Default is an empty dictionary.
+    filter_output_range : tuple, optional
+        Output range for the filtered arrays. If `None`, no explicit rescaling is applied.
+    output_dtype : type or str, optional
+        Data type for the returned arrays. Default is `"uint8"`.
 
-      ..Note::
-        If provided, the output of the filter function will be rescaled to the range of
-        this data type.
+        .. note::
+            If provided, the output of the filter function will be rescaled to the
+            range of this data type. See `get_category_data` for details.
+    output_range : tuple, optional
+        Explicit output range for the filtered arrays. If not provided and the
+        filter produces float-type data, the range `[0, 1]` is assumed, with
+        values clipped to this range.
+    **tags : keyword arguments
+        Arbitrary keyword arguments to specify which band to read from the TIFF
+        file. See `io.load_block` for further details.
 
-        See `get_category_data` for further details.
-    output_range:
-      Optional argument to set an output range of the filter method.
-
-      ..Note::
-        If not provided and the filter method produces data of any float type,
-        hen the output range is assumed to be `[0, 1]` and values outside this
-        range will be set to the closer limit (e.g. `1.2` will become `1` and
-        becomes `0.0`)).
-
-    **tags:
-      Arbitrary number of keyword arguments to describe the band to select.
-
-      See `io.load_block` for further details.
+    Returns
+    -------
+    dict
+        Dictionary with keys:
+        - `'data'`: a dictionary mapping each category to its blurred array
+        - `'view'`: the `inner_view` defining the effective area of the returned arrays
     """
-    # is_needed
-    # needs_work (docs - minor)
-    # is_tested
-    # usedin_processing
-
     # read out block from original file
     result = load_block(source, view=view, scaling_params=None, **tags)
     data = result.pop('data')
@@ -958,36 +944,34 @@ def view_entropy(category_arrays: dict[int, NDArray],
                  normed: bool = True,
                  max_entropy_categories: int | None = None,
                  output_dtype: type | str | None = None,
-                 output_range: tuple | None = None):
-    # TODO: is_needed - needs_work - not_tested - usedin_processing
-    """Return a per-cell entropy computed from the per category arrays.
+                 output_range: tuple | None = None) -> dict:
+    """
+    Compute the per-cell entropy for a set of category arrays within a specified view.
 
-    ..Note::
-      The `view` parameter is simply passed along and returned with in order to
-      keep track of where the `category_arrays` data belongs.
-
-      This method will move to the `parallel` sub-module
 
     Parameters
     ----------
-    data_arrays:
-      A series of data arrays to stack and compute the per-cell entropy for
-    view:
-      defining the view of the data arrays to consider
-    normed:
-    max_entropy_categories:
-    output_dtype:
-      Set the data-type of the returned array.
+    category_arrays :
+        Dictionary mapping category indices to their corresponding arrays.
+    view :
+        A tuple defining the subregion of the arrays to process (e.g., (x_start, x_end, y_start, y_end)).
+    normed :
+        If True, normalize the entropy values to the range [0, 1] using the maximum
+        possible entropy determined by `max_entropy_categories`.
+    max_entropy_categories :
+        The maximum number of categories used for normalization. Ignored if `normed=False`.
+    output_dtype :
+        Data type for the returned entropy array. If None, the dtype is inferred.
+    output_range :
+        Range to scale the output values to, e.g., (0, 1).
 
-      See `compute_entropy` for further details
-    max_entropy_categories:
-      If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
-      This argument is ignored if `normed=False`.
+    Returns
+    -------
+    dict
+        Dictionary with keys:
+        - 'data': NDArray of computed entropy values for the specified view.
+        - 'view': tuple defining the original view of the data arrays.
     """
-    # is_needed
-    # no_work
-    # not_tested
-    # usedin_processing
     entropy_array = compute_entropy(
         data_arrays=tuple(category_arrays.values()),
         normed=normed,
@@ -1004,25 +988,38 @@ def view_interaction(category_arrays: dict[int, NDArray],
                      standardize: bool = False,
                      normed: bool = True,
                      output_dtype: type | str | None = None,
-                     output_range: tuple | None = None):
-    # TODO: is_needed - needs_work - not_tested - usedin_processing
-    """Return a per-cell interaction computed from the per category arrays.
+                     output_range: tuple | None = None) -> dict:
+    """
+    Compute the per-cell interaction metric for a set of category arrays within a specified view.
+
+    The function returns a dictionary containing the computed interaction array and the
+    original view. Interaction values can be standardized, normalized, and returned
+    in a specific data type or range.
 
     Parameters
     ----------
-    data_arrays:
-      A series of data arrays to stack and compute the per-cell interaction for
-    view:
-      defining the view of the data arrays to consider
-    output_dtype:
-      Set the data-type of the returned array.
+    category_arrays :
+        Dictionary mapping category indices to their corresponding arrays.
+    view :
+        A tuple defining the subregion of the arrays to process (e.g., (x_start, x_end, y_start, y_end)).
+    input_dtype :
+        Data type for input conversion before computing interactions.
+    standardize :
+        If True, standardize the input arrays before computing interaction.
+    normed :
+        If True, normalize the computed interaction values.
+    output_dtype :
+        Data type for the returned interaction array. If None, the dtype is inferred.
+    output_range :
+        Range to scale the output values to, e.g., (0, 1).
 
-      See `comptue_interaction` for further details
+    Returns
+    -------
+    dict
+        Dictionary with keys:
+        - 'data': NDArray of computed interaction values for the specified view.
+        - 'view': tuple defining the original view of the data arrays.
     """
-    # is_needed
-    # needs_work (docs)
-    # not_tested
-    # usedin_processing
     interaction_array = compute_interaction(
         data_arrays=tuple(category_arrays.values()),
         input_dtype=input_dtype,
@@ -1032,6 +1029,13 @@ def view_interaction(category_arrays: dict[int, NDArray],
         output_range=output_range,
     )
     return dict(data=interaction_array, view=view)
+
+
+
+# TODO -----------------------------------------------
+
+
+
 
 
 def get_entropy_view(source: str,
@@ -1048,7 +1052,6 @@ def get_entropy_view(source: str,
                      output_range: tuple | None = None,
                      normed: bool = True,
                      **tags):
-    # TODO: not_needed
     """Returns the entropy for some categories over a view from a tif file
 
     ..Warning::
@@ -1070,10 +1073,6 @@ def get_entropy_view(source: str,
 
       See `io.load_block` for further details.
     """
-    # is_needed (only in tests for parallel)
-    # no_work
-    # not_tested
-    # usedin_processing
     warnings.warn("This function is deprecated and will be removed",
                   category=DeprecationWarning)
     if blur_as_int is None:
