@@ -35,7 +35,6 @@ from riogrande.prepare import create_views
 from riogrande.io import write_band
 from riogrande.parallel import runner_call
 
-from .plotting import plot_entropy
 from .processing import (
     view_blurred,
     view_entropy,
@@ -247,6 +246,7 @@ def combine_interaction_blocks(output_params: dict,
                 timer.new_lab()
     return timer
 
+
 def compute_entropy(source: str | Source,
                     output_file: str,
                     block_size: tuple[int, int],
@@ -256,7 +256,6 @@ def compute_entropy(source: str | Source,
                     output_range: tuple | None = None, # TODO: Do we want to infer for np.integer? (see compute entropy)
                     normed: bool = True,
                     max_entropy_categories: int | None = None,
-                    plot_pdf_preview: bool = True,
                     verbose: bool = False,
                     **params):
     # is_needed (only in example)
@@ -290,8 +289,6 @@ def compute_entropy(source: str | Source,
     max_entropy_categories:
       If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
       Same as the output_dtype, this argument is ignored if `normed=False`.
-    plot_pdf_preview:
-        Whether a preview (.pdf) plot of the result should be generated
     verbose:
         Print out processing steps
     **params:
@@ -418,13 +415,6 @@ def compute_entropy(source: str | Source,
         pool.close()
         # wait for the *_combiner tasks to finish
         pool.join()
-
-    # Plot preview as pdf
-    if plot_pdf_preview:
-        plot_entropy(source=entropy_output_file,
-                     view=(0, 0, profile['width'], profile['height']),
-                     category='entropy',  # select the layer by tag
-                     fig_params=dict(output=f"{entropy_output_file}.preview.pdf"))
 
     # lzw-compress final output
     compress = params.pop('compress', False)
