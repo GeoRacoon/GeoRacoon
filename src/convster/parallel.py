@@ -337,6 +337,380 @@ def _combine_interaction_blocks(output_params: dict, interaction_q: Queue):
     return timer
 
 
+def _block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
+    """
+    Extract and filter category blocks for a specified raster view and push results to a queue.
+
+    This function processes a single spatial block (or "view") from a categorical
+    raster dataset, extracting per-category layers and optionally applying a
+    spatial filter (e.g., Gaussian blur). The processed block is then pushed to
+    a multiprocessing queue for downstream aggregation or writing.
+
+    Parameters
+    ----------
+    params : dict
+        Dictionary containing configuration and input data for processing a single
+        raster block. Required keys include:
+
+        - **source** : str
+          Path to the source raster file to read from.
+        - **view** : tuple(int, int, int, int)
+          Outer window coordinates of the block to process, as
+          ``(x, y, width, height)``.
+        - **inner_view** : tuple(int, int, int, int)
+          Usable region of the block (excluding padding or borders).
+        - **as_dtype** : str or numpy.dtype
+          Desired data type for the output blurred category arrays.
+        - **output_range** : tuple(float, float)
+          Target data range to map values into when converting to
+          ``as_dtype``.
+        - **categories** : list[str]
+          List of category names or band identifiers to extract.
+        - **img_filter** : Callable, optional
+          A filter function to apply to each category layer (e.g.,
+          ``skimage.filters.gaussian``).
+        - **filter_params** : dict, optional
+          Keyword arguments to pass to the filter callable.
+        - **filter_output_range** : tuple(float, float), optional
+          Expected numeric range of the filter’s output. If provided,
+          used to scale or normalize the filtered results.
+
+    blur_q : Queue
+        A multiprocessing or threading queue to which the blurred, multi-band
+        category maps are pushed. Each queue item will typically be a dictionary
+        containing processed data arrays and metadata describing the view.
+
+    Returns
+    -------
+    TimedTask
+        A `TimedTask` instance tracking the duration of the operation.
+        Useful for profiling and performance monitoring.
+
+    Notes
+    -----
+    This function serves as a wrapper that prepares parameters for
+    ``view_blurred`` and dispatches the computation through ``runner_call``.
+    It is intended for internal use within a multiprocessing workflow that
+    coordinates reading, processing, and writing of raster data blocks.
+
+    The queue consumer (e.g., ``combine_blurred_categories``) is responsible for
+    collecting and writing the processed results to disk.
+    """
+    with TimedTask() as timer:
+        # this is only needed for the entropy part below
+        blur_params = dict(
+            source=params.get('source'),
+            view=params.get('view'),
+            inner_view=params.get('inner_view'),
+            categories=params.get('categories'),
+            img_filter=params.get('img_filter'),
+            filter_params=params.get('filter_params'),
+            filter_output_range=params.get('filter_output_range'),
+            # TODO: we need to consistently use `as_dtype` for the
+            #       data type of  returned data
+            output_dtype=params.get('as_dtype'),
+            output_range=params.get('output_range'),
+        )
+        _ = runner_call(
+            blur_q,
+            view_blurred,
+            blur_params
+        )
+    return timer
+
+
+def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedTask:
+    # TODO: I beleive this is not used anywhere actually - DELETE if Needed
+    """
+    Compute per-block heterogeneity measures based on entropy and push results to queues.
+
+    This function processes a spatial block (or "view") from a categorical raster dataset,
+    applying optional filtering and computing a heterogeneity measure based on Shannon
+    entropy. The function produces two outputs:
+    1. A blurred, multi-band representation of the categorical data pushed to ``blur_q``.
+    2. A single-band entropy map pushed to ``entropy_q``.
+
+    Parameters
+    ----------
+    params : dict
+      Dictionary containing all relevant configuration data for processing a single
+      raster block. Required keys include:
+
+      - **source** : str
+        Path to the input raster file.
+      - **view** : tuple(int, int, int, int)
+        The full extent of the block to process, as ``(x, y, width, height)``.
+      - **inner_view** : tuple(int, int, int, int)
+        The usable area of the block, excluding borders.
+      - **img_filter** : Callable
+        A filter function to apply to each category layer, such as
+        ``skimage.filters.gaussian``.
+      - **filter_params** : dict
+        Parameters to pass to the filter callable.
+
+      Optional keys include:
+
+      - **entropy_as_ubyte** : bool, default=False
+        If ``True``, normalize entropy values to the 0–255 range and return
+        as unsigned bytes (``uint8``).
+      - **blur_output_dtype** : str or numpy.dtype or None, default=None
+        Data type to cast blurred data to before entropy computation.
+      - **filter_output_range** : tuple(float, float) or None, default=None
+        Expected numeric range of the filter’s output, used for normalization.
+      - **categories** : list[str], optional
+        List of category identifiers (bands) to include in the computation.
+
+    entropy_q : Queue
+      A multiprocessing or threading queue to which computed entropy maps
+      (heterogeneity measures) are pushed. Each item typically includes a
+      dictionary containing ``'data'`` and ``'view'`` fields.
+
+    blur_q : Queue
+      A multiprocessing or threading queue to which blurred category maps
+      are pushed. Each item typically includes a dictionary mapping category
+      names to filtered numpy arrays.
+
+    Returns
+    -------
+    TimedTask
+      A `TimedTask` instance tracking the duration of the operation.
+      This can be used for profiling or performance monitoring.
+
+    Notes
+    -----
+    This function acts as an internal worker for heterogeneity analysis workflows.
+    It first produces blurred category data via the ``view_blurred`` function and
+    then computes entropy using ``view_entropy``. Both are dispatched asynchronously
+    using ``runner_call`` and communicate their results through queues.
+    """
+    # handle deprecated parameters
+    blur_as_int = params.pop('blur_as_int', None)
+    if blur_as_int is not None:
+        if blur_as_int:
+            params['blur_output_dtype'] = "uint8"
+        else:
+            params['blur_output_dtype'] = "float64"
+        # TODO: fix deprecated use of parameters
+        warnings.warn("The parameter `blur_as_int` is deprecated, use "
+                      f"`output_dtype` instead!\nUsing {blur_as_int=} leads to "
+                      f"{params['output_dtype']=}",
+                      category=DeprecationWarning)
+    # ---
+    with TimedTask() as timer:
+        # this is only needed for the entropy part below
+        view = params.get('view')
+        blur_params = dict(
+            source=params.get('source'),
+            view=view,
+            inner_view=params.get('inner_view'),
+            categories=params.get('categories'),
+            img_filter=params.get('img_filter'),
+            filter_params=params.get('filter_params'),
+            output_dtype=params.get('blur_output_dtype'),
+            filter_output_range=params.get('filter_output_range')
+        )
+        blurred_view = runner_call(
+            blur_q,
+            view_blurred,
+            blur_params
+        )
+        blured_data = blurred_view['data']
+        view = blurred_view['view']
+        entropy_as_ubyte = params.pop('entropy_as_ubyte', False)
+        entropy_params = dict(
+            category_arrays=blured_data,
+            view=view,
+            output_dtype="uint8" if entropy_as_ubyte else None,
+        )
+        # This would return the entropy data
+        _ = runner_call(
+            entropy_q,
+            view_entropy,
+            entropy_params
+        )
+    return timer
+
+
+def _block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
+    """
+    Compute per-block heterogeneity measures based on entropy and push results to a queue.
+
+    This function computes Shannon entropy for each spatial block (or "view") in a raster
+    dataset, using pre-blurred or otherwise prepared category data. The resulting entropy
+    map is pushed into a multiprocessing queue for aggregation or writing.
+
+    Parameters
+    ----------
+    params : dict
+        Configuration and data required for processing a single raster block.
+        Must include the following keys:
+
+        - **source** : str
+          Path to the input raster file to process.
+        - **view** : tuple(int, int, int, int)
+          Full extent of the block to process, as ``(x, y, width, height)``.
+        - **inner_view** : tuple(int, int, int, int)
+          Usable portion of the block (excluding padding or borders).
+        - **input_bands** : list[Band]
+          List of `Band` objects providing access to category data for entropy
+          computation. Each must support ``get_bidx()`` and ``get_data()`` methods.
+        - **output_dtype** : str or numpy.dtype
+          Data type for the entropy output (e.g., ``"float32"`` or ``"uint8"``).
+        - **output_range** : tuple(float, float)
+          Expected value range for the entropy output, used for normalization.
+
+        Optional keys include:
+
+        - **entropy_as_ubyte** : bool, default=False
+          If ``True``, normalize entropy values to the 0–255 range and cast to
+          unsigned bytes (``uint8``).
+        - **normed** : bool, default=True
+          Whether to normalize the category probabilities before computing entropy.
+        - **max_entropy_categories** : int or None, default=None
+          Maximum number of categories to consider in entropy normalization.
+
+    entropy_q : Queue
+        A multiprocessing or threading queue used to transmit entropy results.
+        Each item added to the queue typically includes a dictionary with keys
+        such as ``'data'`` (entropy array) and ``'view'`` (spatial metadata).
+
+    Returns
+    -------
+    TimedTask
+        A `TimedTask` instance tracking the duration of the operation.
+        Useful for profiling and performance monitoring.
+
+    Notes
+    -----
+    This function extracts category data from the provided input bands within the
+    specified window, computes entropy using ``view_entropy``, and sends the result
+    to ``entropy_q`` via ``runner_call``.
+    """
+    with TimedTask() as timer:
+        input_bands = params.pop('input_bands')
+        blurred_data = dict()
+        # for the entropy only the inner view is needed
+        view = params.get('inner_view')
+        window = view_to_window(view)
+        for band in input_bands:
+            bidx = band.get_bidx(match='category')
+            blurred_data[bidx] = band.get_data(window=window)
+
+        output_dtype = params.pop('output_dtype')
+        output_range = params.pop('output_range')
+        normed = params.pop('normed', True)
+        max_entropy_categories = params.pop('max_entropy_categories', None)
+        entropy_params = dict(
+            category_arrays=blurred_data,
+            view=view,
+            normed=normed,
+            max_entropy_categories=max_entropy_categories,
+            output_dtype=output_dtype,
+            output_range=output_range,
+        )
+        # This would return the entropy data
+        _ = runner_call(
+            entropy_q,
+            view_entropy,
+            entropy_params
+        )
+    return timer
+
+
+def _block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
+    """
+    Compute per-block interaction measures between categories and push results to a queue.
+
+    This function processes a single spatial block (or "view") from a raster dataset,
+    computing interaction measures between categories (e.g., co-occurrence or overlap)
+    based on input band data. The computed interaction map is pushed to a
+    multiprocessing queue for aggregation or writing.
+
+    Parameters
+    ----------
+    params : dict
+        Configuration and data required for processing a single raster block.
+        Must include the following keys:
+
+        - **source** : str
+          Path to the input raster file to process.
+        - **view** : tuple(int, int, int, int)
+          Full extent of the block to process, as ``(x, y, width, height)``.
+        - **inner_view** : tuple(int, int, int, int)
+          Usable region of the block (excluding padding or borders).
+        - **input_bands** : list[Band]
+          List of `Band` objects providing access to category data.
+          Each must implement ``get_bidx()`` and ``get_data()`` methods.
+        - **output_dtype** : str or numpy.dtype
+          Data type for the interaction output (e.g., ``"float32"`` or ``"uint8"``).
+        - **output_range** : tuple(float, float)
+          Expected range of output values used for normalization or scaling.
+
+        Optional keys include:
+
+        - **input_dtype** : str or numpy.dtype or None, default=None
+          Data type of the input category arrays, if conversion is required.
+        - **interaction_as_ubyte** : bool, default=False
+          If ``True``, normalize the interaction values to the 0–255 range and
+          cast to unsigned bytes (``uint8``).
+        - **standardize** : bool, default=False
+          Whether to standardize category arrays before computing interaction.
+        - **normed** : bool, default=True
+          Whether to normalize input data (e.g., probability normalization)
+          before computing interaction.
+
+    interaction_q : Queue
+        A multiprocessing or threading queue used to transmit interaction results.
+        Each item in the queue typically includes a dictionary containing the
+        computed interaction data and associated spatial metadata.
+
+    Returns
+    -------
+    TimedTask
+        A `TimedTask` instance tracking the duration of the operation.
+        Useful for profiling and performance monitoring.
+
+    Notes
+    -----
+    This function extracts category data from the provided input bands within
+    the specified window, computes an interaction measure via the
+    ``view_interaction`` function, and sends the results to ``interaction_q``
+    using ``runner_call``.
+    """
+    with TimedTask() as timer:
+        input_bands = params.pop('input_bands')
+        blurred_data = dict()
+        # for the interaction only the inner view is needed
+        view = params.get('inner_view')
+        window = view_to_window(view)
+        for band in input_bands:
+            bidx = band.get_bidx(match='category')
+            blurred_data[bidx] = band.get_data(window=window)
+
+        input_dtype = params.pop('input_dtype', None)
+        output_dtype = params.pop('output_dtype')
+        output_range = params.pop('output_range')
+        standardize = params.pop('standardize', False)
+        normed = params.pop('normed', True)
+        interaction_as_ubyte = params.pop('interaction_as_ubyte', False)
+        interaction_params = dict(
+            view=view,
+            input_dtype=input_dtype,
+            standardize=standardize,
+            normed=normed,
+            category_arrays=blurred_data,
+            output_dtype=output_dtype,
+            output_range=output_range,
+        )
+        # This would return the interaction data
+        _ = runner_call(
+            interaction_q,
+            view_interaction,
+            interaction_params
+        )
+    return timer
+
+
 def compute_entropy(source: str | Source,
                     output_file: str,
                     block_size: tuple[int, int],
@@ -491,7 +865,7 @@ def compute_entropy(source: str | Source,
         # start the block processing
         all_jobs = []
         for bparams in block_params:
-            all_jobs.append(pool.apply_async(block_entropy,
+            all_jobs.append(pool.apply_async(_block_entropy,
                                              (bparams, entropy_q)))
         # collect results
         job_timers = []
@@ -666,7 +1040,7 @@ def compute_interaction(source: str | Source,
         # start the block processing
         all_jobs = []
         for bparams in block_params:
-            all_jobs.append(pool.apply_async(block_interaction,
+            all_jobs.append(pool.apply_async(_block_interaction,
                                              (bparams, interaction_q)))
         # collect results
         job_timers = []
@@ -694,284 +1068,6 @@ def compute_interaction(source: str | Source,
     print(f"{total_duration=}")
     print(f"maximal duration of single job: {max(job_timers)=}")
     return interaction_output_file
-
-
-def block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
-    # is_needed (internally only)
-    # needs_work (make internal; docs)
-    # not_tested
-    """Per block (i.e. view) heterogeneity measure based on entropy
-
-    Parameters
-    ----------
-    params: dict
-      Key value pairs holding all relevant data for a single worker
-      The data must include:
-
-      source: str
-        Path to the tif file to use
-      view: tuple
-        (x, y, width, height) defining the outer border of the view or block
-        to process
-      inner_view: tuple
-        (x, y, width, height) defining the usable part of the block, i.e.
-        without the borders
-      
-      Optionally the following parameters can be set:
-
-      entropy_as_ubyte: bool, Default=False
-        Should the entropy be normalized and returned as ubyte?
-      normed: bool, Default=True
-        Determines if the values in the provided arrays should be normed or not.
-
-    entropy_q: multiprocessing.Queue
-      The queue to push the entropy maps through
-    """
-    with TimedTask() as timer:
-        input_bands = params.pop('input_bands')
-        blurred_data = dict()
-        # for the entropy only the inner view is needed
-        view = params.get('inner_view')
-        window = view_to_window(view)
-        for band in input_bands:
-            bidx = band.get_bidx(match='category')
-            blurred_data[bidx] = band.get_data(window=window)
-
-        output_dtype = params.pop('output_dtype')
-        output_range = params.pop('output_range')
-        normed = params.pop('normed', True)
-        max_entropy_categories = params.pop('max_entropy_categories', None)
-        entropy_params = dict(
-            category_arrays=blurred_data,
-            view=view,
-            normed=normed,
-            max_entropy_categories=max_entropy_categories,
-            output_dtype=output_dtype,
-            output_range=output_range,
-        )
-        # This would return the entropy data
-        _ = runner_call(
-            entropy_q,
-            view_entropy,
-            entropy_params
-        )
-    return timer
-
-
-def block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
-    # is_needed (internally only)
-    # needs_work (make internal; docs)
-    # not_tested
-    """Per block (i.e. view) interaction measure based on given categories
-
-    Parameters
-    ----------
-    params: dict
-      Key value pairs holding all relevant data for a single worker
-      The data must include:
-
-      source: str
-        Path to the tif file to use
-      view: tuple
-        (x, y, width, height) defining the outer border of the view or block
-        to process
-      inner_view: tuple
-        (x, y, width, height) defining the usable part of the block, i.e.
-        without the borders
-
-      Optionally the following parameters can be set:
-
-      interaction_as_ubyte: bool, Default=False
-        Should the interaction be normalized and returned as ubyte?
-      standardize: bool, Default=False
-      normed: bool, Default=True
-
-    interaction_q: multiprocessing.Queue
-      The queue to push the interaction maps through
-    """
-    with TimedTask() as timer:
-        input_bands = params.pop('input_bands')
-        blurred_data = dict()
-        # for the interaction only the inner view is needed
-        view = params.get('inner_view')
-        window = view_to_window(view)
-        for band in input_bands:
-            bidx = band.get_bidx(match='category')
-            blurred_data[bidx] = band.get_data(window=window)
-
-        input_dtype = params.pop('input_dtype', None)
-        output_dtype = params.pop('output_dtype')
-        output_range = params.pop('output_range')
-        standardize = params.pop('standardize', False)
-        normed = params.pop('normed', True)
-        interaction_as_ubyte = params.pop('interaction_as_ubyte', False)
-        interaction_params = dict(
-            view=view,
-            input_dtype=input_dtype,
-            standardize=standardize,
-            normed=normed,
-            category_arrays=blurred_data,
-            output_dtype=output_dtype,
-            output_range=output_range,
-        )
-        # This would return the interaction data
-        _ = runner_call(
-            interaction_q,
-            view_interaction,
-            interaction_params
-        )
-    return timer
-
-
-def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedTask:
-    # is_needed
-    # needs_work (docs)
-    # not_tested
-    """Per block (i.e. view) heterogeneity measure based on entropy
-
-    Parameters
-    ----------
-    params: dict
-      Key value pairs holding all relevant data for a single worker
-      The data must include:
-
-      source: str
-        Path to the tif file to use
-      view: tuple
-        (x, y, width, height) defining the outer border of the view or block
-        to process inner_view: tuple
-        (x, y, width, height) defining the usable part of the block, i.e.
-        without the borders
-      img_filter: Callable
-        A filter function that can be applied to the data. See e.g.
-        skimage.filter.gaussian
-      filter_params:
-        Parameter to pass to the filter callable, `img_filter`
-      
-      Optionally the following parameters can be set:
-
-      entropy_as_ubyte: bool, Default=False
-        Should the entropy be normalized and returned as ubyte?
-      blur_output_dtype: type|str|None, Default=None
-        Sets the data type to which the blurred data should be
-        converte before calculating the entropy
-      filter_output_range: tuple|None, Default=None
-        Sets the data range the filter function (when blurring)
-        maximally has.
-    entropy_q: multiprocessing.Queue
-      The queue to push the entropy maps through
-    blur_q: multiprocessing.Queue
-      The queue to push the multi-band blurred land-cover types maps through
-    """
-    # handle deprecated parameters
-    blur_as_int = params.pop('blur_as_int', None)
-    if blur_as_int is not None:
-        if blur_as_int:
-            params['blur_output_dtype'] = "uint8"
-        else:
-            params['blur_output_dtype'] = "float64"
-        warnings.warn("The parameter `blur_as_int` is deprecated, use "
-                      f"`output_dtype` instead!\nUsing {blur_as_int=} leads to "
-                      f"{params['output_dtype']=}",
-                      category=DeprecationWarning)
-    # ---
-    with TimedTask() as timer:
-        # this is only needed for the entropy part below
-        view = params.get('view')
-        blur_params = dict(
-            source=params.get('source'),
-            view=view,
-            inner_view=params.get('inner_view'),
-            categories=params.get('categories'),
-            img_filter=params.get('img_filter'),
-            filter_params=params.get('filter_params'),
-            output_dtype=params.get('blur_output_dtype'),
-            filter_output_range=params.get('filter_output_range')
-        )
-        blurred_view = runner_call(
-            blur_q,
-            view_blurred,
-            blur_params
-        )
-        blured_data = blurred_view['data']
-        view = blurred_view['view']
-        entropy_as_ubyte = params.pop('entropy_as_ubyte', False)
-        entropy_params = dict(
-            category_arrays=blured_data,
-            view=view,
-            output_dtype="uint8" if entropy_as_ubyte else None,
-        )
-        # This would return the entropy data
-        _ = runner_call(
-            entropy_q,
-            view_entropy,
-            entropy_params
-        )
-    return timer
-
-
-def block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
-    # is_needed (internally only)
-    # needs_work (make internal; docs)
-    # not_tested
-    """Per block (i.e. view) category extraction and filter application
-
-    This is a wrapper function to process a selection of a (pot. large)
-    tif file and push the results into a multiprocessing queue for
-    aggregation.
-    The method creates individual layers for each category in a band of
-    categorical data and optionally apply an filter callable.
-
-    Parameters
-    ----------
-    params: dict
-      Key value pairs holding all relevant data for a single worker
-      The data must include:
-
-      source: str
-        Path to the tif file to use
-      view: tuple
-        (x, y, width, height) defining the outer border of the view or block
-        to process
-      inner_view: tuple
-        (x, y, width, height) defining the usable part of the block, i.e.
-        without the borders
-      as_dtype:
-        Set the data type of the blurred categories that are returned.
-      output_range:
-        The data range the output will be mapped to (when converting to `output_dtype`)
-      img_filter: Callable
-        A filter function that can be applied to the data. See e.g.
-        skimage.filter.gaussian
-      filter_params:
-        Parameter to pass to the filter callable, `img_filter`
-      filter_output_range:
-        Optionally specify the output range the filter method can produce
-      
-    blur_q: multiprocessing.Queue
-      The queue to push the multi-band blurred land-cover types maps through
-    """
-    with TimedTask() as timer:
-        # this is only needed for the entropy part below
-        blur_params = dict(
-            source=params.get('source'),
-            view=params.get('view'),
-            inner_view=params.get('inner_view'),
-            categories=params.get('categories'),
-            img_filter=params.get('img_filter'),
-            filter_params=params.get('filter_params'),
-            filter_output_range=params.get('filter_output_range'),
-            # TODO: we need to consistently use `as_dtype` for the
-            #       data type of  returned data
-            output_dtype=params.get('as_dtype'),
-            output_range=params.get('output_range'),
-        )
-        _ = runner_call(
-            blur_q,
-            view_blurred,
-            blur_params
-        )
-    return timer
 
 
 # TODO: check how much extract_categories and apply_filter are redundant
@@ -1172,7 +1268,7 @@ def extract_categories(source: str | Source,
         # start the block processing
         all_jobs = []
         for bparams in block_params:
-            all_jobs.append(pool.apply_async(block_category_extraction,
+            all_jobs.append(pool.apply_async(_block_category_extraction,
                                              (bparams, blur_q)))
         # collect results
         job_timers = []
