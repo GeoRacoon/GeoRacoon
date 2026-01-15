@@ -208,6 +208,103 @@ def test_filter_data_float(datafiles):
     # Check that the nan's have been 'eating up area'
     assert np.isnan(filtered_data).sum() == np.isnan(ch_f_data).sum()
 
+@ALL_MAPS
+def test_entropy_normalization_conversion(datafiles):
+    """Test the normalization of the entropy along with casting to unsigned int
+    """
+    # TODO: these tests become a bit unnecessary as get_entropy should be removed
+    map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    map_data = rgio.load_block(map_tif)
+    data = map_data['data']
+    blur_output_dtype = "uint8"  # convert the blurred data to uint8 before
+    categories = csproc.get_categories(data)
+
+    filter_output_range = (0, 1)
+    filter_params = dict(
+        preserve_range=False
+    )
+
+    max_entropy = csproc.get_max_entropy(len(categories))
+    print(f'{max_entropy=}')
+
+    with pytest.warns(expected_warning=UserWarning, match='bounded'):
+        # without normalization we cannot set the output_range (as we have not
+        # fixed input range > unbounded).
+        entropy_data = csproc.get_entropy(data=data,
+                                          categories=categories,
+                                          normed=False,
+                                          output_range=(0,1),  # this should lead to a warning
+                                          img_filter=gaussian,
+                                          filter_params=filter_params,
+                                          blur_output_dtype=blur_output_dtype,
+                                          filter_output_range=filter_output_range,
+                                          )
+
+    assert np.nanmax(entropy_data) <= max_entropy, \
+           'Maximal entropy is exceeded'
+
+    with pytest.warns(expected_warning=UserWarning, match='without rescaling'):
+        # we convert but do not normalize > no rescaling possible, only type
+        # conversion
+        _= csproc.get_entropy(data=data,
+                              categories=categories,
+                              normed=False,
+                              as_dtype="uint8",  # this should lead to a warning
+                              img_filter=gaussian,
+                              filter_params=filter_params,
+                              blur_output_dtype=blur_output_dtype,
+                              filter_output_range=filter_output_range,)
+
+    entropy_data = csproc.get_entropy(data=data,
+                                     categories=categories,
+                                     normed=False,
+                                     as_dtype="float64",
+                                     img_filter=gaussian,
+                                     filter_params=filter_params,
+                                     blur_output_dtype=blur_output_dtype,
+                                     filter_output_range=filter_output_range,
+                                     )
+    print(f"{np.nanmax(entropy_data)=}")
+    print(f"{np.nanmin(entropy_data)=}")
+    normed_entropy_data = csproc.get_entropy(data=data, categories=categories,
+                                             normed=True,
+                                             img_filter=gaussian,
+                                             filter_params=filter_params,
+                                             filter_output_range=filter_output_range,
+                                             blur_output_dtype=blur_output_dtype,
+                                             )
+
+    print(f"{np.nanmax(normed_entropy_data)=}")
+    print(f"{np.nanmin(normed_entropy_data)=}")
+    assert np.nanmax(normed_entropy_data) == \
+           np.nanmax(entropy_data)/max_entropy, 'Normalization is faulty'
+
+    normed_set_maximum_entropy_data = csproc.get_entropy(
+        data=data,
+        categories=categories,
+        normed=True,
+        max_entropy_categories=(len(categories) * 2),
+        img_filter=gaussian,
+        filter_params=filter_params,
+        filter_output_range=filter_output_range,
+        blur_output_dtype=blur_output_dtype,
+    )
+    assert np.nanmax(normed_set_maximum_entropy_data) <= \
+           np.nanmax(entropy_data)/ csproc.get_max_entropy(len(categories)*2)
+
+    rescaled_entropy_data = csproc.get_entropy(data, categories=categories,
+                                               normed=True,
+                                               as_dtype="uint8",
+                                               img_filter=gaussian,
+                                               filter_params=filter_params,
+                                               filter_output_range=filter_output_range,
+                                               blur_output_dtype=blur_output_dtype,
+                                               )
+    print(f"{np.nanmax(rescaled_entropy_data)=}")
+    print(f"{np.nanmin(rescaled_entropy_data)=}")
+    assert np.nanmax(rescaled_entropy_data) <= 255
+    assert rescaled_entropy_data.dtype == np.uint8
+
 
 @ALL_MAPS
 def test_interaction_computation(datafiles):
@@ -464,6 +561,33 @@ def test_visualize_recombination_coverage():
     # plt.show()
     # fig.savefig('testw.pdf')
 
+
+@ALL_MAPS
+def test_import_export(datafiles):
+    """Export per-cell entropy map after categories are blurred, load it and compare.
+    """
+    start = (1020, 1020)
+    size = (700, 700)
+    view1 = (*start, *size)
+    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    block = rgio.load_block(ch_map_tif, view=view1, indexes=1)
+    entropy_array = csproc.get_entropy(block['data'], categories=range(8),
+                                       normed=True,
+                                       img_filter=gaussian)
+    outfile = datafiles / 'out.tif'
+    rgio._export_to_tif(
+        destination=str(outfile),
+        data=entropy_array,
+        orig_profile=block['orig_profile'],
+        # we need the transform from the window from block 1
+        transform=block['transform']
+    )
+    view2 = (0, 0, *size)
+    block_2 = rgio.load_block(outfile, view=view2)
+    # NOTE: if the arrays contain np.nan then np.all will always be False
+    assert np.all(np.nan_to_num(entropy_array,
+                  nan=-1) == np.nan_to_num(block_2['data'], nan=-1))
+    assert block['transform'] == block_2['transform']
 
 @ALL_MAPS
 def test_convert_to_dtype_real_range_handling(datafiles):

@@ -155,6 +155,155 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
             f'For {category=} the recombined blurred map is different!'
         )
 
+@ALL_MAPS
+def test_entropy_recombination(datafiles, set_mpc_strategy):
+    """Assert recombined entropy map is identical to processing the entire map
+    """
+    # TODO: the use of get_entropy should be avoided anyways.
+    #  We should get rid of this test after getting rid of the respective functions
+    dtype_tests = {"uint8": (0, 255),
+                   "float32": None}
+    for test_dtype, test_filter_output_range in dtype_tests.items():
+        blur_full = str(datafiles / f'blur_full_{test_dtype}.tif')
+        blur_partial = str(datafiles / f'blur_partial_{test_dtype}.tif')
+        diameter = 1000  # this is in meter
+        scale = 100  # meter per pixel
+        _diameter = diameter / scale
+        truncate = 3  # property of the gaussian filter
+        view_size = (500, 400)
+        filter_output_range = test_filter_output_range  # full range of data the filter can produce
+        blur_output_dtype = test_dtype  # blurred maps will be saved in this format
+        output_dtype = test_dtype
+        normed = True
+        blur_params = get_blur_params(diameter=_diameter, truncate=truncate)
+        min_border = csf_gauss.compatible_border_size(sigma=blur_params['sigma'],
+                                                      truncate=truncate)
+        border = (50, 50)
+        print(f"{min_border=}, {border=}")
+        # load the data
+        ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+        ch_map = rgio.load_block(ch_map_tif, indexes=1)
+        ch_data = ch_map['data']
+        profile = ch_map['orig_profile']
+        width = profile['width']
+        height = profile['height']
+        # we will save each category separately
+        profile['count'] = 1
+        profile['dtype'] = np.dtype(output_dtype)
+        # get the categories
+        categories = csproc.get_categories(ch_data)
+        max_entropy_categories = len(categories)
+        # we partially evaluate the guassian filter to make sure it gets
+        # identical parameter everywhere
+        # we do not need to pass the diameter to the filter function
+        _ = blur_params.pop('diameter')
+        img_filter = partial(csf_gauss.gaussian, **blur_params)
+        filter_params = blur_params.copy()
+        filter_params.update(dict(preserve_range=True))
+        entropy_data = csproc.get_entropy(
+            data=ch_data,
+            categories=categories,
+            max_entropy_categories=max_entropy_categories,
+            normed=normed,
+            img_filter=img_filter,
+            filter_params=filter_params,
+            blur_output_dtype=blur_output_dtype,
+            filter_output_range=filter_output_range,
+            as_dtype=output_dtype
+        )
+        # use multiprocessing and blur block by block
+        # first set the parameters for the recombintion task
+        entropy_output_file = rghelp.output_filename(
+            base_name=blur_partial,
+            out_type=f"entropy_lct",
+            blur_params=blur_params
+        )
+        entropy_output_params = dict(
+            profile=profile,
+            output_dtype=output_dtype,
+            output_file=entropy_output_file,
+            count=len(categories)
+        )
+        # now the parameter for the per block blur tasks
+        views, inner_views = rgprep.create_views(view_size=view_size,
+                                                 border=border,
+                                                 size=(width, height))
+        block_params = []
+        for view, inner_view in zip(views, inner_views):
+            bparams = dict(
+                source=ch_map_tif,
+                categories=categories,
+                max_entropy_categories=max_entropy_categories,
+                normed=normed,
+                img_filter=img_filter,
+                filter_params=filter_params,
+                blur_output_dtype=blur_output_dtype,
+                filter_output_range=filter_output_range,
+                output_dtype=output_dtype,
+                view=view,
+                inner_view=inner_view,
+            )
+            block_params.append(bparams)
+        manager = mproc.Manager()
+        entropy_q = manager.Queue()
+        # get number of workers
+        nbr_workers = rghelp.get_nbr_workers()
+        # print(f"using {nbr_workers=}")
+        pool = set_mpc_strategy.Pool(nbr_workers)
+        # start the blurred category writer task
+        blur_combiner = pool.apply_async(
+            cspara.combine_entropy_blocks,
+            (entropy_output_params, entropy_q,)
+        )
+        # start the block processing
+        all_jobs = []
+        for bparams in block_params:
+            all_jobs.append(pool.apply_async(
+                rgpara.runner_call,
+                (entropy_q,
+                 csproc.get_entropy_view,
+                 bparams)
+            ))
+        # now lets wait for all of these jobs to finish
+        job_timers = []
+        for job in all_jobs:
+            # await for the jobs to return (i.e. complete) by calling .get
+            # get the duration from the timer object that is returned by .get()
+            job_timers.append(job.get())
+        # send the final kill job to the queue
+        entropy_q.put(dict(signal='kill'))
+        # wait for the recombination job to terminate
+        duration = blur_combiner.get().get_duration()
+        # free up the resources
+        pool.close()
+        pool.join()
+        # print(f"job took {duration} seconds")
+
+        # check if tags were set correctly
+        with rio.open(entropy_output_file) as src:
+            tags = rgio._get_tags(src, bidx=1)
+            bidx = rgio._get_bidx(src, category="entropy")
+            np.testing.assert_equal(tags['category'], "entropy")
+            np.testing.assert_equal(bidx, 1)
+
+        # now we can read out the tif with the blurred category and compare
+        entropy_recomb_map = rgio.load_block(entropy_output_file, indexes=1)
+        entropy_recomb_data = entropy_recomb_map['data']
+
+        # plt.imshow(entropy_data)
+        # plt.savefig(f'{datafiles}/entropy_single.png')
+        # plt.imshow(entropy_recomb_data)
+        # plt.savefig(f'{datafiles}/entropy_recombined.png')
+        # plt.imshow(entropy_recomb_data - entropy_data)
+        # plt.savefig(f'{datafiles}/entropy_diff.png')
+        print(f"{entropy_data.dtype=}")
+        print(f"{entropy_recomb_data.dtype=}")
+        np.testing.assert_array_equal(
+            entropy_data,
+            entropy_recomb_data,
+            f'The recombined entropy map is different!'
+        )
+
 
 @ALL_MAPS
 def test_entropy_parallel(datafiles):
