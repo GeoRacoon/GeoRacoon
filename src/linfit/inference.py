@@ -34,60 +34,58 @@ from .helper import (
 )
 
 
-def to_numpy_selector(rasterio_mask: NDArray) -> NDArray:
-    # TODO: is_needed - no_work - not_tested - usedin_both
-    """Converts rasterio mask (e.g. `read_masks(band)`) into a `numpy.bool_'
+def _to_numpy_selector(rasterio_mask: NDArray) -> NDArray:
+    """
+    Convert rasterio mask to a boolean selector array.
 
-    ..Note::
-        The returned array is an inverted mask in the sense that a cell that
-        should be used will have the value `True` and a cell that should not
-        be used is `False`.
+    Converts a rasterio mask (e.g., from `read_masks(band)`) into a boolean
+    numpy array suitable for indexing. The returned array is an inverted mask
+    where `True` indicates usable cells and `False` indicates masked cells.
 
     Parameters
     ----------
-    rasterio_mask:
-      Output of a mask as returned by `rasterio.io.DatasetReader.read_masks`
+    rasterio_mask : ndarray
+        Mask array as returned by `rasterio.io.DatasetReader.read_masks`.
+        Non-zero values indicate valid data; zero values indicate masked data.
 
     Returns
     -------
-    np.array:
-        A 2D array of np.bool_ values indicating what cell can be used.
+    ndarray of bool
+        Boolean array with the same shape as `rasterio_mask`. `True` values
+        indicate cells that can be used; `False` values indicate cells that
+        should be excluded.
     """
-    # is_needed
-    # needs_work (make internal)
-    # not_tested (no need)
-    # usedin_linfit
     return np.where(rasterio_mask != 0, True, False)
 
 
-def enrich_selector(selector: NDArray,
-                    *predictors: Band,
-                    verbose: bool = False) -> NDArray:
-    # TODO: is_needed - no_work - not_tested - usedin_linfit
-    """Complete the selector with the masks extracted from the pridictors
+def _enrich_selector(selector: NDArray, *predictors: Band, verbose: bool = False) -> NDArray:
+    """Refine selector array by combining masks from predictor bands.
+
+    Updates the input selector by applying logical AND operations with masks
+    extracted from each predictor band. This ensures only cells that are valid
+    across all predictors are selected.
 
     Parameters
     ----------
-    selector: np.array
-        a `np.bool_` array to select usable cells in a numpy 2D array
-    *predictors:
-      An arbitrary number of `.io_.Band` objects each specifying one or
-      several predictors.
-
-      See `prepare_predictors` for more details.
-
-    verbose: Default: False
-      If the method should print runtime info
+    selector : ndarray of bool
+        Boolean array indicating usable cells in a 2D raster. `True` values
+        indicate cells that can be used; `False` values indicate cells that
+        should be excluded.
+    *predictors : Band
+        Variable number of `.io_.Band` objects, each specifying one or more
+        predictor variables. Bands sharing the same mask reader are grouped
+        together for efficiency. See `prepare_predictors` for more details.
+    verbose : bool, optional
+        If True, print runtime information including predictor names, mask
+        readers, and usable pixel counts. Default is False.
 
     Returns
     -------
-    np.array:
-        A 2D array of np.bool_ values indicating what cell can be used.
+    ndarray of bool
+        Boolean array with the same shape as `selector`. Contains the logical
+        AND of the input selector and all predictor masks, indicating cells
+        that are valid across all inputs.
     """
-    # is_needed
-    # needs_work (test, make internal)
-    # not_tested
-    # usedin_linfit
     aggr_selector = np.copy(selector)
     pred_mask_readers = dict()
     for predictor in predictors:
@@ -97,11 +95,12 @@ def enrich_selector(selector: NDArray,
         else:
             pred_mask_readers[pred_mask_reader] = [predictor, ]
     # print(f"{pred_mask_readers=}")
+
     for mask_reader in pred_mask_readers:
         with mask_reader() as read_mask:
             _pred_mask = read_mask()
             all_pixels = mul(*_pred_mask.shape)
-        pred_selector = to_numpy_selector(_pred_mask)
+        pred_selector = _to_numpy_selector(_pred_mask)
         if verbose:
             data_pixels = usable_pixels_count(pred_selector)
             print("##########")
@@ -113,35 +112,46 @@ def enrich_selector(selector: NDArray,
     return aggr_selector
 
 
-def prepare_selector(response: str | Band,
-                     *predictors: Band,
-                     extra_masking_band: Band | None = None,
+def prepare_selector(response: str | Band, *predictors: Band, extra_masking_band: Band | None = None,
                      verbose=False) -> NDArray:
-    # TODO: is_needed - no_work - is_tested - usedin_linfit
-    """Creates a boolean selector based on the masks of response and predictors
+    """
+    Create a boolean selector based on the masks of response and predictors.
 
-    The selector is a np.array of type np.bool_ indicating which well can be
-    used (`True`) and which cannot (`False`)
+    The selector is a boolean array indicating which pixels can be used (True)
+    and which cannot (False) based on the combined masks of all input bands.
 
     Parameters
     ----------
-    _See `prepare_predictors` for a detailed description description._
-
-    response:
-      A `.io_.Band` object describing the response data.
-    *predictors:
-      An arbitrary number of `io_.Band` objects each specifying one or several
-      predictors.
-    extra_masking_band: Optional `io_.Band` object that is treated as a rasterio mask, i.e. values equal to 0
-      will be masked.
-    verbose: Default: False
-      If the method should print runtime info
+    response : str or Band
+        A Band object or path string describing the response data. If a string
+        is provided, it will be converted to a Band object with bidx=1.
+    *predictors : Band
+        Variable number of Band objects, each specifying one or more predictor
+        variables. Their masks will be combined with the response mask.
+    extra_masking_band : Band, optional
+        Additional Band object treated as a rasterio mask, where values equal
+        to 0 will be masked out. Default is None.
+    verbose : bool, optional
+        If True, prints runtime information about usable pixels at each masking
+        stage. Default is False.
 
     Returns
     -------
-    np.array
-      Boolean array of the same shape as `response`
+    ndarray of bool
+        Boolean array of the same shape as the response band, where True
+        indicates usable pixels and False indicates masked pixels.
 
+    Notes
+    -----
+    The selector combines masks using logical AND operations, meaning a pixel
+    is only usable (True) if it is valid across all input bands.
+
+    The mask reader can be configured using `response.set_mask_reader(use='band'/'source')`.
+
+    Examples
+    --------
+    >>> selector = prepare_selector(response_band, predictor1, predictor2, verbose=True)
+    >>> valid_data = response_data[selector]
     """
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
@@ -154,14 +164,14 @@ def prepare_selector(response: str | Band,
     src_width = src_profile["width"]
     src_height = src_profile["height"]
     all_pixels = src_width * src_height
-    selector = to_numpy_selector(mask)
+    selector = _to_numpy_selector(mask)
     if verbose:
         print("\nResponse data:")
         data_pixels = usable_pixels_count(selector)
         usable_pixels_info(all_pixels, data_pixels)
     # now handle the extra mask band
     if extra_masking_band is not None:
-        extra_selector = to_numpy_selector(extra_masking_band.get_data())
+        extra_selector = _to_numpy_selector(extra_masking_band.get_data())
         # combine with logical and, as only both True should lea to True
         selector = np.logical_and(selector, extra_selector)
         if verbose:
@@ -170,7 +180,7 @@ def prepare_selector(response: str | Band,
             usable_pixels_info(all_pixels, data_pixels)
 
     # first we get all the masks to compute an overall mask
-    aggr_selector = enrich_selector(selector, *predictors, verbose=verbose)
+    aggr_selector = _enrich_selector(selector, *predictors, verbose=verbose)
 
     data_pixels = usable_pixels_count(aggr_selector)
     if verbose:

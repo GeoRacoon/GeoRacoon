@@ -5,13 +5,11 @@ from numpy.random import Generator, PCG64
 from pydataset import data as pydata
 
 from riogrande import helper as rghelp
-
 from riogrande import io as rgio
 from riogrande import io_ as rgio_
 from riogrande import parallel as rgpara
 
 from linfit import inference as lfinf
-from linfit import parallel as lfpara
 
 from .conftest import (
     ALL_MAPS,
@@ -19,6 +17,43 @@ from .conftest import (
     create_blurred_tif,
     set_mpc_strategy,
 )
+
+
+@ALL_MAPS
+def test_enrich_selector(datafiles, create_blurred_tif):
+    """Test selector enrichment produces expected mask pattern"""
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    ndvi_coregistered = str(datafiles / 'ndvi_coreged.tif')
+    rgio._coregister_raster(ndvi_map, landcover_map, output=ndvi_coregistered)
+
+
+    with rio.open(ndvi_coregistered, 'r+') as src:
+        data = src.read(indexes=1)
+        mask = np.where(np.isnan(data), 0, 255)
+        src.write_mask(mask)
+
+    # Create predictors from blurred source
+    blurred_source = rgio_.Source(path=create_blurred_tif)
+    predictors = blurred_source.get_bands()
+
+    for pred in predictors:
+        pred.set_mask_reader(use='source')
+
+    response_band = rgio_.Band(source=rgio_.Source(path=ndvi_coregistered), bidx=1)
+    response_band.set_mask_reader(use='source')
+
+    response_mask_reader = response_band.get_mask_reader()
+    with response_mask_reader() as read_mask:
+        response_mask = read_mask()
+
+    initial_selector = lfinf._to_numpy_selector(response_mask)
+
+    # Enrich selector with predictors
+    enriched_selector = lfinf._enrich_selector(initial_selector, *predictors)
+    # print(np.sum(enriched_selector), np.sum(initial_selector))
+    assert np.sum(enriched_selector) <= np.sum(initial_selector)
+    assert enriched_selector.shape == initial_selector.shape
 
 
 @ALL_MAPS
