@@ -401,14 +401,6 @@ def prepare_predictors(response: str | Band, *predictors: Band | str, view: tupl
     # extract the mask from response and enrich it with masks from predictors
     aggr_selector = prepare_selector(response, *_predictors, verbose=verbose)
 
-    # NOTE: check_predictors is useless if we do not compute the bands for
-    #       categorical data on the fly. This is because the check simply
-    #       relies on the selection criterion of the bands to use and not
-    #       on the actual data.
-    #       TODO: we should introduce a check of linear dependency between
-    #             the columns if we want a reliable check. Or then do not
-    #             check ant let the matrix inversion fail
-
     riow = view_to_window(view)
     # create empty predictor array
     X = init_X(_predictors,

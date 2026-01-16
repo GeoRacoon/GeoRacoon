@@ -461,7 +461,6 @@ def _block_ssr(params: dict, ssr_parts: list):
 
 
 def _block_sst(params: dict, sst_parts: list):
-    # TODO: test
     """
     Partially calculate the Total Sum of Squares (SST) for a given data window.
 
