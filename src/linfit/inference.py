@@ -527,7 +527,6 @@ def get_optimal_weights(X, y):
 
 
 def partial_response(response: str | Band, window: Window | None, selector: NDArray):
-    # TODO: write test
     """
     Extract and return the response values within a window after applying a selector.
 
@@ -568,7 +567,6 @@ def partial_response(response: str | Band, window: Window | None, selector: NDAr
 
 def partial_X(predictors: Collection[Band], window: Window | None, selector: NDArray,
               include_intercept: bool, as_dtype: type | str):
-    # TODO: write test
     """
     Generate a (partial) predictor matrix ``X``.
 
