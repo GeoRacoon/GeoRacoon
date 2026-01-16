@@ -16,12 +16,17 @@ from convster.filters import get_blur_params
 
 from linfit import inference as lfinf
 from linfit import parallel as lfpara
+from linfit.parallel_helpers import (
+    _combine_matrices,
+    _partial_transposed_product
+)
 
 from .conftest import (
     ALL_MAPS,
     get_file,
     set_mpc_strategy,
 )
+
 
 @ALL_MAPS
 def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
@@ -53,13 +58,13 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     print(mproc.get_start_method(allow_none=True))
     blurred_tif = cspara.extract_categories(
         source=lct_source,
-        categories=[1,2,3,4,5],
+        categories=[1, 2, 3, 4, 5],
         output_file=blur_out,
         img_filter=gaussian,
         filter_params=filter_params,
         output_dtype=np.uint8,
         block_size=(500, 500),
-        compress = True
+        compress=True
     )
     blurr_source = Source(path=blurred_tif)
     # compute the mask
@@ -106,18 +111,18 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     # start the processes 
     manager = mproc.Manager()
     output_q = manager.Queue()
-    nbr_workers= rghelp.get_nbr_workers()
+    nbr_workers = rghelp.get_nbr_workers()
     # print(f"using {nbr_workers=}")
     pool = set_mpc_strategy.Pool(nbr_workers)
     # start the aggregation step
     matrix_aggregator = pool.apply_async(
-        lfpara._combine_matrices,
+        _combine_matrices,
         (output_q,)
     )
     all_jobs = []
     for pparams in part_params:
         all_jobs.append(pool.apply_async(
-            lfpara._partial_transposed_product,
+            _partial_transposed_product,
             (pparams, output_q)
         ))
     # now lets wait for all of these jobs to finish
@@ -160,15 +165,15 @@ def test_model_output(datafiles, create_blurred_tif):
     resp_profile['count'] = 1
     print('computing weights')
     optimal_weights = lfpara.compute_weights(response=ndvi_map,
-                                            predictors=predictors,
-                                            block_size=(500, 500),
-                                            include_intercept=False,
-                                            sanitize_predictors=True)
+                                             predictors=predictors,
+                                             block_size=(500, 500),
+                                             include_intercept=False,
+                                             sanitize_predictors=True)
     print(f'{optimal_weights=}')
     print('done!')
     # perform the computation in parallel 
     model_output_file = str(datafiles / 'model_out.tif')
-    verbose=True
+    verbose = True
     block_size = (500, 400)
     params = dict()
     print('Compute the model prediction')
@@ -236,14 +241,14 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
     # print(f"{tpX=}\n{Y=}")
     # print("#####\n#####\n#####")
     betas_dict = lfpara.get_optimal_betas(*predictors,
-                                     Y=Y,
-                                     response=response,
-                                     selector=selector,
-                                     include_intercept=include_intercept,
-                                     verbose=verbose,
-                                     as_dtype=as_dtype,
-                                     view_size=view_size,
-                                     )
+                                          Y=Y,
+                                          response=response,
+                                          selector=selector,
+                                          include_intercept=include_intercept,
+                                          verbose=verbose,
+                                          as_dtype=as_dtype,
+                                          view_size=view_size,
+                                          )
     # compute the betas by loading the entire map
     X, y = lfinf.prepare_predictors(response,
                                     *predictors,
@@ -263,6 +268,7 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
     np.testing.assert_equal(n_betas, n_predictors,
                             err_msg=f"Number of beta {n_betas=} not equal to prdictors {n_predictors=}")
 
+
 @ALL_MAPS
 def test_get_XT_X_dependency(datafiles, create_blurred_tif):
     """Test wether rank deficiency is captured when layers would be linear dependent
@@ -271,7 +277,7 @@ def test_get_XT_X_dependency(datafiles, create_blurred_tif):
     predictors = blur_source.get_bands()
 
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
+    coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map))  # rescale to 100m
 
     # Generally it should be empty (as there is no linear dependency by nature)
     result = lfpara.get_XT_X_dependency(response=ndvi_map,
@@ -280,7 +286,7 @@ def test_get_XT_X_dependency(datafiles, create_blurred_tif):
                                         include_intercept=False)
     assert result == dict()
 
-    # Modify one band (to be linear dependent of other)
+    # Modify one band (to be linear dependent of others)
     pred_sample = random.sample(predictors, 2)
     ref_array = pred_sample[0].get_data()
     with rio.open(blur_source.path, mode='r+') as dst:
@@ -293,6 +299,7 @@ def test_get_XT_X_dependency(datafiles, create_blurred_tif):
     print(f"{pred_sample=}, {result_issue=}")
     assert set(pred_sample) == set([k for k, v in result_issue.items()])
 
+
 @ALL_MAPS
 def test_compute_weights(datafiles, create_blurred_tif):
     """Test compute weights for different issues:
@@ -303,7 +310,7 @@ def test_compute_weights(datafiles, create_blurred_tif):
     predictors = blur_source.get_bands()
 
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
-    coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map)) # rescale to 100m
+    coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map))  # rescale to 100m
 
     rgpara.compute_mask(blur_source, block_size=(500, 500))
     for p in predictors:
@@ -311,9 +318,9 @@ def test_compute_weights(datafiles, create_blurred_tif):
 
     # 1) Normal test
     beta_weights = lfpara.compute_weights(response=ndvi_map,
-                                    predictors=predictors,
-                                    block_size=(500, 500),
-                                    include_intercept=False)
+                                          predictors=predictors,
+                                          block_size=(500, 500),
+                                          include_intercept=False)
     assert set(predictors) == set([k for k in beta_weights.keys()])
 
     # 2)
@@ -337,12 +344,12 @@ def test_compute_weights(datafiles, create_blurred_tif):
     # 2.3) Run test
     # The All-Zero band should be caught by the sanitize
     beta_weights = lfpara.compute_weights(response=ndvi_map,
-                                    predictors=predictors,
-                                    block_size=(500, 500),
-                                    include_intercept=False,
-                                    limit_contribution=0,
-                                    sanitize_predictors=True,
-                                    return_linear_dependent_predictors=True)
+                                          predictors=predictors,
+                                          block_size=(500, 500),
+                                          include_intercept=False,
+                                          limit_contribution=0,
+                                          sanitize_predictors=True,
+                                          return_linear_dependent_predictors=True)
     assert set(beta_weights) == set(pred_sample_dep)
     assert all(['Linear dependent column' == b for b in beta_weights.values()])
 
@@ -419,7 +426,7 @@ def test_calculate_rmse(datafiles, create_blurred_tif):
     rmse = lfpara.calculate_rmse(response=ndvi_band,
                                  model=model_band,
                                  selector=selector,
-                                 block_size=block_size,)
+                                 block_size=block_size, )
     print(f'{rmse=}')
     np.testing.assert_almost_equal(rmse, rmse_manual, decimal=6)
 
@@ -434,7 +441,7 @@ def test_calculate_rmse(datafiles, create_blurred_tif):
     r2 = lfpara.calculate_r2(response=ndvi_band,
                              model=model_band,
                              selector=selector,
-                             block_size=block_size,)
+                             block_size=block_size, )
     print(f'{r2=}')
     np.testing.assert_almost_equal(r2, r2_manual, decimal=6)
 
@@ -450,6 +457,7 @@ def test_calculate_rmse(datafiles, create_blurred_tif):
     # ax2[0].imshow(residuals, vmin=scale_min, vmax=scale_max)
     # ax2[1].imshow(diff_mean, vmin=scale_min, vmax=scale_max)
     # plt.show()
+
 
 @ALL_MAPS
 def test_prepare_selector_parallel(datafiles, create_blurred_tif):
@@ -479,7 +487,7 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
     # without the extra masking band, both should lead to the same result
     selector_wo = lfinf.prepare_selector(
         response,
-        *predictors,)
+        *predictors, )
     selector_parallel_wo = rgpara.prepare_selector(
         response,
         *predictors,
@@ -492,7 +500,7 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
     tmp_source = Source(path=tmp_map)
     tmp_profile = resp_profile.copy()
     tmp_profile['nodata'] = 0
-    tmp_profile['dtype'] = np.uint8 
+    tmp_profile['dtype'] = np.uint8
     tmp_source.profile = tmp_profile
     tmp_source.init_source(overwrite=True)
     extra_masking_band = Band(source=tmp_source, bidx=1)
@@ -517,15 +525,14 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
         response,
         *predictors,
         extra_masking_band=extra_masking_band,
-        )
+    )
     selector_para = rgpara.prepare_selector(
         response,
         *predictors,
         block_size=block_size,
         extra_masking_band=extra_masking_band,
-        )
-    np.testing.assert_equal(selector,selector_para)
-
+    )
+    np.testing.assert_equal(selector, selector_para)
 
 
 @ALL_MAPS
@@ -561,5 +568,5 @@ def test_selector_computation(datafiles, create_blurred_tif):
 
     selector_full = lfinf.prepare_selector(response,
                                            *predictors)
-    selector_para = rgpara.prepare_selector(response, *predictors, block_size=(1000,1000))
+    selector_para = rgpara.prepare_selector(response, *predictors, block_size=(1000, 1000))
     np.testing.assert_equal(selector_full, selector_para)
