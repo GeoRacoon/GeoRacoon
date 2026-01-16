@@ -65,7 +65,7 @@ $ <project>
 Here are a few examples of using the riogrande library in your code:
 
 ```python
-from riogrande.io_ import Source, Band
+from riogrande.io import Source, Band
 
 s = Source("example.tif")
 s

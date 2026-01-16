@@ -20,7 +20,7 @@ import numpy as np
 from multiprocessing import (Queue, Manager)
 from numpy.typing import NDArray
 
-from riogrande.io_ import Source, Band
+from riogrande.io import Source, Band
 from riogrande.helper import (
     view_to_window,
     check_compatibility,

@@ -8,7 +8,7 @@ from pydataset import data as pydata
 
 from riogrande import helper as rghelp
 from riogrande import io as rgio
-from riogrande import io_ as rgio_
+from riogrande.io.models import Source, Band
 from riogrande import parallel as rgpara
 
 from linfit import inference as lfinf
@@ -36,13 +36,13 @@ def test_enrich_selector(datafiles, create_blurred_tif):
         src.write_mask(mask)
 
     # Create predictors from blurred source
-    blurred_source = rgio_.Source(path=create_blurred_tif)
+    blurred_source = Source(path=create_blurred_tif)
     predictors = blurred_source.get_bands()
 
     for pred in predictors:
         pred.set_mask_reader(use='source')
 
-    response_band = rgio_.Band(source=rgio_.Source(path=ndvi_coregistered), bidx=1)
+    response_band = Band(source=Source(path=ndvi_coregistered), bidx=1)
     response_band.set_mask_reader(use='source')
 
     response_mask_reader = response_band.get_mask_reader()
@@ -73,10 +73,10 @@ def test_preparation(datafiles, create_blurred_tif, set_mpc_strategy):
                              landcover_map,
                              include_intercept=True,)
     # now same with Band objects
-    lct_source = rgio_.Source(path=landcover_map)
-    lct_band = rgio_.Band(source=lct_source, bidx=1)
-    ndvi_source = rgio_.Source(path=ndvi_map)
-    ndvi_band = rgio_.Band(source=ndvi_source, bidx=1)
+    lct_source = Source(path=landcover_map)
+    lct_band = Band(source=lct_source, bidx=1)
+    ndvi_source = Source(path=ndvi_map)
+    ndvi_band = Band(source=ndvi_source, bidx=1)
     lfinf.prepare_predictors(ndvi_band,
                              lct_band,
                              include_intercept=True,)
@@ -146,7 +146,7 @@ def test_optimal_weights_example_data(datafiles, create_blurred_tif):
         mask = np.where(np.isnan(data), 0, 255)
         src.write_mask(mask)
 
-    blurred_source = rgio_.Source(path=create_blurred_tif)
+    blurred_source = Source(path=create_blurred_tif)
     predictors = blurred_source.get_bands()
     # choose the write mask
     for pred in predictors:
@@ -186,16 +186,16 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif,
     ndvi_map = str(datafiles / 'lct_coreged.tif')
     rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
 
-    lct_source = rgio_.Source(path=landcover_map)
-    ndvi_source = rgio_.Source(path=ndvi_map)
-    blurred_source = rgio_.Source(path=create_blurred_tif)
+    lct_source = Source(path=landcover_map)
+    ndvi_source = Source(path=ndvi_map)
+    blurred_source = Source(path=create_blurred_tif)
     # set the mask
     rgpara.compute_mask(source=blurred_source,
                         block_size=(500, 500),
                         nodata=0,
                         logic='all')
     # create the inputs
-    response = rgio_.Band(source=rgio_.Source(path=ndvi_map))
+    response = Band(source=Source(path=ndvi_map))
     predictors = blurred_source.get_bands()
     # Each band should use the dataset mask:
     for pred_band in predictors:
@@ -235,14 +235,14 @@ def test_extra_masking_band(datafiles, create_blurred_tif, set_mpc_strategy):
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
     rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
-    blurred_source = rgio_.Source(path=create_blurred_tif)
+    blurred_source = Source(path=create_blurred_tif)
     # set the mask
     rgpara.compute_mask(source=blurred_source,
                         block_size=(500, 500),
                         nodata=0,
                         logic='all')
     # create the inputs
-    response = rgio_.Band(source=rgio_.Source(path=ndvi_map))
+    response = Band(source=Source(path=ndvi_map))
     predictors = blurred_source.get_bands()
     # Each band should use the dataset mask:
     for pred_band in predictors:
@@ -251,13 +251,13 @@ def test_extra_masking_band(datafiles, create_blurred_tif, set_mpc_strategy):
     # Create extra masking band
     resp_profile = response.source.import_profile()
     tmp_map = str(datafiles / 'extra_mask_band.tif')
-    tmp_source = rgio_.Source(path=tmp_map)
+    tmp_source = Source(path=tmp_map)
     tmp_profile = resp_profile.copy()
     tmp_profile['nodata'] = 0
     tmp_profile['dtype'] = np.uint8
     tmp_source.profile = tmp_profile
     tmp_source.init_source(overwrite=True)
-    extra_masking_band = rgio_.Band(source=tmp_source, bidx=1)
+    extra_masking_band = Band(source=tmp_source, bidx=1)
     # write out data as (mask all)
     extra_mask_data = np.full(shape=response.shape, fill_value=0, dtype=np.uint8)
     extra_masking_band.set_data(data=extra_mask_data)
@@ -286,7 +286,7 @@ def test_transposed_prod_blurred_example_data(datafiles, create_blurred_tif):
     # get the response data
     _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     # get (compute) the blurred bands
-    blurred_source = rgio_.Source(path=create_blurred_tif)
+    blurred_source = Source(path=create_blurred_tif)
     # parameter setting
     view = None  # use the full maps
     include_intercept = True
@@ -340,7 +340,7 @@ def test_transposed_prod_blurred_example_data(datafiles, create_blurred_tif):
 def test_partial_response(datafiles):
     """Test `partial_response` with synthetic raster data and selector"""
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    band = rgio_.Band(source=rgio_.Source(path=str(landcover_map)), bidx=1)
+    band = Band(source=Source(path=str(landcover_map)), bidx=1)
     data = band.get_data()
 
     # Create a selector masking even numbers
@@ -368,8 +368,8 @@ def test_partial_X_synthetic(datafiles):
     ndvi_map = str(datafiles / 'lct_coreged.tif')
     rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
 
-    band1 = rgio_.Band(source=rgio_.Source(path=landcover_map), bidx=1)
-    band2 = rgio_.Band(source=rgio_.Source(path=ndvi_map), bidx=1)
+    band1 = Band(source=Source(path=landcover_map), bidx=1)
+    band2 = Band(source=Source(path=ndvi_map), bidx=1)
     data1 = band1.get_data()
     data2 = band2.get_data()
 
@@ -421,7 +421,7 @@ def test_optimal_beta(datafiles, create_blurred_tif):
 
     # create the inputs
     response = ndvi_map
-    blurred_source = rgio_.Source(path=create_blurred_tif)
+    blurred_source = Source(path=create_blurred_tif)
     predictors = blurred_source.get_bands()
     # choose the write mask
     for pred in predictors:

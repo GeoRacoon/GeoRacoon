@@ -12,8 +12,7 @@ from scipy.stats import entropy
 from skimage.filters import gaussian
 
 from riogrande.helper import dtype_range, convert_to_dtype
-from riogrande.io import load_block
-from riogrande.io_ import Source, Band
+from riogrande.io import Source, Band, load_block
 from riogrande.prepare import get_view, relative_view
 
 from .filters import bpgaussian
@@ -71,7 +70,8 @@ def select_category(data: NDArray, category: int | list[int],
     if limits:
         _is, _is_not = limits
     else:
-        _is, _is_not = map(lambda x: np.array(x).astype(_as_dtype), dtype_range(_as_dtype))
+        _is, _is_not = map(lambda x: np.array(x).astype(
+            _as_dtype), dtype_range(_as_dtype))
 
     if isinstance(category, int):
         _selected = [category, ]
@@ -363,6 +363,83 @@ def compute_entropy(data_arrays: Sequence[NDArray],
     return entropy_array
 
 
+def _get_entropy(data: NDArray,
+                 categories: Collection | None = None,
+                 normed: bool = False,
+                 max_entropy_categories: int | None = None,
+                 img_filter: Callable | None = None,
+                 as_dtype: type | str | None = None,
+                 output_range: tuple | None = None,
+                 filter_params: dict | None = None,
+                 entropy_params: dict | None = None,
+                 filter_output_range: tuple | None = None,
+                 **params) -> NDArray:
+    # NOTE: This function is only used for testing purposes.
+    """
+    Compute the Shannon entropy per cell from a 2D categorical array.
+
+    This method performs first a gaussian blurring, followed by a per-cell
+    entropy calculation.
+
+    Parameters
+    ----------
+    data
+        2D array of integer categorical values.
+    categories
+        Collection of categories to extract. If None, all categories in `data` are used.
+    normed
+        If True, entropy values are normalized by the maximum possible entropy
+        given the number of categories.
+    max_entropy_categories
+        Maximum number of categories to use for normalization. Ignored if `normed=False`.
+    img_filter
+        Filter function applied to the per-category arrays, e.g., `skimage.filters.gaussian`.
+    filter_params
+        Parameters to pass to `img_filter`.
+    filter_output_range
+        Expected output range of the filter for proper scaling.
+    as_dtype
+        Output data type for the entropy array. Only applied if `normed=True`.
+    output_range
+        Range to rescale normalized entropy values. Only applied if `normed=True`.
+    entropy_params
+        Additional keyword arguments passed to `compute_entropy`.
+    **params
+        Additional arguments, e.g., `blur_output_dtype` for intermediate filtered arrays.
+
+    Returns
+    -------
+    np.ndarray
+        Array of the same shape as `data`, containing the per-cell Shannon entropy.
+
+    Notes
+    -----
+    - This function relies on `get_filtered_categories` to create per-category arrays.
+    - The filtered arrays are passed to `compute_entropy` to calculate entropy.
+    - Normalization scales values to [0,1] (or to the range of `as_dtype` if integer).
+    - The `as_dtype` and `output_range` parameters only affect the normalized output.
+    """
+    # TODO: This function does not allow the set `as_dtype` of
+    # `get_filtered_categories`
+    # > Change call signature to
+    #   `get_entropy(blur_params:dict, entropy_params:dict,...)`
+    filter_params = filter_params or dict()
+    blur_output_dtype = params.pop('blur_output_dtype', None)
+    blurred_categories = get_filtered_categories(data=data,
+                                                 categories=categories,
+                                                 img_filter=img_filter,
+                                                 filter_output_range=filter_output_range,
+                                                 output_dtype=blur_output_dtype,
+                                                 filter_params=filter_params)
+    entropy_params = entropy_params or dict()
+    return compute_entropy(data_arrays=tuple(blurred_categories.values()),
+                           normed=normed,
+                           max_entropy_categories=max_entropy_categories,
+                           as_dtype=as_dtype,
+                           output_range=output_range,
+                           **entropy_params)
+
+
 def compute_interaction(data_arrays: Sequence[NDArray],
                         input_dtype: type | str | None = None,
                         standardize: bool = False,
@@ -440,7 +517,8 @@ def compute_interaction(data_arrays: Sequence[NDArray],
     if isinstance(input_dtype, str):
         input_dtype = np.dtype(input_dtype)
     if array_dtype != input_dtype:
-        raise ValueError(f"Array data type {array_dtype} does not match provided input data type {input_dtype}")
+        raise ValueError(f"Array data type {array_dtype} does not match "
+                         f"provided input data type {input_dtype}")
 
     # determine scaling for input
     _max_scale, _ = dtype_range(input_dtype)
@@ -458,7 +536,8 @@ def compute_interaction(data_arrays: Sequence[NDArray],
         for arr in data_arrays:
             standardize_array += (arr / _max_scale)
         interaction_array = np.divide(interaction_array, standardize_array,
-                                      out=np.zeros_like(interaction_array, dtype=float),
+                                      out=np.zeros_like(
+                                          interaction_array, dtype=float),
                                       where=standardize_array != 0)
     if normed:
         n = len(data_arrays)
@@ -476,7 +555,8 @@ def compute_interaction(data_arrays: Sequence[NDArray],
             # when rescaling to uint8 it is important to not have values > 1 before rescaling (else 256 would be 0)
             interaction_array[interaction_array > 1] = 1
             # np.ceil relevant to avoid artefacts from rounding (when using unit8)
-            interaction_array = np.ceil((interaction_array * _max)).astype(output_dtype)
+            interaction_array = np.ceil(
+                (interaction_array * _max)).astype(output_dtype)
     return interaction_array
 
 
@@ -956,3 +1036,75 @@ def view_interaction(category_arrays: dict[int, NDArray],
         output_range=output_range,
     )
     return dict(data=interaction_array, view=view)
+
+
+# TODO -----------------------------------------------
+
+
+def get_entropy_view(source: str,
+                     view: tuple[int, int, int, int],
+                     inner_view: tuple[int, int, int, int],
+                     categories: Collection,
+                     img_filter,
+                     filter_params: dict = dict(),
+                     max_entropy_categories: int | None = None,
+                     blur_as_int: bool | None = None,
+                     filter_output_range: tuple | None = None,
+                     blur_output_dtype: type | str | None = None,
+                     output_dtype: type | str | None = None,
+                     output_range: tuple | None = None,
+                     normed: bool = True,
+                     **tags):
+    """Returns the entropy for some categories over a view from a tif file
+
+    ..Warning::
+      This function is deprecated and should not be used
+
+    Parameters
+    ----------
+    max_entropy_categories:
+      If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
+      This argument is ignored if `normed=False`.
+
+    output_range:
+      The data-range to use for the returned array.
+
+      ..note::
+        This argument is only taken into account if `normed=True`.
+    **tags:
+      Arbitrary number of keyword arguments to describe the band to select.
+
+      See `io.load_block` for further details.
+    """
+    warnings.warn("This function is deprecated and will be removed",
+                  category=DeprecationWarning)
+    if blur_as_int is None:
+        assert blur_output_dtype is not None
+    else:
+        if blur_as_int:
+            blur_output_dtype = "uint8"
+        else:
+            blur_output_dtype = "float64"
+
+    blurred_data = view_blurred(
+        source=source,
+        view=view,
+        inner_view=inner_view,
+        categories=categories,
+        img_filter=img_filter,
+        filter_params=filter_params,
+        filter_output_range=filter_output_range,
+        output_dtype=blur_output_dtype,
+        **tags
+    )
+    assert blurred_data['view'] == inner_view
+
+    entropy_view = view_entropy(category_arrays=blurred_data['data'],
+                                view=blurred_data['view'],
+                                output_dtype=output_dtype,
+                                output_range=output_range,
+                                normed=normed,
+                                max_entropy_categories=max_entropy_categories,
+                                )
+    entropy_view['view'] = blurred_data['view']
+    return entropy_view

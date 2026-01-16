@@ -27,7 +27,7 @@ import rasterio as rio
 from matplotlib import pyplot as plt
 
 # Our package(s)
-from riogrande.io_ import Source, Band
+from riogrande.io import Source, Band
 from riogrande import parallel as rgpara
 from convster import parallel as cvpara
 from convster.filters import bpgaussian
