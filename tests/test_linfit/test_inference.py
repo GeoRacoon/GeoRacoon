@@ -7,8 +7,7 @@ from numpy.random import Generator, PCG64
 from pydataset import data as pydata
 
 from riogrande import helper as rghelp
-from riogrande import io as rgio
-from riogrande.io.models import Source, Band
+from riogrande.io import Source, Band, coregister_raster
 from riogrande import parallel as rgpara
 
 from linfit import inference as lfinf
@@ -27,8 +26,7 @@ def test_enrich_selector(datafiles, create_blurred_tif):
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     ndvi_coregistered = str(datafiles / 'ndvi_coreged.tif')
-    rgio._coregister_raster(ndvi_map, landcover_map, output=ndvi_coregistered)
-
+    coregister_raster(ndvi_map, landcover_map, output=ndvi_coregistered)
 
     with rio.open(ndvi_coregistered, 'r+') as src:
         data = src.read(indexes=1)
@@ -67,7 +65,7 @@ def test_preparation(datafiles, create_blurred_tif, set_mpc_strategy):
     print(f"{ndvi_map=}")
 
     landcover_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_landcover_map, ndvi_map, output=landcover_map)
+    coregister_raster(_landcover_map, ndvi_map, output=landcover_map)
     # work with strings first
     lfinf.prepare_predictors(ndvi_map,
                              landcover_map,
@@ -138,7 +136,7 @@ def test_optimal_weights_example_data(datafiles, create_blurred_tif):
     # scale it down to 100x100m (from 30x30)
 
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, landcover_map, output=ndvi_map)
+    coregister_raster(_ndvi_map, landcover_map, output=ndvi_map)
 
     # create a mask for ndvi_map masking the nan's
     with rio.open(ndvi_map, 'r+') as src:
@@ -184,7 +182,7 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif,
 
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+    coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
 
     lct_source = Source(path=landcover_map)
     ndvi_source = Source(path=ndvi_map)
@@ -234,7 +232,7 @@ def test_extra_masking_band(datafiles, create_blurred_tif, set_mpc_strategy):
 
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+    coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
     blurred_source = Source(path=create_blurred_tif)
     # set the mask
     rgpara.compute_mask(source=blurred_source,
@@ -295,7 +293,7 @@ def test_transposed_prod_blurred_example_data(datafiles, create_blurred_tif):
     sigma = 10
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, blurred_source.path, output=ndvi_map)
+    coregister_raster(_ndvi_map, blurred_source.path, output=ndvi_map)
     # create a mask for ndvi_map masking the nan's
     with rio.open(ndvi_map, 'r+') as src:
         data = src.read(indexes=1)
@@ -366,7 +364,7 @@ def test_partial_X_synthetic(datafiles):
 
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+    coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
 
     band1 = Band(source=Source(path=landcover_map), bidx=1)
     band2 = Band(source=Source(path=ndvi_map), bidx=1)
@@ -412,7 +410,7 @@ def test_optimal_beta(datafiles, create_blurred_tif):
     # scale it down to 100x100m (from 30x30)
 
     ndvi_map = str(datafiles / 'ndvi_coreged.tif')
-    rgio._coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+    coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
     # create a mask for ndvi_map masking the nan's
     with rio.open(ndvi_map, 'r+') as src:
         data = src.read(indexes=1)

@@ -26,7 +26,7 @@ from riogrande.helper import (
     view_to_window,
     convert_to_dtype
 )
-from riogrande.io_ import Source, Band
+from riogrande.io import Source, Band
 
 from .helper import (
     usable_pixels_info,
