@@ -112,7 +112,6 @@ def _partial_transposed_product(params: dict, output_q: Queue):
 
 
 def _partial_optimal_betas(params: dict, output_q: Queue):
-    # TODO: test?
     """Execute optimal weight computation in parallel and send results to queue.
 
        This function wraps `get_optimal_weights_source` for parallel execution by
@@ -172,7 +171,6 @@ def _process_band_count_valid(band: Band, selector: NDArray[np.bool_], no_data: 
       Single-element tuple containing a TimedTask object with timing
       information for the counting operation.
     """
-    # TODO: test?
     with TimedTask() as timer:
         valid = band.count_valid_pixels(selector=selector,
                                         no_data=no_data,
@@ -306,7 +304,6 @@ def _check_predictor_consistency(predictors: Collection[Band],
 
 
 def _block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
-    # TODO: Test?
     """
     Compute model predictions for a single block in a parallel processing workflow.
 
@@ -414,7 +411,6 @@ def _block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
 
 
 def _block_ssr(params: dict, ssr_parts: list):
-    # TODO: test
     """
     Partially calculate the Sum of Squares of the Residuals (SSR) for a given data window.
 
