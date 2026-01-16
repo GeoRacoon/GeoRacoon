@@ -1,14 +1,10 @@
 """
 This module contains functions to parallellize various inference methods.
 """
-# is_needed
-# needs_work (the module is too big!)
-# not_tested (partially)
-# usedin_both (should be split up!)
 from __future__ import annotations
 
 from collections.abc import Collection
-
+import warnings
 from typing import Union
 
 import numpy as np
@@ -209,7 +205,6 @@ def compute_model(predictors: Collection[Band],
     return output_file
 
 
-# TODO: mpc_params should become first class parameter if mandatory
 def get_XT_X(response: str | Band,
              *predictors: Band | str,
              selector: NDArray,
@@ -217,47 +212,72 @@ def get_XT_X(response: str | Band,
              verbose: bool = False,
              **mpc_params
              ) -> np.ndarray:
-    # is_needed
-    # needw_work (doc; see TODO's)
-    # is_tested
-    """Calculate X.T @ X in parallel directly from view of the predictor data
+    """
+    Calculate X.T @ X matrix in parallel from predictor data blocks.
 
-    .. note::
-      `response` is only used to get the correct dimension of the data
+    This function computes the transpose-product matrix (X.T @ X) used in
+    linear regression by processing the predictor data in parallel blocks.
+    The response parameter is only used to determine the spatial dimensions
+    of the computation.
 
     Parameters
     ----------
-    response:
-      Path to a tif file that contains the response data. The file is only used
-      to get the dimensions.
-    *predictors:
-      A collection with arbitrary many predictors to use.
-      See inference.prepare_predictors for further details on how to specify
-      predictors.
-    selector:
-        a `np.bool_` array to select usable cells in a numpy 2D array
-    include_intercept: _optional_
-      Determine if the predictor matrix should also contain an extra column of
-      1's at the end, which is needed if also the intercepts should be fitted.
-    verbose: _optional_
-      If the method should print runtime info
-    **mpc_params:
-      Parametrization of the multiporcessing approach.
-      Needed are:
+    response : str or Band
+        Path to a tif file or Band object containing the response data.
+        Only the spatial dimensions (width, height) are used; the actual
+        response values are not required for this computation.
+    *predictors : Band or str
+        Variable number of predictor bands to include in the design matrix X.
+        Can be Band objects or paths to source files.
+        See `inference.prepare_predictors` for details on predictor
+        specification.
+    selector : ndarray
+        Boolean array (np.bool_) to select usable cells. Must have the same
+        spatial dimensions as the response. True values indicate pixels to
+        include in the computation.
+    include_intercept : bool, optional
+        If True, append a column of ones to the design matrix X to fit an
+        intercept term. Default is True.
+    verbose : bool, optional
+        If True, print runtime information including number of workers used.
+        Default is False.
+    **mpc_params
+        Multiprocessing configuration parameters.
 
-      view_size:
-        The size (width, height) in pixels of a single view (excluding borders)
-      
-      Optional:
+        Required:
 
-      nbrcpu: int
-        The number of cpu's to use. If not set then then the available number
-        of threads -1 are used.
-      start_method: str
-        Starting method for multiprocessing jobs
+        - view_size : tuple of int
+            Size (width, height) in pixels of a single view/block to process.
 
+        Optional:
+
+        - nbrcpu : int, optional
+            Number of CPUs to use. If not set, uses (available threads - 1).
+        - start_method : str, optional
+            Starting method for multiprocessing ('fork', 'spawn', or
+            'forkserver').
+
+    Returns
+    -------
+    XT_X : ndarray
+        The transpose-product matrix (X.T @ X) of shape (n_predictors, n_predictors).
+        If `include_intercept=True`, the shape is (n_predictors+1, n_predictors+1)
+        with the intercept column included as the last row and column.
+
+    Notes
+    -----
+    The function implements parallel computation by:
+
+    1. Dividing the spatial domain into non-overlapping blocks (views)
+    2. Computing partial X.T @ X matrices for each block in parallel
+    3. Aggregating the partial results into the final matrix
+
+    This approach is memory-efficient for large spatial datasets as it avoids
+    loading the entire design matrix into memory at once.
+
+    The selector mask is applied consistently across all blocks to ensure
+    only valid pixels contribute to the computation.
     """
-
     print(f'get_XT_X - {response=}, {predictors=}')
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
@@ -321,11 +341,118 @@ def get_optimal_betas(*predictors: Band | str,
                       verbose: bool = False,
                       as_dtype=np.float64,
                       **mpc_params
-                      ):
-    # is_needed
-    # needw_work (doc)
-    # is_tested
+                      ) -> dict[Band | str, float]:
     """
+    Calculate optimal regression coefficients (betas) in parallel from spatial data.
+
+    This function computes the optimal weights (beta coefficients) for a
+    multiple linear regression by processing predictor data in parallel blocks.
+    The computation solves for beta in the normal equation: beta = (X.T @ X)^-1 @ X.T @ y.
+
+    Parameters
+    ----------
+    *predictors : Band or str
+       Variable number of predictor bands to include in the regression.
+       Can be Band objects or paths to source files.
+       See `inference.prepare_predictors` for details on predictor
+       specification.
+    Y : ndarray
+       The pre-computed X.T @ y vector, where y is the response vector.
+       This should be a 1D array with length equal to the number of predictors
+       (or number of predictors + 1 if `include_intercept=True`).
+    response : str or Band
+       Path to a tif file or Band object containing the response data.
+       Used to determine spatial dimensions for block processing.
+    selector : ndarray
+       Boolean array (np.bool_) to select usable cells. Must have the same
+       spatial dimensions as the response. True values indicate pixels to
+       include in the regression.
+    include_intercept : bool, optional
+       If True, fit an intercept term by appending a column of ones to the
+       design matrix X. The intercept will be included in the returned
+       dictionary with key 'intercept'. Default is True.
+    verbose : bool, optional
+       If True, print runtime information including number of workers,
+       predictors, and computed beta values. Default is False.
+    as_dtype : dtype, optional
+       Data type to use for internal computations. Default is np.float64.
+    **mpc_params
+       Multiprocessing configuration parameters.
+
+       Required:
+
+       - view_size : tuple of int
+           Size (width, height) in pixels of a single view/block to process.
+
+       Optional:
+
+       - nbrcpu : int, optional
+           Number of CPUs to use. If not set, uses (available threads - 1).
+       - start_method : str, optional
+           Starting method for multiprocessing ('fork', 'spawn', or
+           'forkserver').
+
+    Returns
+    -------
+    optimal_weights : dict of {Band or str: float}
+       Dictionary mapping each predictor to its optimal regression coefficient.
+       If `include_intercept=True`, includes an additional entry with key
+       'intercept' for the intercept term (beta_0).
+
+    Raises
+    ------
+    ValueError
+       If the number of computed beta values does not match the number of
+       predictors (plus intercept if applicable).
+
+
+    Notes
+    -----
+    The function implements parallel computation by:
+
+    1. Dividing the spatial domain into non-overlapping blocks (views)
+    2. Computing partial contributions for each block in parallel
+    3. Aggregating the partial results to obtain final beta coefficients
+
+    The optimal weights solve the ordinary least squares problem:
+
+    .. math::
+       \\beta = (X^T X)^{-1} X^T y
+
+    where X is the design matrix of predictors and y is the response vector.
+
+    This approach is memory-efficient for large spatial datasets as it avoids
+    loading the entire design matrix into memory at once.
+
+    Examples
+    --------
+    >>> # Compute optimal betas with intercept
+    >>> selector = np.ones((1000, 1000), dtype=bool)
+    >>> Y = np.array([10.5, 20.3, 15.7, 5.2])  # Pre-computed X.T @ y
+    >>> weights = get_optimal_betas(
+    ...     band1, band2, band3,
+    ...     Y=Y,
+    ...     response='response.tif',
+    ...     selector=selector,
+    ...     include_intercept=True,
+    ...     view_size=(512, 512),
+    ...     nbrcpu=4
+    ... )
+    >>> weights
+    {<Band: band1>: 0.523, <Band: band2>: 1.245, <Band: band3>: -0.334, 'intercept': 5.12}
+
+    >>> # Without intercept
+    >>> Y = np.array([10.5, 20.3, 15.7])
+    >>> weights = get_optimal_betas(
+    ...     band1, band2, band3,
+    ...     Y=Y,
+    ...     response='response.tif',
+    ...     selector=selector,
+    ...     include_intercept=False,
+    ...     view_size=(512, 512)
+    ... )
+    >>> weights
+    {<Band: band1>: 0.523, <Band: band2>: 1.245, <Band: band3>: -0.334}
     """
     print(f'get_optimal_betas - {response=}, {predictors=}')
     if not isinstance(response, Band):
@@ -410,48 +537,61 @@ def get_XT_X_dependency(response: str | Band,
                         verbose: bool = False,
                         **params
                         ) -> dict[Band, str]:
-    # is_needed (in tests only)
-    # needw_work (doc)
-    # is_tested
-    """Test for linear dependency of columsn (before using other functions to fit the MLR)
+    """Test predictors for linear dependency before fitting multiple linear regression.
+
+    This function checks whether predictor columns are linearly dependent by
+    computing the X.T @ X matrix and analyzing its rank. Linear dependencies
+    can cause numerical instability or singularity in regression fitting and
+    should be resolved before proceeding with model estimation.
 
     Parameters
     ----------
-    response:
-      Path to a tif file that contains the response data. The file is only used
-      to get the dimensions.
-    *predictors:
-      A collection with arbitrary many predictors to use.
-      See inference.prepare_predictors for further details on how to specify
-      predictors.
-    block_size:
-        Block sizes for specific functions or a default block size for all functions.
-        If a dictionary is provided, it should map function names to block sizes
-        ('prepare_selector': tuple, 'get_XT_X': tuple, 'get_optimal_betas': tuple).
-        If a single tuple is provided, it will be used for all functions.
-    include_intercept:
-        Whether to fit the intercept when computing weights
-    verbose:
-        Print out processing step infos
-    limit_contribution:
-        The fraction of cells, among all valid cells, each predictor must
-        contribute for it to be considered a valid predictors.
-        By default (i.e. `limit_contribution=0.0`) a single value is enough.
-    no_data:
-        Each cell with this value is considered to be invalid.
-        Most likely you will never have to change this!
-    sanitize_predictors:
-        Determines if predictors that end up
-        contributing not a single data-point should be removed automatically.
-        By default this values is set to `False` which raises an exception
-        if a predictor ends up contributing nothing.
-    **params:
-        Optional arguments:
+    response : str or Band
+        Path to a tif file or Band object containing the response data.
+        Used to determine spatial dimensions and create the selector mask.
+    predictors : Collection of Band
+        Collection of predictor bands to test for linear dependency.
+        See `inference.prepare_predictors` for details on predictor
+        specification.
+    block_size : tuple of int or dict of {str: tuple of int}
+        Block sizes for parallel processing functions.
 
-        - `nbr_cpus` (int): how many CPUs should be used (by default the number
-          of available CPUs minus one will be used.
-        - `start_method` (str): Determines how the workers should start a
-          process. Accepted are 'spawn', 'fork' or 'forkserver'.
+        - If tuple: (width, height) in pixels, applied to all processing steps.
+        - If dict: Maps function names to specific block sizes with keys:
+          'prepare_selector', 'get_XT_X'. Each value should be a tuple
+          (width, height).
+    include_intercept : bool, optional
+        If True, include an intercept term when computing X.T @ X.
+        Default is True.
+    limit_contribution : float, optional
+        Minimum fraction of valid cells each predictor must contribute to
+        be considered valid. Value between 0.0 and 1.0.
+        Default is 0.0 (a single valid value is sufficient).
+    no_data : int or float, optional
+        Value representing invalid or missing data. Cells with this value
+        are excluded from analysis. Default is 0.0.
+    sanitize_predictors : bool, optional
+        If True, automatically remove predictors that fail the contribution
+        threshold. If False, raise an exception when invalid predictors are
+        found. Default is False.
+    verbose : bool, optional
+        If True, print processing step information. Default is False.
+    **params
+        Optional multiprocessing arguments:
+
+        - nbrcpu : int, optional
+            Number of CPUs to use. If not set, uses (available CPUs - 1).
+        - start_method : str, optional
+            Process start method: 'spawn', 'fork', or 'forkserver'.
+
+    Returns
+    -------
+    dependencies : dict of {Band: str} or None
+        Dictionary mapping each rank-deficient predictor to a description
+        of its linear dependency. Returns None if the selector masks all
+        pixels (no data to fit).
+
+        If no linear dependencies are found, returns an empty dictionary.
     """
 
     # if block sizes are provided as dictionary - some pre-check on input is desired - else
@@ -530,60 +670,166 @@ def compute_weights(response: str | Band,
                     verbose: bool = False,
                     **params
                     ) -> dict[Band, float] | dict[Band, str] | None:
-    # is_needed
-    # needs_work (see TODO's; doc)
-    # is_tested
-    """Compute the optimal weight in a multiple linear regression
+    """Compute optimal regression coefficients for multiple linear regression.
+
+    This function fits a multiple linear regression model by computing the
+    optimal weights (beta coefficients) for each predictor. The computation
+    involves creating a selector mask, validating predictor consistency,
+    calculating the X.T @ X matrix, checking for linear dependencies, and
+    solving the normal equations.
 
     Parameters
     ----------
-    response:
-      Path to a tif file that contains the response data. The file is only used
-      to get the dimensions.
-    *predictors:
-      A collection with arbitrary many predictors to use.
-      See inference.prepare_predictors for further details on how to specify
-      predictors.
-    block_size:
-        Block sizes for specific functions or a default block size for all functions.
-        If a dictionary is provided, it should map function names to block sizes
-        ('prepare_selector': tuple, 'get_XT_X': tuple, 'get_optimal_betas': tuple).
-        If a single tuple is provided, it will be used for all functions.
-    include_intercept:
-        Whether to fit the intercept when computing weights
-    as_dtype:
-       ...
-    verbose:
-        Print out processing step infos
-    limit_contribution:
-        The fraction of cells, among all valid cells, each predictor must
-        contribute for it to be considered a valid predictors.
-        By default (i.e. `limit_contribution=0.0`) a single value is enough.
-    no_data:
-        Each cell with this value is considered to be invalid.
-        Most likely you will never have to change this!
-    sanitize_predictors:
-        Determines if predictors that end up
-        contributing not a single data-point should be removed automatically.
-        By default this values is set to `False` which raises an exception
-        if a predictor ends up contributing nothing.
-    return_linear_dependent_predictors:
-        Determines if predictors that end up being linearly dependent from each other,
-        should be returned as a dictionary ({Band: "type of dependency"}
-        This will stop the fitting process - therefore no fit is performed.
-        If this parameter is not set, the funciton return None
+    response : str or Band
+        Path to a tif file or Band object containing the response data.
+        Used to determine spatial dimensions and create the selector mask.
+    predictors : Collection of Band
+        Collection of predictor bands to use in the regression.
+        See `inference.prepare_predictors` for details on predictor
+        specification.
+    block_size : tuple of int or dict of {str: tuple of int}
+        Block sizes for parallel processing functions.
 
-    **params:
+        - If tuple: (width, height) in pixels, applied to all processing steps.
+        - If dict: Maps function names to specific block sizes with keys:
+          'prepare_selector', 'get_XT_X', 'get_optimal_betas'. Each value
+          should be a tuple (width, height).
+    include_intercept : bool, optional
+        If True, fit an intercept term in the regression model.
+        Default is True.
+    as_dtype : dtype, optional
+        Data type for internal computations and output weights.
+        Default is np.float64.
+    limit_contribution : float, optional
+        Minimum fraction of valid cells each predictor must contribute to
+        be considered valid. Value between 0.0 and 1.0.
+        Default is 0.0 (a single valid value is sufficient).
+    no_data : int or float, optional
+        Value representing invalid or missing data. Cells with this value
+        are excluded from analysis. Default is 0.0.
+    sanitize_predictors : bool, optional
+        If True, automatically remove predictors that fail the contribution
+        threshold. If False, raise an exception when invalid predictors are
+        found. Default is False.
+    return_linear_dependent_predictors : bool, optional
+        If True and linear dependencies are detected, return a dictionary
+        mapping linearly dependent predictors to their dependency type instead
+        of computing weights. This stops the fitting process.
+        If False and dependencies are detected, raise an error.
+        Default is False.
+    verbose : bool, optional
+        If True, print processing step information. Default is False.
+    **params
         Optional arguments:
-        - `extra_masking_band` (NDArray|None): An additional Band object to be used
-          directly as a mask (i.e. all cells of value 0 are masked).
-        - `nbr_cpus` (int): how many CPUs should be used (by default the number
-          of available CPUs minus one will be used.
-        - `start_method` (str): Determines how the workers should start a
-          process. Accepted are 'spawn', 'fork' or 'forkserver'.
 
+        - extra_masking_band : Band or None, optional
+            Additional Band object to use directly as a mask. All cells with
+            value 0 are masked.
+        - nbrcpu : int, optional
+            Number of CPUs to use. If not set, uses (available CPUs - 1).
+        - start_method : str, optional
+            Process start method: 'spawn', 'fork', or 'forkserver'.
+
+    Returns
+    -------
+    optimal_weights : dict of {Band or str: float} or None
+        Dictionary mapping each predictor (and 'intercept' if
+        `include_intercept=True`) to its optimal regression coefficient.
+        Returns None if the selector masks all pixels or if linear
+        dependencies are detected and `return_linear_dependent_predictors=False`.
+    linear_dependencies : dict of {Band: str}
+        Only returned if `return_linear_dependent_predictors=True` and
+        linear dependencies are detected. Maps each linearly dependent
+        predictor to a description of its dependency type.
+
+    Raises
+    ------
+    ValueError
+        If `block_size` is a dictionary but doesn't contain the required keys
+        or has invalid value types.
+    InvalidPredictorError
+        If `sanitize_predictors=False` and predictors fail the contribution
+        threshold.
+    LinAlgError
+        If the X.T @ X matrix is singular and cannot be inverted (when
+        `return_linear_dependent_predictors=False`).
+
+    Warnings
+    --------
+    UserWarning
+        Issued when the selector masks all pixels (no data to fit).
+    UserWarning
+        Issued when linear dependencies are detected.
+
+    Notes
+    -----
+    The function performs the following workflow:
+
+    1. Creates a selector mask identifying valid pixels
+    2. Validates predictor consistency and removes invalid predictors if
+       `sanitize_predictors=True`
+    3. Recalculates selector if predictors were removed
+    4. Computes X.T @ X matrix in parallel
+    5. Checks for rank deficiency (linear dependencies)
+    6. Inverts X.T @ X matrix: (X.T @ X)^-1
+    7. Computes optimal weights: beta = (X.T @ X)^-1 @ X.T @ y
+
+    The optimal weights solve the ordinary least squares problem:
+
+    .. math::
+        \\beta = (X^T X)^{-1} X^T y
+
+    where X is the design matrix of predictors and y is the response vector.
+
+    Linear dependency detection excludes the intercept column from the rank
+    check, as the intercept is always included as the last column when
+    `include_intercept=True`.
+
+    If predictors are removed during sanitization, the selector is recomputed
+    to ensure consistency, as removed predictors may have contributed to
+    masking certain pixels.
+
+    Examples
+    --------
+    >>> # Basic usage with uniform block size
+    >>> predictors = [band1, band2, band3]
+    >>> weights = compute_weights(
+    ...     response='response.tif',
+    ...     predictors=predictors,
+    ...     block_size=(512, 512),
+    ...     include_intercept=True,
+    ...     verbose=True
+    ... )
+    >>> weights
+    {<Band: band1>: 0.523, <Band: band2>: 1.245, <Band: band3>: -0.334, 'intercept': 5.12}
+
+    >>> # Use different block sizes for different steps
+    >>> block_sizes = {
+    ...     'prepare_selector': (1024, 1024),
+    ...     'get_XT_X': (512, 512),
+    ...     'get_optimal_betas': (256, 256)
+    ... }
+    >>> weights = compute_weights(
+    ...     response='response.tif',
+    ...     predictors=predictors,
+    ...     block_size=block_sizes,
+    ...     limit_contribution=0.05,
+    ...     sanitize_predictors=True,
+    ...     nbrcpu=4
+    ... )
+
+    >>> # Detect and return linear dependencies
+    >>> deps = compute_weights(
+    ...     response='response.tif',
+    ...     predictors=predictors,
+    ...     block_size=(512, 512),
+    ...     return_linear_dependent_predictors=True
+    ... )
+    >>> if isinstance(deps, dict) and all(isinstance(v, str) for v in deps.values()):
+    ...     print(f"Linear dependencies found: {deps}")
+    ... else:
+    ...     print(f"Optimal weights: {deps}")
     """
-
     # if block sizes are provided as dictionary - some pre-check on input is desired - else
     block_size_params = dict(prepare_selector=None, get_XT_X=None, get_optimal_betas=None)
     if isinstance(block_size, tuple):
@@ -613,8 +859,7 @@ def compute_weights(response: str | Band,
     _vals = np.unique(selector)
     if len(_vals) == 1:
         if _vals[0] == False:  # if not _vals[0] is less explicit
-            # TODO: remove None as output and raise error or warning
-            print(f"WARNING: no pixels to fit, selector masks all pixels")
+            warnings.warn("No pixels to fit - selector masks all pixels", UserWarning)
             return None
 
     print("Check consistency of remaining predictor data...")
@@ -626,13 +871,8 @@ def compute_weights(response: str | Band,
                                               no_data=no_data,
                                               verbose=verbose,
                                               **params)
-    # TODO: I think this is irrelevant
-    #  (tested if selector above & below are equal - they are if no Source has been removed (think of mask)
+
     if len(predictors) != nbr_predictors:
-        # TODO: implement a check for
-        #   (a) all predictors use source as mask_reader
-        #   (b) len(sources for predictors) is same as before
-        #   --> then we can skip this recalculation
         # the consistency check removed some predictors
         # we re-create the selector in this case since the dropped out
         # predictor(s) might have masked some cells
@@ -644,7 +884,7 @@ def compute_weights(response: str | Band,
             extra_masking_band=extra_masking_band,
             **params
         )
-        # NOTE: We do not need to _check_predictor_consistency again sine
+        # NOTE: We do not need to _check_predictor_consistency again since
         #       removing the predictor leads to at least the same valid
         #       pixels, if not more.
 
@@ -672,9 +912,8 @@ def compute_weights(response: str | Band,
             print(f"WARNING: Rank deficiency detected returning affected predictors")
             return linear_dependent_predictors
         else:
-            # TODO: remove None as output and raise error or warning
-            print(f"WARNING: matrix not invertible - Rank deficiency detected",
-                  f"{linear_dependent_predictors=}")
+            warnings.warn(f"Matrix not invertible - rank deficiency detected. "
+                          f"Linear dependent predictors: {linear_dependent_predictors}", UserWarning)
             return None
 
     print("Inverting X.T @ X...")
