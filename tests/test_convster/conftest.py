@@ -27,8 +27,8 @@ ALL_MAPS = pytest.mark.datafiles(lct_map, lct_float_map, landiv_map)
 def get_file(pattern: str, datafiles):
     matching_files = list(glob.glob(os.path.join(str(datafiles), pattern)))
     if len(matching_files) != 1:
-        raise ValueError(f"Found multiple files matching this {
-                         pattern=}:\n{matching_files}")
+        raise ValueError(f"Found multiple files matching this {pattern=}:\n"
+                         f"{matching_files}")
     return matching_files[0]
 
 
