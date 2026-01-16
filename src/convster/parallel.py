@@ -1426,8 +1426,10 @@ def apply_filter(source: str | Source,
         output_params = dict()
     _out_dtype = output_params.get('as_dtype', None)
     if _out_dtype is not None and _out_dtype != output_dtype:
-        raise ValueError(f"Provided two different output dtypes: {
-                         output_params['as_dtype']=} and {output_dtype=}")
+        raise ValueError(
+            "Provided two different output dtypes:"
+            f"{output_params['as_dtype']=} and {output_dtype=}"
+        )
     output_params['as_dtype'] = output_dtype
 
     # we pass indexes

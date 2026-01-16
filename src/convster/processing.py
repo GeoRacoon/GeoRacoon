@@ -517,8 +517,8 @@ def compute_interaction(data_arrays: Sequence[NDArray],
     if isinstance(input_dtype, str):
         input_dtype = np.dtype(input_dtype)
     if array_dtype != input_dtype:
-        raise ValueError(f"Array data type {
-                         array_dtype} does not match provided input data type {input_dtype}")
+        raise ValueError(f"Array data type {array_dtype} does not match "
+                         f"provided input data type {input_dtype}")
 
     # determine scaling for input
     _max_scale, _ = dtype_range(input_dtype)
