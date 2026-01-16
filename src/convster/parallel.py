@@ -492,9 +492,8 @@ def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedT
             params['blur_output_dtype'] = "float64"
         # TODO: fix deprecated use of parameters
         warnings.warn("The parameter `blur_as_int` is deprecated, use "
-                      f"`output_dtype` instead!\nUsing {
-                          blur_as_int=} leads to "
-                      f"{params['output_dtype']=}",
+                      f"`output_dtype` instead!\nUsing {blur_as_int=} leads "
+                      f"to {params['output_dtype']=}",
                       category=DeprecationWarning)
     # ---
     with TimedTask() as timer:
