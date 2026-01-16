@@ -14,7 +14,7 @@ import numpy as np
 
 from numpy.typing import NDArray
 
-from .io_ import Source, Band
+from .io import Source, Band
 from .helper import (view_to_window,
                      reduced_mask,
                      aggregated_selector,
@@ -68,17 +68,17 @@ def combine_views(output_params: dict, job_out_q: Queue):
 
 def data_writer(writer: Callable, writer_params: dict, aggr_q: Queue) -> TimedTask:
     # is_needed (internally_only)
-    # needs_work (make internal; rename io_ has a data_writer method; docs)
+    # needs_work (make internal; docs)
     # not_tested
     """Write out data using the context manager `writer`
 
     This function can be used with the various context managers defined
-    in the `io_.Source` and `io_.Band` classes.
+    in the `io.Source` and `io.Band` classes.
 
     Parameters
     ----------
     writer:
-        A `io_.Source` or `io_.Band` `data_write` (or `mask_writer`)
+        A `io.Source` or `io.Band` `data_write` (or `mask_writer`)
     writer_params:
         Keyword arguments that will be passed to the `writer` method
     aggr_q:
@@ -122,9 +122,9 @@ def process_block(task: Callable, source: str | Source, bands: Collection[Band] 
         The first argument of the function must be `data`, a `numpy.array`
         that holds the data from this section.
     source:
-        Either a string or an `io_.Source` object
+        Either a string or an `io.Source` object
     bands:
-        A collection of strings or `io_.Band` object the specify which bands to use
+        A collection of strings or `io.Band` object the specify which bands to use
     view:
       A tuple (x, y, width, height) defining the view of data to extract and
       process
@@ -180,7 +180,7 @@ def process_masks(task: Callable, bands: Collection[Band], view: tuple[int, int,
         The first argument of the function must be `data`, a `numpy.array`
         that holds the data from this section.
     bands:
-        A collection of strings or `io_.Band` object the specify which bands to use
+        A collection of strings or `io.Band` object the specify which bands to use
     view:
       A tuple (x, y, width, height) defining the view of data to extract and
       process
@@ -193,7 +193,7 @@ def process_masks(task: Callable, bands: Collection[Band], view: tuple[int, int,
     aggr_q: 
         The queue this job will put the output of the callable `task` into
     extra_masking_band:
-        Optional `io_.Band` object that is treated as a rasterio mask, i.e. values equal to 0
+        Optional `io.Band` object that is treated as a rasterio mask, i.e. values equal to 0
         .. warning::
           This Band is treated as a mask itself, its own mask is ignored.
 
@@ -421,7 +421,7 @@ def prepare_selector(*bands: Band, block_size: tuple[int, int], extra_masking_ba
     # is_needed (internally only - also tests)
     # needs_work (make internal; docs)
     # not_tested (not directly)
-    """Compute a boolean selector from masks of the provided `io_.Band` objects
+    """Compute a boolean selector from masks of the provided `io.Band` objects
 
     Band masks are aggregated into a boolean selector that can be used to identify valid pixels
     across all provided bands. Optionally, an extra masking band may be applied where values
@@ -430,11 +430,11 @@ def prepare_selector(*bands: Band, block_size: tuple[int, int], extra_masking_ba
     Parameters
     ----------
     bands:
-        A collection of strings or `io_.Band` object the specify which bands to use
+        A collection of strings or `io.Band` object the specify which bands to use
     block_size:
         Size (width, height) in #pixel of the block that a single job processes
     extra_masking_band:
-        Optional `io_.Band` object thas is treated as a rasterio mask, i.e. values equal to 0
+        Optional `io.Band` object thas is treated as a rasterio mask, i.e. values equal to 0
         will be masked.
     verbose:
         Print out processing step infos

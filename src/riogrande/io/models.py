@@ -18,6 +18,11 @@ from collections.abc import Callable
 
 from typing import Union
 
+from ..helper import (
+    check_compatibility,
+    count_contribution,
+)
+
 from .exceptions import (
     BandSelectionNoMatchError,
     BandSelectionAmbiguousError,
@@ -25,21 +30,7 @@ from .exceptions import (
     UnknownExtensionError,
     InvalidMaskSelectorError,
 )
-
-from .io import (
-    NS,
-    _get_tags,
-    _set_tags,
-    _find_bidxs,
-    _get_bidx,
-    match_all,
-    compress_tif,
-    load_block
-)
-from .helper import (
-    check_compatibility as _check_compatibility,
-    count_contribution,
-)
+from . import core
 
 
 class Source:
@@ -89,7 +80,7 @@ class Source:
     def __init__(self, path: str | Path,
                  tags: dict | None = None,
                  profile: dict | None = None,
-                 ns: str = NS):
+                 ns: str = core.NS):
         """
         Initialize a new Source object.
         """
@@ -223,7 +214,7 @@ class Source:
         # needs_work (docs)
         # not_tested
         with self.open(mode='r') as src:
-            tags = _get_tags(src=src, bidx=bidx, ns=self._ns)
+            tags = core._get_tags(src=src, bidx=bidx, ns=self._ns)
         return tags
 
     def get_tag_values(self, tag: str, bidx: int | list | None = None) -> dict:
@@ -258,7 +249,7 @@ class Source:
             else:
                 bidxs = bidx
             for _bidx in bidxs:
-                t_vals[_bidx] = _get_tags(src=src, bidx=_bidx,
+                t_vals[_bidx] = core._get_tags(src=src, bidx=_bidx,
                                           ns=self._ns).get(tag, None)
         return t_vals
 
@@ -282,7 +273,7 @@ class Source:
         # needs_work (docs)
         # not_tested
         with self.open(mode='r+') as src:
-            _set_tags(src=src, bidx=bidx, ns=self._ns, **tags)
+            core._set_tags(src=src, bidx=bidx, ns=self._ns, **tags)
 
     @contextmanager
     def mask_reader(self, **kwargs):
@@ -460,7 +451,7 @@ class Source:
             _bidx = bidx
         if tags:
             with self.open() as src:
-                _tb_bidx = _get_bidx(src=src, ns=self._ns, **tags)
+                _tb_bidx = core._get_bidx(src=src, ns=self._ns, **tags)
             if _bidx:
                 assert _tb_bidx == _bidx, \
                     f"The band index matching {tags=} is diffrent from " \
@@ -487,7 +478,7 @@ class Source:
         bands = []
         with self.open(mode='r') as src:
             for bidx in src.indexes:
-                tags = _get_tags(src=src, bidx=bidx, ns=self._ns)
+                tags = core._get_tags(src=src, bidx=bidx, ns=self._ns)
                 _b = Band(source=self, bidx=bidx, tags=tags)
                 bands.append(_b)
         return bands
@@ -659,8 +650,8 @@ class Source:
         all_tags = []
         with rio.open(self.path, 'r') as src:
             for bidx in src.indexes:
-                all_tags.append(_get_tags(src=src, bidx=bidx, ns=self._ns))
-        return any(match_all(tags, btags) for btags in all_tags)
+                all_tags.append(core._get_tags(src=src, bidx=bidx, ns=self._ns))
+        return any(core.match_all(tags, btags) for btags in all_tags)
 
     def find_indexes(self, tags: dict, mode: str ='all') -> list:
         """
@@ -690,7 +681,7 @@ class Source:
                 print('WARNING: mode "any" not implemented yet. Emtpy list returned')
                 bidxs = []
             else:
-                bidxs = _find_bidxs(src=src, ns=self._ns, **tags)
+                bidxs = core._find_bidxs(src=src, ns=self._ns, **tags)
         return bidxs
 
     def find_index(self, tags: dict) -> int | None:
@@ -836,14 +827,14 @@ class Source:
         # needs_work (docs)
         # not_tested
         uncompressed = self.path
-        self.path = Path(compress_tif(str(self.path), output=output, compression=compression))
+        self.path = Path(core.compress_tif(str(self.path), output=output, compression=compression))
         if not keep_original and uncompressed != self.path:
             os.remove(uncompressed)
 
     def check_compatibility(self, *sources: Source):
         """
         Check whether this source is compatible with one or more other sources.
-        See ``helper._check_compatibility`` for the precise definition.
+        See ``helper.check_compatibility`` for the precise definition.
 
         Parameters
         ----------
@@ -861,7 +852,7 @@ class Source:
         _sources = {self.path, }
         for source in sources:
             _sources.add(source.path)
-        return _check_compatibility(*_sources)
+        return check_compatibility(*_sources)
 
     def load_block(self, view: None | tuple[int, int, int, int] = None,
                    scaling_params: dict | None = None, **tags) -> dict[str, Any]:
@@ -906,7 +897,7 @@ class Source:
         # is_needed (internal only)
         # needs_work (docs)
         # not_tested
-        return load_block(source=str(self.path), view=view,
+        return core.load_block(source=str(self.path), view=view,
                           scaling_params=scaling_params, **tags)
 
 
@@ -962,7 +953,7 @@ class Band:
     bidx: int | None = None
     read_params: dict = field(default_factory=dict)
     _use_mask: str = 'self'
-    _ns = NS
+    _ns = core.NS
 
     # TODO: I feel we might need an __init__ here
     #  Rational: if you initate a new Band and use a source object, the tags are not taken from that source object

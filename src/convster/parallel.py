@@ -17,7 +17,7 @@ from collections.abc import Callable, Collection
 from numpy.typing import NDArray
 from multiprocessing import (Queue, Manager)
 
-from riogrande.io_ import Source, Band
+from riogrande.io import Source, Band, write_band
 from riogrande.helper import (
     view_to_window,
     output_filename,
@@ -27,7 +27,6 @@ from riogrande.helper import (
 
 from riogrande.timing import TimedTask
 from riogrande.prepare import create_views
-from riogrande.io import write_band
 from riogrande.parallel import runner_call
 
 from .processing import (
@@ -113,7 +112,8 @@ def _combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask
         profile = output_params.pop('profile')
         profile['dtype'] = as_dtype
         # overwrite the profile if explicitely provided:
-        profile['nodata'] = output_params.pop('nodata', profile.get('nodata', None))
+        profile['nodata'] = output_params.pop(
+            'nodata', profile.get('nodata', None))
         profile['count'] = output_params.get('count', profile['count'])
         # check for Bigtiff
         if output_params.pop('bigtiff', False):
@@ -139,7 +139,7 @@ def _combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask
                     # TODO: UPDATE_TASK
                     # NOTE: downside of this is that we set the tags
                     #       every time, unfortunately, in the FINALIZE_TASK
-                    #       we do not have the bidx 
+                    #       we do not have the bidx
                     write_band(src=dst, bidx=bidx, data=data.astype(as_dtype), window=w,
                                category=band)
                     # NOTE: we might want keep the description unchanged:
@@ -492,8 +492,8 @@ def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedT
             params['blur_output_dtype'] = "float64"
         # TODO: fix deprecated use of parameters
         warnings.warn("The parameter `blur_as_int` is deprecated, use "
-                      f"`output_dtype` instead!\nUsing {blur_as_int=} leads to "
-                      f"{params['output_dtype']=}",
+                      f"`output_dtype` instead!\nUsing {blur_as_int=} leads "
+                      f"to {params['output_dtype']=}",
                       category=DeprecationWarning)
     # ---
     with TimedTask() as timer:
@@ -819,7 +819,8 @@ def compute_entropy(source: str | Source,
     input_bands = [Band(source=source, tags=dict(category=category))
                    for category in categories]
     if verbose:
-        band_choice_str = '\n\t'.join((f'{band.get_bidx()}:{band.tags}' for band in input_bands))
+        band_choice_str = '\n\t'.join(
+            (f'{band.get_bidx()}:{band.tags}' for band in input_bands))
         print("Chosen bands for the entropy calculation:\n"
               f"\t{band_choice_str} \n")
 
@@ -1026,7 +1027,8 @@ def compute_interaction(source: str | Source,
     input_bands = [Band(source=source, tags=dict(category=category))
                    for category in categories]
     if verbose:
-        band_choice_str = '\n\t'.join((f'{band.get_bidx()}:{band.tags}' for band in input_bands))
+        band_choice_str = '\n\t'.join(
+            (f'{band.get_bidx()}:{band.tags}' for band in input_bands))
         print("Chosen bands for the interaction calculation:\n"
               f"\t{band_choice_str} \n")
 
@@ -1424,7 +1426,10 @@ def apply_filter(source: str | Source,
         output_params = dict()
     _out_dtype = output_params.get('as_dtype', None)
     if _out_dtype is not None and _out_dtype != output_dtype:
-        raise ValueError(f"Provided two different output dtypes: {output_params['as_dtype']=} and {output_dtype=}")
+        raise ValueError(
+            "Provided two different output dtypes:"
+            f"{output_params['as_dtype']=} and {output_dtype=}"
+        )
     output_params['as_dtype'] = output_dtype
 
     # we pass indexes
