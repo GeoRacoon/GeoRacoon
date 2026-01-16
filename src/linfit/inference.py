@@ -26,7 +26,7 @@ from riogrande.helper import (
     view_to_window,
     convert_to_dtype
 )
-from riogrande.io_ import Source, Band
+from riogrande.io import Source, Band
 
 from .helper import (
     usable_pixels_info,
@@ -71,7 +71,7 @@ def enrich_selector(selector: NDArray,
     selector: np.array
         a `np.bool_` array to select usable cells in a numpy 2D array
     *predictors:
-      An arbitrary number of `.io_.Band` objects each specifying one or
+      An arbitrary number of `.io.Band` objects each specifying one or
       several predictors.
 
       See `prepare_predictors` for more details.
@@ -128,11 +128,11 @@ def prepare_selector(response: str | Band,
     _See `prepare_predictors` for a detailed description description._
 
     response:
-      A `.io_.Band` object describing the response data.
+      A `.io.Band` object describing the response data.
     *predictors:
-      An arbitrary number of `io_.Band` objects each specifying one or several
+      An arbitrary number of `io.Band` objects each specifying one or several
       predictors.
-    extra_masking_band: Optional `io_.Band` object that is treated as a rasterio mask, i.e. values equal to 0
+    extra_masking_band: Optional `io.Band` object that is treated as a rasterio mask, i.e. values equal to 0
       will be masked.
     verbose: Default: False
       If the method should print runtime info
@@ -191,7 +191,7 @@ def init_X(predictors: Collection[Band],
     Parameters
     ----------
     predictors:
-      Collection of `io_.Band` objects each specifying one or several predictors.
+      Collection of `io.Band` objects each specifying one or several predictors.
     selector: np.array
         a `np.bool_` array to select usable cells in a numpy 2D array
     window:
@@ -242,7 +242,7 @@ def populate_X(X: NDArray,
       Initiated np.NDArray which will hold the data of each predictor in a
       separate column.
     predictors:
-      An arbitrary number of `io_.Band` objects each specifying a predictor
+      An arbitrary number of `io.Band` objects each specifying a predictor
     predictor_datas:
       List of arrays each being used as a predictor
     selector: np.array
@@ -332,7 +332,7 @@ def prepare_predictors(response: str | Band,
     Parameters
     ----------
     response:
-      Either a `.io_.Band` object or a string that specifies the path to a map
+      Either a `io.Band` object or a string that specifies the path to a map
       (.tif file) that holds the response data.
 
       .. note::
@@ -341,7 +341,7 @@ def prepare_predictors(response: str | Band,
         band.
 
     *predictors:
-      An arbitrary number of either `io_.Band` objects or strings specifying one
+      An arbitrary number of either `io.Band` objects or strings specifying one
       or several predictors.
 
       If a string is provided then it is treated as the path to a `tif` file
@@ -438,7 +438,7 @@ def transposed_product(predictors: Collection[Band],
     Parameters
     ----------
     predictors:
-      An arbitrary number of of `io_.Band` objects each specifying a predictor
+      An arbitrary number of of `io.Band` objects each specifying a predictor
     view:
       An optional tuple (x, y, width, height) defining the view of the predictors
       and response data to consider.
@@ -540,7 +540,7 @@ def partial_X(predictors: Collection[Band],
     Parameters
     ----------
     predictors:
-      Collection of `io_.Band` objects each specifying one or several predictors.
+      Collection of `io.Band` objects each specifying one or several predictors.
     window:
       Limits the data array to a specific window. The window is converted to a
       `slice` with `window.toslices()`.
@@ -606,9 +606,9 @@ def get_optimal_weights_source(Y: NDArray,
         Typically you would use the output of `transposed_product` to compute
         `Y`.
     response:
-      A `.io_.Band` object describing the response data.
+      A `io.Band` object describing the response data.
     predictors:
-      Collection of `io_.Band` objects each specifying one or several predictors.
+      Collection of `io.Band` objects each specifying one or several predictors.
     view:
       An optional tuple (x, y, width, height) defining the view of the predictors
     selector: np.array

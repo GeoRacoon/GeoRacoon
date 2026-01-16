@@ -18,11 +18,7 @@ from rasterio.warp import (
     reproject,
     Resampling,
 )
-from .exceptions import (
-    BandSelectionNoMatchError,
-    BandSelectionAmbiguousError,
-)
-from .helper import (
+from ..helper import (
     check_crs,
     output_filename,
     serialize,
@@ -31,11 +27,12 @@ from .helper import (
     match_all,
     view_to_window,
 )
+from .exceptions import (
+    BandSelectionNoMatchError,
+    BandSelectionAmbiguousError,
+)
 
 NS = 'GEORACOON'
-
-# TODO: General Idea - maybe we can merge some of these into io_.py class structure - so we avoid having both.
-#  --> yet it is nice to have the function by themselves as well without direct need of class structures
 
 
 def _set_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS, **tags: Any) -> None:
@@ -155,6 +152,8 @@ def _find_bidxs(src: DatasetWriter, ns: str = NS, **tags: Any) -> list[int]:
 def _get_bidx(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
     # TODO: actually I feel we should rename this function, as it is more than the io_.py get_bidx.
     #       Here we are actually matching by tags.
+    # j-i-l: Agreed, the get_bidx in Source and Band models also do not inherit
+    #        from this method, so it might make sense to rename this.
     # is_needed
     # needs_work
     # not_tested (used in tests)
@@ -225,6 +224,8 @@ def _get_bidx(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
     return bidx
 
 
+# TODO: we should rename this function as it is inconsistent with the naming
+#       paradigm we use: Source.get_band does not use this function at all
 def get_bands(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, int]]:
     # is_needed
     # needs_work
@@ -473,7 +474,7 @@ def _export_to_tif(destination: str, data: NDArray, orig_profile: dict, start=(0
         dest.write(data, window=Window(*start, *size), indexes=1)
 
 
-def _coregister_raster(source: str, reference: str, output: str | None = None) -> str:
+def coregister_raster(source: str, reference: str, output: str | None = None) -> str:
     # TODO: this is actually not so bad, as it is quite usefull for geographic operations
     # is_needed (in tests only)
     # needs_work (format doc)

@@ -12,8 +12,7 @@ from scipy.stats import entropy
 from skimage.filters import gaussian
 
 from riogrande.helper import dtype_range, convert_to_dtype
-from riogrande.io import load_block
-from riogrande.io_ import Source, Band
+from riogrande.io import Source, Band, load_block
 from riogrande.prepare import get_view, relative_view
 
 from .filters import bpgaussian
@@ -71,7 +70,8 @@ def select_category(data: NDArray, category: int | list[int],
     if limits:
         _is, _is_not = limits
     else:
-        _is, _is_not = map(lambda x: np.array(x).astype(_as_dtype), dtype_range(_as_dtype))
+        _is, _is_not = map(lambda x: np.array(x).astype(
+            _as_dtype), dtype_range(_as_dtype))
 
     if isinstance(category, int):
         _selected = [category, ]
@@ -363,19 +363,23 @@ def compute_entropy(data_arrays: Sequence[NDArray],
     return entropy_array
 
 
-def get_entropy(data: NDArray,
-                categories: Collection | None = None,
-                normed: bool = False,
-                max_entropy_categories: int | None = None,
-                img_filter: Callable | None = None,
-                as_dtype: type | str | None = None,
-                output_range: tuple | None = None,
-                filter_params: dict | None = None,
-                entropy_params: dict | None = None,
-                filter_output_range: tuple | None = None,
-                **params) -> NDArray:
+def _get_entropy(data: NDArray,
+                 categories: Collection | None = None,
+                 normed: bool = False,
+                 max_entropy_categories: int | None = None,
+                 img_filter: Callable | None = None,
+                 as_dtype: type | str | None = None,
+                 output_range: tuple | None = None,
+                 filter_params: dict | None = None,
+                 entropy_params: dict | None = None,
+                 filter_output_range: tuple | None = None,
+                 **params) -> NDArray:
+    # NOTE: This function is only used for testing purposes.
     """
     Compute the Shannon entropy per cell from a 2D categorical array.
+
+    This method performs first a gaussian blurring, followed by a per-cell
+    entropy calculation.
 
     Parameters
     ----------
@@ -513,7 +517,8 @@ def compute_interaction(data_arrays: Sequence[NDArray],
     if isinstance(input_dtype, str):
         input_dtype = np.dtype(input_dtype)
     if array_dtype != input_dtype:
-        raise ValueError(f"Array data type {array_dtype} does not match provided input data type {input_dtype}")
+        raise ValueError(f"Array data type {array_dtype} does not match "
+                         f"provided input data type {input_dtype}")
 
     # determine scaling for input
     _max_scale, _ = dtype_range(input_dtype)
@@ -531,7 +536,8 @@ def compute_interaction(data_arrays: Sequence[NDArray],
         for arr in data_arrays:
             standardize_array += (arr / _max_scale)
         interaction_array = np.divide(interaction_array, standardize_array,
-                                      out=np.zeros_like(interaction_array, dtype=float),
+                                      out=np.zeros_like(
+                                          interaction_array, dtype=float),
                                       where=standardize_array != 0)
     if normed:
         n = len(data_arrays)
@@ -549,7 +555,8 @@ def compute_interaction(data_arrays: Sequence[NDArray],
             # when rescaling to uint8 it is important to not have values > 1 before rescaling (else 256 would be 0)
             interaction_array[interaction_array > 1] = 1
             # np.ceil relevant to avoid artefacts from rounding (when using unit8)
-            interaction_array = np.ceil((interaction_array * _max)).astype(output_dtype)
+            interaction_array = np.ceil(
+                (interaction_array * _max)).astype(output_dtype)
     return interaction_array
 
 
@@ -1029,13 +1036,6 @@ def view_interaction(category_arrays: dict[int, NDArray],
         output_range=output_range,
     )
     return dict(data=interaction_array, view=view)
-
-
-
-# TODO -----------------------------------------------
-
-
-
 
 
 def get_entropy_view(source: str,

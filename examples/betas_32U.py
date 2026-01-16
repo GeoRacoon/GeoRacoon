@@ -3,8 +3,8 @@ import os
 import numpy as np
 import rasterio as rio
 
-from landiv_blur import io as lbio
-from landiv_blur import io_ as lbio_
+from riogrande.io import Source, Band
+# old:
 from landiv_blur import parallel as lbpara
 from landiv_blur import inference as lbinf
 
@@ -35,10 +35,10 @@ def get_optimal_weights():
         lctdata_path,
         'lc_heterogeneity_32U_blurred_diameter_5000_sigma_833_truncate_3_compress.tif'
     )
-    predictors = lbio_.Source(path=lctblurred_file).get_bands()
+    predictors = Source(path=lctblurred_file).get_bands()
     # adding the entropy
-    entropy_band = lbio_.Band(
-        source=lbio_.Source(path=os.path.join(
+    entropy_band = Band(
+        source=Source(path=os.path.join(
             lctdata_path,
             'lc_heterogeneity_32U_entropy_diameter_5000_sigma_833_truncate_3_compress.tif'
         ))
