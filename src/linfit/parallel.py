@@ -9,7 +9,7 @@ from typing import Union
 
 import numpy as np
 
-from multiprocessing import (Queue, Manager)
+from multiprocessing import Manager
 from numpy.typing import NDArray
 
 from riogrande.io import Source, Band
@@ -934,98 +934,59 @@ def compute_weights(response: str | Band,
     return betas_dict
 
 
-def block_ssr(params: dict, ssr_parts: list):
-    # is_needed (internally only)
-    # needs_work (docs; create a test)
-    # not_tested
-    """Partialy calculate the Sum of Squares for the Residuals (SSR)
-    """
-
-    response = params.pop("response")
-    model = params.pop("model")
-    selector = params.pop("selector")
-    view = params.get('view')
-    window = view_to_window(view)
-
-    # Get data fromte window
-    response_data = response.get_data(window=window)
-    model_data = model.get_data(window=window)
-
-    # Selector application
-    _selector = selector[window.toslices()]
-    response_data[~_selector] = np.nan
-    model_data[~_selector] = np.nan
-
-    # Calculate Residuals and aggregate them
-    residuals = np.subtract(response_data, model_data)
-    residuals_pwr = np.power(residuals, 2)
-    return ssr_parts.append((np.nansum(residuals_pwr), np.count_nonzero(~np.isnan(residuals_pwr))))
-
-
-def block_sst(params: dict, sst_parts: list):
-    # is_needed (internally only)
-    # needs_work (docs; create a test; see TODO's)
-    # not_tested
-    """Partialy calculate the Sum of Squares Total (SST)
-    """
-
-    #TODO: maybe reduce redundancy between this function an the one above (ssr)
-
-    response = params.pop("response")
-    y_mean = params.pop("y_mean")
-    selector = params.pop("selector")
-    view = params.get('view')
-    window = view_to_window(view)
-
-    # Get data from window
-    response_data = response.get_data(window=window)
-
-    # Selector application
-    _selector = selector[window.toslices()]
-    response_data[~_selector] = np.nan
-
-    # Calculate Residuals and aggregate them
-    diff_mean = np.subtract(response_data, y_mean)
-    diff_pwr = np.power(diff_mean, 2)
-    return sst_parts.append((np.nansum(diff_pwr), np.count_nonzero(~np.isnan(diff_pwr))))
-
-
 def calculate_rmse(response: str | Band,
                    model: str | Band,
                    selector: NDArray[np.bool_],
                    block_size: Union[dict[str, tuple[int, int]], tuple[int, int]],
                    verbose: bool = False,
-                   **params):
-    # is_needed
-    # needs_work (see TODO's; docs)
-    # is_tested
-    """Compute the Root mean square error (RSME) based on a predicted model and original response data.
-     The formula for RMSE is:
+                   **params) -> float:
+    """
+    Compute the Root Mean Square Error (RMSE) for a predicted model and observed response data.
+
+    RMSE measures the average magnitude of the residuals (differences between
+    predicted and observed values) and is defined as:
 
         RMSE = sqrt(Σ((prediction_i - actual_i)²) / n)
 
-    Note: Prepare masks accordingly for model and response file, a selector will be calculated based on those.
-       Parameters
-    ----------
-    response:
-        Band object or path to tif file of response data used for computing optimal weights.
-    model:
-        Band object or path to tif file of model prediction data derived from optimal weights.
-    selector:
-        Boolean numpy array to mask response and model by. This is key to only use areas of interest where goodness of
-        fit wants to be estimated. The user is responsible for choosing such accordingly.
-    block_size:
-        Size (width, height) in #pixel of the block that a single job processes
-    verbose:
-        Trigger verbose output.
-    **params:
-        Optional arguments:
-        - `nbr_cpus` (int): how many CPUs should be used (by default the number
-          of available CPUs minus one will be used.
-        - `start_method` (str): Determines how the workers should start a
-          process. Accepted are 'spawn', 'fork' or 'forkserver'.
-    """
+    where:
+        - prediction_i are model-predicted values
+        - actual_i are observed response values
+        - n is the number of valid observations
 
+    The function processes data in blocks for memory efficiency and parallelization.
+
+    Parameters
+    ----------
+    response : Band or str
+        A `Band` object or a path to a raster/tif file containing the observed response data.
+    model : Band or str
+        A `Band` object or a path to a raster/tif file containing predicted values from the model.
+    selector : NDArray[np.bool_]
+        Boolean mask specifying which data points should be included in the RMSE calculation.
+        Points where `selector` is False are ignored.
+    block_size : tuple[int, int] or dict[str, tuple[int, int]]
+        Size of the block (width, height) in pixels for processing data chunks.
+        If a dictionary, it should contain named blocks.
+    verbose : bool, default=False
+        If True, prints status information during computation.
+    **params : optional
+        Additional parameters for parallel processing:
+        - `nbr_cpus` (int): Number of CPUs to use (default: all available minus one).
+        - `start_method` (str): Multiprocessing start method ('spawn', 'fork', or 'forkserver').
+
+    Returns
+    -------
+    float
+        The RMSE value. Lower values indicate better model fit.
+
+    Examples
+    --------
+    >>> response_band = Band(source=Source(path="response.tif"), bidx=1)
+    >>> model_band = Band(source=Source(path="model.tif"), bidx=1)
+    >>> selector_mask = np.ones((height, width), dtype=bool)
+    >>> rmse = calculate_rmse(response_band, model_band, selector_mask, block_size=(512, 512))
+    >>> print(f"RMSE = {rmse:.3f}")
+    """
     if not isinstance(response, Band):
         response = Band(source=Source(path=response), bidx=1)
     if not isinstance(model, Band):
@@ -1063,7 +1024,7 @@ def calculate_rmse(response: str | Band,
         # start the block calculation processing
         all_jobs = []
         for pparams in block_params:
-            all_jobs.append(pool.apply_async(block_ssr,
+            all_jobs.append(pool.apply_async(lph._block_ssr,
                                              (pparams, ssr_parts)))
         # collect results
         job_timers = []
@@ -1073,7 +1034,6 @@ def calculate_rmse(response: str | Band,
         pool.join()
 
     # Aggregate results
-    # TODO: this can be calcualted nicer (maybe use sth else than
     total_ssr = sum(res[0] for res in ssr_parts)
     total_n = sum(res[1] for res in ssr_parts)
     rmse = np.sqrt(total_ssr / total_n)
@@ -1085,42 +1045,54 @@ def calculate_r2(response: str | Band,
                  selector: NDArray[np.bool_],
                  block_size: Union[dict[str, tuple[int, int]], tuple[int, int]],
                  verbose: bool = False,
-                 **params):
-    # not_needed (but should be useful)
-    # needs_work (see TODO's; docs)
-    # is_tested
-    """Compute the Coefficient of Determination (R2) based on a predicted model and original response data.
-    The formula for R2 is:
-        R^2 = 1 - (SS_res / SS_tot)
-    Where:
-        - SS_res is the sum of squares of residuals:
-            SS_res = Σ(y_i - f_i)^2
-            where y_i are the observed values, and f_i are the predicted values.
-        - SS_tot is the total sum of squares:
-            SS_tot = Σ(y_i - ȳ)^2
-            where ȳ is the mean of the observed values.
-
-    Note: Prepare masks accordingly for model and response file, a selector will be calculated based on those.
-    ----------
-    response:
-        Band object or path to tif file of response data used for computing optimal weights.
-    model:
-        Band object or path to tif file of model prediction data derived from optimal weights.
-    selector:
-        Boolean numpy array to mask response and model by. This is key to only use areas of interest where goodness of
-        fit wants to be estimated. The user is responsible for choosing such accordingly.
-    block_size:
-        Size (width, height) in #pixel of the block that a single job processes
-    verbose:
-        Trigger verbose output.
-    **params:
-        Optional arguments:
-        - `nbr_cpus` (int): how many CPUs should be used (by default the number
-          of available CPUs minus one will be used.
-        - `start_method` (str): Determines how the workers should start a
-          process. Accepted are 'spawn', 'fork' or 'forkserver'.
+                 **params) -> float:
     """
+    Compute the Coefficient of Determination (R²) for a predicted model and observed response data.
 
+    The coefficient of determination, R², quantifies the proportion of variance in the response
+    variable that is predictable from the model. It is calculated as:
+
+        R² = 1 - (SS_res / SS_tot)
+
+    where:
+        - SS_res is the sum of squared residuals: Σ(y_i - f_i)²
+        - SS_tot is the total sum of squares: Σ(y_i - ȳ)²
+        - y_i are observed values, f_i are predicted values, and ȳ is the mean of observed values.
+
+    The function processes data in blocks for memory efficiency and parallelization.
+
+    Parameters
+    ----------
+    response : Band or str
+        A `Band` object or a path to a raster/tif file containing the observed response data.
+    model : Band or str
+        A `Band` object or a path to a raster/tif file containing predicted values from the model.
+    selector : NDArray[np.bool_]
+        Boolean mask to specify which data points should be included in the R² calculation.
+        Points where `selector` is False are ignored. The user must prepare the mask appropriately.
+    block_size : tuple[int, int] or dict[str, tuple[int, int]]
+        Size of the block (width, height) in pixels for processing data chunks.
+        If a dictionary, it should contain named blocks.
+    verbose : bool, default=False
+        If True, prints status information during computation.
+    **params : optional
+        Additional parameters for parallel processing:
+        - `nbr_cpus` (int): Number of CPUs to use (default: all available minus one).
+        - `start_method` (str): Multiprocessing start method ('spawn', 'fork', or 'forkserver').
+
+    Returns
+    -------
+    float
+        The R² coefficient ranging from -∞ to 1, where 1 indicates perfect prediction.
+
+    Examples
+    --------
+    >>> response_band = Band(source=Source(path="response.tif"), bidx=1)
+    >>> model_band = Band(source=Source(path="model.tif"), bidx=1)
+    >>> selector_mask = np.ones((height, width), dtype=bool)
+    >>> r2 = calculate_r2(response_band, model_band, selector_mask, block_size=(512, 512))
+    >>> print(f"R² = {r2:.3f}")
+    """
     if not isinstance(response, Band):
         response = Band(source=Source(path=response), bidx=1)
     if not isinstance(model, Band):
@@ -1139,7 +1111,6 @@ def calculate_r2(response: str | Band,
                                   size=(width, height))
 
     # Calculate overall mean of response (needed for SST)
-    # TODO: this has not been parallelized (but we can as well of course)
     total_sum = 0
     total_n = 0
     for view in inner_views:
@@ -1175,9 +1146,9 @@ def calculate_r2(response: str | Band,
         # start the block calculation processing
         all_jobs = []
         for pparams in block_params:
-            all_jobs.append(pool.apply_async(block_ssr,
+            all_jobs.append(pool.apply_async(lph._block_ssr,
                                              (pparams, ssr_parts)))
-            all_jobs.append(pool.apply_async(block_sst,
+            all_jobs.append(pool.apply_async(lph._block_sst,
                                              (pparams, sst_parts)))
         # collect results
         job_timers = []

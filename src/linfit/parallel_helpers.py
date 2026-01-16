@@ -11,7 +11,7 @@ from typing import Union
 
 import numpy as np
 
-from multiprocessing import (Queue, Manager)
+from multiprocessing import Queue
 from numpy.typing import NDArray
 
 from riogrande.io import Source, Band
@@ -411,3 +411,103 @@ def _block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
         )
         job_out_q.put(output)
     return timer
+
+
+def _block_ssr(params: dict, ssr_parts: list):
+    # TODO: test
+    """
+    Partially calculate the Sum of Squares of the Residuals (SSR) for a given data window.
+
+    This function computes the residuals between the observed response and model predictions,
+    squares them, and accumulates their sum along with the count of valid (non-NaN) entries
+    into `ssr_parts`. It is intended for internal, partial computations of SSR in blocks.
+
+    Parameters
+    ----------
+    params : dict
+      Dictionary containing required inputs:
+      - 'response' : object
+          An object with a `get_data(window)` method returning the observed data.
+      - 'model' : object
+          An object with a `get_data(window)` method returning model predictions.
+      - 'selector' : array-like
+          Boolean mask indicating which data points to include.
+      - 'view' : optional
+          A view object used to determine the window of data to process.
+    ssr_parts : list
+      A list to which a tuple `(sum_of_squares, count)` will be appended. Each tuple
+      contains the sum of squared residuals and the number of valid residuals.
+
+    Returns
+    -------
+    None
+      The function appends results directly to `ssr_parts` and does not return anything.
+    """
+    response = params.pop("response")
+    model = params.pop("model")
+    selector = params.pop("selector")
+    view = params.get('view')
+    window = view_to_window(view)
+
+    # Get data fromte window
+    response_data = response.get_data(window=window)
+    model_data = model.get_data(window=window)
+
+    # Selector application
+    _selector = selector[window.toslices()]
+    response_data[~_selector] = np.nan
+    model_data[~_selector] = np.nan
+
+    # Calculate Residuals and aggregate them
+    residuals = np.subtract(response_data, model_data)
+    residuals_pwr = np.power(residuals, 2)
+    return ssr_parts.append((np.nansum(residuals_pwr), np.count_nonzero(~np.isnan(residuals_pwr))))
+
+
+def _block_sst(params: dict, sst_parts: list):
+    # TODO: test
+    """
+    Partially calculate the Total Sum of Squares (SST) for a given data window.
+
+    This function computes the squared differences between observed responses and the
+    mean response, accumulating their sum along with the count of valid (non-NaN) entries
+    into `sst_parts`. It is intended for internal, partial computations of SST in blocks.
+
+    Parameters
+    ----------
+    params : dict
+        Dictionary containing required inputs:
+        - 'response' : object
+            An object with a `get_data(window)` method returning the observed data.
+        - 'y_mean' : float or array-like
+            Mean of the response variable used to compute deviations.
+        - 'selector' : array-like
+            Boolean mask indicating which data points to include.
+        - 'view' : optional
+            A view object used to determine the window of data to process.
+    sst_parts : list
+        A list to which a tuple `(sum_of_squares, count)` will be appended. Each tuple
+        contains the sum of squared deviations from the mean and the number of valid entries.
+
+    Returns
+    -------
+    None
+        The function appends results directly to `sst_parts` and does not return anything.
+    """
+    response = params.pop("response")
+    y_mean = params.pop("y_mean")
+    selector = params.pop("selector")
+    view = params.get('view')
+    window = view_to_window(view)
+
+    # Get data from window
+    response_data = response.get_data(window=window)
+
+    # Selector application
+    _selector = selector[window.toslices()]
+    response_data[~_selector] = np.nan
+
+    # Calculate Residuals and aggregate them
+    diff_mean = np.subtract(response_data, y_mean)
+    diff_pwr = np.power(diff_mean, 2)
+    return sst_parts.append((np.nansum(diff_pwr), np.count_nonzero(~np.isnan(diff_pwr))))
