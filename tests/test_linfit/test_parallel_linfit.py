@@ -12,7 +12,7 @@ from riogrande import parallel as rgpara
 from riogrande import prepare as rgprep
 
 from convster import parallel as cspara
-from convster import prepare as csprep
+from convster.filters import get_blur_params
 
 from linfit import inference as lfinf
 from linfit import parallel as lfpara
@@ -21,7 +21,6 @@ from .conftest import (
     ALL_MAPS,
     get_file,
     set_mpc_strategy,
-    get_blur_params,
 )
 
 @ALL_MAPS
@@ -48,7 +47,7 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     scale = 100  # meter per pixel
     truncate = 3
     _diameter = diameter / scale
-    blur_params = csprep.get_blur_params(diameter=_diameter, truncate=truncate)
+    blur_params = get_blur_params(diameter=_diameter, truncate=truncate)
     filter_params = blur_params.copy()
     _ = filter_params.pop('diameter')
     print(mproc.get_start_method(allow_none=True))

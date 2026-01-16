@@ -7,6 +7,7 @@ import numpy as np
 import rasterio as rio
 
 from skimage.filters import gaussian
+from scipy.stats import entropy as scipy_entropy
 
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
@@ -17,7 +18,6 @@ from riogrande import io as rgio
 from riogrande import prepare as rgprep
 
 from convster import processing as csproc
-from convster import prepare as csprep
 from convster.filters import gaussian as lbgauss
 
 from .conftest import (
@@ -62,8 +62,39 @@ def test_apply_filter_gaussian():
     assert set(np.unique(blurred)) != {1, 0}
 
 
+@pytest.mark.parametrize("catnbr", [2, 8, 100])
+def test_get_max_entropy_matches_log(catnbr):
+    """Test whether entropy returns log
+    """
+    expected = np.log(catnbr)
+    result = csproc.get_max_entropy(catnbr)
+    assert result == pytest.approx(expected, rel=1e-12)
+
+
+def test_compute_entropy():
+    """Test compute_entropy returns correct per-cell entropy with generated data"""
+    rng = np.random.default_rng(seed=0)
+    data1 = rng.integers(1, 10, size=(3, 3))
+    data2 = rng.integers(1, 10, size=(3, 3))
+    data_arrays = [data1, data2]
+
+    # Compute expected entropy manually
+    stacked = np.stack(data_arrays, axis=2)
+    expected = np.zeros(stacked.shape[:2], dtype=float)
+    for i in range(stacked.shape[0]):
+        for j in range(stacked.shape[1]):
+            counts = stacked[i, j, :]
+            expected[i, j] = scipy_entropy(counts)
+
+    result = csproc.compute_entropy(
+        data_arrays, normed=True, as_dtype='float64')
+    max_entropy = np.log(len(data_arrays))
+    expected /= max_entropy
+    np.testing.assert_allclose(result, expected, rtol=1e-12)
+
+
 @ALL_MAPS
-def test_nbr_lct(datafiles):
+def test_get_categories_lct(datafiles):
     """Make sure the detection of land-cover types works as expected
     """
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
@@ -95,7 +126,7 @@ def test_single_category_filter(datafiles):
                                                      truncate=truncate,
                                                      preserve_range=False,
                                                  ),
-                                                 filter_output_range=(0,1),
+                                                 filter_output_range=(0, 1),
                                                  )
     for _, data in lct_blurred.items():
         assert np.nanmax(data) >= 0.1
@@ -115,7 +146,7 @@ def test_filter_data(datafiles):
     real_sigma = 0.5 * diameter / truncate
     scale = 100  # meter per pixel
     sigma = real_sigma / scale  # in pixel
-    filter_params=dict(
+    filter_params = dict(
         sigma=sigma,
         truncate=truncate,
         preserve_range=False,
@@ -130,52 +161,56 @@ def test_filter_data(datafiles):
     lct_binary = csproc.get_filtered_categories(ch_data, categories=categories)
 
     for cat, data in lct_blurred.items():
-        filtered_data = csproc.filter_data(data=lct_binary[cat], img_filter=gaussian,
-                                           filter_params=filter_params,
-                                           filter_output_range=(0., 1.),
-                                           as_dtype="uint8")
+        filtered_data = csproc._filter_data(data=lct_binary[cat], img_filter=gaussian,
+                                            filter_params=filter_params,
+                                            filter_output_range=(0., 1.),
+                                            as_dtype="uint8")
         np.testing.assert_equal(data, filtered_data)
+
 
 @ALL_MAPS
 def test_filter_data_float(datafiles):
     """Make sure that filter works with floats (continous) data as well
     """
-    ch_f_map_tif = get_file(pattern="Switzerland_area_frac_*.tif", datafiles=datafiles)
+    ch_f_map_tif = get_file(
+        pattern="Switzerland_area_frac_*.tif", datafiles=datafiles)
     diameter = 10000  # 10km
     scale = 1000  # meter per pixel
     truncate = 3  # after 3 sigma
     real_sigma = 0.5 * diameter / truncate
     filter_output_range = (0, 1)
-    filter_params=dict(
+    filter_params = dict(
         sigma=real_sigma / scale,  # in pixel,
         truncate=truncate,
         preserve_range=False,
     )
-    ch_f_data = rgio.load_block(ch_f_map_tif)['data']  # this will automatically take the first band (okay here)
+    # this will automatically take the first band (okay here)
+    ch_f_data = rgio.load_block(ch_f_map_tif)['data']
     # First without replacint NaN values (so the image will be cropped)
     with pytest.warns(UserWarning) as record:
-        filtered_data = csproc.filter_data(data=ch_f_data,
-                                           img_filter=gaussian,
-                                           filter_params=filter_params,
-                                           filter_output_range=filter_output_range,
-                                           as_dtype="float32",
-                                           output_range=(0,1)
-                                           )
+        filtered_data = csproc._filter_data(data=ch_f_data,
+                                            img_filter=gaussian,
+                                            filter_params=filter_params,
+                                            filter_output_range=filter_output_range,
+                                            as_dtype="float32",
+                                            output_range=(0, 1)
+                                            )
         assert str(record[0].message).startswith("Raster array has NaN")
     # Check that the nan's have been 'eating up area'
     assert np.isnan(filtered_data).sum() >= np.isnan(ch_f_data).sum()
 
     # Second replace the NaNs with 0s
-    filtered_data = csproc.filter_data(data=ch_f_data,
-                                       img_filter=gaussian,
-                                       replace_nan_with=0,
-                                       filter_params=filter_params,
-                                       filter_output_range=filter_output_range,
-                                       as_dtype="float32",
-                                       output_range=(0, 1)
-                                       )
+    filtered_data = csproc._filter_data(data=ch_f_data,
+                                        img_filter=gaussian,
+                                        replace_nan_with=0,
+                                        filter_params=filter_params,
+                                        filter_output_range=filter_output_range,
+                                        as_dtype="float32",
+                                        output_range=(0, 1)
+                                        )
     # Check that the nan's have been 'eating up area'
     assert np.isnan(filtered_data).sum() == np.isnan(ch_f_data).sum()
+
 
 @ALL_MAPS
 def test_entropy_normalization_conversion(datafiles):
@@ -199,56 +234,62 @@ def test_entropy_normalization_conversion(datafiles):
     with pytest.warns(expected_warning=UserWarning, match='bounded'):
         # without normalization we cannot set the output_range (as we have not
         # fixed input range > unbounded).
-        entropy_data = csproc.get_entropy(data=data,
-                                          categories=categories,
-                                          normed=False,
-                                          output_range=(0,1),  # this should lead to a warning
-                                          img_filter=gaussian,
-                                          filter_params=filter_params,
-                                          blur_output_dtype=blur_output_dtype,
-                                          filter_output_range=filter_output_range,
-                                          )
+        entropy_data = csproc._get_entropy(
+            data=data,
+            categories=categories,
+            normed=False,
+            output_range=(0, 1),  # this should lead to a warning
+            img_filter=gaussian,
+            filter_params=filter_params,
+            blur_output_dtype=blur_output_dtype,
+            filter_output_range=filter_output_range,
+        )
 
     assert np.nanmax(entropy_data) <= max_entropy, \
-           'Maximal entropy is exceeded'
+        'Maximal entropy is exceeded'
 
     with pytest.warns(expected_warning=UserWarning, match='without rescaling'):
         # we convert but do not normalize > no rescaling possible, only type
         # conversion
-        _= csproc.get_entropy(data=data,
-                              categories=categories,
-                              normed=False,
-                              as_dtype="uint8",  # this should lead to a warning
-                              img_filter=gaussian,
-                              filter_params=filter_params,
-                              blur_output_dtype=blur_output_dtype,
-                              filter_output_range=filter_output_range,)
+        _ = csproc._get_entropy(
+            data=data,
+            categories=categories,
+            normed=False,
+            as_dtype="uint8",  # this should lead to a warning
+            img_filter=gaussian,
+            filter_params=filter_params,
+            blur_output_dtype=blur_output_dtype,
+            filter_output_range=filter_output_range,
+        )
 
-    entropy_data = csproc.get_entropy(data=data,
-                                     categories=categories,
-                                     normed=False,
-                                     as_dtype="float64",
-                                     img_filter=gaussian,
-                                     filter_params=filter_params,
-                                     blur_output_dtype=blur_output_dtype,
-                                     filter_output_range=filter_output_range,
-                                     )
+    entropy_data = csproc._get_entropy(
+        data=data,
+        categories=categories,
+        normed=False,
+        as_dtype="float64",
+        img_filter=gaussian,
+        filter_params=filter_params,
+        blur_output_dtype=blur_output_dtype,
+        filter_output_range=filter_output_range,
+    )
     print(f"{np.nanmax(entropy_data)=}")
     print(f"{np.nanmin(entropy_data)=}")
-    normed_entropy_data = csproc.get_entropy(data=data, categories=categories,
-                                             normed=True,
-                                             img_filter=gaussian,
-                                             filter_params=filter_params,
-                                             filter_output_range=filter_output_range,
-                                             blur_output_dtype=blur_output_dtype,
-                                             )
+    normed_entropy_data = csproc._get_entropy(
+        data=data,
+        categories=categories,
+        normed=True,
+        img_filter=gaussian,
+        filter_params=filter_params,
+        filter_output_range=filter_output_range,
+        blur_output_dtype=blur_output_dtype,
+    )
 
     print(f"{np.nanmax(normed_entropy_data)=}")
     print(f"{np.nanmin(normed_entropy_data)=}")
     assert np.nanmax(normed_entropy_data) == \
-           np.nanmax(entropy_data)/max_entropy, 'Normalization is faulty'
+        np.nanmax(entropy_data)/max_entropy, 'Normalization is faulty'
 
-    normed_set_maximum_entropy_data = csproc.get_entropy(
+    normed_set_maximum_entropy_data = csproc._get_entropy(
         data=data,
         categories=categories,
         normed=True,
@@ -259,16 +300,18 @@ def test_entropy_normalization_conversion(datafiles):
         blur_output_dtype=blur_output_dtype,
     )
     assert np.nanmax(normed_set_maximum_entropy_data) <= \
-           np.nanmax(entropy_data)/ csproc.get_max_entropy(len(categories)*2)
+        np.nanmax(entropy_data) / csproc.get_max_entropy(len(categories)*2)
 
-    rescaled_entropy_data = csproc.get_entropy(data, categories=categories,
-                                               normed=True,
-                                               as_dtype="uint8",
-                                               img_filter=gaussian,
-                                               filter_params=filter_params,
-                                               filter_output_range=filter_output_range,
-                                               blur_output_dtype=blur_output_dtype,
-                                               )
+    rescaled_entropy_data = csproc._get_entropy(
+        data,
+        categories=categories,
+        normed=True,
+        as_dtype="uint8",
+        img_filter=gaussian,
+        filter_params=filter_params,
+        filter_output_range=filter_output_range,
+        blur_output_dtype=blur_output_dtype,
+    )
     print(f"{np.nanmax(rescaled_entropy_data)=}")
     print(f"{np.nanmin(rescaled_entropy_data)=}")
     assert np.nanmax(rescaled_entropy_data) <= 255
@@ -277,48 +320,62 @@ def test_entropy_normalization_conversion(datafiles):
 
 @ALL_MAPS
 def test_interaction_computation(datafiles):
-    """Test the computation of the interaction on a general bassis
+    """Test the computation of the interaction on a general basis
     """
-    # TODO: also test this for float64 - which fails until now as the dtype_range function return inf for _max
-    # see issue #115 (https://gitlab.uzh.ch/landiv/landiv/-/issues/115) for more
-    test_dtype = np.uint8
+    for test_dtype in [np.uint8, np.float64]:
+        ch_map_tif = get_file(
+            pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+        ch_data = rgio.load_block(ch_map_tif)['data']
+        categories = csproc.get_categories(ch_data)
+        diameter = 1000  # 1km
+        truncate = 3  # after 3 sigma
+        scale = 100  # meter per pixel
+        blurred_categories = csproc.get_filtered_categories(
+            ch_data,
+            categories=categories,
+            img_filter=gaussian,
+            filter_params=dict(
+                # in pixel
+                sigma=(
+                    0.5 * diameter / truncate) / scale,
+                truncate=truncate,
+                preserve_range=True),
+            output_dtype=test_dtype)
+        # Pairs
+        for i in range(2, 5):
+            all_possible_pairs = [
+                list(x) for x in itertools.combinations(categories, r=i)]
+            test_pair = random.choice(all_possible_pairs)
+            data_array = [blurred_categories[c] for c in test_pair]
+            # Interaction
+            interaction_data = csproc.compute_interaction(
+                data_arrays=data_array,
+                normed=True,
+                standardize=False,
+                output_dtype=test_dtype)
+            if np.issubdtype(test_dtype, np.integer):
+                _max = 255
+            else:
+                _max = 1.0
+            # Manual computation
+            manual_result = np.ones(data_array[0].shape, dtype=float)
+            for arr in data_array:
+                manual_result *= arr.astype(float) / _max
+            # Normalization
+            manual_result /= (1 / (len(data_array) ** len(data_array)))
+            # Convert to correct dtype
+            if np.issubdtype(test_dtype, np.integer):
+                manual_result = np.ceil(
+                    manual_result * _max).astype(test_dtype)
+                assert np.nanmax(np.absolute(interaction_data.astype(
+                    float) - manual_result.astype(float))) <= 1
+                assert np.nanmax(interaction_data) <= 255
+            else:
+                manual_result = manual_result.astype(test_dtype)
+                np.testing.assert_array_almost_equal(
+                    interaction_data, manual_result, decimal=6)
+            assert interaction_data.dtype == test_dtype
 
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ch_data = rgio.load_block(ch_map_tif)['data']
-    categories = csproc.get_categories(ch_data)
-    diameter = 1000  # 1km
-    truncate = 3  # after 3 sigma
-    scale = 100  # meter per pixel
-    blurred_categories = csproc.get_filtered_categories(ch_data,
-                                                        categories=categories,
-                                                        img_filter=gaussian,
-                                                        filter_params=dict(
-                                                            sigma=(0.5 * diameter / truncate) / scale,  # in pixel
-                                                            truncate=truncate,
-                                                            preserve_range=True),
-                                                        output_dtype=test_dtype)
-    # Pairs
-    # TODO: write a better test here (it still fails for i >= 3
-    for i in range(2, 3):
-        all_possible_pairs = [list(x) for x in itertools.combinations(categories, r=i)]
-        test_pair = random.choice(all_possible_pairs)
-        data_array = [blurred_categories[c] for c in test_pair]
-        # Interaction
-        interaction_data = csproc.compute_interaction(data_arrays=data_array,
-                                                      input_dtype=test_dtype,
-                                                      normed=True,
-                                                      standardize=False,
-                                                      output_dtype=test_dtype)
-        # make sure output is correct
-        assert interaction_data.dtype == test_dtype
-        assert np.nanmax(interaction_data) <= 255
-        # Calculate manual result
-        manual_result = np.ones(data_array[0].shape, dtype=float)
-        for arr in data_array:
-            manual_result *= arr.astype(float)
-        manual_result = np.ceil((manual_result * len(data_array) ** len(data_array)) / 255).astype(test_dtype)
-        # Check if the error (from rounding etc.) is not > 1 in unit8
-        assert np.nanmax(np.absolute(interaction_data.astype(float) - manual_result.astype(float))) <= 1
 
 def test_interaction_standardized_arrays():
     # define example arrays
@@ -339,8 +396,9 @@ def test_interaction_standardized_arrays():
         stand = np.zeros_like(a, dtype=float)
         for j in [a, b]:
             stand += (j / _max)
-        result = np.divide(inter, stand, out=np.zeros_like(inter), where=stand != 0)
-        result = result / 0.25  # maximum value for 50:50 mixture of 2 types 0.5*0.5
+        result = np.divide(
+            inter, stand, out=np.zeros_like(inter), where=stand != 0)
+        result = result / 0.25  # max value for 50:50 mixture of 2 types 0.5^2
         if _type == np.uint8:
             result = np.ceil(result * _max).astype(_type)
         else:
@@ -351,8 +409,6 @@ def test_interaction_standardized_arrays():
                                                        standardize=True,
                                                        normed=True,
                                                        output_dtype=_type)
-        # print(f"{a=}\n{b=}")
-        # print(f"{interaction_array=}\n{result=}")
         # Assert arrays are equal
         np.testing.assert_array_equal(interaction_array, result)
 
@@ -406,7 +462,7 @@ def test_recombination():
             inner_views[i],
             rgprep.get_view(_output,
                             rgprep.relative_view(view, inner_views[i]))
-            )
+        )
     # TODO: see #33
     # # test the partial recombination
     # np.testing.assert_array_equal(
@@ -419,7 +475,6 @@ def test_recombination():
     #     desired_output,
     #     lbprep.recombine_blocks(blocks, np.zeros(mapshape))
     # )
-
 
 
 @ALL_MAPS
@@ -444,15 +499,17 @@ def test_lct_coverage(datafiles):
     # print(f"{data.shape=}")
     # print(f"{haslct.shape=}")
     # print(f"{lcts=}")
-    blurred_categories = csproc.get_filtered_categories(data, categories=lcts,
-                                                        img_filter=gaussian,
-                                                        filter_params=dict(
-                                                            sigma=sigma,
-                                                            truncate=truncate
-                                                        ),
-                                                        output_dtype='uint8',
-                                                        filter_output_range=(0,1),
-                                                        )
+    blurred_categories = csproc.get_filtered_categories(
+        data, categories=lcts,
+        img_filter=gaussian,
+        filter_params=dict(
+            sigma=sigma,
+            truncate=truncate
+        ),
+        output_dtype='uint8',
+        filter_output_range=(
+            0, 1),
+    )
     entropy_data = csproc.compute_entropy(
         data_arrays=tuple(blurred_categories.values()),
         normed=True,
@@ -460,14 +517,15 @@ def test_lct_coverage(datafiles):
     )
     for lct in lcts:
         # print(f"{lct=}")
-        lct_data = csproc.get_category_data(data, category=lct,
-                                            img_filter=gaussian,
-                                            filter_params=dict(
-                                                sigma=sigma,
-                                                truncate=truncate
-                                            ),
-                                            filter_output_range=(0,1),
-                                            as_dtype='uint8')
+        lct_data = csproc.get_category_data(
+            data, category=lct,
+            img_filter=gaussian,
+            filter_params=dict(
+                sigma=sigma,
+                truncate=truncate
+            ),
+            filter_output_range=(0, 1),
+            as_dtype='uint8')
         # print(f"\t{lct_data.dtype=}")
         # print(f"\t{lct_data.shape=}")
         # print(f"\t{np.unique(lct_data)=}")
@@ -479,7 +537,6 @@ def test_lct_coverage(datafiles):
     # now make sure that we do not have any unassigned cells
     vals, counts = np.unique(haslct, return_counts=True)
     assert len(vals) == 1, f"We have cells without lct: {vals=}, {counts=}"
-
 
 
 def test_visualize_recombination_coverage():
@@ -531,16 +588,16 @@ def test_visualize_recombination_coverage():
 
 @ALL_MAPS
 def test_import_export(datafiles):
-    """Export per-cell entropy map after categories are blurred, load it and compare.
+    """Export per-cell entropy map after blur, load it and compare.
     """
     start = (1020, 1020)
     size = (700, 700)
     view1 = (*start, *size)
     ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     block = rgio.load_block(ch_map_tif, view=view1, indexes=1)
-    entropy_array = csproc.get_entropy(block['data'], categories=range(8),
-                                       normed=True,
-                                       img_filter=gaussian)
+    entropy_array = csproc._get_entropy(block['data'], categories=range(8),
+                                        normed=True,
+                                        img_filter=gaussian)
     outfile = datafiles / 'out.tif'
     rgio._export_to_tif(
         destination=str(outfile),
@@ -555,6 +612,7 @@ def test_import_export(datafiles):
     assert np.all(np.nan_to_num(entropy_array,
                   nan=-1) == np.nan_to_num(block_2['data'], nan=-1))
     assert block['transform'] == block_2['transform']
+
 
 @ALL_MAPS
 def test_convert_to_dtype_real_range_handling(datafiles):
