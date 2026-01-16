@@ -16,7 +16,6 @@ from convster.filters import get_blur_params
 
 from linfit import inference as lfinf
 from linfit import parallel as lfpara
-from linfit import parallel_helpers as lfph
 
 from .conftest import (
     ALL_MAPS,

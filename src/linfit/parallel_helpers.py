@@ -17,18 +17,12 @@ from numpy.typing import NDArray
 from riogrande.io import Source, Band
 from riogrande.helper import (
     view_to_window,
-    check_compatibility,
     convert_to_dtype,
     get_or_set_context,
     get_nbr_workers,
 )
 from riogrande.timing import TimedTask
-from riogrande.prepare import (
-    create_views,
-)
 from riogrande import parallel as rgpara
-
-from .helper import check_rank_deficiency
 
 from .inference import (
     transposed_product,
