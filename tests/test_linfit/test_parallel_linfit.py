@@ -16,6 +16,7 @@ from convster.filters import get_blur_params
 
 from linfit import inference as lfinf
 from linfit import parallel as lfpara
+from linfit import parallel_helpers as lfph
 
 from .conftest import (
     ALL_MAPS,
@@ -111,13 +112,13 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     pool = set_mpc_strategy.Pool(nbr_workers)
     # start the aggregation step
     matrix_aggregator = pool.apply_async(
-        lfpara.combine_matrices,
+        lfpara._combine_matrices,
         (output_q,)
     )
     all_jobs = []
     for pparams in part_params:
         all_jobs.append(pool.apply_async(
-            lfpara.partial_transposed_product,
+            lfpara._partial_transposed_product,
             (pparams, output_q)
         ))
     # now lets wait for all of these jobs to finish

@@ -1,7 +1,5 @@
 """
-This module contains various helper functions to parallelize the application
-of filters on a tif
-
+This module contains functions to parallellize various inference methods.
 """
 # is_needed
 # needs_work (the module is too big!)
@@ -11,7 +9,6 @@ from __future__ import annotations
 
 import math
 from collections.abc import Collection
-
 
 from typing import Union
 
@@ -36,7 +33,6 @@ from riogrande import parallel as rgpara
 
 from .helper import check_rank_deficiency
 
-
 from .inference import (
     transposed_product,
     get_optimal_weights_source
@@ -44,24 +40,36 @@ from .inference import (
 from .exceptions import InvalidPredictorError
 
 
-def combine_matrices(output_q: Queue) -> tuple[NDArray | None, tuple]:
-    # is_needed (internally only)
-    # needs_work (docs; make internal)
-    # is_tested (indirectly)
-    """Adding up matrices that hold partial sums
+def _combine_matrices(output_q: Queue) -> tuple[NDArray | None, tuple]:
+    """Aggregate matrices containing partial sums from a queue.
+
+    This function listens to a queue and combines partial matrix results
+    into a single aggregated matrix. It replaces NaN values with zeros
+    during aggregation and continues until receiving a "kill" signal.
 
     Parameters
     ----------
-    output_q:
-        The queue this job listens to.
+    output_q : Queue
+       Queue containing dictionaries with partial matrices under the 'X' key
+       and optional control signals under the 'signal' key. The function
+       terminates when it receives a dictionary with signal="kill".
 
     Returns
     -------
-    matrice, (TimedTask, ):
-        The first object is the aggregated matrix, the second holds a
-        `TimedTask` object that holds information on the duration of this task
-    """
+    out_matrix : NDArray or None
+       The aggregated matrix with all partial sums combined. NaN values
+       are replaced with zeros. Returns None if no matrices were processed.
+    timer : tuple of TimedTask
+       A single-element tuple containing a TimedTask object with timing
+       information for the aggregation process.
 
+    Notes
+    -----
+    - NaN values in partial matrices are automatically replaced with zeros
+     before aggregation.
+    - The function blocks until a "kill" signal is received.
+    - Each partial matrix extraction is timed with a new lap marker.
+    """
     out_matrix = None
     with TimedTask() as timer:
         while True:
@@ -84,18 +92,21 @@ def combine_matrices(output_q: Queue) -> tuple[NDArray | None, tuple]:
     return out_matrix, (timer,)
 
 
-def partial_transposed_product(params: dict, output_q: Queue):
-    # is_needed (internally only)
-    # needs_work (make internal; docs)
-    # is_tested
-    """Run `.inference.transposed_product` in parallel
+def _partial_transposed_product(params: dict, output_q: Queue):
+    """Execute transposed product computation in parallel and send results to queue.
+
+    This function wraps `transposed_product` for parallel execution by calling
+    it with the provided parameters and placing the result in the output queue.
+    Results are wrapped in a dictionary with key 'X'.
 
     Parameters
     ----------
-    params:
-        The keywords arguments passed to `.inference.transposed_product`
-    output_q:
-        The queue this job listens to.
+    params : dict
+        Keyword arguments to pass to `transposed_product`. See
+        `inference.transposed_product` for valid parameters.
+    output_q : Queue
+        Queue where the computed result will be placed. The result is wrapped
+        in a dictionary as {'X': result}.
     """
 
     def _wrap(tpX):
@@ -109,21 +120,24 @@ def partial_transposed_product(params: dict, output_q: Queue):
     )
 
 
-def partial_optimal_betas(params: dict, output_q: Queue):
-    # is_needed (internally only)
-    # needs_work (docs; make internal)
-    # not_tested
-    """Runs .inference.get_optimal_weights_source in parallel
+def _partial_optimal_betas(params: dict, output_q: Queue):
+    # TODO: test?
+    """Execute optimal weight computation in parallel and send results to queue.
 
-    Parameters
-    ----------
-    params:
-        The keywords arguments passed to
-        `.inference.get_optimal_weights_source`
-    output_q:
-        The queue this job listens to.
-    """
-    # usedin_linfit
+       This function wraps `get_optimal_weights_source` for parallel execution by
+       calling it with the provided parameters and placing the result in the output
+       queue. The resulting dictionary of beta weights is converted to a list of
+       values before being placed in the queue.
+
+       Parameters
+       ----------
+       params : dict
+           Keyword arguments to pass to `get_optimal_weights_source`. See
+           `inference.get_optimal_weights_source` for valid parameters.
+       output_q : Queue
+           Queue where the computed result will be placed. The beta weights
+           dictionary is converted to a list and wrapped as {'X': list_of_values}.
+       """
 
     def _wrap(beta_dict):
         return dict(X=list(beta_dict.values()))  # ok for python >= 3.6 (dict keeps order)
@@ -135,40 +149,64 @@ def partial_optimal_betas(params: dict, output_q: Queue):
         wrapper=_wrap
     )
 
-def process_band_count_valid(band: Band,
-                             selector:NDArray[np.bool_],
-                             no_data:Union[int,float],
-                             limit_count:int):
-    # is_needed (inernally only)
-    # needs_work (make internal; docs)
-    # not_tested
-    # usedin_linfit
+
+def _process_band_count_valid(band: Band, selector: NDArray[np.bool_], no_data: Union[int, float],
+                              limit_count: int) -> tuple[dict, tuple]:
+    """
+    Count valid pixels in a band and return timing information.
+
+    This function wraps the Band.count_valid_pixels method to add timing
+    capabilities for performance monitoring in parallel processing workflows.
+
+    Parameters
+    ----------
+    band : Band
+      The band object on which to count valid pixels.
+    selector : ndarray of bool
+      Boolean mask array indicating which pixels to consider in the count.
+      True values indicate pixels to include.
+    no_data : int or float
+      Value representing no-data or missing pixels. Pixels with this value
+      are excluded from the valid pixel count.
+    limit_count : int
+      Minimum number of valid pixels required. The interpretation of this
+      parameter depends on the Band.count_valid_pixels implementation.
+
+    Returns
+    -------
+    valid_counts : dict
+      Dictionary mapping the band to its valid pixel count, formatted as
+      {band: count}.
+    timer : tuple of TimedTask
+      Single-element tuple containing a TimedTask object with timing
+      information for the counting operation.
+    """
+    # TODO: test?
     with TimedTask() as timer:
         valid = band.count_valid_pixels(selector=selector,
                                         no_data=no_data,
                                         limit_count=limit_count)
     return {band: valid}, (timer,)
 
+
 def compute_model(predictors: Collection[Band],
-                  optimal_weights: dict[dict]|dict | None,
+                  optimal_weights: dict[dict] | dict | None,
                   output_file: str,
                   block_size: tuple[int, int],
-                  predictors_as_dtype: str|type|None=None,
+                  predictors_as_dtype: str | type | None = None,
                   profile: dict | None = None,
                   selector: NDArray[np.bool_] | None = None,
-                  selector_band: Band|None=None,
+                  selector_band: Band | None = None,
                   verbose: bool = False,
-                  **params):
-    # is_needed (in tests only)
-    # needs_work
-    # is_tested
-    """Create a tif file with the model prediction values from a fitted model.
+                  **params) -> str:
+    """
+    Create a tif file with the model prediction values from a fitted model.
 
     Parameters
     ----------
-    predictors:
-        Collection predictors used in the multiple linar regression.
-    optimal_weights:
+    predictors : Collection of Band
+        Collection of predictor bands used in the multiple linear regression.
+    optimal_weights : dict of dict, dict, or None
         Holding for each predictor the optimal weight.
         If weights include a key named "intercept",
         this will be used as the intercept (beta0) for the model prediction.
@@ -176,56 +214,68 @@ def compute_model(predictors: Collection[Band],
         categorical value (key) a dictionary with the optimal weights per
         predictor.
 
-        _See `selector_band` parameter for more details._
+        See `selector_band` parameter for more details.
 
-    output_file:
-        Path to where the model result should be written to
-    block_size: tuple of int
-        Size (width, height) in #pixel of the block that a single job
+    output_file : str
+        Path to where the model result should be written to.
+    block_size : tuple of int
+        Size (width, height) in pixels of the block that a single job
         processes.
-    predictors_as_dtype:
+    predictors_as_dtype : str, type, or None, optional
         Datatype to convert predictor input to (e.g. np.float32) prior to
         computing their contribution.
 
         .. note::
 
           Only a type conversion is supported prior to computing the predictors
-          contribution.
-          Rescaling of a predictor needs to happen in a separate step
-          beforehand.
+          contribution. Rescaling of a predictor needs to happen in a separate
+          step beforehand.
 
-    profile:
+    profile : dict or None, optional
         The profile to use for the newly created output tif.
         By default the profile is copied from the first source of the
         predictor bands, updating the count to 1.
-
-    selector:
+    selector : ndarray of bool or None, optional
         A selector array to use to selectively calculate the model prediction.
 
-        If a boolean array is provided then it is applied to (inverted) mask:
+        If a boolean array is provided then it is applied as an (inverted) mask:
         only pixels that result to `True` are calculated.
 
         If a categorical array (np.uint8) is provided instead, then it is assumed
-        that the `optimal_weights`  use as a selector for (masking) the processing of the model.
-
-    selector_band:
+        that the `optimal_weights` use it as a selector for (masking) the
+        processing of the model.
+    selector_band : Band or None, optional
         A band object with categorical data.
 
         If provided, the `optimal_weights` needs to hold for each of the category
         a dictionary with predictor specific weights.
+    verbose : bool, optional
+        Print out processing steps. Default is False.
+    **params
+        Optional arguments for the multiprocessing:
 
-    verbose:
-        Print out processing steps
-    **params:
-        Optional arguments for the multiprocessing (e.g. nbr_cpus)
+        - nbrcpu : int, optional
+            Number of CPUs to use for parallel processing.
+        - start_method : str, optional
+            Multiprocessing start method ('fork', 'spawn', or 'forkserver').
+        - compress : bool, optional
+            If True, apply LZW compression to the final output file.
 
     Returns
     -------
-    output_tif:
-       Path to the newly created tif file holding the model prediction data
+    output_file : str
+       Path to the newly created tif file holding the model prediction data.
+       If compression is enabled, this will be the path to the compressed file.
 
+    Notes
+    -----
+    The function uses multiprocessing to process the image in blocks for
+    improved performance. Each block is processed independently and results
+    are aggregated into the final output file.
+
+    Timing information for each job and the total duration is printed to
+    standard output upon completion.
     """
-
     # get all source files
     sources = tuple(set(pred.source.path for pred in predictors))
     check_compatibility(*sources)
@@ -268,7 +318,6 @@ def compute_model(predictors: Collection[Band],
                        )
         block_params.append(bparams)
 
-
     # ###
     # prepare multiprocessing
     # ###
@@ -287,8 +336,8 @@ def compute_model(predictors: Collection[Band],
         # start the block processing
         all_jobs = []
         for bparams in block_params:
-            all_jobs.append(pool.apply_async(block_model_prediction,
-                                            (bparams, job_out_q)))
+            all_jobs.append(pool.apply_async(_block_model_prediction,
+                                             (bparams, job_out_q)))
         # collect results
         job_timers = []
         for job in all_jobs:
@@ -316,60 +365,76 @@ def compute_model(predictors: Collection[Band],
     print(f"maximal duration of single job: {max(job_timers)=}")
     return output_file
 
-def check_predictor_consistency(predictors: Collection[Band],
-                                selector:NDArray[np.bool_],
-                                tolerance:float=0.0,
-                                no_data=0.0,
-                                sanitize:bool=False,
-                                verbose:bool=False,
-                                **params)->Collection[Band]:
-    # is_needed (internally only)
-    # needs_work (get rid of verbose; docs; make internal)
-    # not_tested
-    """Check if with the selector all the predictors still contain data
+
+def _check_predictor_consistency(predictors: Collection[Band],
+                                 selector: NDArray[np.bool_],
+                                 tolerance: float = 0.0,
+                                 no_data=0.0,
+                                 sanitize: bool = False,
+                                 **params) -> Collection[Band]:
+    """Check if all predictors contain sufficient valid data after applying selector.
+
+    This function validates that each predictor band has a minimum fraction
+    of valid (non-masked, non-no_data) pixels within the selected region.
+    Predictors failing to meet the threshold can either raise an exception
+    or be automatically removed from the collection.
 
     Parameters
     ----------
-    predictors:
-      A collection with arbitrary many predictors to use.
-      See inference.prepare_predictors for further details on how to specify
-      predictors.
-    selector:
-      A boolean array in the same shape of the predictors that indicates
-      which cells are usable
-    tolerance:
-      Determines the limit fraction below which a predictor is considered to
-      be completely masked.
-      By default (i.e. `tolerance=0.0`) a single cell with a valid value is
-      enough to consider the predictor to be valid.
+    predictors : Collection of Band
+        A collection with arbitrary many predictor bands to validate.
+        See `inference.prepare_predictors` for further details on how to
+        specify predictors.
+    selector : ndarray of bool
+        Boolean array with the same shape as the predictors that indicates
+        which cells are usable. True values indicate pixels to consider.
+    tolerance : float, optional
+        Minimum fraction of valid pixels required for a predictor to be
+        considered valid. Default is 0.0.
 
-      The fraction of valid cells is computed as the number of valid-cells
-      the predictor has divided by the total number of considered cells
-      (i.e. the count of `True` in `selector`).
-    no_data:
-      Value of a cell considered as invalid data.
-    sanitize:
-      Determines if predictors that end up contributing not a single data-point
-      (after applying the `selector`) should be removed automatically.
+        The fraction is computed as (number of valid pixels) / (total number
+        of True values in selector). A predictor is invalid if its fraction
+        of valid pixels is at or below this threshold.
 
-      By defautl this values is set to `False` which raises an exception
-      if a predictor ends up contriuting nothing.
-    **params:
-        Optional arguments for the multiprocessing:
+        For example, tolerance=0.01 requires at least 1% valid pixels.
+    no_data : float, optional
+        Value indicating invalid or missing data. Pixels with this value
+        are not counted as valid. Default is 0.0.
+    sanitize : bool, optional
+        If True, automatically remove predictors that fail the validity check.
+        If False, raise an InvalidPredictorError when invalid predictors are
+        found. Default is False.
+    **params
+        Optional arguments for multiprocessing:
 
-        nbrcpu: int
-          The number of cpu's to use. If not set then then the available number
-          of threads -1 are used.
-        start_method: str
-          Starting method for multiprocessing jobs
+        - nbrcpu : int, optional
+            Number of CPUs to use. If not set, uses (available threads - 1).
+        - start_method : str, optional
+            Starting method for multiprocessing jobs ('fork', 'spawn', or
+            'forkserver').
 
     Returns
     -------
-    Collection[Band]:
-      The remaining predictors. By default (i.e. `sanitize=False`) this simply
-      corresponds to the argument that was provided in `predictors`.
-      If `sanitize=True` then the colleciton will no longer contain predictors
-      that get completely masked when the `selector` is applied.
+    valid_predictors : Collection of Band
+        The remaining valid predictors. If `sanitize=False` (default), this
+        corresponds to the input `predictors` collection if all pass validation.
+        If `sanitize=True`, returns only predictors that meet the minimum
+        valid pixel threshold.
+
+    Raises
+    ------
+    InvalidPredictorError
+        If `sanitize=False` and one or more predictors fail to meet the
+        minimum valid pixel threshold.
+
+    Notes
+    -----
+    The function uses multiprocessing to validate predictors in parallel for
+    improved performance with large collections.
+
+    The minimum number of valid pixels required is calculated as:
+    ``max(1, ceil(tolerance * total_selected_pixels))``
+    ensuring at least 1 valid pixel is required even when tolerance=0.0.
     """
     print(f'check_predictor_consistency - {predictors=}')
     _vals, _counts = np.unique(selector, return_counts=True)
@@ -393,17 +458,15 @@ def check_predictor_consistency(predictors: Collection[Band],
         job_params.append(jparams)
     start_method = params.get('start_method', None)
     nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
-    if verbose:
-        print(f"Predictor consistency check using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
         all_jobs = []
         for jparams in job_params:
-            all_jobs.append(pool.apply_async(process_band_count_valid,
+            all_jobs.append(pool.apply_async(_process_band_count_valid,
                                              kwds=jparams))
         band_validity = dict()
         durations = []
         for job in all_jobs:
-            valid_band, (time, ) = job.get()
+            valid_band, (time,) = job.get()
             band_validity.update(valid_band)
             durations.append(time.get_duration())
     if not all(band_validity.values()):
@@ -426,28 +489,59 @@ def check_predictor_consistency(predictors: Collection[Band],
     else:
         return predictors
 
-def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
-    # is_needed (internally only)
-    # needs_work (make internal)
-    # not_tested
-    """Per block (i.e. view) model prediction for a fitted regression
+
+def _block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
+    # TODO: Test?
+    """
+    Compute model predictions for a single block in a parallel processing workflow.
+
+    This function applies a fitted linear regression model to a spatial block
+    (view) of predictor data, handling optional selectors and categorical
+    stratification. The computed predictions are placed in a queue for
+    aggregation.
 
     Parameters
     ----------
-    params: dict
-      Key value pairs holding all relevant data for a single worker
-      The data must include:
+    params : dict
+      Dictionary containing all parameters for processing a single block.
+      Required keys:
 
-      view: tuple
-        (x, y, width, height) defining the view or block to process
-      predictors: Collection
-        A collection of _io.Band objects that were used as predictors
-      optimal_weights: dict
-        Provides the optimal weight for each predictor
-      as_dtype: str
-        The data type to use for the returned data
-    job_out_q: multiprocessing.Queue
-      The queue to push the block data to
+      - view : tuple of int
+          (x, y, width, height) defining the spatial block to process.
+      - predictors : Collection of Band
+          Band objects used as predictors in the regression model.
+      - optimal_weights : dict or dict of dict
+          Optimal weights for each predictor. If `selector_band` is not
+          provided, this is a simple dict mapping predictors to weights.
+          If `selector_band` is provided, this maps category values to
+          dicts of predictor weights.
+
+          May include an 'intercept' key for the model intercept (beta0).
+      - as_dtype : str or type
+          Data type for the output prediction array.
+
+      Optional keys:
+
+      - selector : ndarray of bool, optional
+          Boolean mask to selectively compute predictions. Pixels where
+          selector is False are set to NaN in the output.
+      - selector_band : Band, optional
+          Band containing categorical data for stratified predictions.
+          If provided, `optimal_weights` must map each category to its
+          own weight dictionary.
+      - predictors_as_dtype : str or type, optional
+          Data type to convert predictor data to before applying weights.
+
+    job_out_q : Queue
+      Multiprocessing queue where the computed block result is placed.
+      Results are dictionaries with keys 'data' (prediction array) and
+      'view' (spatial location).
+
+    Returns
+    -------
+    timer : TimedTask
+      TimedTask object containing timing information for the block
+      processing operation.
     """
     with TimedTask() as timer:
         predictors = params.pop('predictors')
@@ -470,18 +564,18 @@ def block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
 
         if selector_band is not None:
             selector_data = selector_band.load_block(view=view)['data']
-            selectors = np.unique(selector_data,).tolist()
+            selectors = np.unique(selector_data, ).tolist()
             if np.nan in selectors:
                 selectors.remove(np.nan)
         else:
             # just pretend that optimal weights is expressed for some dummy selector
-            selectors = [0,]
+            selectors = [0, ]
             selector_data = np.zeros_like(model_data, dtype=np.uint8)
             optimal_weights = {0: optimal_weights}
 
         for select in selectors:
             _opt_weights = optimal_weights[select]
-            _selector = np.where(selector_data==select, True, False)
+            _selector = np.where(selector_data == select, True, False)
             if 'intercept' in _opt_weights:
                 model_data += np.where(_selector, _opt_weights['intercept'], 0)
             for pred in predictors:
@@ -586,13 +680,13 @@ def get_XT_X(response: str | Band,
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
         # start the aggregation step
         matrix_aggregator = pool.apply_async(
-            combine_matrices,
+            _combine_matrices,
             (output_q,)
         )
         all_jobs = []
         for pparams in part_params:
             all_jobs.append(pool.apply_async(
-                partial_transposed_product,
+                _partial_transposed_product,
                 (pparams, output_q)
             ))
         # now lets wait for all of these jobs to finish
@@ -606,6 +700,7 @@ def get_XT_X(response: str | Band,
         # wait for the recombination job to terminate
         recombined_tpX, _ = matrix_aggregator.get()
     return recombined_tpX
+
 
 def get_optimal_betas(*predictors: Band | str,
                       Y: np.ndarray,
@@ -659,13 +754,13 @@ def get_optimal_betas(*predictors: Band | str,
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
         # start the aggregation step
         matrix_aggregator = pool.apply_async(
-            combine_matrices,
+            _combine_matrices,
             (output_q,)
         )
         all_jobs = []
         for pparams in part_params:
             all_jobs.append(pool.apply_async(
-                partial_optimal_betas,
+                _partial_optimal_betas,
                 (pparams, output_q)
             ))
         # now lets wait for all of these jobs to finish
@@ -698,10 +793,10 @@ def get_XT_X_dependency(response: str | Band,
                         predictors: Collection[Band],
                         block_size: Union[dict[str, tuple[int, int]], tuple[int, int]],
                         include_intercept: bool = True,
-                        limit_contribution:float=0.0,
-                        no_data: Union[int,float]=0.0,
-                        sanitize_predictors:bool=False,
-                        verbose:bool=False,
+                        limit_contribution: float = 0.0,
+                        no_data: Union[int, float] = 0.0,
+                        sanitize_predictors: bool = False,
+                        verbose: bool = False,
                         **params
                         ) -> dict[Band, str]:
     # is_needed (in tests only)
@@ -780,13 +875,13 @@ def get_XT_X_dependency(response: str | Band,
 
     print("Check consistency of remaining predictor data...")
     nbr_predictors = len(predictors)
-    predictors = check_predictor_consistency(predictors,
-                                             selector=selector,
-                                             tolerance=limit_contribution,
-                                             sanitize=sanitize_predictors,
-                                             no_data=no_data,
-                                             verbose=verbose,
-                                             **params)
+    predictors = _check_predictor_consistency(predictors,
+                                              selector=selector,
+                                              tolerance=limit_contribution,
+                                              sanitize=sanitize_predictors,
+                                              no_data=no_data,
+                                              verbose=verbose,
+                                              **params)
 
     if len(predictors) != nbr_predictors:
         # for details here: see compute_weights
@@ -817,11 +912,11 @@ def compute_weights(response: str | Band,
                     block_size: Union[dict[str, tuple[int, int]], tuple[int, int]],
                     include_intercept: bool = True,
                     as_dtype=np.float64,
-                    limit_contribution:float=0.0,
-                    no_data: Union[int,float]=0.0,
-                    sanitize_predictors:bool=False,
-                    return_linear_dependent_predictors:bool=False,
-                    verbose:bool=False,
+                    limit_contribution: float = 0.0,
+                    no_data: Union[int, float] = 0.0,
+                    sanitize_predictors: bool = False,
+                    return_linear_dependent_predictors: bool = False,
+                    verbose: bool = False,
                     **params
                     ) -> dict[Band, float] | dict[Band, str] | None:
     # is_needed
@@ -913,13 +1008,13 @@ def compute_weights(response: str | Band,
 
     print("Check consistency of remaining predictor data...")
     nbr_predictors = len(predictors)
-    predictors = check_predictor_consistency(predictors,
-                                             selector=selector,
-                                             tolerance=limit_contribution,
-                                             sanitize=sanitize_predictors,
-                                             no_data=no_data,
-                                             verbose=verbose,
-                                             **params)
+    predictors = _check_predictor_consistency(predictors,
+                                              selector=selector,
+                                              tolerance=limit_contribution,
+                                              sanitize=sanitize_predictors,
+                                              no_data=no_data,
+                                              verbose=verbose,
+                                              **params)
     # TODO: I think this is irrelevant
     #  (tested if selector above & below are equal - they are if no Source has been removed (think of mask)
     if len(predictors) != nbr_predictors:
@@ -938,7 +1033,7 @@ def compute_weights(response: str | Band,
             extra_masking_band=extra_masking_band,
             **params
         )
-        # NOTE: We do not need to check_predictor_consistency again sine
+        # NOTE: We do not need to _check_predictor_consistency again sine
         #       removing the predictor leads to at least the same valid
         #       pixels, if not more.
 
@@ -1082,7 +1177,7 @@ def calculate_rmse(response: str | Band,
     """
 
     if not isinstance(response, Band):
-        response = Band(source=Source(path=response),bidx=1)
+        response = Band(source=Source(path=response), bidx=1)
     if not isinstance(model, Band):
         model = Band(source=Source(path=model), bidx=1)
 
@@ -1102,9 +1197,8 @@ def calculate_rmse(response: str | Band,
         bparams = dict(view=view,
                        response=response,
                        selector=selector,
-                       model=model,)
+                       model=model, )
         block_params.append(bparams)
-
 
     manager = Manager()
     ssr_parts = manager.list()
@@ -1178,7 +1272,7 @@ def calculate_r2(response: str | Band,
     """
 
     if not isinstance(response, Band):
-        response = Band(source=Source(path=response),bidx=1)
+        response = Band(source=Source(path=response), bidx=1)
     if not isinstance(model, Band):
         model = Band(source=Source(path=model), bidx=1)
 
