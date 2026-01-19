@@ -7,7 +7,7 @@ authors = [
 dynamic = ["version", "dependencies", "optional-dependencies"]
 description = "Package to compute diversity measures in land cover type (LCT) maps"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -25,7 +25,13 @@ file = ["docs/requirements.txt"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["convster", "riogrande", "linfit", "convster.filters"]
+include = [
+  "riogrande",
+  "riogrande.io",
+  "convster",
+  "convster.filters",
+  "linfit",
+]
 exclude = ["tests*"]
 
 [project.urls]
@@ -50,9 +56,10 @@ build-backend = "setuptools.build_meta"
 relative_files = true
 source = [
     "src/riogrande",
+    "src/riogrande/io",
     "src/convster",
     "src/convster/filters",
-    "src/linfit"
+    "src/linfit",
 ]
 omit = [
   "tests",
@@ -61,6 +68,7 @@ omit = [
 [tool.coverage.paths]
 source = [
   "src/riogrande/", 
+  "src/riogrande/io", 
   "src/convster/",
   "src/convster/filters",
   "src/linfit/", 

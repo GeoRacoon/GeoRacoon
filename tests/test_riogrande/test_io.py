@@ -5,13 +5,12 @@ import numpy as np
 
 from .conftest import ALL_MAPS, get_example_data, get_file
 
-from riogrande.exceptions import (
+from riogrande.io.exceptions import (
     BandSelectionAmbiguousError,
     BandSelectionNoMatchError
 )
-from riogrande.helper import check_compatibility
+from riogrande.helper import check_compatibility, output_filename
 from riogrande import io as rgio
-from riogrande import io_ as rgio_
 
 
 def test_load_block():
@@ -34,7 +33,7 @@ def test_resampling(datafiles):
     with pytest.raises(TypeError):
         check_compatibility(ndvi_map, landcover_map)
     # re-sample the landcover_map to match the resolution of the ndvi_map
-    rgio._coregister_raster(landcover_map, ndvi_map, output=str(landcover_map))
+    rgio.coregister_raster(landcover_map, ndvi_map, output=str(landcover_map))
     # now check that the shape of the data actually matches
     with rio.open(ndvi_map, 'r') as src:
         # get the shape and the projection
@@ -230,7 +229,7 @@ def test_compression_tagging(datafiles):
         ds_tag='test'
     )
     for file in test_data:
-        orig_file_tagged = rgio.output_filename(file, "orig_tagged")
+        orig_file_tagged = output_filename(file, "orig_tagged")
         # create file copy with tags
         target = {}
         with rio.open(file) as src:
@@ -241,7 +240,7 @@ def test_compression_tagging(datafiles):
                     dst.write(src.read(bidx), bidx)
                     rgio._set_tags(dst, bidx, category=np.random.randint(low=0, high=255))
                     target[bidx] = rgio._get_tags(src=dst, bidx=bidx)
-        file_tagged = rgio.output_filename(file, "tagged")
+        file_tagged = output_filename(file, "tagged")
         # uncompress it
         file_tagged = rgio.compress_tif(orig_file_tagged, compression=None)
 
@@ -267,7 +266,7 @@ def test_band_count_contrib(datafiles):
         get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     )
     for test_file in test_data:
-        band = rgio_.Band(source=rgio_.Source(path=test_file), bidx=1)
+        band = rgio.Band(source=rgio.Source(path=test_file), bidx=1)
         valids = band.count_valid_pixels(selector=None, no_data=0)
         print(f"{valids=}")
         assert isinstance(valids, int)

@@ -4,10 +4,9 @@ import glob
 
 from riogrande import parallel as rgpara
 from riogrande.helper import get_or_set_context
-from riogrande.io_ import Source
+from riogrande.io import Source
 
-from convster.prepare import get_blur_params
-from convster.filters.gaussian import gaussian
+from convster.filters.gaussian import gaussian, get_blur_params
 from convster import parallel as cspara
 
 FIXTURE_DIR = os.path.abspath(os.path.join(
@@ -16,19 +15,20 @@ FIXTURE_DIR = os.path.abspath(os.path.join(
     'data'
 ))
 lct_map = os.path.join(FIXTURE_DIR, 'testing', 'landcover',
-                 'Switzerland_CLC_2012_reclass8.tif')
+                       'Switzerland_CLC_2012_reclass8.tif')
 lct_float_map = os.path.join(FIXTURE_DIR, 'testing', 'landcover',
-                 'Switzerland_area_frac_grid_1km_CGLS_2015.tif')
+                             'Switzerland_area_frac_grid_1km_CGLS_2015.tif')
 landiv_map = os.path.join(FIXTURE_DIR, 'testing', 'ndvi',
-                 'Switzerland_NDVI_binning_2015.tif')
+                          'Switzerland_NDVI_binning_2015.tif')
 
 ALL_MAPS = pytest.mark.datafiles(lct_map, lct_float_map, landiv_map)
 
 
-def get_file(pattern:str, datafiles):
+def get_file(pattern: str, datafiles):
     matching_files = list(glob.glob(os.path.join(str(datafiles), pattern)))
     if len(matching_files) != 1:
-        raise ValueError(f"Found multiple files matching this {pattern=}:\n{matching_files}")
+        raise ValueError(f"Found multiple files matching this {pattern=}:\n"
+                         f"{matching_files}")
     return matching_files[0]
 
 
@@ -42,7 +42,8 @@ def create_blurred_tif(datafiles):
     """Create blurred single land-cover type layers in uint8 format
     """
     as_dtype = 'uint8'
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    landcover_map = get_file(
+        pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     lct_source = Source(path=landcover_map)
     # ###
@@ -58,17 +59,17 @@ def create_blurred_tif(datafiles):
     _ = filter_params.pop('diameter')
     blurred_tif = cspara.extract_categories(
         source=lct_source,
-        categories=[1,3,4,5,6],
+        categories=[1, 3, 4, 5, 6],
         output_file=blur_out,
         img_filter=gaussian,
         filter_params=filter_params,
-        filter_output_range=(0,1),
+        filter_output_range=(0, 1),
         output_params=dict(
             as_dtype=as_dtype,
         ),
         block_size=(500, 500),
-        compress = True,
-        verbose = True,
+        compress=True,
+        verbose=True,
     )
     blurr_source = Source(path=blurred_tif)
     # compute the mask
@@ -77,11 +78,13 @@ def create_blurred_tif(datafiles):
     # ###
     return blurred_tif
 
+
 @pytest.fixture(scope="function")  # is function scope since datafiles is too
 def create_blurred_tif_float(datafiles):
     """Create blurred single land-cover type layers as float rescaled to [0, 1]
     """
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    landcover_map = get_file(
+        pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     lct_source = Source(path=landcover_map)
     # ###
@@ -97,17 +100,17 @@ def create_blurred_tif_float(datafiles):
     _ = filter_params.pop('diameter')
     blurred_tif = cspara.extract_categories(
         source=lct_source,
-        categories=[1,3,4,5,6],
+        categories=[1, 3, 4, 5, 6],
         output_file=blur_out,
         img_filter=gaussian,
         filter_params=filter_params,
-        filter_output_range=(0,1),
+        filter_output_range=(0, 1),
         output_params=dict(
             as_dtype='float64',
             output_range=(0, 1),
         ),
         block_size=(500, 500),
-        compress = True,
+        compress=True,
     )
     blurr_source = Source(path=blurred_tif)
     # compute the mask
