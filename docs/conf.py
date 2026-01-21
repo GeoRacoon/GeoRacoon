@@ -1,10 +1,6 @@
 import os
 import sys
 from importlib.metadata import version as get_version
-sys.path.insert(0, os.path.abspath('../'))
-sys.path.insert(0, os.path.abspath('../src/riogrande'))
-sys.path.insert(0, os.path.abspath('../src/convster'))
-sys.path.insert(0, os.path.abspath('../src/linfit'))
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
@@ -27,10 +23,11 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
+    "autoapi.extension",
 #    'ablog',
 #    'sphinx_design',
-#     'cloud_sptheme.ext.relbar_links',
-#     'cloud_sptheme.ext.index_styling'
+#    'cloud_sptheme.ext.relbar_links',
+#    'cloud_sptheme.ext.index_styling'
 ]
 
 # Napoleon autodoc settings
@@ -81,4 +78,21 @@ myst_enable_extensions = [
     # "replacements",
     # "linkify",
     # "substitution",
+]
+
+# -- AutoApi Extension config -------------------------------------------------
+autoapi_dirs = ["../src/", ]
+autoapi_member_order = "groupwise"
+autoapi_python_class_contnet = "both"  # use both class and __init__( docstring
+autoapi_options = [
+    "members",
+    "undoc-members",
+    "special-members",
+    "imported-members",
+    # "private-members",
+    "show-inheritance",
+    "show-module-summary",
+]
+autoapi_ignore = [
+    "landiv_blur/**",
 ]
