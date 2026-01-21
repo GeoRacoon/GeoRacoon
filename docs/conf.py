@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.abspath('../src/linfit'))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'GeoRacoon'
-copyright = '2025, GeoRacoon'
+copyright = '2025, Simon Landauer, Jonas I. Liechti'
 author = 'Simon Landauer, Jonas I. Liechti'
 
 master_doc = 'index'
