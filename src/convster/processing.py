@@ -1038,9 +1038,6 @@ def view_interaction(category_arrays: dict[int, NDArray],
     return dict(data=interaction_array, view=view)
 
 
-# TODO -----------------------------------------------
-
-
 def get_entropy_view(source: str,
                      view: tuple[int, int, int, int],
                      inner_view: tuple[int, int, int, int],
