@@ -24,10 +24,10 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
     "autoapi.extension",
-#    'ablog',
-#    'sphinx_design',
-#    'cloud_sptheme.ext.relbar_links',
-#    'cloud_sptheme.ext.index_styling'
+    #    'ablog',
+    #    'sphinx_design',
+    #    'cloud_sptheme.ext.relbar_links',
+    #    'cloud_sptheme.ext.index_styling'
 ]
 
 # Napoleon autodoc settings
@@ -47,7 +47,7 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 html_theme = 'pydata_sphinx_theme'
-#html_theme = 'sphinx_book_theme'
+# html_theme = 'sphinx_book_theme'
 # html_css_files = ["custom.css"]
 # html_logo = '_static/<logo>.png'
 html_title = 'GeoRacoon'
@@ -59,10 +59,10 @@ html_theme_options = {
     "secondary_sidebar_items": ["page-toc", "edit-this-page", "sourcelink"],
     "footer_start": ["copyright", "sphinx-version"],
     # 'repository_url': 'https://...',
-#    "home_page_in_toc": True,
-#    "show_toc_level": 2,
-#    'use_repository_button': True,
-#    "use_sidenotes": True,
+    #    "home_page_in_toc": True,
+    #    "show_toc_level": 2,
+    #    'use_repository_button': True,
+    #    "use_sidenotes": True,
 }
 
 
