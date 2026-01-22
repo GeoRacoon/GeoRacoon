@@ -31,6 +31,23 @@ _GeoRacoon_ provides 3 packages, `riogrande`, `convster` and `linfit` (working t
 
 ## Installation
 
+GeoRacoon can be installed directly from GitHub into your virtual environment.
+Simply run:
+
+```
+pip install git+https://github.com/ReoRacoon/georacoon.git
+```
+
+<details>
+<summary><b>Local install</b></summary>
+
+Alternatively, you can clone the repository and install the package from your
+local copy.
+This might be the desired strategy if you intend to work on the source code, in
+which case you can replace `install` by `install -e` and modify the files
+in-place.
+
+
 To install:
 1. Clone this repository
 1. `cd` into the repository
@@ -46,6 +63,7 @@ On Windows:
 ```sh
 PS> python -m pip install .
 ```
+</details>
 
 _Note:_
 _This package relies on [rasterio](https://rasterio.readthedocs.io/en/latest/index.html)_
