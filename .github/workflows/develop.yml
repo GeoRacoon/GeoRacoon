@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        pythonV : [3.10, 3.11, 3.12, 3.13, 3.14]
+        pythonV : ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
     - uses: actions/checkout@v5
       with:
