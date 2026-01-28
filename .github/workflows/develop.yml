@@ -46,7 +46,7 @@ jobs:
     # NOTE: we report the coverage only for the oldest python version supported
     - name: Store coverage file
       # if: always()
-      if: matrix.pythonV == "3.10"
+      if: matrix.pythonV == '3.10'
       uses: actions/upload-artifact@v4
       with:
         name: coverage-unittests
