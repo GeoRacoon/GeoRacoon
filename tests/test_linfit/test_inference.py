@@ -1,16 +1,16 @@
 import numpy as np
 import rasterio as rio
+from rasterio.windows import Window
+
 from numpy.random import Generator, PCG64
 
 from pydataset import data as pydata
 
 from riogrande import helper as rghelp
-
 from riogrande.io import Source, Band, coregister_raster
 from riogrande import parallel as rgpara
 
 from linfit import inference as lfinf
-from linfit import parallel as lfpara
 
 from .conftest import (
     ALL_MAPS,
@@ -18,6 +18,42 @@ from .conftest import (
     create_blurred_tif,
     set_mpc_strategy,
 )
+
+
+@ALL_MAPS
+def test_enrich_selector(datafiles, create_blurred_tif):
+    """Test selector enrichment produces expected mask pattern"""
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    ndvi_coregistered = str(datafiles / 'ndvi_coreged.tif')
+    coregister_raster(ndvi_map, landcover_map, output=ndvi_coregistered)
+
+    with rio.open(ndvi_coregistered, 'r+') as src:
+        data = src.read(indexes=1)
+        mask = np.where(np.isnan(data), 0, 255)
+        src.write_mask(mask)
+
+    # Create predictors from blurred source
+    blurred_source = Source(path=create_blurred_tif)
+    predictors = blurred_source.get_bands()
+
+    for pred in predictors:
+        pred.set_mask_reader(use='source')
+
+    response_band = Band(source=Source(path=ndvi_coregistered), bidx=1)
+    response_band.set_mask_reader(use='source')
+
+    response_mask_reader = response_band.get_mask_reader()
+    with response_mask_reader() as read_mask:
+        response_mask = read_mask()
+
+    initial_selector = lfinf._to_numpy_selector(response_mask)
+
+    # Enrich selector with predictors
+    enriched_selector = lfinf._enrich_selector(initial_selector, *predictors)
+    # print(np.sum(enriched_selector), np.sum(initial_selector))
+    assert np.sum(enriched_selector) <= np.sum(initial_selector)
+    assert enriched_selector.shape == initial_selector.shape
 
 
 @ALL_MAPS
@@ -297,6 +333,71 @@ def test_transposed_prod_blurred_example_data(datafiles, create_blurred_tif):
     # now the same but with parallel processing
 
     # np.testing.assert_array_equal(tpX, transprodX)
+
+@ALL_MAPS
+def test_partial_response(datafiles):
+    """Test `partial_response` with synthetic raster data and selector"""
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    band = Band(source=Source(path=str(landcover_map)), bidx=1)
+    data = band.get_data()
+
+    # Create a selector masking even numbers
+    selector = (data % 2 == 0)
+
+    # No window
+    result = lfinf.partial_response(band, window=None, selector=selector)
+    expected = data[selector]
+    np.testing.assert_array_equal(result, expected)
+
+    # With a window: select center 3x3
+    window = Window(col_off=1, row_off=1, width=3, height=3)
+    result_win = lfinf.partial_response(band, window=window, selector=selector)
+    expected_win = data[1:4, 1:4][selector[1:4, 1:4]]
+    np.testing.assert_array_equal(result_win, expected_win)
+
+
+@ALL_MAPS
+def test_partial_X_synthetic(datafiles):
+    """Test `partial_X` builds the predictor matrix correctly"""
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+
+    # scale it down to 100x100m (from 30x30)
+    ndvi_map = str(datafiles / 'lct_coreged.tif')
+    coregister_raster(_ndvi_map, landcover_map, output=str(ndvi_map))
+
+    band1 = Band(source=Source(path=landcover_map), bidx=1)
+    band2 = Band(source=Source(path=ndvi_map), bidx=1)
+    data1 = band1.get_data()
+    data2 = band2.get_data()
+
+    predictors = [band1, band2]
+
+    if data1.shape != data2.shape:
+        raise ValueError(f"Predictor shapes do not match: {data1.shape} vs {data2.shape}")
+
+    # Create a selector with the same shape
+    rng = np.random.default_rng(seed=42)
+    selector = rng.random(data1.shape) > 0.2  # one fifth true (20%)
+
+    # Build matrix without intercept
+    X = lfinf.partial_X(predictors, window=None, selector=selector,
+                        include_intercept=False, as_dtype=np.float32)
+
+    # Check shape: number of rows = number of True in selector
+    assert X.shape[0] == np.sum(selector)
+    assert X.shape[1] == len(predictors)
+
+    # Check first column matches flattened selected values from band1
+    np.testing.assert_array_equal(X[:, 0], data1[selector])
+    np.testing.assert_array_equal(X[:, 1], data2[selector])
+
+    # Now with intercept
+    X_int = lfinf.partial_X(predictors, window=None, selector=selector,
+                            include_intercept=True, as_dtype=np.float32)
+    assert X_int.shape[1] == len(predictors) + 1
+    # Last column should be ones
+    np.testing.assert_array_equal(X_int[:, -1], np.ones(np.sum(selector), dtype=np.float32))
 
 
 @ALL_MAPS

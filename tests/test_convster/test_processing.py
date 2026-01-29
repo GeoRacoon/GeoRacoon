@@ -27,7 +27,7 @@ from .conftest import (
 
 
 def test_select_category():
-    """Filter an matrix of integers for a specific value
+    """Filter a matrix of integers for a specific value
     """
     # Create a random matrix with integers in [1, 8]
     rand_map = np.random.randint(8, size=(100, 200)) + 1
@@ -232,7 +232,7 @@ def test_entropy_normalization_conversion(datafiles):
     print(f'{max_entropy=}')
 
     with pytest.warns(expected_warning=UserWarning, match='bounded'):
-        # without normalization we cannot set the output_range (as we have not
+        # without a normalization we cannot set the output_range (as we have not
         # fixed input range > unbounded).
         entropy_data = csproc.get_entropy(data=data,
                                           categories=categories,

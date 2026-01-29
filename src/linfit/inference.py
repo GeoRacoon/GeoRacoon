@@ -34,60 +34,58 @@ from .helper import (
 )
 
 
-def to_numpy_selector(rasterio_mask: NDArray) -> NDArray:
-    # TODO: is_needed - no_work - not_tested - usedin_both
-    """Converts rasterio mask (e.g. `read_masks(band)`) into a `numpy.bool_'
+def _to_numpy_selector(rasterio_mask: NDArray) -> NDArray:
+    """
+    Convert rasterio mask to a boolean selector array.
 
-    ..Note::
-        The returned array is an inverted mask in the sense that a cell that
-        should be used will have the value `True` and a cell that should not
-        be used is `False`.
+    Converts a rasterio mask (e.g., from `read_masks(band)`) into a boolean
+    numpy array suitable for indexing. The returned array is an inverted mask
+    where `True` indicates usable cells and `False` indicates masked cells.
 
     Parameters
     ----------
-    rasterio_mask:
-      Output of a mask as returned by `rasterio.io.DatasetReader.read_masks`
+    rasterio_mask : ndarray
+        Mask array as returned by `rasterio.io.DatasetReader.read_masks`.
+        Non-zero values indicate valid data; zero values indicate masked data.
 
     Returns
     -------
-    np.array:
-        A 2D array of np.bool_ values indicating what cell can be used.
+    ndarray of bool
+        Boolean array with the same shape as `rasterio_mask`. `True` values
+        indicate cells that can be used; `False` values indicate cells that
+        should be excluded.
     """
-    # is_needed
-    # needs_work (make internal)
-    # not_tested (no need)
-    # usedin_linfit
     return np.where(rasterio_mask != 0, True, False)
 
 
-def enrich_selector(selector: NDArray,
-                    *predictors: Band,
-                    verbose: bool = False) -> NDArray:
-    # TODO: is_needed - no_work - not_tested - usedin_linfit
-    """Complete the selector with the masks extracted from the pridictors
+def _enrich_selector(selector: NDArray, *predictors: Band, verbose: bool = False) -> NDArray:
+    """Refine selector array by combining masks from predictor bands.
+
+    Updates the input selector by applying logical AND operations with masks
+    extracted from each predictor band. This ensures only cells that are valid
+    across all predictors are selected.
 
     Parameters
     ----------
-    selector: np.array
-        a `np.bool_` array to select usable cells in a numpy 2D array
-    *predictors:
-      An arbitrary number of `.io.Band` objects each specifying one or
-      several predictors.
-
-      See `prepare_predictors` for more details.
-
-    verbose: Default: False
-      If the method should print runtime info
+    selector : ndarray of bool
+        Boolean array indicating usable cells in a 2D raster. `True` values
+        indicate cells that can be used; `False` values indicate cells that
+        should be excluded.
+    *predictors : Band
+        Variable number of `.io_.Band` objects, each specifying one or more
+        predictor variables. Bands sharing the same mask reader are grouped
+        together for efficiency. See `prepare_predictors` for more details.
+    verbose : bool, optional
+        If True, print runtime information including predictor names, mask
+        readers, and usable pixel counts. Default is False.
 
     Returns
     -------
-    np.array:
-        A 2D array of np.bool_ values indicating what cell can be used.
+    ndarray of bool
+        Boolean array with the same shape as `selector`. Contains the logical
+        AND of the input selector and all predictor masks, indicating cells
+        that are valid across all inputs.
     """
-    # is_needed
-    # needs_work (test, make internal)
-    # not_tested
-    # usedin_linfit
     aggr_selector = np.copy(selector)
     pred_mask_readers = dict()
     for predictor in predictors:
@@ -97,11 +95,12 @@ def enrich_selector(selector: NDArray,
         else:
             pred_mask_readers[pred_mask_reader] = [predictor, ]
     # print(f"{pred_mask_readers=}")
+
     for mask_reader in pred_mask_readers:
         with mask_reader() as read_mask:
             _pred_mask = read_mask()
             all_pixels = mul(*_pred_mask.shape)
-        pred_selector = to_numpy_selector(_pred_mask)
+        pred_selector = _to_numpy_selector(_pred_mask)
         if verbose:
             data_pixels = usable_pixels_count(pred_selector)
             print("##########")
@@ -113,35 +112,46 @@ def enrich_selector(selector: NDArray,
     return aggr_selector
 
 
-def prepare_selector(response: str | Band,
-                     *predictors: Band,
-                     extra_masking_band: Band | None = None,
+def prepare_selector(response: str | Band, *predictors: Band, extra_masking_band: Band | None = None,
                      verbose=False) -> NDArray:
-    # TODO: is_needed - no_work - is_tested - usedin_linfit
-    """Creates a boolean selector based on the masks of response and predictors
+    """
+    Create a boolean selector based on the masks of response and predictors.
 
-    The selector is a np.array of type np.bool_ indicating which well can be
-    used (`True`) and which cannot (`False`)
+    The selector is a boolean array indicating which pixels can be used (True)
+    and which cannot (False) based on the combined masks of all input bands.
 
     Parameters
     ----------
-    _See `prepare_predictors` for a detailed description description._
-
-    response:
-      A `.io.Band` object describing the response data.
-    *predictors:
-      An arbitrary number of `io.Band` objects each specifying one or several
-      predictors.
-    extra_masking_band: Optional `io.Band` object that is treated as a rasterio mask, i.e. values equal to 0
-      will be masked.
-    verbose: Default: False
-      If the method should print runtime info
+    response : str or Band
+        A Band object or path string describing the response data. If a string
+        is provided, it will be converted to a Band object with bidx=1.
+    *predictors : Band
+        Variable number of Band objects, each specifying one or more predictor
+        variables. Their masks will be combined with the response mask.
+    extra_masking_band : Band, optional
+        Additional Band object treated as a rasterio mask, where values equal
+        to 0 will be masked out. Default is None.
+    verbose : bool, optional
+        If True, prints runtime information about usable pixels at each masking
+        stage. Default is False.
 
     Returns
     -------
-    np.array
-      Boolean array of the same shape as `response`
+    ndarray of bool
+        Boolean array of the same shape as the response band, where True
+        indicates usable pixels and False indicates masked pixels.
 
+    Notes
+    -----
+    The selector combines masks using logical AND operations, meaning a pixel
+    is only usable (True) if it is valid across all input bands.
+
+    The mask reader can be configured using `response.set_mask_reader(use='band'/'source')`.
+
+    Examples
+    --------
+    >>> selector = prepare_selector(response_band, predictor1, predictor2, verbose=True)
+    >>> valid_data = response_data[selector]
     """
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
@@ -154,14 +164,14 @@ def prepare_selector(response: str | Band,
     src_width = src_profile["width"]
     src_height = src_profile["height"]
     all_pixels = src_width * src_height
-    selector = to_numpy_selector(mask)
+    selector = _to_numpy_selector(mask)
     if verbose:
         print("\nResponse data:")
         data_pixels = usable_pixels_count(selector)
         usable_pixels_info(all_pixels, data_pixels)
     # now handle the extra mask band
     if extra_masking_band is not None:
-        extra_selector = to_numpy_selector(extra_masking_band.get_data())
+        extra_selector = _to_numpy_selector(extra_masking_band.get_data())
         # combine with logical and, as only both True should lea to True
         selector = np.logical_and(selector, extra_selector)
         if verbose:
@@ -170,7 +180,7 @@ def prepare_selector(response: str | Band,
             usable_pixels_info(all_pixels, data_pixels)
 
     # first we get all the masks to compute an overall mask
-    aggr_selector = enrich_selector(selector, *predictors, verbose=verbose)
+    aggr_selector = _enrich_selector(selector, *predictors, verbose=verbose)
 
     data_pixels = usable_pixels_count(aggr_selector)
     if verbose:
@@ -180,34 +190,49 @@ def prepare_selector(response: str | Band,
     return aggr_selector
 
 
-def init_X(predictors: Collection[Band],
-           selector: NDArray,
-           window: Window | None,
-           include_intercept: bool,
-           as_dtype: type | str) -> NDArray:
-    # TODO: is_needed - no_work - is_tested - usedin_linfit
-    """Initiates the matrix X with the appropriate width and height
+def init_X(predictors: Collection[Band], selector: NDArray, window: Window | None,
+           include_intercept: bool, as_dtype: type | str) -> NDArray:
+    """
+    Initialize the predictor matrix X with appropriate dimensions.
+
+    Creates an empty predictor matrix with rows corresponding to usable pixels
+    (as determined by the selector) and columns for each predictor band, plus
+    an optional intercept column.
 
     Parameters
     ----------
-    predictors:
-      Collection of `io.Band` objects each specifying one or several predictors.
-    selector: np.array
-        a `np.bool_` array to select usable cells in a numpy 2D array
-    window:
-      Limits the data array to a specific window. The window is converted to a
-      `slice` with `window.toslices()`.
+    predictors : Collection of Band
+        Collection of Band objects, each specifying one or more predictor
+        variables. The number of predictors determines the number of columns
+        in the output matrix (excluding the intercept).
+    selector : ndarray of bool
+        Boolean array to select usable cells. Only pixels where selector is
+        True will be included in the matrix rows.
+    window : Window or None
+        Limits the data array to a specific spatial window. If provided, the
+        window is converted to slices using `window.toslices()`. If None, the
+        entire selector array is used.
+    include_intercept : bool
+        If True, adds an extra column of ones at the end of the matrix for
+        fitting intercept terms in regression models.
+    as_dtype : type or str
+        Data type for the output array. Can be a numpy dtype or string
+        specification (e.g., 'float64', np.float32).
 
-      ..Note::
-        The intended purpose of this argument is to allow to process only parts
-        of the predictors in the case of a parallelized approach.
+    Returns
+    -------
+    ndarray
+        Zero-initialized array of shape (n_rows, n_cols) where:
+        - n_rows is the count of usable pixels in the (windowed) selector
+        - n_cols is len(predictors) + 1 if include_intercept else len(predictors)
 
-        See `.parallel.partial_optimal_betas` and `get_optimal_weights_source`
-        for further details
+    Notes
+    -----
+    The `window` parameter is intended for parallelized processing where
+    different processes handle different spatial subsets of the data.
 
-    include_intercept:
-      Determine if the predictor matrix should also contain an extra column of
-      1's at the end, which is needed if also the intercepts should be fitted.
+    If the window slicing results in an IndexError (e.g., window is completely
+    outside the selector bounds), the function returns an array with 0 rows.
     """
     if window is not None:
         partial = window.toslices()
@@ -224,42 +249,43 @@ def init_X(predictors: Collection[Band],
     return np.zeros((nbr_rows, nbr_cols), dtype=np.dtype(as_dtype))
 
 
-def populate_X(X: NDArray,
-               predictors: Collection[Band],
-               as_dtype: type | str,
-               window: Window | None,
-               selector: NDArray,
-               include_intercept: bool):
-    # TODO: is_needed - no_work - is_tested - usedin_linfit
-    """Adds column per predictor with selector applied in the window view
+def populate_X(X: NDArray, predictors: Collection[Band], as_dtype: type | str,
+               window: Window | None, selector: NDArray, include_intercept: bool):
+    """
+    Populate predictor matrix X with data from predictor bands.
 
-    ...Note::
-      $X$ is updated in place.
+    Reads data from each predictor band, applies the selector mask within the
+    specified window, and fills the columns of matrix X. Optionally adds an intercept
+    column of ones.
 
     Parameters
     ----------
-    X:
-      Initiated np.NDArray which will hold the data of each predictor in a
-      separate column.
-    predictors:
-      An arbitrary number of `io.Band` objects each specifying a predictor
-    predictor_datas:
-      List of arrays each being used as a predictor
-    selector: np.array
-        a `np.bool_` array to select usable cells in a numpy 2D array
-    window:
-      Limits the data array to a specific window. The window is converted to a
-      `slice` with `window.toslices()`.
+    X : ndarray
+        Pre-initialized array to be populated with predictor data. Modified
+        in-place. Should have shape (n_usable_pixels, n_predictors) or
+        (n_usable_pixels, n_predictors + 1) if include_intercept is True.
+    predictors : Collection of Band
+        Collection of Band objects, each specifying one predictor variable.
+        Data from each band will be read and placed in the corresponding
+        column of X.
+    as_dtype : type or str
+        Target data type for predictor values. Data will be converted to this
+        type without rescaling (in_range and out_range are None).
+    window : Window or None
+        Limits data reading to a specific spatial window. If provided, the
+        window is converted to slices using `window.toslices()`. If None,
+        the entire data array is used.
+    selector : ndarray of bool
+        Boolean array to select usable pixels. Applied after windowing to
+        extract only valid data points for the predictor matrix.
+    include_intercept : bool
+        If True, the last column of X is filled with ones to represent the
+        intercept term in regression models.
 
-      ..Note::
-        The intended purpose of this argument is to allow to process only parts
-        of the predictors in the case of a parallelized approach.
-
-        See `.parallel.partial_optimal_betas` and `get_optimal_weights_source`
-        for further details
-    include_intercept:
-      Determine if the predictor matrix should also contain an extra column of
-      1's at the end, which is needed if also the intercepts should be fitted.
+    Returns
+    -------
+    None
+        X is modified in-place.
     """
     # Create a window
     if window is not None:
@@ -283,99 +309,73 @@ def populate_X(X: NDArray,
         X[:, -1] = 1.0
 
 
-def prepare_predictors(response: str | Band,
-                       *predictors: Band | str,
-                       view: tuple[int, int, int, int] | None = None,
-                       include_intercept=True,
-                       verbose: bool = False):
-    # TODO: is_needed - no_work - is_tested - usedin_linfit
-    r"""Generates and returns the parameters for a multiple linear regression
+def prepare_predictors(response: str | Band, *predictors: Band | str, view: tuple[int, int, int, int] | None = None,
+                       include_intercept=True, verbose: bool = False):
+    r"""
+    Generate the predictor matrix and response vector for multiple linear regression.
 
-    The parameters returned are $X$ and $\vec{y}$ from the multiple linear
-    regression:
+    This function constructs the predictor matrix ``X`` and the response vector
+    ``y`` used in a multiple linear regression model of the form
 
-        $$\vec{y} = X\vec{\beta} + \vec{\epsilon}$$
+    .. math::
 
-    Where $\vec{y}$ represents the response data and $X$ the predictor matrix.
+       \\mathbf{y} = X\\boldsymbol{\\beta} + \\boldsymbol{\\epsilon}
 
-    This method uses the response data as reference to filter the predictors.
-    It does so by extracting the mask (i.e. `nodata` value or an 8bit mask)
-    from the response tif and applying it to each of the predictors.
+    where ``y`` represents the response data and ``X`` the predictor matrix.
 
-    Since some of the predictor data might also have missing values, we
-    iterate once over all predictor data and add pixels with missing values
-    to the mask.
-    In doing so we avoid including pixels with incomplete information into the
-    regression analysis.
+    The response data are used as a reference to determine valid pixels. A mask
+    is extracted from the response (e.g., nodata values or an 8-bit mask) and
+    applied to all predictors. Predictor-specific missing values are also added
+    to the mask, ensuring that only pixels with complete information across all
+    variables are included in the regression.
 
-    In doing so we can reduce the amount of pixel to include in the multiple
-    linear regression analysis, therefore, reducing the size of the response
-    vector, leading to a denser but smaller predictor matrix.
+    This masking procedure reduces the number of pixels used in the analysis,
+    yielding a smaller but denser predictor matrix.
 
-    .. note::
+    Notes
+    -----
+    An ``InferenceError`` is raised if an invalid predictor is detected.
+    A predictor is considered invalid in the following cases:
 
-      This function returns an InferenceError if some predictor is invalid.
+    * After masking, the predictor contains only zeros.
+    * The predictor represents categorical data where all selected pixels
+     belong to a category and ``include_intercept`` is ``True``.
 
-      An invalid predictor can happen if it is a linear combination of the
-      other predictors.
-
-      We do not perform a systematic test for that but check the following
-      cases:
-
-      - If a predictor, after applying the final selector, contains only 0's
-      - If a predictor consists of categorical data (i.e. a 2D array that
-        categorizes each pixel) with each selected pixel always belonging
-        to a category (i.e. no unselected categories or unselected are masked
-        - see details for `predictors` argument) and `include_intercept` is
-        set to True.
+    No general test for linear dependence between predictors is performed.
 
     Parameters
     ----------
-    response:
-      Either a `io.Band` object or a string that specifies the path to a map
-      (.tif file) that holds the response data.
+    response : str or Band
+       Response variable. Either a ``Band`` object or a string specifying the
+       path to a raster file (``.tif``) containing the response data.
 
-      .. note::
+       If a string is provided, the raster must contain exactly one band.
+    *predictors : Band or str
+       One or more predictors specified as ``Band`` objects or file paths.
 
-        If a string is provided then the response must be stored in a single
-        band.
+       If a string is provided, it is interpreted as the path to a raster file
+       and **all bands** in that file are added as individual predictors.
 
-    *predictors:
-      An arbitrary number of either `io.Band` objects or strings specifying one
-      or several predictors.
+       Predictor data are cast to the same data type as the response. No
+       rescaling is performed.
+    view : tuple of int, optional
+       Spatial subset of the data specified as ``(x, y, width, height)``.
+       If not provided, the entire response raster is used.
+    include_intercept : bool, default=True
+       If ``True``, an additional column of ones is appended to the predictor
+       matrix to model an intercept term.
+    verbose : bool, default=False
+       If ``True``, print processing information.
 
-      If a string is provided then it is treated as the path to a `tif` file
-      and **all** bands in the file are added as individual predictor each.
-
-      .. warning::
-
-        Predictor data is converted to the same data type as the response
-        before fitting.
-        However, **no rescaling is performed**.
-
-        Thus with a response of type `float` and a predictor of type 'uint8'
-        the `uint8` values are simple converted to floats (e.g. 255 > 255.0)
-
-        **Rescaling the predictor data must be done separately beforehand!**
-
-    view:
-      An optional tuple (x, y, width, height) defining the view of the predictors
-      and response data to consider.
-      If not provided then the entire response map is used.
-    include_intercept:
-      Determine if the predictor matrix should also contain an extra column of
-      1's at the end, which is needed if also the intercepts should be fitted.
-    verbose:
-        Print out processing steps
-
-    Return
-    ------
-    np.array:
-        2D array with the width of the total number of predictors (+1 if the
-        intercept is fitted as well) and the height being equal to the number
-        of data pixels with valid data.
+    Returns
+    -------
+    X : ndarray of shape (n_samples, n_features)
+       Predictor matrix. The number of features corresponds to the total number
+       of predictors, plus one if ``include_intercept`` is ``True``.
+    y : ndarray of shape (n_samples,)
+       Response vector containing the response values corresponding to the
+       selected pixels.
     """
-    # make sure response is a band
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
                         bidx=1)
@@ -401,14 +401,6 @@ def prepare_predictors(response: str | Band,
     # extract the mask from response and enrich it with masks from predictors
     aggr_selector = prepare_selector(response, *_predictors, verbose=verbose)
 
-    # NOTE: check_predictors is useless if we do not compute the bands for
-    #       categorical data on the fly. This is because the check simply
-    #       relies on the selection criterion of the bands to use and not
-    #       on the actual data.
-    #       TODO: we should introduce a check of linear dependency between
-    #             the columns if we want a reliable check. Or then do not
-    #             check ant let the matrix inversion fail
-
     riow = view_to_window(view)
     # create empty predictor array
     X = init_X(_predictors,
@@ -426,30 +418,38 @@ def prepare_predictors(response: str | Band,
     return X, y
 
 
-def transposed_product(predictors: Collection[Band],
-                       view: tuple[int, int, int, int] | None,
-                       selector: NDArray,
-                       include_intercept: bool = False,
-                       as_dtype: str | type = "float64"
-                       ):
-    # TODO: is_needed - no_work - is_tested - usedin_linfit
-    """Extracts the selector of the predictor data in the provided view.
+def transposed_product(predictors: Collection[Band], view: tuple[int, int, int, int] | None, selector: NDArray,
+                       include_intercept: bool = False, as_dtype: str | type = "float64"):
+    """
+    Compute the transposed product ``X.T @ X`` for a set of predictors.
+
+    This function extracts predictor values within a specified spatial view,
+    applies a boolean selector to filter valid pixels, constructs the predictor
+    matrix ``X``, and returns its transposed product. The result is commonly
+    used in linear regression for computing normal equations.
 
     Parameters
     ----------
-    predictors:
-      An arbitrary number of of `io.Band` objects each specifying a predictor
-    view:
-      An optional tuple (x, y, width, height) defining the view of the predictors
-      and response data to consider.
-      If not provided then the entire response map is used.
-    selector: np.array
-        a `np.bool_` array to select usable cells in a numpy 2D array
-    include_intercept:
-      Determine if the predictor matrix should also contain an extra column of
-      1's at the end, which is needed if also the intercepts should be fitted.
-    as_dtype:
-      The data type to use for the resulting array
+    predictors : Collection[Band]
+        Collection of ``Band`` objects defining the predictor variables.
+    view : tuple of int or None
+        Spatial subset specified as ``(x, y, width, height)``.
+        If ``None``, the full spatial extent is used.
+    selector : ndarray of bool
+        Boolean array indicating which pixels are valid and should be included
+        in the computation.
+    include_intercept : bool, default=False
+        If ``True``, include an additional column of ones in the predictor
+        matrix to model an intercept term.
+    as_dtype : str or type, default="float64"
+        Data type of the resulting array.
+
+    Returns
+    -------
+    transprodX : ndarray of shape (n_features, n_features)
+        The transposed product of the predictor matrix, ``X.T @ X``.
+        The number of features corresponds to the number of predictors,
+        plus one if ``include_intercept`` is ``True``.
     """
     riow = view_to_window(view)
     X = partial_X(predictors=predictors,
@@ -458,6 +458,7 @@ def transposed_product(predictors: Collection[Band],
                   include_intercept=include_intercept,
                   as_dtype=as_dtype)
     # create transprodX matrix:
+    # ###
     # this is equivalent
     transprodX = X.T @ X
     # to this:
@@ -473,45 +474,76 @@ def transposed_product(predictors: Collection[Band],
 
 
 def get_optimal_weights(X, y):
-    # TODO: is_needed - needs_work - is_tested - usedin_linfit
-    r"""Compute the optimal weight of a multiple linear regression.
+    r"""
+    Compute the optimal regression weights for a multiple linear regression.
 
-    The multiple linear regression is defined by the equation:
+    The multiple linear regression model is defined as
 
-        $$\vec{y} = X\vec{\beta} + \vec{\epsilon}$$
+    .. math::
 
-    Where $\vec{beta}$ holds the weigts of the different predictors,
-    $\vec{\epsilon}$ is a random variable and $X$ a matrix with each line
-    corresponding to an observation (or a pixel in the case of a raster map).
-    Each column of $X$ stacks the values of one predictors.
+        \\mathbf{y} = X\\boldsymbol{\\beta} + \\boldsymbol{\\epsilon}
 
-    The optimal solution for $\beta$ is given by
-    $(X^T \dot X)^{-1} \dot X^T \dot \vec{y}$ which we can simply compute with
-    numpy.
+    where ``X`` is the predictor matrix, ``y`` the response vector,
+    ``\\boldsymbol{\\beta}`` the vector of regression weights, and
+    ``\\boldsymbol{\\epsilon}`` a random error term.
 
-    ..Note::
+    The optimal least-squares solution for ``\\boldsymbol{\\beta}`` is given by
 
-        - It is not guaranteed that $X^T \dot X$ has an inverse.
-        - We could also use SVD decompositin of X. An illustrative example
-          can be found here: https://sthalles.github.io/svd-for-regression/
+    .. math::
+
+        \\boldsymbol{\\beta} = (X^T X)^{-1} X^T \\mathbf{y}
+
+    which is computed directly using NumPy linear algebra routines.
+
+    Notes
+    -----
+    * The matrix ``X^T X`` may be singular or ill-conditioned, in which case
+      the inverse does not exist or the solution may be numerically unstable.
+    * In such cases, alternative approaches such as singular value
+      decomposition (SVD) or ``numpy.linalg.lstsq`` are recommended.
+
+    Parameters
+    ----------
+    X : ndarray of shape (n_samples, n_features)
+        Predictor matrix where each row corresponds to an observation and each
+        column to a predictor variable.
+    y : ndarray of shape (n_samples,)
+        Response vector.
+
+    Returns
+    -------
+    beta : ndarray of shape (n_features,)
+        Optimal regression weights minimizing the least-squares error.
     """
     return (np.linalg.inv(X.T @ X) @ X.T) @ y
 
 
-def partial_response(response: str | Band,
-                     window: Window | None,
-                     selector: NDArray):
-    # TODO: is_needed - needs_work - not_tested - usedin_linfit
-    """Returns the window view of the response data after applying the selector
+def partial_response(response: str | Band, window: Window | None, selector: NDArray):
+    """
+    Extract and return the response values within a window after applying a selector.
+
+    This function reads the response raster data, optionally restricts it to a
+    spatial window, and applies a boolean selector to return only the valid
+    response values. The resulting array is suitable for use as the response
+    vector in regression analyses.
 
     Parameters
     ----------
-    response:
-      Path to a map (.tif file) that holds the response data
-    window:
-      ...
-    selector:
-      ...
+    response : str or Band
+        Response variable specified either as a ``Band`` object or as the path
+        to a raster file (``.tif``). If a string is provided, the raster must
+        contain a single band.
+    window : rasterio.windows.Window or None
+        Spatial window defining the subset of the response raster to read.
+        If ``None``, the full raster extent is used.
+    selector : ndarray of bool
+        Boolean array used to select valid pixels. If ``window`` is provided,
+        the selector is sliced accordingly before being applied.
+
+    Returns
+    -------
+    y : ndarray of shape (n_samples,)
+        One-dimensional array containing the selected response values.
     """
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
@@ -525,40 +557,45 @@ def partial_response(response: str | Band,
     return response_data[_selector]
 
 
-def partial_X(predictors: Collection[Band],
-              window: Window | None,
-              selector: NDArray,
-              include_intercept: bool,
-              as_dtype: type | str):
-    # TODO: is_needed - needs_work - not_tested - usedin_linfit
-    """Generate (a partial) predictor matrix, $`X`$.
+def partial_X(predictors: Collection[Band], window: Window | None, selector: NDArray,
+              include_intercept: bool, as_dtype: type | str):
+    """
+    Generate a (partial) predictor matrix ``X``.
 
-    If `window` is provided then only the specified selection will
-    be read out from the predictors which allows to use this method
-    when partially processing the predictors.
+    This function constructs the predictor matrix from a collection of raster
+    bands, optionally restricted to a spatial window. A boolean selector is
+    applied to include only valid pixels. The function is intended to support
+    partial or chunked processing of predictors, for example in parallelized
+    workflows.
 
     Parameters
     ----------
-    predictors:
-      Collection of `io.Band` objects each specifying one or several predictors.
-    window:
-      Limits the data array to a specific window. The window is converted to a
-      `slice` with `window.toslices()`.
+    predictors : Collection[Band]
+       Collection of ``Band`` objects defining the predictor variables.
+       Individual bands may represent continuous or categorical predictors.
+    window : rasterio.windows.Window or None
+       Spatial window defining the subset of predictor data to read.
+       If ``None``, the full spatial extent is used.
 
-      .. note::
+       Notes
+       -----
+       This argument is primarily intended to enable partial processing of
+       predictors, e.g. in parallel or tiled computations.
+    selector : ndarray of bool
+       Boolean array used to select valid pixels from the predictor data.
+    include_intercept : bool
+       If ``True``, an additional column of ones is appended to the predictor
+       matrix to model an intercept term.
+    as_dtype : str or type
+       Data type used for the resulting predictor matrix. This is also the
+       type used to represent categorical predictors, if present.
 
-        The intended purpose of this argument is to allow to process only parts
-        of the predictors in the case of a parallelized approach.
-
-    selector: np.array
-        a `np.bool_` array to select usable cells in a numpy 2D array
-    include_intercept:
-      Determine if the predictor matrix should also contain an extra column of
-      1's at the end, which is needed if also the intercepts should be fitted.
-    as_dtype:
-      The data type to represent each category in if a categorical predictor
-      is present
-
+    Returns
+    -------
+    X : ndarray of shape (n_samples, n_features)
+       Predictor matrix containing the selected predictor values. The number
+       of features corresponds to the number of predictors, plus one if
+       ``include_intercept`` is ``True``.
     """
     X = init_X(predictors,
                selector=selector,
@@ -574,51 +611,74 @@ def partial_X(predictors: Collection[Band],
     return X
 
 
-def get_optimal_weights_source(Y: NDArray,
-                               response: str | Band,
-                               predictors: Collection[Band],
-                               view: tuple[int, int, int, int] | None,
-                               selector,
-                               include_intercept: bool = False,
-                               as_dtype="float64"
-                               ) -> dict[Band, float]:
-    # TODO: is_needed - needs_work - is_tested - usedin_linfit
-    r"""Calculate the optimal weights directly from predictors and the inverse of
-    the transposed product, Y.
+def get_optimal_weights_source(Y: NDArray, response: str | Band, predictors: Collection[Band],
+                               view: tuple[int, int, int, int] | None, selector,
+                               include_intercept: bool = False, as_dtype="float64") -> dict[Band, float]:
+    r"""
+    Compute optimal regression weights directly from predictors and a precomputed
+    inverse transposed product.
 
-    $$\hat{\vec{\beta}} = (X^T @ X)^{-1} X^T \vec{y}$$
+    The multiple linear regression model is defined as
 
-    And we define $Y = (X^T @ X)^{-1}$, thus:
+    .. math::
 
-    $$\hat{\vec{\beta}} = Y @ X^T \vec{y}$$
+        \\mathbf{y} = X\\boldsymbol{\\beta} + \\boldsymbol{\\epsilon}
 
-    Which leads to:
+    The least-squares solution for the regression weights is
 
-    $$\hat{\beta}_j = \Sigma_{n=1}^N y_n \Sigma_{m=1}^M{Y_{j,m}l_{n}^{m}}$$
+    .. math::
+
+        \\hat{\\boldsymbol{\\beta}} = (X^T X)^{-1} X^T \\mathbf{y}
+
+    Defining
+
+    .. math::
+
+        Y = (X^T X)^{-1}
+
+    this function computes
+
+    .. math::
+
+        \\hat{\\boldsymbol{\\beta}} = Y X^T \\mathbf{y}
+
+    directly from the predictor data and the response values, without explicitly
+    recomputing ``X.T @ X``.
 
     Parameters
     ----------
-    Y:
-      An $`MxM`$ matrix that is the result of the transposed product of the
-      predictor data.
+    Y : ndarray of shape (n_features, n_features)
+        Inverse of the transposed product of the predictor matrix,
+        ``(X.T @ X)^{-1}``.
 
-      ..Note::
-        Typically you would use the output of `transposed_product` to compute
-        `Y`.
-    response:
-      A `io.Band` object describing the response data.
-    predictors:
-      Collection of `io.Band` objects each specifying one or several predictors.
-    view:
-      An optional tuple (x, y, width, height) defining the view of the predictors
-    selector: np.array
-        a `np.bool_` array to select usable cells in a numpy 2D array
-    include_intercept:
-      Determine if the predictor matrix should also contain an extra column of
-      1's at the end, which is needed if also the intercepts should be fitted.
-    as_dtype:
-      The data type to represent each category in if a categorical predictor
-      is present
+        Notes
+        -----
+        Typically, ``Y`` is obtained by inverting the output of
+        :func:`transposed_product`.
+    response : str or Band
+        Response variable specified either as a ``Band`` object or as the path
+        to a raster file (``.tif``). If a string is provided, the raster must
+        contain a single band.
+    predictors : Collection[Band]
+        Collection of ``Band`` objects defining the predictor variables.
+    view : tuple of int or None
+        Spatial subset specified as ``(x, y, width, height)``.
+        If ``None``, the full spatial extent is used.
+    selector : ndarray of bool
+        Boolean array indicating which pixels are valid and should be included
+        in the regression.
+    include_intercept : bool, default=False
+        If ``True``, include an intercept term in the regression. The intercept
+        weight is returned under the key ``'intercept'``.
+    as_dtype : str or type, default="float64"
+        Data type used for constructing the predictor matrix.
+
+    Returns
+    -------
+    weights : dict
+        Dictionary mapping each predictor to its fitted regression weight.
+        If ``include_intercept`` is ``True``, an additional key ``'intercept'``
+        is included.
     """
     riow = view_to_window(view)
     # First
@@ -641,45 +701,45 @@ def get_optimal_weights_source(Y: NDArray,
     return {pred: beta for pred, beta in zip(predictors, betas)}
 
 
-def get_approx_weights(X: NDArray,
-                       y: NDArray,
+def get_approx_weights(X: NDArray, y: NDArray,
                        fit_intercept: bool = False) -> LinearRegression:
-    # TODO: is_needed - needs_work - is_tested - usedin_linfit
-    r"""Numerical optimization to determine weights in a mlt. lin. regression.
+    r"""
+    Estimate regression weights using numerical optimization.
 
-    The multiple linear regression is defined by the equation:
+    This function fits a multiple linear regression model of the form
 
-        $$\vec{y} = X\vec{\beta} + \vec{\epsilon}$$
+    .. math::
 
-    Where $\vec{beta}$ holds the weigts of the different predictors,
-    $\vec{\epsilon}$ is a random variable and $X$ a matrix with each line
-    corresponding to an observation (or a pixel in the case of a raster map).
-    Each column of $X$ stacks the values of one predictors.
+        \\mathbf{y} = X\\boldsymbol{\\beta} + \\boldsymbol{\\epsilon}
 
-    The approxymation is perforemd with scikit-learn's linear regression
-    estimator:
-        https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html
+    where ``X`` is the predictor matrix, ``y`` the response vector,
+    ``\\boldsymbol{\\beta}`` the regression weights, and
+    ``\\boldsymbol{\\epsilon}`` a random error term.
+
+    The weights are estimated using scikit-learn’s
+    :class:`sklearn.linear_model.LinearRegression` estimator, which computes a
+    least-squares solution using numerical linear algebra routines.
 
     Parameters
     ----------
-    X: np.array
-        MxN 2D array where each of the M columns holds the N sample data for
-        a specify predictor.
-    y: np.array
-        Nx1 response values
-    fit_intercept: bool
-        Determines if the intercept should be fitted explicitely, or if the
-        data is expected to be centered.
+    X : ndarray of shape (n_samples, n_features)
+        Predictor matrix where each row corresponds to an observation and each
+        column to a predictor variable.
+    y : ndarray of shape (n_samples,)
+        Response vector.
+    fit_intercept : bool, default=False
+        Whether to fit an intercept term.
 
-        ..Note::
-            If X was created with the `prepare_predicotrs` function with
-            'include_intercept=True` then `fit_intercept` sould be set to
-            `False`.
+        Notes
+        -----
+        If ``X`` was constructed using :func:`prepare_predictors` with
+        ``include_intercept=True``, then ``fit_intercept`` should be set to
+        ``False`` to avoid fitting the intercept twice.
 
     Returns
     -------
-    sklearn.linear_model.LinearRegression:
-        Fitted linear regression model
+    regression : sklearn.linear_model.LinearRegression
+        Fitted linear regression model.
     """
     regression = LinearRegression(fit_intercept=fit_intercept)
     regression.fit(X, y)

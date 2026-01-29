@@ -1,30 +1,31 @@
 """
-To be added
+Helper functions for the linear fitting
 """
 
 from __future__ import annotations
-
 import numpy as np
 
 
-def check_rank_deficiency(array, return_by_issue_type: bool=False) -> dict[int, str] | dict[str, list[int]]:
-    # TODO: is_needed - no_work - is_tested - usedin_linfit
-    """Check if matrix is rank deficient and extract the dependent columns (linear combination of other columns.
-    Returns a dictionary with column (key) and issue description (value). Lenght of dictionary is rank-deficiency + 1,
-    Empyt dictionary indicates that no rank deficiency was detected
+def check_rank_deficiency(array: np.ndarray, return_by_issue_type: bool = False,
+                          ) -> dict[int, str] | dict[str, list[int]]:
+    """Check if matrix is rank deficient and identify problematic columns.
+
+    Returns a dictionary with column indices (key) and issue description (value).
+    An empty dictionary indicates that no rank deficiency was detected.
 
     Parameters
     ----------
     array : np.ndarray
         Matrix to check for rank deficiency
-    return_by_issue_type: bool
-        If desired, a nested dictionary may be returned separating the type of issue:
-        "all_zero" and "linear dependent"
+    return_by_issue_type : bool, optional
+        If True, returns nested dictionary separating issues by type:
+        {"linear_dependent": [...], "all_zero": [...]}
+
+    Returns
+    -------
+    dict[int, str] or dict[str, list[int]]
+    Problematic columns and their issues
     """
-    # is_needed
-    # needs_work (formatting)
-    # is_tested
-    # usedin_linfit
     all_zero_cols = {}
     rank_deficient_cols = {}
     _, num_columns = array.shape
@@ -53,25 +54,45 @@ def check_rank_deficiency(array, return_by_issue_type: bool=False) -> dict[int, 
         return {**rank_deficient_cols, **all_zero_cols}
 
 
-def usable_pixels_info(all_pixels, data_pixels):
-    # TODO: is_needed - no_work - not_tested - usedin_linfit
-    """Prints the fraction of usable pixels
+def usable_pixels_info(all_pixels: int, data_pixels: int) -> None:
+    """Print the fraction of usable pixels.
+
+    Parameters
+    ----------
+    all_pixels : int
+        Total number of pixels in the dataset
+    data_pixels : int
+        Number of pixels that contain usable data
+
+    Examples
+    --------
+    >>> usable_pixels_info(1000, 750)
+    Of all_pixels=1000 there are data_pixels=750, i.e. 75.0% are usable
     """
-    # is_needed
-    # no_work
-    # not_tested (no need)
-    # usedin_linfit
     print(f"Of {all_pixels=} there are {data_pixels=}, i.e. "
           f"{round(100 * data_pixels/all_pixels, 2)}% are usable")
 
 
 def usable_pixels_count(selector):
-    # TODO: is_needed - no_work - not_tested - usedin_linfit
-    """Count the number of usable pixels determined by the selector"""
-    # is_needed
-    # no_work
-    # not_tested (no need)
-    # usedin_linfit
+    """Count the number of usable pixels determined by the selector.
+
+    Parameters
+    ----------
+    selector : np.ndarray
+      Boolean array where True indicates a usable pixel and False
+      indicates a pixel to be excluded
+
+    Returns
+    -------
+    int
+      Number of True values in the selector array (count of usable pixels)
+
+    Examples
+    --------
+    >>> selector = np.array([True, True, False, True, False])
+    >>> usable_pixels_count(selector)
+    3
+    """
     vals, counts = np.unique(selector, return_counts=True)
     # vals: [True, False] or inv. in any case ok
     try:
