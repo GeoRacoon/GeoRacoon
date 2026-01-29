@@ -1,13 +1,20 @@
-# RioGrande (Gernal needs to be added)
+# GeoRacoon
 
 <!-- badges: start -->
-[![Coverage](https://github.com/GeoRacoon/landiv/raw/python-coverage-comment-action-data/badge.svg)](https://github.com/GeoRacoon/landiv/tree/python-coverage-comment-action-data)
+[![Coverage](https://github.com/GeoRacoon/georacoon/raw/python-coverage-comment-action-data/badge.svg)](https://github.com/GeoRacoon/georacoon/tree/python-coverage-comment-action-data)
 ![version](https://img.shields.io/badge/version-1.0.0-blue)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/) (all of these not linked)
 <!-- badges: end -->
 
-This package is an extinsion of [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) allowing to work with Sources (GeoTIFFS) and Bands as objects, which easily incorporate the use of tags.
-RioGrande adds functionality for parallel processing using Windows, dataset compatibility checks, data type conversion, mask and selector creation as well as simple file compression.
+This project is an extension of [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) allowing to work with Sources (GeoTIFFS) and Bands as objects, which easily incorporate the use of tags.
+
+_GeoRacoon_ provides 3 packages, `riogrande`, `convster` and `linfit` (working title), that facilitate (in our opinion) working with TIFF files.
+
+**riogrande** adds functionality for parallel processing using Windows, dataset compatibility checks, data type conversion, mask and selector creation as well as simple file compression.  
+**convster** ...  
+**linfit (working title)** ...  
+
+<!-- quickstart -->
 
 
 <img alt="raster image" height="200" src="./results/test_france.png" width="200"/>
@@ -24,6 +31,23 @@ RioGrande adds functionality for parallel processing using Windows, dataset comp
 
 ## Installation
 
+GeoRacoon can be installed directly from GitHub into your virtual environment.
+Simply run:
+
+```
+pip install git+https://github.com/ReoRacoon/georacoon.git
+```
+
+<details>
+<summary><b>Local install</b></summary>
+
+Alternatively, you can clone the repository and install the package from your
+local copy.
+This might be the desired strategy if you intend to work on the source code, in
+which case you can replace `install` by `install -e` and modify the files
+in-place.
+
+
 To install:
 1. Clone this repository
 1. `cd` into the repository
@@ -39,6 +63,7 @@ On Windows:
 ```sh
 PS> python -m pip install .
 ```
+</details>
 
 _Note:_
 _This package relies on [rasterio](https://rasterio.readthedocs.io/en/latest/index.html)_

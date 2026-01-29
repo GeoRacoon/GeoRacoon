@@ -6,16 +6,16 @@ on:
 
 jobs:
   build-and-deploy-docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
     
-    - name: Set up Python 3.9
+    - name: Set up Python 3.10
       uses: actions/setup-python@v3
       with:
-        python-version: 3.9
+        python-version: '3.10'
     
     - name: Install documentation dependencies
       run: |
@@ -28,7 +28,6 @@ jobs:
     - name: Generate API docs and build documentation
       run: |
         source .venv/bin/activate
-        sphinx-apidoc -o docs/api src/landiv_blur -f
         sphinx-build -b html docs public
     
     # TODO: change to proper deployment

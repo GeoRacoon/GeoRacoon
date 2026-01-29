@@ -1,43 +1,21 @@
 ---
-title: LanDiv Blur
+title: GeoRacoon
 ---
 
-::::{grid}
-:reverse:
-:gutter: 2 1 1 1
-:margin: 4 4 1 1
-
-:::{grid-item}
-:columns: 4
-
-```{image} ./_static/all_france.png
-:width: 150px
-```
-:::
-
-:::{grid-item}
-:columns: 8
-:class: sd-fs-3
-
-Package to compute diversity measures in land cover type maps
-:::
-
-::::
-
-# LanDiv Blur
+# GeoRacoon
 
 ```{include} ../README.md
 :start-line: 1
-:end-before: <!--- quickstart --->
+:end-before: <!-- quickstart -->
+
 ```
 
 ```{toctree}
+:caption: Table of Content
 :maxdepth: 2
-:caption: Overview
 
-
-api/modules.rst
-
+content/georacoon/index
+content/riogrande/index
+content/convster/index
+content/linfit/index
 ```
-
-

@@ -1,5 +1,5 @@
 [project]
-name = "landiv_blur"
+name = "GeoRacoon"
 authors = [
   { name="Simon Landauer", email="simon.landauer@gmail.com" },
   { name="Jonas I. Liechti", email="j-i-l@t4d.ch" },
@@ -20,10 +20,12 @@ file = ["requirements.txt"]
 [tool.setuptools.dynamic.optional-dependencies.testing]
 file = ["tests/requirements.txt"]
 
+[tool.setuptools.dynamic.optional-dependencies.docs]
+file = ["docs/requirements.txt"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = [
-  "landiv_blur",  # TODO: should be removed
   "riogrande",
   "riogrande.io",
   "convster",
@@ -33,12 +35,12 @@ include = [
 exclude = ["tests*"]
 
 [project.urls]
-Homepage = "https://git.math.uzh.ch/landiv/landiv/"
-Issues = "https://git.math.uzh.ch/landiv/landiv/-/issues"
+Homepage = "https://github.com/GeoRacoon/georacoon/"
+Issues = "https://github.com/GeoRacoon/georacoon/issues"
 
 # [project.scripts]
-# landiv = "landiv_blur.scripts.parallel_filter:main"
-# landiv_old = "landiv_blur.scripts.entropoint_deprecated:main_cli"
+# TODO: we might want to expose some functions of riogrande.io?
+# <executable> = "<path/to/py-file>:main"
 
 [tool.setuptools]
 include-package-data = false
