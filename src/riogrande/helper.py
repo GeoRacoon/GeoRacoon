@@ -23,6 +23,7 @@ from multiprocessing import context as _context_module
 
 MPC_STARTER_METHODS = ['spawn', 'fork', 'forkserver']
 
+
 def get_nbr_workers(number: Optional[int] = None) -> int:
     """Determine the number of worker processes to use in mulitprocessing.
 
@@ -42,10 +43,6 @@ def get_nbr_workers(number: Optional[int] = None) -> int:
     A warning is emitted when a requested ``number`` is lower than 2 and the
     request is ignored setting the number of used workers to 2.
     """
-    # is_needed
-    # no_work
-    # not_tested
-    # usedin_both (potentially)
     _min_count = 2  # Hardcoded: some parallelization routines fail when < 2
     if number is None:
         _use = max(_min_count, mpc.cpu_count())
@@ -135,11 +132,6 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
     >>>     p.start()
     >>>     p.join()
     """
-    # is_needed
-    # no_work
-    # is_tested
-    # usedin_both (potentially any usage of mpc)
-
     allowed = MPC_STARTER_METHODS + [None, ]
     default_method = MPC_STARTER_METHODS[0]  # default is 'spawn'
     if method not in allowed:
@@ -189,7 +181,6 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
 
 
 def serialize(tags: dict[str, Any]) -> dict[str, str]:
-    # TODO: is_needed - no_work - not_tested - usedin_both
     """Convert the values of a dict into JSON
 
     Parameters
@@ -203,16 +194,10 @@ def serialize(tags: dict[str, Any]) -> dict[str, str]:
     dict
         Dictionary with tag as key and serialized value as value.
     """
-    # is_needed
-    # no_work
-    # not_tested (indirect calls in tests)
-    # usedin_both (io sub-module)
-    return {tag: json.dumps(obj=value)
-            for tag, value in tags.items()}
+    return {tag: json.dumps(obj=value) for tag, value in tags.items()}
 
 
 def deserialize(tags: dict[str, str]) -> dict[str, Any]:
-    # TODO: is_needed - no_work - not_tested - usedin_both
     """Reads python objects from JSON-encoded values of a dict
 
     Parameters
@@ -229,16 +214,11 @@ def deserialize(tags: dict[str, str]) -> dict[str, Any]:
     ------
     Contrasting function to serialize()
     """
-    # is_needed
-    # no_work
-    # not_tested (indirect calls in tests)
-    # usedin_both (io sub-module)
     return {tag: json.loads(s=value)
             for tag, value in tags.items()}
 
 
 def sanitize(tags: dict[str, Any]) -> Any:
-    # TODO: is_needed - no_work - not_tested - usedin_both
     """Serializes then deserializes values of a dict
 
     Parameters
@@ -251,15 +231,10 @@ def sanitize(tags: dict[str, Any]) -> Any:
     dict
         Dictionary with tag as key and deserialized value as value.
     """
-    # is_needed
-    # no_work
-    # not_tested (indirect calls in tests)
-    # usedin_both (io sub-module)
     return deserialize(serialize(tags))
 
 
 def match_all(targets: dict, tags: dict) -> bool:
-    # TODO: is_needed - no_work - is_tested - usedin_both
     """Check if all tags in targets are present in tags
 
     Parameters
@@ -274,10 +249,6 @@ def match_all(targets: dict, tags: dict) -> bool:
     bool
         True if all tags in targets are present in tags, otherwise False.
     """
-    # is_needed
-    # no_work
-    # is_tested
-    # usedin_both (io sub-module)
     match = True
     for t, v in targets.items():
         if not match:
@@ -293,7 +264,6 @@ def match_all(targets: dict, tags: dict) -> bool:
 
 
 def match_any(targets: dict, tags: dict) -> bool:
-    # TODO: is_needed - no_work - is_tested - usedin_both
     """Check if any tag in targets is present in tags
 
     Parameters
@@ -308,10 +278,6 @@ def match_any(targets: dict, tags: dict) -> bool:
     bool
         True if any tags in targets are present in tags, otherwise False.
     """
-    # not_needed (logic covered by match_all)
-    # no_work
-    # is_tested
-    # usedin_both
     match = False
     for t, v in targets.items():
         if match:
@@ -327,7 +293,6 @@ def match_any(targets: dict, tags: dict) -> bool:
 
 
 def view_to_window(view: None | tuple[int, int, int, int]) -> Window:
-    # TODO: is_needed - no_work - is_tested - usedin_both
     """Conerts a view into a rasterio Window
 
     Parameters
@@ -340,10 +305,6 @@ def view_to_window(view: None | tuple[int, int, int, int]) -> Window:
     Window
         Rasterio window object.
     """
-    # is_needed
-    # needs_work (fix doc, dedicated test)
-    # not_tested (used in test)
-    # usedin_both
     if view is not None:
         window = Window(view[0], view[1], view[2], view[3])
     else:
@@ -352,7 +313,6 @@ def view_to_window(view: None | tuple[int, int, int, int]) -> Window:
 
 
 def check_units(*sources: str) -> list:
-    # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all sources have the same linear units in the coordinate reference system (crs)
 
     Parameters
@@ -365,10 +325,6 @@ def check_units(*sources: str) -> list:
     list
         All unique units in a list.
     """
-    # is_needed
-    # needs_work (fix doc, make internal _...)
-    # not_tested
-    # usedin_both (used in io submodule)
     units = []
     for source in sources:
         with rio.open(source) as src:
@@ -385,7 +341,6 @@ def check_units(*sources: str) -> list:
 
 
 def check_crs(*sources: str) -> list:
-    # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all the sources have the same coordinate reference system (crs)
 
     Parameters
@@ -398,10 +353,6 @@ def check_crs(*sources: str) -> list:
     list
         All unique crs from sources in a list.
     """
-    # is_needed
-    # needs_work (make internal _...)
-    # not_tested
-    # usedin_both (used in io submodule)
     crss = []
     for source in sources:
         with rio.open(source) as src:
@@ -413,7 +364,6 @@ def check_crs(*sources: str) -> list:
 
 
 def check_resolution(*sources: str) -> list:
-    # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all the sources have the same spatial resolution
 
     Parameters
@@ -426,10 +376,6 @@ def check_resolution(*sources: str) -> list:
     list
         All unique resolutions from sources in a list.
     """
-    # is_needed
-    # needs_work (make internal _...)
-    # not_tested
-    # usedin_both (used in io submodule)
     ress = []
     for source in sources:
         with rio.open(source) as src:
@@ -442,7 +388,6 @@ def check_resolution(*sources: str) -> list:
 
 
 def check_compatibility(*sources: str) -> Tuple[list, list, list]:
-    # TODO: is_needed - no_work - not_tested - usedin_both
     """Assert that all the sources are compatible with each other.
 
     The checks include:
@@ -464,10 +409,6 @@ def check_compatibility(*sources: str) -> Tuple[list, list, list]:
     ress:
         All unique resolutions from sources in a list (see check_resolution()).
     """
-    # is_needed
-    # needs_work (better doc)
-    # not_tested (used in tests)
-    # usedin_both (used in io submodule and parallel of linfit)
     units = check_units(*sources)
     crss = check_crs(*sources)
     ress = check_resolution(*sources)
@@ -475,7 +416,6 @@ def check_compatibility(*sources: str) -> Tuple[list, list, list]:
 
 
 def output_filename(base_name: str, out_type: str, blur_params: None | dict = None) -> str:
-    # TODO: is_needed - no_work - is_tested - usedin_both
     """Construct the filename for the specific output type.
 
     Parameters
@@ -485,7 +425,6 @@ def output_filename(base_name: str, out_type: str, blur_params: None | dict = No
     out_type: str
       The type of output that will be saved.
       This should be either 'blur' or 'entropy' but any string is accepted
-    # TODO: refractor the blur_params so we have only params (which)
     blur_params: dict
       Output of `get_blur_params`, so 'sigma', 'truncate' and 'diameter'
       are expected keys.
@@ -496,10 +435,6 @@ def output_filename(base_name: str, out_type: str, blur_params: None | dict = No
       The resulting filename of the form
       '<name>_<out_type>_sig_<{sigma}>_diam_<{diameter}>_trunc_<{truncate}>.tif'
     """
-    # is_needed
-    # needs_work (minor cleanup)
-    # not_tested
-    # usedin_both
     _base_name, _ext = os.path.splitext(base_name)
     _blur_string = ""
     if blur_params is not None:
@@ -509,7 +444,6 @@ def output_filename(base_name: str, out_type: str, blur_params: None | dict = No
 
 
 def dtype_range(dtype: type | str) -> Tuple[int | float, int | float]:
-    # TODO: is_needed - no_work - is_tested - usedin_both
     """Get the range of the specified dtype
 
     ..warning::
@@ -518,10 +452,6 @@ def dtype_range(dtype: type | str) -> Tuple[int | float, int | float]:
       Be sure to convert them back into `dtype` if needed!
 
     """
-    # is_needed (mostly internal + processing.py)
-    # needs_work (adding tests, fix type-hints)
-    # not_tested
-    # usedin_both (certainly in processing + internal)
     if isinstance(dtype, str):
         dtype = np.dtype(dtype)
     # avoid issues of object not callable from rasterio
@@ -542,12 +472,11 @@ def dtype_range(dtype: type | str) -> Tuple[int | float, int | float]:
 def convert_to_dtype(data: NDArray, as_dtype: None | type | np._dtype | str = None,
                      in_range: None | NDArray | Collection = None,
                      out_range: None | NDArray | Collection | str | type = None) -> NDArray:
-    # TODO: is_needed - no_work - is_tested - usedin_both
     """Converts data to `as_dtype` and optionally rescales it.
 
-    Rescaling is done only if at least one of of the ranges is explicitly set.
+    Rescaling is done only if at least one of the ranges is explicitly set.
     If only `in_range` is set then the input range is scaled to the full range
-    of the output output data type, `ad_dtype`.
+    of the  output data type, `ad_dtype`.
     This behaviour is typically wanted when converting some floating typed data
     in a limited range, e.g. [0, 1] to unsigned integer, e.g. `uint8`, thus
     mapping the range [0,1] to [0, 255].
@@ -615,11 +544,7 @@ def convert_to_dtype(data: NDArray, as_dtype: None | type | np._dtype | str = No
     >>> convert_to_dtype(data=my_data, in_range=[0,1], as_dtype='uint16', out_range='uint8')
     array([  0, 127, 255], dtype=uint16)
     """
-    # is_needed
-    # needs_work (formatting, fix type-hinting)
-    # is_tested
-    # usedin_both (could be io module)
-    # convert to numpy dtype is string was provided
+    # convert to numpy dtype if string was provided
     if isinstance(as_dtype, str):
         as_dtype = np.dtype(as_dtype)
 
@@ -685,7 +610,6 @@ def convert_to_dtype(data: NDArray, as_dtype: None | type | np._dtype | str = No
 
 
 def aggregated_selector(masks: list[NDArray], logic: str = 'all') -> NDArray:
-    # TODO: is_needed - no_work - is_tested - usedin_both
     """Turns several rasterio masks into a boolen selector for a numpy array
 
     Rasterio masks are uint8 numpy arrays where every value > 0 is considered
@@ -708,10 +632,6 @@ def aggregated_selector(masks: list[NDArray], logic: str = 'all') -> NDArray:
     NDArray
         Boolean numpy array as result of logical mask applied.
     """
-    # is_needed
-    # no_work
-    # is_tested
-    # usedin_both (used in parallel.prepare_selector)
     selector = masks[0] != 0  # values > 0 are selected (i.e. True)
     if logic == 'any':
         _logic = np.logical_or
@@ -724,7 +644,6 @@ def aggregated_selector(masks: list[NDArray], logic: str = 'all') -> NDArray:
 
 
 def reduced_mask(array: NDArray, nodata: float | int | np.nan = 0, logic: str = 'all') -> NDArray:
-    # TODO: is_needed - no_work - is_tested - usedin_both
     """Computes a mask based on the value of several bands
 
     Parameters
@@ -755,10 +674,6 @@ def reduced_mask(array: NDArray, nodata: float | int | np.nan = 0, logic: str = 
     array([[1, 1],
            [0, 0]], dtype=uint8)
     """
-    # is_needed
-    # no_work (create test)
-    # not_tested
-    # usedin_both (used in parallel.compute_mask)
     if logic == 'any':
         _logic = np.logical_and
     else:
@@ -770,7 +685,6 @@ def reduced_mask(array: NDArray, nodata: float | int | np.nan = 0, logic: str = 
 
 
 def count_contribution(data: NDArray, selector: NDArray[np.bool_], no_data: Union[int, float] = 0) -> int:
-    # TODO: is_needed - no_work - is_tested - usedin_both
     """The remaining number of data cells when applying the selector
 
     Parameters
@@ -792,10 +706,6 @@ def count_contribution(data: NDArray, selector: NDArray[np.bool_], no_data: Unio
         You might also provide `np.nan` as no data value.
 
     """
-    # is_needed
-    # no_work
-    # is_tested
-    # usedin_both (io module)
     if np.isnan(no_data):
         b_vals, b_counts = np.unique(~np.isnan(data[selector]), return_counts=True)
     else:
@@ -809,8 +719,6 @@ def count_contribution(data: NDArray, selector: NDArray[np.bool_], no_data: Unio
 
 
 def rasterio_to_numpy_dtype(rasterio_dtype: str) -> np.dtype | None:
-    # TODO: Technically this function is not needed, but I feel it could have some use for users.
-    # TODO: is_needed (for testing later) - no_work - is_tested - usedin_both
     """Map Rasterio actual data types to NumPy data types.
 
     Rasterio types like rasterio.dtypes.int16, rasterio.dtypes.float32
@@ -826,10 +734,6 @@ def rasterio_to_numpy_dtype(rasterio_dtype: str) -> np.dtype | None:
     numpy.dtype
         Data type as numpy dtype.
     """
-    # not_needed
-    # no_work
-    # not_tested
-    # usedin_both (io module - but not used)
     dtype_mapping = {
         rio.dtypes.int16: np.int16,
         rio.dtypes.int32: np.int32,
