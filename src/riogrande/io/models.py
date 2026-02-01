@@ -413,7 +413,7 @@ class Source:
             _bidx = bidx
         if tags:
             with self.open() as src:
-                _tb_bidx = core._get_bidx(src=src, ns=self._ns, **tags)
+                _tb_bidx = core._get_bidx_by_tag(src=src, ns=self._ns, **tags)
             if _bidx:
                 assert _tb_bidx == _bidx, \
                     f"The band index matching {tags=} is diffrent from " \
