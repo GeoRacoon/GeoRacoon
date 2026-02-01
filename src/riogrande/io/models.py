@@ -16,7 +16,7 @@ from pathlib import Path
 from functools import partial
 from collections.abc import Callable
 
-from typing import Union
+from typing import Union, Any
 
 from ..helper import (
     check_compatibility,
@@ -33,6 +33,7 @@ from .exceptions import (
 from . import core
 
 
+# noinspection PyArgumentList
 class Source:
     """
     A ``Source`` object represents a file-based dataset (GeoTIFF) along with associated
@@ -53,7 +54,7 @@ class Source:
 
     Attributes
     ----------
-    path : Path
+    path : str
         Path to the dataset file.
     tags : dict
         Metadata tags associated with the source.
@@ -127,9 +128,6 @@ class Source:
          True if both objects are Source instances with the same path,
          tags, and namespace.
         """
-        # is_needed
-        # needs_work (docs)
-        # not_tested
         if not isinstance(other, type(self)):
             return NotImplemented
         return (self.path == other.path and self.tags == other.tags and
@@ -151,9 +149,6 @@ class Source:
         dict
             The profile dictionary retrieved from the source file.
         """
-        # is_needed
-        # needs_work (better docs)
-        # not_tested (used in tests)
         with self.open(mode='r') as src:
             profile = src.profile
         if update_self:
@@ -170,9 +165,6 @@ class Source:
         bool
             True if the file exists, False otherwise.
         """
-        # is_needed
-        # needs_work (make internal, docs)
-        # not_tested
         return self.path.is_file()
 
     @property
@@ -188,9 +180,6 @@ class Source:
         tuple
             A 2-tuple ``(height, width)`` representing the dataset dimensions.
         """
-        # is_needed (not sure - check)
-        # needs_work (this should be renamed to avoid confusion w np.array.shape
-        # not_tested
         self.import_profile()
         height = self.profile['height']
         width = self.profile['width']
@@ -210,9 +199,6 @@ class Source:
         dict
             A dictionary of tag key-value pairs associated with the band.
         """
-        # is_needed (noly internally)
-        # needs_work (docs)
-        # not_tested
         with self.open(mode='r') as src:
             tags = core._get_tags(src=src, bidx=bidx, ns=self._ns)
         return tags
@@ -237,9 +223,6 @@ class Source:
         dict
            A mapping of band index to the tag value (or None if missing).
         """
-        # is_needed
-        # needs_work (docs)
-        # not_tested
         t_vals = dict()
         with self.open(mode='r') as src:
             if bidx is None:
@@ -269,9 +252,6 @@ class Source:
         -------
         None
         """
-        # is_needed (noly internally)
-        # needs_work (docs)
-        # not_tested
         with self.open(mode='r+') as src:
             core._set_tags(src=src, bidx=bidx, ns=self._ns, **tags)
 
@@ -293,9 +273,6 @@ class Source:
         callable
          A callable that can be used to read the mask.
         """
-        # is_needed
-        # needs_work (docs)
-        # is_tested
         mode = kwargs.pop('mode', 'r')
         with self.open(mode=mode, **kwargs) as src:
             yield src.dataset_mask
@@ -304,7 +281,7 @@ class Source:
         """
         Read the dataset mask from the file.
 
-        With the exception of `okwargs` all keyword arguments are passed to
+        Except `okwargs` all keyword arguments are passed to
         the `dataset_mask` method of the source.
 
         Parameters
@@ -322,9 +299,6 @@ class Source:
             An array representing the dataset mask. Non-zero values indicate
             valid pixels, and 0 indicates masked/invalid pixels.
         """
-        # is_needed
-        # no_work
-        # is_tested
         okwargs = kwargs.pop('okwargs', dict())
         with self.mask_reader(mode='r', **okwargs) as dataset_mask:
             mask = dataset_mask(**kwargs)
@@ -348,9 +322,6 @@ class Source:
         callable
            A callable that can be used to write a mask array.
         """
-        # is_needed
-        # needs_work (docs)
-        # not_tested (used in tests)
         mode = kwargs.pop('mode', 'r+')
         with rio.Env(GDAL_TIFF_INTERNAL_MASK=True):
             with self.open(mode=mode, **kwargs) as src:
@@ -372,9 +343,6 @@ class Source:
         -------
         None
         """
-        # not_needed (useful?)
-        # no_work
-        # not_tested
         with self.open(mode='r+') as src:
             src.write_mask(mask_array=mask, window=window)
 
@@ -396,9 +364,6 @@ class Source:
         -------
         None
         """
-        # is_needed (only internally for now)
-        # needs_work (docs)
-        # not_tested (but used in tests)
         if overwrite or not self.exists:
             with self.open(mode='w', **self.profile, **kwargs) as _:
                 print(f'Initiating empty file\n\t"{self.path}"\n')
@@ -432,9 +397,6 @@ class Source:
         AssertionError
             If the index and tag selection refer to different bands.
         """
-        # is_needed
-        # needs_work (dcos)
-        # is_tested (though no dedicated test)
         if not self.exists:
             raise SourceNotSavedError(
                 f"{self.path}:\n\tNot present in the filesystem"
@@ -451,7 +413,7 @@ class Source:
             _bidx = bidx
         if tags:
             with self.open() as src:
-                _tb_bidx = core._get_bidx(src=src, ns=self._ns, **tags)
+                _tb_bidx = core._get_bidx_by_tag(src=src, ns=self._ns, **tags)
             if _bidx:
                 assert _tb_bidx == _bidx, \
                     f"The band index matching {tags=} is diffrent from " \
@@ -472,9 +434,6 @@ class Source:
         list
             A list of ``Band`` objects for all bands in the dataset.
         """
-        # is_needed
-        # needs_work (dcos)
-        # is_tested (though no dedicated test)
         bands = []
         with self.open(mode='r') as src:
             for bidx in src.indexes:
@@ -510,9 +469,6 @@ class Source:
         UnknownExtensionError
             If the file extension is not supported (currently only ".tif").
         """
-        # is_needed (internal only)
-        # no_work
-        # not_tested
         mode = kwargs.get('mode', args[0] if len(args) else self._mode_default)
         assert mode in self._modes
         if self.path.suffix in ['.tif', ]:
@@ -548,9 +504,6 @@ class Source:
         DatasetReader or DatasetWriter
             Open rasterio dataset object, ready for reading or writing.
         """
-        # is_needed
-        # needs_work (docs)
-        # not_tested
         src = self._get_source(*args, **kwargs)
         try:
             yield src
@@ -580,9 +533,6 @@ class Source:
             A callable equivalent to ``src.read(indexes=...)`` that returns a
             3D numpy array with shape `(len(bands), height, width)`.
         """
-        # is_needed
-        # needs_work (docs)
-        # not_tested
         mode = kwargs.pop('mode', 'r')
         if bands is None:
             bands = self.get_bands()
@@ -600,9 +550,6 @@ class Source:
         list
           The band indexes present in the dataset.
         """
-        # is_needed (only internally)
-        # needs_work (docs, make internal?)
-        # not_tested
         with self.open() as src:
             bidxs = src.indexes
         return bidxs
@@ -621,9 +568,7 @@ class Source:
         bool
             True if the band index exists in the dataset.
         """
-        # is_needed (only internally)
-        # needs_work (docs; make internal?)
-        # not_tested
+
         has_it = False
         with rio.open(self.path, 'r') as src:
             if bidx in src.indexes:
@@ -632,7 +577,7 @@ class Source:
 
     def has_tags(self, tags: dict) -> bool:
         """
-        Check whether any band contains all of the provided tags.
+        Check whether any band contains all the provided tags.
 
         Parameters
         ----------
@@ -644,9 +589,6 @@ class Source:
         bool
            True if at least one band contains all provided tags.
         """
-        # not_needed (might be useful if working with tags
-        # needs_work (doc)
-        # not_tested
         all_tags = []
         with rio.open(self.path, 'r') as src:
             for bidx in src.indexes:
@@ -673,9 +615,6 @@ class Source:
         list of int
             The list of band indexes matching the tags.
         """
-        # is_needed (only internally)
-        # needs_work (docs)
-        # not_tested
         with self.open() as src:
             if mode == 'any':
                 print('WARNING: mode "any" not implemented yet. Emtpy list returned')
@@ -698,9 +637,6 @@ class Source:
         int or None
             The band index if exactly one match is found, None otherwise.
         """
-        # is_needed (only internally)
-        # needs_work (docs)
-        # not_tested
         midx = None
         matching_bidxs = self.find_indexes(tags=tags, mode='all')
         if len(matching_bidxs) != 1:
@@ -723,9 +659,6 @@ class Source:
         bool
             True if the band is present.
         """
-        # not_needed (might be useful if working with tags
-        # needs_work (doc)
-        # not_tested
         has_it = False
         if band.bidx is not None:
             has_it = self.has_bidx(band.bidx)
@@ -759,9 +692,6 @@ class Source:
            If only tags are provided, and they match multiple bands, or if both
            `bidx` and `tags` are given, but they are inconsistent.
         """
-        # is_needed (only internally)
-        # needs_work (docs)
-        # not_tested
         midx = None
         if band.bidx is not None:
             if self.has_bidx(band.bidx):
@@ -823,9 +753,6 @@ class Source:
         - Updates the `path` attribute of the Source to point to the new
           compressed file.
         """
-        # is_needed
-        # needs_work (docs)
-        # not_tested
         uncompressed = self.path
         self.path = Path(core.compress_tif(str(self.path), output=output, compression=compression))
         if not keep_original and uncompressed != self.path:
@@ -846,9 +773,6 @@ class Source:
         bool
            True if all provided sources are compatible with this one.
         """
-        # is_needed
-        # needs_work (docs)
-        # not_tested
         _sources = {self.path, }
         for source in sources:
             _sources.add(source.path)
@@ -894,13 +818,10 @@ class Source:
             - ``orig_profile`` :
               Copy of the original raster profile metadata.
         """
-        # is_needed (internal only)
-        # needs_work (docs)
-        # not_tested
-        return core.load_block(source=str(self.path), view=view,
-                          scaling_params=scaling_params, **tags)
+        return core.load_block(source=str(self.path), view=view, scaling_params=scaling_params, **tags)
 
 
+# noinspection PyArgumentList
 @dataclass
 class Band:
     """
@@ -955,13 +876,6 @@ class Band:
     _use_mask: str = 'self'
     _ns = core.NS
 
-    # TODO: I feel we might need an __init__ here
-    #  Rational: if you initate a new Band and use a source object, the tags are not taken from that source object
-    #            therefore, you can have a Source object where e.g. in bidx=1 the tags live, but if you initiate
-    #            the Band object directly here, they dont exist (not copied there) only if you use get_band
-    # TODO: BUT maybe we dont want this !!!!
-    #       as the method "import_tags" does exactly this (we could however put it here) I dont know
-
     def __repr__(self) -> str:
         """
         Return a string representation of the Band's tags.
@@ -998,9 +912,6 @@ class Band:
         bool
             True if the file exists.
         """
-        # is_needed (internal only)
-        # needs_work (docs; make internal?)
-        # not_tested
         return self.source.exists
 
     @property
@@ -1014,9 +925,6 @@ class Band:
            True if the band's index (`bidx`) is set and exists in the parent
            ``Source``. False if no `bidx` is set or if the index is absent.
         """
-        # is_needed (internally)
-        # needs_work (docs; make internal)
-        # not_tested
         i_exists = False
         if self.bidx is None:
             print(f"No index set for {self}")
@@ -1036,9 +944,6 @@ class Band:
             - Warnings if the index or tags are inconsistent.
 
         """
-        # not_needed (might be useful?)
-        # needs_work (docs)
-        # not_tested
         print(f"\n### Status of {self}")
         # check if the resource exist
         print("# Source file")
@@ -1096,7 +1001,6 @@ class Band:
                 # check if a band matches all
                 any_bidxs = self.source.find_indexes(self.tags, mode='any')
                 matches = len(any_bidxs)
-                print("- TODO")
             else:
                 print(
                     f"# Not tags are set for this band"
@@ -1104,9 +1008,6 @@ class Band:
         print("###")
 
     def _pair_operation(self, pair_op: Callable, band: Band, out_band: Band=None, **op_kwargs):
-        # TODO: important note, when out_band is used it does not create a new band (if you target Raster has only
-        #  one band (bidx 2 does not exist) using out_band will not work as you will not create an extra band here, we
-        #  may want to implement this.
         """
         Internal helper to perform element-wise operations between two bands.
 
@@ -1127,9 +1028,6 @@ class Band:
         **op_kwargs : dict
             Additional keyword arguments to pass to ``pair_op``.
         """
-        # is_needed (only internally)
-        # needs_work (docs)
-        # not_tested (should be as it is a generic method)
         self.source.check_compatibility(band.source)
         if out_band is None:
             out_band = self
@@ -1160,9 +1058,6 @@ class Band:
         **add_kwargs : dict
            Additional keyword arguments passed to NumPy's ``add``.
         """
-        # not_needed (though useful)
-        # no_work
-        # is_tested
         return self._pair_operation(pair_op=np.add, band=band,
                                     out_band=out_band, **add_kwargs)
 
@@ -1184,9 +1079,6 @@ class Band:
         **sub_kwargs : dict
           Additional keyword arguments passed to the underlying operation.
         """
-        # not_needed (though useful)
-        # no_work
-        # is_tested
         def _subtract(data1, data2, **kwargs):
             return np.add(data1, (-1) * data2, **kwargs)
 
@@ -1214,9 +1106,6 @@ class Band:
         >>> b1.export_tags(match='category')
         # Identifies the band via the 'category' tag and updates other tags
          """
-        # is_needed
-        # no_work
-        # is_tested
         bidx = self.get_bidx(match=match)
         self.source.set_tags(bidx=bidx, tags=self.tags)
 
@@ -1234,9 +1123,6 @@ class Band:
             tags. If False, replace the existing ``tags`` dictionary with the
             imported tags.
         """
-        # is_needed (only used in tests)
-        # needs_work (docs)
-        # is_tested
         bidx = self.get_bidx(match=match)
         tags = self.source.get_tags(bidx)
         if keep:
@@ -1280,9 +1166,6 @@ class Band:
          If there is no clear match for the band in the source file or if the
          specified ``bidx`` does not exist.
         """
-        # is_needed
-        # no_work
-        # not_tested
         failed = ''
         bidx = None
         if self.bidx is not None:
@@ -1326,9 +1209,6 @@ class Band:
              Additional keyword arguments passed to the underlying ``Source.init_source``
              method.
          """
-        # is_needed
-        # needs_work (docs)
-        # not_tested (but used in tests)
         self.source.profile.update(profile)
         return self.source.init_source(overwrite=overwrite, **kwargs)
 
@@ -1355,9 +1235,6 @@ class Band:
         NDArray
            A NumPy array containing the data of this band.
         """
-        # is_needed
-        # no_work
-        # is_tested
         okwargs = kwargs.pop('okwargs', dict())
         with self.source.open(mode='r', **okwargs) as src:
             data = src.read(indexes=self.source.get_bidx(band=self), **kwargs)
@@ -1376,9 +1253,6 @@ class Band:
           Tuple (height, width) representing the number of rows and columns
           in the band.
         """
-        # is_needed (not sure - check)
-        # needs_work (this should be renamed to avoid confusion w np.array.shape
-        # not_tested
         return self.source.shape
 
     def count_valid_pixels(self, selector: NDArray | None, no_data: Union[int, float],
@@ -1409,9 +1283,6 @@ class Band:
             - If `limit_count` > 0, returns True/False depending on whether the
               count exceeds the limit.
         """
-        # is_needed
-        # needs_work (check if definition in helper or io and import here)
-        # is_tested
         if selector is None:
             self.source.import_profile()
             height = self.source.profile['height']
@@ -1454,9 +1325,6 @@ class Band:
             Tuple (min_value, max_value) over the selected valid pixels.
             Returns None if no valid pixels are found.
         """
-        # not_needed (useful?)
-        # no_work
-        # is_tested
         if selector is None:
             self.source.import_profile()
             height = self.source.profile['height']
@@ -1503,9 +1371,6 @@ class Band:
         Callable
          A partial function that writes data to the band.
         """
-        # is_needed
-        # needs_work (docs)
-        # not_tested (used in tests)
         mode = kwargs.pop('mode', 'r+' if self.source.exists else 'w')
         bidx = self.get_bidx(match=match)
         with self.source.open(mode=mode, **kwargs) as src:
@@ -1533,9 +1398,6 @@ class Band:
         Callable
             A partial function that reads data from the band.
         """
-        # is_needed
-        # needs_work (docs; tests)
-        # not_tested
         mode = kwargs.pop('mode', 'r')
         bidx = self.get_bidx(match=match)
         with self.source.open(mode=mode, **kwargs) as src:
@@ -1560,9 +1422,6 @@ class Band:
         AssertionError
             If `use` is not one of the allowed options.
         """
-        # is_needed (only in tests)
-        # needs work(doc)
-        # not_tested (used in tests)
         assert use in ['self', 'band', 'source', 'mask_all', 'mask_none'], \
             f'"{use}" is an invalid selector for a mask, options are:' \
             '\n\t- "band": uses the bands own mask (i.e. ' \
@@ -1588,10 +1447,6 @@ class Band:
         InvalidMaskSelectorError
           If `_use_mask` has an invalid value.
         """
-        # is_needed
-        # needs_work (docs)
-        # is_tested
-
         if self._use_mask is None or self._use_mask == 'self':  # read the band mask
             return self.mask_reader
         elif self._use_mask == 'source':  # read the dataset mask
@@ -1631,9 +1486,6 @@ class Band:
         Callable
             Partial function to read the band mask.
         """
-        # is_needed (only internally)
-        # needs_work (docs; make internal?)
-        # not_tested
         mode = kwargs.pop('mode', 'r')
         bidx = self.get_bidx(match=match)
         with self.source.open(mode=mode, **kwargs) as src:
@@ -1668,9 +1520,6 @@ class Band:
             Partial function returning a mask array filled with `fill_value`,
             while respecting windowing, rescaling, and transformations.
         """
-        # is_needed (only internally)
-        # needs_work (make internal)
-        # not_tested
         mode = kwargs.pop('mode', 'r')
         bidx = self.get_bidx(match=match)
 
@@ -1697,9 +1546,6 @@ class Band:
         **kwargs
            Additional keyword arguments passed to the band `data_writer`.
         """
-        # is_needed (tests only)
-        # needs_work (docs)
-        # not_tested
         if self.source.exists and not overwrite:
             mode = 'r+'
         else:
@@ -1740,8 +1586,5 @@ class Band:
               - `transform`: Affine transformation object for the loaded block
               - `orig_profile`: Original raster profile of the source band
         """
-        # is_needed
-        # needs_work (docs)
-        # not_tested
         bidx = self.get_bidx(match=match)
         return self.source.load_block(view=view, scaling_params=scaling_params, indexes=bidx)

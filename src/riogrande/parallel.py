@@ -25,15 +25,8 @@ from .timing import TimedTask
 
 
 def combine_views(output_params: dict, job_out_q: Queue):
-    # not_needed (could become a general combiner method - remove for now)
-    # needs_work (docs)
-    # not_tested
-    # TODO: I would keep this (it is used actually rn)
-    #       We may think about actually formulating this more broadly so we can use it in convster
     """Listens to a queue and writes provided view into a file
     """
-    # usedin_both (potentially
-
     with TimedTask() as timer:
         output_file = output_params.pop('output_file')
         profile = output_params.pop('profile')
@@ -67,9 +60,6 @@ def combine_views(output_params: dict, job_out_q: Queue):
 
 
 def data_writer(writer: Callable, writer_params: dict, aggr_q: Queue) -> TimedTask:
-    # is_needed (internally_only)
-    # needs_work (make internal; docs)
-    # not_tested
     """Write out data using the context manager `writer`
 
     This function can be used with the various context managers defined
@@ -107,9 +97,6 @@ def data_writer(writer: Callable, writer_params: dict, aggr_q: Queue) -> TimedTa
 
 def process_block(task: Callable, source: str | Source, bands: Collection[Band] | None, view: tuple[int, int, int, int],
                   task_params: dict, read_params: dict, open_params: dict, out_q: Queue) -> TimedTask:
-    # is_needed (internally only)
-    # needs_work (check if this can be used as general purpose in all paralellizations)
-    # not_tested (should be)
     """Processes a section of the data in the source file.
 
     This is a general purpose function that can be used to process a large .tif
@@ -165,9 +152,6 @@ def process_block(task: Callable, source: str | Source, bands: Collection[Band] 
 def process_masks(task: Callable, bands: Collection[Band], view: tuple[int, int, int, int],
                   task_params: dict, read_params: dict, open_params: dict, aggr_q: Queue,
                   extra_masking_band: Band | None = None) -> TimedTask:
-    # is_needed (internally only)
-    # needs_work (make internal)
-    # not_tested
     """Processes a section of the mask for each band
 
     This is a general purpose function that can be used to process a large .tif
@@ -224,9 +208,6 @@ def process_masks(task: Callable, bands: Collection[Band], view: tuple[int, int,
 
 
 def runner_call(queue: Queue[Any], callback: Callable, params: dict, wrapper: Callable | None = None) -> dict:
-    # is_needed (internally only)
-    # needs_work (better docs; make internal; check if it can be used for generalization)
-    # not_tested (used in tests)
     """Put the results of callback using parameter into the queue
 
     The function calls ``callback(**params)``, and optionally passes the result
@@ -259,9 +240,6 @@ def runner_call(queue: Queue[Any], callback: Callable, params: dict, wrapper: Ca
 
 def compute_mask(source: str | Source, block_size: tuple[int, int], nodata=0, logic: str = 'all',
                  bands: list[Band] | None = None, verbose: bool = False, **params) -> None:
-    # is_needed
-    # needs_work (docs)
-    # not_tested (used in various tests)
     """Compute the mask of a dataset in parallel and write it out to the file
 
     This function is checking validiaty against the nodata rule across all bands, provided the
@@ -282,12 +260,6 @@ def compute_mask(source: str | Source, block_size: tuple[int, int], nodata=0, lo
         - ``"any"`` : Mask each cell where *any* of the bands matches the nodata value.
         - ``"all"`` : Mask each cell where *all* of the bands match the nodata value.
 
-        # TODO: delete this note?
-        .. note::
-            We might, at some point in the future, allow callables here.
-            If a callable is provided it takes the data of a window (3D array if multiple
-            bands are present, 2D otherwise) and must return a 2D array of
-            np.uint8 with 0 for invalid pixels and any value > 0 for valid ones
     bands:
         An optional selection of bands to use. If not provided all bands are used.
     verbose:
@@ -380,9 +352,6 @@ def compute_mask(source: str | Source, block_size: tuple[int, int], nodata=0, lo
 
 
 def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
-    # is_needed (internally only)
-    # needs_work (docs; make internal)
-    # not_tested
     """Fill a matrix with data received through a queue.
 
     Parameters
@@ -418,9 +387,6 @@ def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
 
 def prepare_selector(*bands: Band, block_size: tuple[int, int], extra_masking_band: Band | None = None,
                      verbose=False, **params) -> NDArray:
-    # is_needed (internally only - also tests)
-    # needs_work (make internal; docs)
-    # not_tested (not directly)
     """Compute a boolean selector from masks of the provided `io.Band` objects
 
     Band masks are aggregated into a boolean selector that can be used to identify valid pixels

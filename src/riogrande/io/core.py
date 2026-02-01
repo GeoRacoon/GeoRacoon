@@ -1,4 +1,5 @@
-"""Holds [...] as well as internal functions largely used for Source and Band Classes
+"""
+Holds [...] as well as internal functions largely used for Source and Band Classes
 """
 
 from __future__ import annotations
@@ -36,9 +37,6 @@ NS = 'GEORACOON'
 
 
 def _set_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS, **tags: Any) -> None:
-    # is_needed
-    # needs_work (should be made internal?)
-    # is_tested
     """Update tags for a dataset or a single band of a dataset.
 
     Since metadata in a tif file is stored as a string the value of each tag is
@@ -85,9 +83,6 @@ def _set_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS, **tags:
 
 
 def _get_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS) -> dict[str, Any]:
-    # is_needed
-    # needs_work (should be internal)
-    # is_tested
     """Get all the tags and deserialize the values
 
     Parameters
@@ -116,9 +111,6 @@ def _get_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS) -> dict
 
 
 def _find_bidxs(src: DatasetWriter, ns: str = NS, **tags: Any) -> list[int]:
-    # is_needed
-    # neews_work (should be internal)
-    # not_tested
     """Find all bands in src for which all tags match
 
     Parameters
@@ -149,14 +141,7 @@ def _find_bidxs(src: DatasetWriter, ns: str = NS, **tags: Any) -> list[int]:
     return matching_bidxs
 
 
-def _get_bidx(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
-    # TODO: actually I feel we should rename this function, as it is more than the io_.py get_bidx.
-    #       Here we are actually matching by tags.
-    # j-i-l: Agreed, the get_bidx in Source and Band models also do not inherit
-    #        from this method, so it might make sense to rename this.
-    # is_needed
-    # needs_work
-    # not_tested (used in tests)
+def _get_bidx_by_tag(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
     """Get the index of the band with matching tags
 
     You can specify an arbitrary number of tags by passing keyword arguments
@@ -204,7 +189,7 @@ def _get_bidx(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
 
     - 'category': 1
     - foo: 'bar'
-    >>> bidx = _get_bidx(src=src, foo='bar', category=1)
+    >>> bidx = _get_bidx_by_tag(src=src, foo='bar', category=1)
     """
     if 'indexes' in tags or not tags:
         bidx = tags.get('indexes', 1)  # return 1 if nothing is provided
@@ -224,12 +209,7 @@ def _get_bidx(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
     return bidx
 
 
-# TODO: we should rename this function as it is inconsistent with the naming
-#       paradigm we use: Source.get_band does not use this function at all
-def get_bands(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, int]]:
-    # is_needed
-    # needs_work
-    # not_tested (used in tests)
+def get_bands_by_tag(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, int]]:
     """Find all bands that match specific tags
 
     This method check the metadata (including those of bands)
@@ -261,7 +241,7 @@ def get_bands(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, int]]:
     Returns
     ----------
     list
-        List of tuples with source (path) and bandindex entries in tuples.
+        A list of tuples with source (path) and bandindex entries in tuples.
     """
     _tags = sanitize(tags)
     _sources = glob.glob(source)
@@ -279,9 +259,6 @@ def get_bands(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, int]]:
 
 def load_block(source: str, view: None | tuple[int, int, int, int] = None, scaling_params: dict | None = None,
                **tags: Any) -> dict[str, Any]:
-    # is_needed
-    # needs_work
-    # is_tested
     """Get a block from a specific band of a *.tif file along with the transform
 
     You can select what band(s) to load by passing keyword arguments as tags
@@ -319,11 +296,7 @@ def load_block(source: str, view: None | tuple[int, int, int, int] = None, scali
     """
     window = view_to_window(view)
     with rio.open(source) as img:
-        # TODO: rasterio Window allows using slices. In doing so we could
-        #       harmonize what we call blocks and views and just work with
-        #       slices.
-
-        bidx = _get_bidx(src=img, **tags)
+        bidx = _get_bidx_by_tag(src=img, **tags)
         if window is not None:
             transform = img.window_transform(window)
             width = window.width
@@ -364,9 +337,6 @@ def load_block(source: str, view: None | tuple[int, int, int, int] = None, scali
 
 def write_band(src: DatasetWriter, data: NDArray, bidx: int = 1, window: Window | None = None,
                **tags: Any) -> None:
-    # is_needed
-    # needs_work
-    # not_tested
     """Write data to a specific band of a tif file and set the tags
 
     Parameters
@@ -393,9 +363,6 @@ def write_band(src: DatasetWriter, data: NDArray, bidx: int = 1, window: Window 
 
 
 def update_band(src: DatasetWriter, data: NDArray, window: Window | None = None, **tags: Any) -> None:
-    # not_needed (could be useful though)
-    # no_work
-    # not_tested
     """Find a specific band and update it with data
 
     This function writes a data array in a band specified with tags.
@@ -418,7 +385,7 @@ def update_band(src: DatasetWriter, data: NDArray, window: Window | None = None,
     None
     """
     try:
-        bidx = _get_bidx(src=src, **tags)
+        bidx = _get_bidx_by_tag(src=src, **tags)
     except BandSelectionNoMatchError as e:
         raise BandSelectionNoMatchError(
             "There was no band with matching tags. "
@@ -431,11 +398,6 @@ def update_band(src: DatasetWriter, data: NDArray, window: Window | None = None,
 
 
 def _export_to_tif(destination: str, data: NDArray, orig_profile: dict, start=(0, 0), **pparams: Any) -> None:
-    # TODO: at the moment I think we should either (a) delet it , or (b) make it a usuefull function with a lot of
-    #  default parametes (but it is neither easy to use with argparse (due to the params needed) nor within functions
-    # not_needed (could be useful though)
-    # no_work
-    # not_tested
     """Export a np.array to tif, only updating a window if data is smaller
 
     This function will overwrite the dtype of the destination tif with the
@@ -475,10 +437,6 @@ def _export_to_tif(destination: str, data: NDArray, orig_profile: dict, start=(0
 
 
 def coregister_raster(source: str, reference: str, output: str | None = None) -> str:
-    # TODO: this is actually not so bad, as it is quite usefull for geographic operations
-    # is_needed (in tests only)
-    # needs_work (format doc)
-    # not_tested
     """Align raster to have identical resolution.
 
     Resolution will be calculated automatically from bounds and height/width of reference raster.
@@ -533,9 +491,6 @@ def coregister_raster(source: str, reference: str, output: str | None = None) ->
 
 
 def compress_tif(source, output: str | None = None, compression: str | None = 'lzw') -> str:
-    # is_needed
-    # needs_work (docs)
-    # is_tested
     """Compress tif file with LZW compression
 
     Parameters

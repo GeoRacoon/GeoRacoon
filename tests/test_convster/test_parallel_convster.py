@@ -135,7 +135,7 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
         # check if tags were set correctly
         with rio.open(blur_output_file) as src:
             tags = rgio._get_tags(src, bidx=index)
-            bidx = rgio._get_bidx(src, category=category)
+            bidx = rgio._get_bidx_by_tag(src, category=category)
             np.testing.assert_equal(tags['category'], category)
             np.testing.assert_equal(bidx, index)
 
@@ -282,7 +282,7 @@ def test_entropy_recombination(datafiles, set_mpc_strategy):
         # check if tags were set correctly
         with rio.open(entropy_output_file) as src:
             tags = rgio._get_tags(src, bidx=1)
-            bidx = rgio._get_bidx(src, category="entropy")
+            bidx = rgio._get_bidx_by_tag(src, category="entropy")
             np.testing.assert_equal(tags['category'], "entropy")
             np.testing.assert_equal(bidx, 1)
 
@@ -436,7 +436,7 @@ def test_entropy_recombination(datafiles, set_mpc_strategy):
         # check if tags were set correctly
         with rio.open(entropy_output_file) as src:
             tags = rgio._get_tags(src, bidx=1)
-            bidx = rgio._get_bidx(src, category="entropy")
+            bidx = rgio._get_bidx_by_tag(src, category="entropy")
             np.testing.assert_equal(tags['category'], "entropy")
             np.testing.assert_equal(bidx, 1)
 
@@ -586,7 +586,7 @@ def test_entropy_2_step(datafiles):
         # check if tags were set correctly for the blurred layers
         with rio.open(blurred_tif) as src:
             tags = rgio._get_tags(src, bidx=1)
-            bidx = rgio._get_bidx(src, category=categories[0])
+            bidx = rgio._get_bidx_by_tag(src, category=categories[0])
             np.testing.assert_equal(tags['category'], categories[0])
             np.testing.assert_equal(bidx, 1)
         blurred_source = rgio.Source(path=blurred_tif)
@@ -716,7 +716,7 @@ def test_entropy_parallel(datafiles):
         # check if tags were set correctly for the blurred layers
         with rio.open(blurred_tif) as src:
             tags = rgio._get_tags(src, bidx=1)
-            bidx = rgio._get_bidx(src, category=categories[0])
+            bidx = rgio._get_bidx_by_tag(src, category=categories[0])
             np.testing.assert_equal(tags['category'], categories[0])
             np.testing.assert_equal(bidx, 1)
 

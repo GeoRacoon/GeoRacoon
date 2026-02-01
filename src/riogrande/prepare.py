@@ -1,6 +1,7 @@
 """
 Functions used to create windows/ views for parallelization processes in 2D raster maps.
 """
+
 from __future__ import annotations
 
 import math
@@ -9,7 +10,6 @@ from numpy.typing import ArrayLike, NDArray
 
 
 def update_view(data: NDArray, view: tuple[int, int, int, int], block: ArrayLike) -> None:
-    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Update a view from the data array with a block
 
     The block must exactly match the shape of the view:
@@ -41,15 +41,10 @@ def update_view(data: NDArray, view: tuple[int, int, int, int], block: ArrayLike
            [0., 1., 1., 1., 0.],
            [0., 0., 0., 0., 0.]])
     """
-    # is_needed
-    # no_work
-    # not_tested (used in test)
-    # usedin_both
     data[slice(view[1], view[1] + view[3]), slice(view[0], view[0] + view[2])] = block
 
 
 def create_views(view_size: tuple[int, int], border: tuple[int, int], size: tuple[int, int]) -> tuple[list, ...]:
-    # TODO: is_needed - needs_work - is_tested - usedin_both
     """Returns a set of views on which an operation can be applied independently
 
     Parameters
@@ -87,10 +82,6 @@ def create_views(view_size: tuple[int, int], border: tuple[int, int], size: tupl
     >>> usable
     [(0, 0, 4, 4), (4, 0, 5, 4), (0, 4, 4, 5), (4, 4, 5, 5)]
     """
-    # is_needed
-    # no_work
-    # is_tested
-    # usedin_both
     assert all(len(x) == 2 for x in (view_size, border, size)), \
         f"{len(view_size)=},{len(border)=},{len(size)=} all need to be of " \
         "length 2 (width, height)"
@@ -160,7 +151,6 @@ def create_views(view_size: tuple[int, int], border: tuple[int, int], size: tupl
             inner_w.append(view_size[0])
             inner_h.append(view_size[1])
             # NOTE: this is not the corner, but the last of the regular blocks
-            # TODO: could this not be handled in next if?
             if j == nbr_views[1] - 1 and leftovers[1]:
                 inner_h[-1] = leftovers[1]
                 heights[-1] = leftovers[1] + border[1]
@@ -200,8 +190,6 @@ def create_views(view_size: tuple[int, int], border: tuple[int, int], size: tupl
 
 
 def get_view(data: NDArray, view: tuple[int, int, int, int]) -> NDArray:
-    # TODO: is_needed - needs_work - is_tested - usedin_processing
-    # TODO: This was moved here to riogrand as it makes more sense, despite it may only be used in processing
     """Return a recatangular view of the data array
 
     ..Note::
@@ -232,18 +220,12 @@ def get_view(data: NDArray, view: tuple[int, int, int, int]) -> NDArray:
     array([[ 5,  6],
            [ 9, 10]])
     """
-    # is_needed
-    # not_tested (used in test)
-    # no_work
-    # usedin_processing (maybe both)
     return data[slice(view[1], view[1] + view[3]),
                 slice(view[0], view[0] + view[2])]
 
 
 def relative_view(view: tuple[int, int, int, int],
                   inner_view: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
-    # TODO: is_needed - needs_work - is_tested - usedin_processing
-    # TODO: This was moved here to riogrand as it makes more sense, despite it may only be used in processing
     """Return the `inner_view` relative to `view`
 
     Given two rectangular regions defined as `(x, y, width, height)`,
@@ -274,9 +256,5 @@ def relative_view(view: tuple[int, int, int, int],
     >>> relative_view(outer, inner)
     (5, 10, 20, 10)
     """
-    # is_needed
-    # needs_work (better docs)
-    # not_tested (used in tests)
-    # usedin_processing (maybe both)
     return (inner_view[0] - view[0], inner_view[1] - view[1],
             inner_view[2], inner_view[3])
