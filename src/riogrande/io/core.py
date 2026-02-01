@@ -213,8 +213,6 @@ def _get_bidx(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
     return bidx
 
 
-# TODO: we should rename this function as it is inconsistent with the naming
-#       paradigm we use: Source.get_band does not use this function at all
 def get_bands(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, int]]:
     """Find all bands that match specific tags
 
