@@ -162,14 +162,12 @@ def test_tag_matching(datafiles):
         # category matches to band 1:
         _bidx = 1
         _category = band_tags[_bidx]['category']
-        assert rgio._get_bidx(src=src,
-                             category=_category) == _bidx
+        assert rgio._get_bidx_by_tag(src=src, category=_category) == _bidx
         # category 222 does not exist
         with pytest.raises(BandSelectionNoMatchError):
-            rgio._get_bidx(src=src,
-                          category=222)
+            rgio._get_bidx_by_tag(src=src, category=222)
         with pytest.raises(BandSelectionAmbiguousError):
-            rgio._get_bidx(src=src, some='value')
+            rgio._get_bidx_by_tag(src=src, some='value')
         # check that serialization works
         _bidx = 2
         _tag = 'extra'
@@ -183,7 +181,7 @@ def test_tag_matching(datafiles):
     # now test the get_bands
     sources = str(datafiles / 'out*.tif')
     # find all some: 'value' tags:
-    some_value = rgio.get_bands(source=sources, some='value')
+    some_value = rgio.get_bands_by_tag(source=sources, some='value')
     assert (str(outfile2), None) in some_value  # the tag in the dataset
     # the bands
     assert (str(outfile1), 1) in some_value

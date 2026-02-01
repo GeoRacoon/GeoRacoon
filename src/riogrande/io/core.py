@@ -141,11 +141,7 @@ def _find_bidxs(src: DatasetWriter, ns: str = NS, **tags: Any) -> list[int]:
     return matching_bidxs
 
 
-def _get_bidx(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
-    # TODO: actually I feel we should rename this function, as it is more than the io_.py get_bidx.
-    #       Here we are actually matching by tags.
-    # j-i-l: Agreed, the get_bidx in Source and Band models also do not inherit
-    #        from this method, so it might make sense to rename this.
+def _get_bidx_by_tag(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
     """Get the index of the band with matching tags
 
     You can specify an arbitrary number of tags by passing keyword arguments
@@ -193,7 +189,7 @@ def _get_bidx(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
 
     - 'category': 1
     - foo: 'bar'
-    >>> bidx = _get_bidx(src=src, foo='bar', category=1)
+    >>> bidx = _get_bidx_by_tag(src=src, foo='bar', category=1)
     """
     if 'indexes' in tags or not tags:
         bidx = tags.get('indexes', 1)  # return 1 if nothing is provided
@@ -213,7 +209,7 @@ def _get_bidx(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | int:
     return bidx
 
 
-def get_bands(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, int]]:
+def get_bands_by_tag(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, int]]:
     """Find all bands that match specific tags
 
     This method check the metadata (including those of bands)
@@ -245,7 +241,7 @@ def get_bands(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, int]]:
     Returns
     ----------
     list
-        List of tuples with source (path) and bandindex entries in tuples.
+        A list of tuples with source (path) and bandindex entries in tuples.
     """
     _tags = sanitize(tags)
     _sources = glob.glob(source)
@@ -300,7 +296,7 @@ def load_block(source: str, view: None | tuple[int, int, int, int] = None, scali
     """
     window = view_to_window(view)
     with rio.open(source) as img:
-        bidx = _get_bidx(src=img, **tags)
+        bidx = _get_bidx_by_tag(src=img, **tags)
         if window is not None:
             transform = img.window_transform(window)
             width = window.width
@@ -389,7 +385,7 @@ def update_band(src: DatasetWriter, data: NDArray, window: Window | None = None,
     None
     """
     try:
-        bidx = _get_bidx(src=src, **tags)
+        bidx = _get_bidx_by_tag(src=src, **tags)
     except BandSelectionNoMatchError as e:
         raise BandSelectionNoMatchError(
             "There was no band with matching tags. "
