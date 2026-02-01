@@ -1,5 +1,4 @@
-"""
-Provides a simple context manager class for timing code execution and
+""" Provides a simple context manager class for timing code execution and
 recording intermediate durations (laps).
 """
 
