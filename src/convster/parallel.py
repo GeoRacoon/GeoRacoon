@@ -148,7 +148,6 @@ def _combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask
 
 
 def _combine_entropy_blocks(output_params: dict, entropy_q: Queue):
-    # TODO: needs testing
     """
     Listen to a queue for entropy blocks and write them to an output file.
 
@@ -237,7 +236,6 @@ def _combine_entropy_blocks(output_params: dict, entropy_q: Queue):
 
 
 def _combine_interaction_blocks(output_params: dict, interaction_q: Queue):
-    # TODO: needs testing
     """
     Listen to a queue for interaction blocks and write them to an output file.
 
@@ -414,7 +412,7 @@ def _block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
 
 
 def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedTask:
-    # TODO: I beleive this is not used anywhere actually - DELETE if Needed
+    # Note: this may be deleted - seems to have no use
     """
     Compute per-block heterogeneity measures based on entropy and push results to queues.
 
