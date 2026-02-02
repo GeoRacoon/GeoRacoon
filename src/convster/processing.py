@@ -159,11 +159,6 @@ def get_category_data(data: NDArray,
     - If an image filter is provided, ``as_dtype`` converts the data before
       the filter is applied.
     """
-    # is_needed (mostly for tests)
-    # no_work
-    # not_tested
-    # usedin_processing (but could go to io)
-
     # strip the category/categories
     _data = select_category(data, category, as_dtype=data_as_dtype)
     filter_params = filter_params or dict()
@@ -213,11 +208,6 @@ def get_filtered_categories(data: NDArray,
     -----
     - See `get_category_data` for details on extracting category-specific data.
     """
-    # is_needed (only in tests)
-    # needs_work (docs)
-    # not_tested (used in tests thought)
-    # usedin_processing
-
     if categories is None:
         categories = get_categories(data)
     all_categories = dict()
@@ -332,8 +322,6 @@ def compute_entropy(data_arrays: Sequence[NDArray],
             # use the normalization range [0, 1] for float output by default
             output_range = (0.0, 1.0)
         elif np.issubdtype(_as_dtype, np.integer) and output_range is None:
-            # TODO: we should decide whether we want this for entropy - but if normed I feel it helps with usability
-            #       useres will not want to sset this if they use uint8 I guess
             # use the general possible range for Integers
             _intmax, _intmin = dtype_range(_as_dtype)
             output_range = (_intmin, _intmax)
@@ -419,10 +407,6 @@ def _get_entropy(data: NDArray,
     - Normalization scales values to [0,1] (or to the range of `as_dtype` if integer).
     - The `as_dtype` and `output_range` parameters only affect the normalized output.
     """
-    # TODO: This function does not allow the set `as_dtype` of
-    # `get_filtered_categories`
-    # > Change call signature to
-    #   `get_entropy(blur_params:dict, entropy_params:dict,...)`
     filter_params = filter_params or dict()
     blur_output_dtype = params.pop('blur_output_dtype', None)
     blurred_categories = get_filtered_categories(data=data,
@@ -701,7 +685,6 @@ def _filter_data(data: NDArray,
            [2.27905522, 3.62953263, 4.84767823]])
     """
     # check if nan exists
-    # TODO: move this out of this function
     if np.isnan(np.sum(data)) and replace_nan_with is None:
         if img_filter == gaussian:  # only warn for gaussian
             warnings.warn(
@@ -834,7 +817,6 @@ def _view_filtered(source: Source | str,
     filtered_datas = {}
     for band, data_view in data_views.items():
         # We need to use the same no data for the filtering as defined in the views
-        # TODO: we could also get this nodata from checking data_as_dtype
         _nodata = 0
         dv_dtype = data_view['data'].dtype
         if np.issubdtype(dv_dtype, np.floating):
@@ -858,7 +840,8 @@ def _view_filtered(source: Source | str,
         # only keep the inner view
         filtered_datas[band.get_bidx()] = np.copy(
             get_view(_filtered_data,
-                     relative_view(view, inner_view))
+                     relative_view(view, inner_view)
+                     )
         )
     return dict(data=filtered_datas, view=inner_view)
 
