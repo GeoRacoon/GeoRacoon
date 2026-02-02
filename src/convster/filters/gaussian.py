@@ -19,7 +19,6 @@ img_filter = gaussian
 
 
 def get_kernel_diameter(sigma: float, **params) -> int:
-    # TODO: not really used (same for get_kernel_size)
     """
     Compute the effective Gaussian kernel diameter in number of cells.
 
