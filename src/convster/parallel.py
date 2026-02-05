@@ -39,8 +39,6 @@ from .filters.gaussian import compatible_border_size
 
 
 def _combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask:
-    # TODO: should we think about combining this a bit with "combine_views" in riogrande/parallel?
-    #       Or, should we maybe leave them separate as the one in riogrande is really broad (no nodata etc)
     """
     Listen to a queue for blurred category blocks and write them to an output file.
 
@@ -125,7 +123,6 @@ def _combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask
                 signal = output.get('signal', None)
                 if signal:
                     if signal == "kill":
-                        # TODO: FINALIZE_TASK:
                         # print(f"\n\nClosing: {output_file}\n\n")
                         break
                 categories_data = output.pop('data')
@@ -136,13 +133,12 @@ def _combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask
                 w = view_to_window(inner_view)
                 for bidx, (band, data) in enumerate(categories_data.items(),
                                                     start=1):
-                    # TODO: UPDATE_TASK
                     # NOTE: downside of this is that we set the tags
                     #       every time, unfortunately, in the FINALIZE_TASK
                     #       we do not have the bidx
                     write_band(src=dst, bidx=bidx, data=data.astype(as_dtype), window=w,
                                category=band)
-                    # NOTE: we might want keep the description unchanged:
+                    # NOTE: we might want to keep the description unchanged:
                     dst.set_band_description(bidx, f'LC_{band}')
                 if verbose:
                     print(f"Wrote out bands for blurred block {inner_view=}")
@@ -152,7 +148,6 @@ def _combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask
 
 
 def _combine_entropy_blocks(output_params: dict, entropy_q: Queue):
-    # TODO: needs testing
     """
     Listen to a queue for entropy blocks and write them to an output file.
 
@@ -241,7 +236,6 @@ def _combine_entropy_blocks(output_params: dict, entropy_q: Queue):
 
 
 def _combine_interaction_blocks(output_params: dict, interaction_q: Queue):
-    # TODO: needs testing
     """
     Listen to a queue for interaction blocks and write them to an output file.
 
@@ -406,8 +400,6 @@ def _block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
             img_filter=params.get('img_filter'),
             filter_params=params.get('filter_params'),
             filter_output_range=params.get('filter_output_range'),
-            # TODO: we need to consistently use `as_dtype` for the
-            #       data type of  returned data
             output_dtype=params.get('as_dtype'),
             output_range=params.get('output_range'),
         )
@@ -415,118 +407,6 @@ def _block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
             blur_q,
             view_blurred,
             blur_params
-        )
-    return timer
-
-
-def block_heterogeneity(params: dict, entropy_q: Queue, blur_q: Queue) -> TimedTask:
-    # TODO: I beleive this is not used anywhere actually - DELETE if Needed
-    """
-    Compute per-block heterogeneity measures based on entropy and push results to queues.
-
-    This function processes a spatial block (or "view") from a categorical raster dataset,
-    applying optional filtering and computing a heterogeneity measure based on Shannon
-    entropy. The function produces two outputs:
-    1. A blurred, multi-band representation of the categorical data pushed to ``blur_q``.
-    2. A single-band entropy map pushed to ``entropy_q``.
-
-    Parameters
-    ----------
-    params : dict
-      Dictionary containing all relevant configuration data for processing a single
-      raster block. Required keys include:
-
-      - **source** : str
-        Path to the input raster file.
-      - **view** : tuple(int, int, int, int)
-        The full extent of the block to process, as ``(x, y, width, height)``.
-      - **inner_view** : tuple(int, int, int, int)
-        The usable area of the block, excluding borders.
-      - **img_filter** : Callable
-        A filter function to apply to each category layer, such as
-        ``skimage.filters.gaussian``.
-      - **filter_params** : dict
-        Parameters to pass to the filter callable.
-
-      Optional keys include:
-
-      - **entropy_as_ubyte** : bool, default=False
-        If ``True``, normalize entropy values to the 0–255 range and return
-        as unsigned bytes (``uint8``).
-      - **blur_output_dtype** : str or numpy.dtype or None, default=None
-        Data type to cast blurred data to before entropy computation.
-      - **filter_output_range** : tuple(float, float) or None, default=None
-        Expected numeric range of the filter’s output, used for normalization.
-      - **categories** : list[str], optional
-        List of category identifiers (bands) to include in the computation.
-
-    entropy_q : Queue
-      A multiprocessing or threading queue to which computed entropy maps
-      (heterogeneity measures) are pushed. Each item typically includes a
-      dictionary containing ``'data'`` and ``'view'`` fields.
-
-    blur_q : Queue
-      A multiprocessing or threading queue to which blurred category maps
-      are pushed. Each item typically includes a dictionary mapping category
-      names to filtered numpy arrays.
-
-    Returns
-    -------
-    TimedTask
-      A `TimedTask` instance tracking the duration of the operation.
-      This can be used for profiling or performance monitoring.
-
-    Notes
-    -----
-    This function acts as an internal worker for heterogeneity analysis workflows.
-    It first produces blurred category data via the ``view_blurred`` function and
-    then computes entropy using ``view_entropy``. Both are dispatched asynchronously
-    using ``runner_call`` and communicate their results through queues.
-    """
-    # handle deprecated parameters
-    blur_as_int = params.pop('blur_as_int', None)
-    if blur_as_int is not None:
-        if blur_as_int:
-            params['blur_output_dtype'] = "uint8"
-        else:
-            params['blur_output_dtype'] = "float64"
-        # TODO: fix deprecated use of parameters
-        warnings.warn("The parameter `blur_as_int` is deprecated, use "
-                      f"`output_dtype` instead!\nUsing {blur_as_int=} leads "
-                      f"to {params['output_dtype']=}",
-                      category=DeprecationWarning)
-    # ---
-    with TimedTask() as timer:
-        # this is only needed for the entropy part below
-        view = params.get('view')
-        blur_params = dict(
-            source=params.get('source'),
-            view=view,
-            inner_view=params.get('inner_view'),
-            categories=params.get('categories'),
-            img_filter=params.get('img_filter'),
-            filter_params=params.get('filter_params'),
-            output_dtype=params.get('blur_output_dtype'),
-            filter_output_range=params.get('filter_output_range')
-        )
-        blurred_view = runner_call(
-            blur_q,
-            view_blurred,
-            blur_params
-        )
-        blured_data = blurred_view['data']
-        view = blurred_view['view']
-        entropy_as_ubyte = params.pop('entropy_as_ubyte', False)
-        entropy_params = dict(
-            category_arrays=blured_data,
-            view=view,
-            output_dtype="uint8" if entropy_as_ubyte else None,
-        )
-        # This would return the entropy data
-        _ = runner_call(
-            entropy_q,
-            view_entropy,
-            entropy_params
         )
     return timer
 
@@ -714,11 +594,10 @@ def _block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
 def compute_entropy(source: str | Source,
                     output_file: str,
                     block_size: tuple[int, int],
-                    blur_params: dict,  # TODO: is only used to format output_file
+                    blur_params: dict,
                     categories: list | None = None,
                     output_dtype: type | str | None = None,
                     output_range: tuple | None = None,
-                    # TODO: Do we want to infer for np.integer? (see compute entropy)
                     normed: bool = True,
                     max_entropy_categories: int | None = None,
                     verbose: bool = False,
@@ -814,8 +693,6 @@ def compute_entropy(source: str | Source,
         categories = list(source.get_tag_values(tag='category').values())
         print('WARNING: Inferring the number of categories to use from the\n'
               '         source file.')
-
-    # TODO: provide the categories we want to include
     input_bands = [Band(source=source, tags=dict(category=category))
                    for category in categories]
     if verbose:
@@ -824,7 +701,6 @@ def compute_entropy(source: str | Source,
         print("Chosen bands for the entropy calculation:\n"
               f"\t{band_choice_str} \n")
 
-    # TODO: We should not change the output file
     entropy_output_file = output_filename(
         base_name=output_file,
         out_type='entropy',
@@ -921,7 +797,7 @@ def compute_entropy(source: str | Source,
 def compute_interaction(source: str | Source,
                         output_file: str,
                         block_size: tuple[int, int],
-                        blur_params: dict,  # TODO: is only used to format output_file
+                        blur_params: dict,
                         categories: list | None = None,
                         output_dtype: type | str | None = None,
                         output_range: tuple | None = None,
@@ -1125,8 +1001,6 @@ def compute_interaction(source: str | Source,
     return interaction_output_file
 
 
-# TODO: check how much extract_categories and apply_filter are redundant
-# TODO: I was thinking to delete this and stay with apply_filter
 def extract_categories(source: str | Source,
                        categories: list,
                        output_file: str,
@@ -1227,7 +1101,6 @@ def extract_categories(source: str | Source,
         height = src.height
         profile = copy(src.profile)
     # the border size of a block should be at least as large as the kernel size
-    # TODO: this should be a computed term, rather than simply set
     # set the block size in pixels
     if verbose:
         print("The chosen source tif has a dimension of:"
@@ -1317,7 +1190,6 @@ def extract_categories(source: str | Source,
     return output_file
 
 
-# TODO: This is actually the better function (allows for float etc) - we should keep this (or both)
 def apply_filter(source: str | Source,
                  output_file: str,
                  block_size: tuple[int, int],
@@ -1380,8 +1252,7 @@ def apply_filter(source: str | Source,
         - **as_dtype** : data type for filtered output (overrides `output_dtype`)
         - **nodata** : value for missing data (default: None)
         - **bigtiff** : bool, whether to create a BIGTIFF for >4GB files
-          TODO: We can think about either making this standard or allowing for the rasteiro implementation from GDAL:
-             https://rasterio.readthedocs.io/en/latest/topics/image_options.html
+            ..Note: this may become standard if
     verbose : bool, default=False
         Print progress and debug information.
     **params
@@ -1421,7 +1292,6 @@ def apply_filter(source: str | Source,
         source = sources.pop()
 
     # prepare output params
-    # TODO: we should get rid of either output_params['dtype'] or output_dtype as a user input option
     if output_params is None:
         output_params = dict()
     _out_dtype = output_params.get('as_dtype', None)
@@ -1440,7 +1310,6 @@ def apply_filter(source: str | Source,
         print(f"The resulting border size is {border=} pixels")
 
     # we need to set nodata to None if input is different dtype than output and input has Nodata e.g. nan to unit8
-    # TODO: we can use the rasterio to numpy mapping to check whether input is same as output dtype - else set to None
     output_params['nodata'] = None
 
     # set the parameter for the resulting file

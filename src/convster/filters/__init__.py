@@ -15,8 +15,6 @@ from .gaussian import gaussian as _gauss_filter
 from .gaussian import bpgaussian
 from .gaussian import get_kernel_diameter as _gauss_get_kd
 from .gaussian import get_kernel_size as _gauss_get_ks
-# TODO: We should avoid importing filter specific functions directly into this
-# namespace (Alternatively we ditch the filter subm. and only keep gaussian
 from .gaussian import get_blur_params
 
 _filters = [_gauss_filter, ]
