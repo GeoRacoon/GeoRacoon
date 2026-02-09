@@ -38,7 +38,7 @@ def get_file(pattern:str, datafiles):
 def set_mpc_strategy():
     return get_or_set_context(method='fork')
 
-# TODO: we need to get rid of this config for testing --> we dont want to be dependent on convster for the linfit package
+# TODO: we need to get rid of this config for testing --> we dont want to be dependent on convster for the coonfit package
 @pytest.fixture(scope="function")  # is function scope since datafiles is too
 def create_blurred_tif(datafiles):
     """Create blurred single land-cover type layers in uint8 format

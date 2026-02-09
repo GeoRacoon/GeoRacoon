@@ -30,7 +30,7 @@ include = [
   "riogrande.io",
   "convster",
   "convster.filters",
-  "linfit",
+  "coonfit",
 ]
 exclude = ["tests*"]
 
@@ -59,7 +59,7 @@ source = [
     "src/riogrande/io",
     "src/convster",
     "src/convster/filters",
-    "src/linfit",
+    "src/coonfit",
 ]
 omit = [
   "tests",
@@ -71,5 +71,5 @@ source = [
   "src/riogrande/io", 
   "src/convster/",
   "src/convster/filters",
-  "src/linfit/", 
+  "src/coonfit/",
 ]
