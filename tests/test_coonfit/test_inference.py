@@ -10,7 +10,7 @@ from riogrande import helper as rghelp
 from riogrande.io import Source, Band, coregister_raster
 from riogrande import parallel as rgpara
 
-from linfit import inference as lfinf
+from coonfit import inference as lfinf
 
 from .conftest import (
     ALL_MAPS,

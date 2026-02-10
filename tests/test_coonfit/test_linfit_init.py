@@ -1,6 +1,6 @@
 import pytest
 
-import linfit as lft
+import coonfit as lft
 
 def test_package_import():
     """

@@ -31,7 +31,7 @@ from riogrande.io import Source, Band
 from riogrande import parallel as rgpara
 from convster import parallel as cvpara
 from convster.filters import bpgaussian
-from linfit import parallel as lfpara
+from coonfit import parallel as lfpara
 
 # Parameters
 base_dir = os.path.dirname(__file__)
