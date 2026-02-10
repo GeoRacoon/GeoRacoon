@@ -1,7 +1,7 @@
 import numpy as np
 import random
 
-from linfit.helper import (
+from coonfit.helper import (
     check_rank_deficiency,
 )
 

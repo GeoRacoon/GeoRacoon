@@ -14,9 +14,9 @@ from riogrande import prepare as rgprep
 from convster import parallel as cspara
 from convster.filters import get_blur_params
 
-from linfit import inference as lfinf
-from linfit import parallel as lfpara
-from linfit.parallel_helpers import (
+from coonfit import inference as lfinf
+from coonfit import parallel as lfpara
+from coonfit.parallel_helpers import (
     _combine_matrices,
     _partial_transposed_product
 )

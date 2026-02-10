@@ -2,7 +2,7 @@ import numpy as np
 
 from riogrande.io import Source
 
-import linfit.parallel_helpers as lfph
+import coonfit.parallel_helpers as lfph
 
 from .conftest import (
     ALL_MAPS,
