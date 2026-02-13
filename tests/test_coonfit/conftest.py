@@ -27,10 +27,12 @@ landiv_map = os.path.join(FIXTURE_DIR, 'testing', 'ndvi',
 ALL_MAPS = pytest.mark.datafiles(lct_map, lct_float_map, landiv_map)
 
 
-def get_file(pattern:str, datafiles):
+def get_file(pattern: str, datafiles):
     matching_files = list(glob.glob(os.path.join(str(datafiles), pattern)))
     if len(matching_files) != 1:
-        raise ValueError(f"Found multiple files matching this {pattern=}:\n{matching_files}")
+        raise ValueError(
+            f"Found multiple files matching this {pattern=}:\n{matching_files}"
+        )
     return matching_files[0]
 
 
@@ -44,7 +46,8 @@ def create_blurred_tif(datafiles):
     """Create blurred single land-cover type layers in uint8 format
     """
     as_dtype = 'uint8'
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    landcover_map = get_file(pattern="Switzerland_CLC_*.tif",
+                             datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     print(f"Using\n- landcover map: {landcover_map}\n- ndvi map {ndvi_map}")
     lct_source = Source(path=landcover_map)
@@ -61,7 +64,7 @@ def create_blurred_tif(datafiles):
     _ = filter_params.pop('diameter')
     blurred_tif = extract_categories(
         source=lct_source,
-        categories=[1,3,4,5,6],
+        categories=[1, 3, 4, 5, 6],
         output_file=blur_out,
         img_filter=gaussian,
         filter_params=filter_params,
@@ -70,7 +73,7 @@ def create_blurred_tif(datafiles):
             as_dtype=as_dtype,
         ),
         block_size=(500, 500),
-        compress = True,
+        compress=True,
     )
     blurr_source = Source(path=blurred_tif)
     # compute the mask
