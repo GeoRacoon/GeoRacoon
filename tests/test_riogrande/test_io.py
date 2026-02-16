@@ -52,7 +52,7 @@ def test_resampling(datafiles):
 def test_band_tagging(datafiles):
     """Test how reading and writing of tags work
     """
-    our_namespace = "LANDIV"
+    our_namespace = "GEORACOON"
     gen_tag1 = dict(
         info = 'This is a test map'
     )
@@ -115,7 +115,7 @@ def test_band_tagging(datafiles):
 def test_tag_matching(datafiles):
     """Test how reading and writing of tags work
     """
-    our_namespace = "LANDIV"
+    our_namespace = "GEORACOON"
     gen_tag1 = dict(
         info = 'file1',
         some_value = 4.3

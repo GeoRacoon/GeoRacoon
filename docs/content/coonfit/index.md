@@ -1,4 +1,4 @@
-# Linfit
+# Coonfit
 ```{toctree}
 
 about
