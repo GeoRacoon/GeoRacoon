@@ -8,11 +8,14 @@
 
 This project is an extension of [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) allowing to work with Sources (GeoTIFFS) and Bands as objects, which easily incorporate the use of tags.
 
-_GeoRacoon_ provides 3 packages, `riogrande`, `convster` and `linfit` (working title), that facilitate (in our opinion) working with TIFF files.
+_GeoRacoon_ provides 3 packages, `riogrande`, `convster` and `coonfit`, which facilitate (in our opinion) working with TIFF files.
 
-**riogrande** adds functionality for parallel processing using Windows, dataset compatibility checks, data type conversion, mask and selector creation as well as simple file compression.  
-**convster** ...  
-**linfit (working title)** ...  
+- **RioGrande** provides the great heart of the GeoRacoon and adds functionality for parallel processing using Windows, dataset compatibility checks, data type 
+conversion, mask and selector creation as well as simple file compression.  
+- **Convster** allows for (gaussian) convolution of raster files using parallelized processing, _coon-style_. 
+While gaussian and border-preserving gaussian filters are default parameters, other filters can be used.
+- **CoonFit** allows to fit linear moodls the _coon-way_, meaning parallelized and fast, while understanable due to the
+reliance on matrix operations
 
 <!-- quickstart -->
 
