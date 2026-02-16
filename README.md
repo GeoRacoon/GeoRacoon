@@ -105,10 +105,6 @@ b1.tags
 
 Head over to the [examples/](examples/) folder for some usage examples.
 
-Installed along with the `landiv_blur` package is also a command line executable
-`landiv` that can be used to process `.tif` files in a parallelized manner.
-After installation, type `landiv --help` in your terminal for further details
-on how to use it.
 
 For more examples, please refer to the project's [documentation page](docs).
 
