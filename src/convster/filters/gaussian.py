@@ -14,7 +14,6 @@ from ..helper import (first_nonzero,
                       last_nonzero)
 
 # we abstract the specific filters:
-# from landiv_blur.filters.<some_filter> import img_filter
 img_filter = gaussian
 
 

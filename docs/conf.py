@@ -98,5 +98,4 @@ autoapi_options = [
     "show-module-summary",
 ]
 autoapi_ignore = [
-    "*/landiv_blur/**",
 ]
