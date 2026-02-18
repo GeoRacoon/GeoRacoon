@@ -8,6 +8,8 @@ project = 'GeoRacoon'
 copyright = '2025, Simon Landauer, Jonas I. Liechti'
 author = 'Simon Landauer, Jonas I. Liechti'
 
+
+
 master_doc = 'index'
 
 release = ".".join(get_version('GeoRacoon').split('.')[:2])
@@ -44,21 +46,33 @@ favicons = [
 ]
 html_logo = "./GeoRacoon.png"
 
-html_theme = 'sphinx_rtd_theme'
+# html_theme = 'sphinx_rtd_theme'
 # html_theme = 'alabaster'
+html_theme = 'pydata_sphinx_theme'
+# html_theme = 'sphinx_book_theme'
 html_static_path = ['_static']
+html_css_files = ['custom-pst.css']
+
+html_context = {
+    "github_user": "GeoRacoon",
+    "github_repo": "GeoRacoon",
+    "github_version": "main",
+    "default_mode": "light",
+}
+
+# html_logo = '_static/<logo>.png'
+
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
-html_theme = 'pydata_sphinx_theme'
-# html_theme = 'sphinx_book_theme'
-# html_css_files = ["custom.css"]
-# html_logo = '_static/<logo>.png'
 html_title = 'GeoRacoon'
 html_theme_options = {
+    "path_to_docs": "docs/",
+    "use_edit_page_button": True,
+    "use_repository_button": True,
     "navbar_start": ["navbar-logo"],
     "navbar_center": ["navbar-nav"],
-    "navbar_end": ["navbar-icon-links"],
+    "navbar_end": ["theme-switcher", "navbar-icon-links"],
     "navbar_persistent": ["search-button"],
     "secondary_sidebar_items": ["page-toc", "edit-this-page", "sourcelink"],
     "footer_start": ["copyright", "sphinx-version"],
