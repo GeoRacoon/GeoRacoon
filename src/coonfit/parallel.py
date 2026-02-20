@@ -241,8 +241,8 @@ def get_XT_X(response: str | Band,
         Can be Band objects or paths to source files.
         See :func:`~coonfit.inference.prepare_predictors` for details on predictor
         specification.
-    selector : ndarray
-        Boolean array (np.bool_) to select usable cells. Must have the same
+    selector : NDArray
+        Boolean array (:class:`numpy.bool_`) to select usable cells. Must have the same
         spatial dimensions as the response. True values indicate pixels to
         include in the computation.
     include_intercept : bool, optional
@@ -381,8 +381,8 @@ def get_optimal_betas(*predictors: Band | str,
     response : str or Band
        Path to a tif file or Band object containing the response data.
        Used to determine spatial dimensions for block processing.
-    selector : ndarray
-       Boolean array (np.bool_) to select usable cells. Must have the same
+    selector : NDArray
+       Boolean array (:class:`numpy.bool_`) to select usable cells. Must have the same
        spatial dimensions as the response. True values indicate pixels to
        include in the regression.
     include_intercept : bool, optional
@@ -1002,8 +1002,8 @@ def calculate_rmse(response: str | Band,
         A `Band` object or a path to a raster/tif file containing the observed response data.
     model : Band or str
         A `Band` object or a path to a raster/tif file containing predicted values from the model.
-    selector : NDArray[np.bool_]
-        Boolean mask specifying which data points should be included in the RMSE calculation.
+    selector : NDArray
+        Boolean mask (:class:`numpy.bool_`) specifying which data points should be included in the RMSE calculation.
         Points where `selector` is False are ignored.
     block_size : tuple[int, int] or dict[str, tuple[int, int]]
         Size of the block (width, height) in pixels for processing data chunks.
@@ -1114,8 +1114,8 @@ def calculate_r2(response: str | Band,
         A `Band` object or a path to a raster/tif file containing the observed response data.
     model : Band or str
         A `Band` object or a path to a raster/tif file containing predicted values from the model.
-    selector : NDArray[np.bool_]
-        Boolean mask to specify which data points should be included in the R² calculation.
+    selector : NDArray
+        Boolean mask (:class:`numpy.bool_`) to specify which data points should be included in the R² calculation.
         Points where `selector` is False are ignored. The user must prepare the mask appropriately.
     block_size : tuple[int, int] or dict[str, tuple[int, int]]
         Size of the block (width, height) in pixels for processing data chunks.
