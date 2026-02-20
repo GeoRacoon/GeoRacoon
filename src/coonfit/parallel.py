@@ -53,7 +53,7 @@ def compute_model(predictors: Collection[Band],
         categorical value (key) a dictionary with the optimal weights per
         predictor.
 
-        See `selector_band` parameter for more details.
+        See the `selector_band` parameter for more details.
 
     output_file : str
         Path to where the model result should be written to.
@@ -109,11 +109,21 @@ def compute_model(predictors: Collection[Band],
     Notes
     -----
     The function uses multiprocessing to process the image in blocks for
-    improved performance. Each block is processed independently and results
-    are aggregated into the final output file.
+    improved performance. Each block is processed independently by
+    :func:`~coonfit.parallel_helpers._block_model_prediction` and results
+    are aggregated by :func:`~riogrande.parallel.combine_views` into the
+    final output file. Block decomposition uses :func:`~riogrande.prepare.create_views`.
+    Worker pool is sized via :func:`~riogrande.helper.get_nbr_workers`
+    and created with :func:`~riogrande.helper.get_or_set_context`.
 
     Timing information for each job and the total duration is printed to
     standard output upon completion.
+
+    See Also
+    --------
+    :func:`compute_weights` : Compute the optimal weights used as input here.
+    :func:`calculate_rmse` : Evaluate the model quality after calling this function.
+    :func:`calculate_r2` : Compute R² for the model output.
     """
     # get all source files
     sources = tuple(set(pred.source.path for pred in predictors))
@@ -229,7 +239,7 @@ def get_XT_X(response: str | Band,
     *predictors : Band or str
         Variable number of predictor bands to include in the design matrix X.
         Can be Band objects or paths to source files.
-        See `inference.prepare_predictors` for details on predictor
+        See :func:`~coonfit.inference.prepare_predictors` for details on predictor
         specification.
     selector : ndarray
         Boolean array (np.bool_) to select usable cells. Must have the same
@@ -268,15 +278,23 @@ def get_XT_X(response: str | Band,
     -----
     The function implements parallel computation by:
 
-    1. Dividing the spatial domain into non-overlapping blocks (views)
-    2. Computing partial X.T @ X matrices for each block in parallel
-    3. Aggregating the partial results into the final matrix
+    1. Dividing the spatial domain into non-overlapping blocks via
+       :func:`~riogrande.prepare.create_views`
+    2. Computing partial X.T @ X matrices for each block in parallel via
+       :func:`~coonfit.parallel_helpers._partial_transposed_product`
+    3. Aggregating the partial results via
+       :func:`~coonfit.parallel_helpers._combine_matrices`
 
     This approach is memory-efficient for large spatial datasets as it avoids
     loading the entire design matrix into memory at once.
 
     The selector mask is applied consistently across all blocks to ensure
     only valid pixels contribute to the computation.
+
+    See Also
+    --------
+    :func:`get_optimal_betas` : Compute beta coefficients from X.T @ X.
+    :func:`compute_weights` : Full workflow wrapping this function.
     """
     print(f'get_XT_X - {response=}, {predictors=}')
     if not isinstance(response, Band):
@@ -354,7 +372,7 @@ def get_optimal_betas(*predictors: Band | str,
     *predictors : Band or str
        Variable number of predictor bands to include in the regression.
        Can be Band objects or paths to source files.
-       See `inference.prepare_predictors` for details on predictor
+       See :func:`~coonfit.inference.prepare_predictors` for details on predictor
        specification.
     Y : ndarray
        The pre-computed X.T @ y vector, where y is the response vector.
@@ -410,9 +428,12 @@ def get_optimal_betas(*predictors: Band | str,
     -----
     The function implements parallel computation by:
 
-    1. Dividing the spatial domain into non-overlapping blocks (views)
-    2. Computing partial contributions for each block in parallel
-    3. Aggregating the partial results to obtain final beta coefficients
+    1. Dividing the spatial domain into non-overlapping blocks via
+       :func:`~riogrande.prepare.create_views`
+    2. Computing partial contributions for each block via
+       :func:`~coonfit.parallel_helpers._partial_optimal_betas`
+    3. Aggregating the partial results via
+       :func:`~coonfit.parallel_helpers._combine_matrices`
 
     The optimal weights solve the ordinary least squares problem:
 
@@ -423,6 +444,11 @@ def get_optimal_betas(*predictors: Band | str,
 
     This approach is memory-efficient for large spatial datasets as it avoids
     loading the entire design matrix into memory at once.
+
+    See Also
+    --------
+    :func:`get_XT_X` : Compute X.T @ X, whose inverse is passed as ``Y``.
+    :func:`compute_weights` : Full workflow wrapping this function.
 
     Examples
     --------
@@ -551,7 +577,7 @@ def get_XT_X_dependency(response: str | Band,
         Used to determine spatial dimensions and create the selector mask.
     predictors : Collection of Band
         Collection of predictor bands to test for linear dependency.
-        See `inference.prepare_predictors` for details on predictor
+        See :func:`~coonfit.inference.prepare_predictors` for details on predictor
         specification.
     block_size : tuple of int or dict of {str: tuple of int}
         Block sizes for parallel processing functions.
@@ -592,6 +618,12 @@ def get_XT_X_dependency(response: str | Band,
         pixels (no data to fit).
 
         If no linear dependencies are found, returns an empty dictionary.
+        Rank deficiency is checked using :func:`~coonfit.helper.check_rank_deficiency`.
+
+    See Also
+    --------
+    :func:`compute_weights` : Full fitting workflow using this dependency check.
+    :func:`get_XT_X` : Compute the X.T @ X matrix analyzed here.
     """
 
     # if block sizes are provided as dictionary - some pre-check on input is desired - else
@@ -685,7 +717,7 @@ def compute_weights(response: str | Band,
         Used to determine spatial dimensions and create the selector mask.
     predictors : Collection of Band
         Collection of predictor bands to use in the regression.
-        See `inference.prepare_predictors` for details on predictor
+        See :func:`~coonfit.inference.prepare_predictors` for details on predictor
         specification.
     block_size : tuple of int or dict of {str: tuple of int}
         Block sizes for parallel processing functions.
@@ -747,10 +779,10 @@ def compute_weights(response: str | Band,
     ValueError
         If `block_size` is a dictionary but doesn't contain the required keys
         or has invalid value types.
-    InvalidPredictorError
+    :exc:`~coonfit.exceptions.InvalidPredictorError`
         If `sanitize_predictors=False` and predictors fail the contribution
         threshold.
-    LinAlgError
+    :exc:`numpy.linalg.LinAlgError`
         If the X.T @ X matrix is singular and cannot be inverted (when
         `return_linear_dependent_predictors=False`).
 
@@ -765,14 +797,15 @@ def compute_weights(response: str | Band,
     -----
     The function performs the following workflow:
 
-    1. Creates a selector mask identifying valid pixels
-    2. Validates predictor consistency and removes invalid predictors if
-       `sanitize_predictors=True`
+    1. Creates a selector mask via :func:`~riogrande.parallel.prepare_selector`
+    2. Validates predictor consistency via
+       :func:`~coonfit.parallel_helpers._check_predictor_consistency`
+       (removes invalid predictors if `sanitize_predictors=True`)
     3. Recalculates selector if predictors were removed
-    4. Computes X.T @ X matrix in parallel
-    5. Checks for rank deficiency (linear dependencies)
-    6. Inverts X.T @ X matrix: (X.T @ X)^-1
-    7. Computes optimal weights: beta = (X.T @ X)^-1 @ X.T @ y
+    4. Computes X.T @ X matrix in parallel via :func:`get_XT_X`
+    5. Checks for rank deficiency via :func:`~coonfit.helper.check_rank_deficiency`
+    6. Inverts X.T @ X matrix using :func:`numpy.linalg.inv`: (X.T @ X)^-1
+    7. Computes optimal weights via :func:`get_optimal_betas`
 
     The optimal weights solve the ordinary least squares problem:
 
@@ -784,6 +817,14 @@ def compute_weights(response: str | Band,
     Linear dependency detection excludes the intercept column from the rank
     check, as the intercept is always included as the last column when
     `include_intercept=True`.
+
+    See Also
+    --------
+    :func:`compute_model` : Apply the fitted weights to produce a model raster.
+    :func:`get_XT_X` : Compute X.T @ X used in the normal equations.
+    :func:`get_optimal_betas` : Compute regression coefficients given Y = (X.T @ X)^-1.
+    :func:`calculate_rmse` : Evaluate model fit using RMSE.
+    :func:`get_XT_X_dependency` : Check for linear dependencies without full fitting.
 
     If predictors are removed during sanitization, the selector is recomputed
     to ensure consistency, as removed predictors may have contributed to
@@ -978,6 +1019,12 @@ def calculate_rmse(response: str | Band,
     -------
     float
         The RMSE value. Lower values indicate better model fit.
+        Computed via :func:`~coonfit.parallel_helpers._block_ssr`.
+
+    See Also
+    --------
+    :func:`calculate_r2` : Compute the coefficient of determination (R²).
+    :func:`compute_weights` : Fit the regression weights used to generate the model.
 
     Examples
     --------
@@ -1084,6 +1131,13 @@ def calculate_r2(response: str | Band,
     -------
     float
         The R² coefficient ranging from -∞ to 1, where 1 indicates perfect prediction.
+        Computed via :func:`~coonfit.parallel_helpers._block_ssr` and
+        :func:`~coonfit.parallel_helpers._block_sst`.
+
+    See Also
+    --------
+    :func:`calculate_rmse` : Compute the Root Mean Square Error.
+    :func:`compute_weights` : Fit the regression weights used to generate the model.
 
     Examples
     --------

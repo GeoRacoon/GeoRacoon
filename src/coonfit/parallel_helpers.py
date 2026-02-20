@@ -59,7 +59,13 @@ def _combine_matrices(output_q: Queue) -> tuple[NDArray | None, tuple]:
     - NaN values in partial matrices are automatically replaced with zeros
      before aggregation.
     - The function blocks until a "kill" signal is received.
-    - Each partial matrix extraction is timed with a new lap marker.
+    - Each partial matrix extraction is timed with a new lap marker
+      via :meth:`~riogrande.timing.TimedTask.new_lab`.
+
+    See Also
+    --------
+    :func:`_partial_transposed_product` : Produces X.T @ X blocks for this queue.
+    :func:`_partial_optimal_betas` : Produces beta blocks for this queue.
     """
     out_matrix = None
     with TimedTask() as timer:
@@ -93,11 +99,15 @@ def _partial_transposed_product(params: dict, output_q: Queue):
     Parameters
     ----------
     params : dict
-        Keyword arguments to pass to `transposed_product`. See
-        `inference.transposed_product` for valid parameters.
+        Keyword arguments to pass to :func:`~coonfit.inference.transposed_product`.
     output_q : Queue
         Queue where the computed result will be placed. The result is wrapped
-        in a dictionary as {'X': result}.
+        in a dictionary as ``{'X': result}``.
+
+    See Also
+    --------
+    :func:`_combine_matrices` : Aggregates the results from this function.
+    :func:`~coonfit.inference.transposed_product` : The underlying computation.
     """
 
     def _wrap(tpX):
@@ -122,11 +132,15 @@ def _partial_optimal_betas(params: dict, output_q: Queue):
        Parameters
        ----------
        params : dict
-           Keyword arguments to pass to `get_optimal_weights_source`. See
-           `inference.get_optimal_weights_source` for valid parameters.
+           Keyword arguments to pass to :func:`~coonfit.inference.get_optimal_weights_source`.
        output_q : Queue
            Queue where the computed result will be placed. The beta weights
-           dictionary is converted to a list and wrapped as {'X': list_of_values}.
+           dictionary is converted to a list and wrapped as ``{'X': list_of_values}``.
+
+       See Also
+       --------
+       :func:`_combine_matrices` : Aggregates the results from this function.
+       :func:`~coonfit.inference.get_optimal_weights_source` : The underlying computation.
        """
 
     def _wrap(beta_dict):
@@ -166,10 +180,14 @@ def _process_band_count_valid(band: Band, selector: NDArray[np.bool_], no_data: 
     -------
     valid_counts : dict
       Dictionary mapping the band to its valid pixel count, formatted as
-      {band: count}.
+      ``{band: count}``. Uses :meth:`~riogrande.io.models.Band.count_valid_pixels`.
     timer : tuple of TimedTask
-      Single-element tuple containing a TimedTask object with timing
-      information for the counting operation.
+      Single-element tuple containing a :class:`~riogrande.timing.TimedTask`
+      object with timing information for the counting operation.
+
+    See Also
+    --------
+    :func:`_check_predictor_consistency` : Uses this function in parallel to validate predictors.
     """
     with TimedTask() as timer:
         valid = band.count_valid_pixels(selector=selector,
@@ -196,8 +214,8 @@ def _check_predictor_consistency(predictors: Collection[Band],
     ----------
     predictors : Collection of Band
         A collection with arbitrary many predictor bands to validate.
-        See `inference.prepare_predictors` for further details on how to
-        specify predictors.
+        See :func:`~coonfit.inference.prepare_predictors` for further details
+        on how to specify predictors.
     selector : ndarray of bool
         Boolean array with the same shape as the predictors that indicates
         which cells are usable. True values indicate pixels to consider.
@@ -236,18 +254,24 @@ def _check_predictor_consistency(predictors: Collection[Band],
 
     Raises
     ------
-    InvalidPredictorError
+    :exc:`~coonfit.exceptions.InvalidPredictorError`
         If `sanitize=False` and one or more predictors fail to meet the
         minimum valid pixel threshold.
 
     Notes
     -----
-    The function uses multiprocessing to validate predictors in parallel for
-    improved performance with large collections.
+    The function uses multiprocessing (via :func:`~riogrande.helper.get_or_set_context`
+    and :func:`~riogrande.helper.get_nbr_workers`) to validate predictors in parallel
+    for improved performance with large collections.
 
     The minimum number of valid pixels required is calculated as:
     ``max(1, ceil(tolerance * total_selected_pixels))``
     ensuring at least 1 valid pixel is required even when tolerance=0.0.
+
+    See Also
+    --------
+    :func:`_process_band_count_valid` : Worker function counting valid pixels per band.
+    :func:`_block_model_prediction` : Uses the validated predictors for model prediction.
     """
     print(f'check_predictor_consistency - {predictors=}')
     _vals, _counts = np.unique(selector, return_counts=True)
@@ -351,9 +375,13 @@ def _block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
 
     Returns
     -------
-    timer : TimedTask
+    timer : :class:`~riogrande.timing.TimedTask`
       TimedTask object containing timing information for the block
       processing operation.
+
+    See Also
+    --------
+    :func:`_check_predictor_consistency` : Validates predictors before this step.
     """
     with TimedTask() as timer:
         predictors = params.pop('predictors')
@@ -438,6 +466,11 @@ def _block_ssr(params: dict, ssr_parts: list):
     -------
     None
       The function appends results directly to `ssr_parts` and does not return anything.
+      Uses :func:`~riogrande.helper.view_to_window` to obtain the spatial window.
+
+    See Also
+    --------
+    :func:`_block_sst` : Compute partial Total Sum of Squares (SST) for a window.
     """
     response = params.pop("response")
     model = params.pop("model")
@@ -488,6 +521,11 @@ def _block_sst(params: dict, sst_parts: list):
     -------
     None
         The function appends results directly to `sst_parts` and does not return anything.
+        Uses :func:`~riogrande.helper.view_to_window` to obtain the spatial window.
+
+    See Also
+    --------
+    :func:`_block_ssr` : Compute partial Sum of Squares of Residuals (SSR) for a window.
     """
     response = params.pop("response")
     y_mean = params.pop("y_mean")
