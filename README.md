@@ -1,3 +1,39 @@
+<div align="center">
+
+<img src="https://via.placeholder.com/400x150?text=Main+Project+Logo" alt="Project Logo" width="400">
+
+<p>
+  <img src="https://img.shields.io/github/license/username/repo?style=flat-square" alt="License">
+  <img src="https://img.shields.io/github/stars/username/repo?style=flat-square" alt="Stars">
+  <img src="https://img.shields.io/github/issues/username/repo?style=flat-square" alt="Issues">
+</p>
+
+<hr style="width: 50%; border: 0.5px solid #ccc; margin: 20px 0;">
+
+<br>
+
+<h3>The aftermaths of a collaboration between:</h3>
+
+<br>
+
+<table align="center" style="border: none; border-collapse: collapse;">
+  <tr>
+    <td align="center" style="border: none; padding: 20px;">
+      <img src="https://via.placeholder.com/120?text=Logo+A" width="120"><br>
+      <strong>UZH</strong>
+    </td>
+    <td align="center" style="border: none; padding: 20px;">
+      <img src="https://via.placeholder.com/120?text=Logo+B" width="120"><br>
+      <strong>T4D GmbH</strong>
+    </td>
+  </tr>
+</table>
+
+<hr style="width: 100%; border: 0.5px solid #ccc;">
+<hr style="width: 100%; border: 0.5px solid #ccc;">
+
+</div>
+
 # GeoRacoon
 
 <!-- badges: start -->
