@@ -42,7 +42,13 @@ def get_kernel_diameter(sigma: float, **params) -> int:
     -----
     This function determines the kernel diameter adaptively. Starting from
     an initial guess of `10 * sigma`, the size is increased until the blurred
-    impulse response fits within the kernel.
+    impulse response fits within the kernel. Uses :func:`skimage.filters.gaussian`
+    internally to compute the impulse response.
+
+    See Also
+    --------
+    :func:`get_kernel_size` : Return the radius (half-diameter) of the Gaussian kernel.
+    :func:`compatible_border_size` : Assert or compute a border size compatible with a kernel.
 
     Examples
     --------
@@ -88,6 +94,11 @@ def get_kernel_size(sigma, **params):
     int
         The radius of the Gaussian kernel in pixels.
 
+    See Also
+    --------
+    :func:`get_kernel_diameter` : Compute the full kernel diameter.
+    :func:`compatible_border_size` : Assert or compute a border size compatible with a kernel.
+
     Examples
     --------
     >>> get_kernel_size(1)
@@ -123,6 +134,11 @@ def compatible_border_size(sigma: float | int, border: tuple[int, int] | None = 
       The border (width, height) compatible with the specified parameters.
       If a border was provided already, it is returned again, if no border
       was provided, the smallest compatible border is returned.
+
+    See Also
+    --------
+    :func:`get_kernel_size` : Compute the kernel radius used in compatibility checks.
+    :func:`get_kernel_diameter` : Compute the full diameter of the Gaussian kernel.
     """
     ks = get_kernel_size(sigma=sigma, **params)
     if border:
@@ -171,7 +187,12 @@ def bpgaussian(data: NDArray, **filter_params) -> NDArray:
         - ``truncate`` : float
             Truncate filter at this many standard deviations.
 
-      See `skimage.filters.gaussian` for further parameters
+      See :func:`skimage.filters.gaussian` for further parameters.
+
+    See Also
+    --------
+    :func:`get_kernel_diameter` : Compute the effective kernel diameter for a given sigma.
+    :func:`get_blur_params` : Compute Gaussian blur parameters from diameter or sigma.
     """
     # Substitute `np.nan`s with 0.0 and apply filter
     _data_nonnan = np.where(np.isnan(data), 0.0, data)
@@ -224,6 +245,12 @@ def get_blur_params(diameter: float | None = None,
     -----
     The function ensures that `diameter`, `sigma`, and `truncate` are consistent
     according to Gaussian kernel conventions.
+
+    See Also
+    --------
+    :func:`get_kernel_diameter` : Compute the effective kernel diameter from sigma.
+    :func:`get_kernel_size` : Compute the kernel radius from sigma.
+    :func:`compatible_border_size` : Assert or compute a border compatible with the kernel.
 
     Examples
     --------

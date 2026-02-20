@@ -46,6 +46,11 @@ def select_category(data: NDArray, category: int | list[int],
     NDArray
        Matrix of type `as_dtype` with the same shape as `data`.
 
+    See Also
+    --------
+    :func:`get_categories` : Infer the list of categories from an array.
+    :func:`get_category_data` : Extract and optionally filter data for one or more categories.
+
     Examples
     --------
     >>> data = np.array([
@@ -93,6 +98,12 @@ def get_categories(data: NDArray) -> list[int]:
     -------
     list of int
         Sorted list of unique categories present in the data.
+        Uses :func:`numpy.unique` to determine unique values.
+
+    See Also
+    --------
+    :func:`select_category` : Filter an array for a specific category.
+    :func:`get_filtered_categories` : Extract all categories into separate arrays.
 
     Examples
     --------
@@ -158,6 +169,12 @@ def get_category_data(data: NDArray,
       must be set to define the data type or range of the output array.
     - If an image filter is provided, ``as_dtype`` converts the data before
       the filter is applied.
+
+    See Also
+    --------
+    :func:`select_category` : Create a binary indicator array for a category.
+    :func:`get_filtered_categories` : Apply this function across all categories.
+    :func:`_filter_data` : Apply a filter and rescale the resulting data.
     """
     # strip the category/categories
     _data = select_category(data, category, as_dtype=data_as_dtype)
@@ -206,7 +223,12 @@ def get_filtered_categories(data: NDArray,
 
     Notes
     -----
-    - See `get_category_data` for details on extracting category-specific data.
+    - See :func:`get_category_data` for details on extracting category-specific data.
+
+    See Also
+    --------
+    :func:`get_category_data` : Extract and optionally filter data for one category.
+    :func:`get_categories` : Infer the list of categories from an array.
     """
     if categories is None:
         categories = get_categories(data)
@@ -239,6 +261,11 @@ def get_max_entropy(nbr: int) -> float:
     -------
     float
       The maximal entropy for a uniform distribution with `nbr` categories.
+      Computed using :func:`scipy.stats.entropy` with a uniform distribution.
+
+    See Also
+    --------
+    :func:`compute_entropy` : Compute per-cell entropy over a series of data arrays.
 
     Examples
     --------
@@ -278,7 +305,7 @@ def compute_entropy(data_arrays: Sequence[NDArray],
     output_range
         Range to rescale normalized entropy values. Ignored if `normed=False`.
     **entropy_params
-        Additional keyword arguments passed to `scipy.stats.entropy`.
+        Additional keyword arguments passed to :func:`scipy.stats.entropy`.
 
     Returns
     -------
@@ -291,6 +318,14 @@ def compute_entropy(data_arrays: Sequence[NDArray],
       or to the full range of the specified integer type if `as_dtype` is integer.
     - Converting to a different dtype without normalization may produce unbounded results.
     - For large arrays, using a smaller `as_dtype` (e.g., 'uint8') can save memory.
+    - Normalization uses :func:`get_max_entropy` to determine the maximum entropy given
+      the number of input arrays, and :func:`~riogrande.helper.convert_to_dtype` for
+      rescaling.
+
+    See Also
+    --------
+    :func:`get_max_entropy` : Compute the maximum entropy for a given number of categories.
+    :func:`_get_entropy` : Internal wrapper combining blurring and entropy computation.
 
     Examples
     --------
@@ -402,10 +437,15 @@ def _get_entropy(data: NDArray,
 
     Notes
     -----
-    - This function relies on `get_filtered_categories` to create per-category arrays.
-    - The filtered arrays are passed to `compute_entropy` to calculate entropy.
+    - This function relies on :func:`get_filtered_categories` to create per-category arrays.
+    - The filtered arrays are passed to :func:`compute_entropy` to calculate entropy.
     - Normalization scales values to [0,1] (or to the range of `as_dtype` if integer).
     - The `as_dtype` and `output_range` parameters only affect the normalized output.
+
+    See Also
+    --------
+    :func:`get_filtered_categories` : Extract and optionally filter all category arrays.
+    :func:`compute_entropy` : Compute per-cell entropy over a series of data arrays.
     """
     filter_params = filter_params or dict()
     blur_output_dtype = params.pop('blur_output_dtype', None)
@@ -471,8 +511,13 @@ def compute_interaction(data_arrays: Sequence[NDArray],
     Notes
     -----
     - Standardization (`standardize=True`) scales the interaction by the sum of input layers.
-    - Conversion to integer types uses scaling and `np.ceil` to avoid rounding artifacts.
+    - Conversion to integer types uses scaling and :func:`numpy.ceil` to avoid rounding artifacts.
     - `normed=True` ensures the maximum possible interaction corresponds to 1 (float) or the maximum of the integer type.
+    - Input/output range detection uses :func:`~riogrande.helper.dtype_range`.
+
+    See Also
+    --------
+    :func:`compute_entropy` : Compute per-cell entropy over a series of data arrays.
 
     Examples
     --------
@@ -579,9 +624,16 @@ def _view_data(source: Source | str,
     Returns
     -------
     dict
-        A dictionary mapping each `Band` object to a dictionary containing:
-        - 'data': the loaded and optionally rescaled data array
-        - 'view': the view tuple used for loading the data
+        A dictionary mapping each :class:`~riogrande.io.models.Band` object to a dictionary
+        containing:
+
+        - ``'data'``: the loaded and optionally rescaled data array
+        - ``'view'``: the view tuple used for loading the data
+
+    See Also
+    --------
+    :func:`_view_filtered` : Load, filter, and rescale a view from a source.
+    :func:`_filter_data` : Apply a filter and rescale the resulting data.
     """
     # read out block from original file
     if not isinstance(source, Source):
@@ -624,6 +676,10 @@ def _apply_filter(data: NDArray, img_filter: Callable, **params) -> NDArray:
     -------
     NDArray
         The filtered result from calling `img_filter(data, **params)`.
+
+    See Also
+    --------
+    :func:`_filter_data` : Full pipeline: NaN handling, filtering, and dtype conversion.
     """
     return img_filter(data, **params)
 
@@ -669,6 +725,12 @@ def _filter_data(data: NDArray,
       floating-point NaNs.
     - `filter_output_range` should be set when `as_dtype` or `output_range` is used to
       avoid unexpected scaling.
+    - Uses :func:`~riogrande.helper.convert_to_dtype` for dtype conversion and rescaling.
+
+    See Also
+    --------
+    :func:`_apply_filter` : Apply a filter function to an array.
+    :func:`_view_filtered` : Load a view and apply filtering end-to-end.
 
     Examples
     --------
@@ -789,8 +851,14 @@ def _view_filtered(source: Source | str,
     -------
     dict
         A dictionary with keys:
-        - 'data': maps band indices to filtered arrays corresponding to `inner_view`
-        - 'view': the `inner_view` tuple representing the returned region
+
+        - ``'data'``: maps band indices to filtered arrays corresponding to `inner_view`
+        - ``'view'``: the `inner_view` tuple representing the returned region
+
+    See Also
+    --------
+    :func:`_view_data` : Load a view from a source without filtering.
+    :func:`_filter_data` : Apply a filter and rescale the resulting data.
     """
     data_views = _view_data(source=source,
                             bands=bands,
@@ -895,14 +963,21 @@ def view_blurred(source: str,
         values clipped to this range.
     **tags : keyword arguments
         Arbitrary keyword arguments to specify which band to read from the TIFF
-        file. See `io.load_block` for further details.
+        file. See :func:`~riogrande.io.load_block` for further details.
 
     Returns
     -------
     dict
         Dictionary with keys:
-        - `'data'`: a dictionary mapping each category to its blurred array
-        - `'view'`: the `inner_view` defining the effective area of the returned arrays
+
+        - ``'data'``: a dictionary mapping each category to its blurred array
+        - ``'view'``: the `inner_view` defining the effective area of the returned arrays
+
+    See Also
+    --------
+    :func:`view_entropy` : Compute per-cell entropy for a set of category arrays.
+    :func:`view_interaction` : Compute per-cell interaction for a set of category arrays.
+    :func:`get_filtered_categories` : Extract all categories with optional filtering.
     """
     # read out block from original file
     result = load_block(source, view=view, scaling_params=None, **tags)
@@ -959,8 +1034,15 @@ def view_entropy(category_arrays: dict[int, NDArray],
     -------
     dict
         Dictionary with keys:
-        - 'data': NDArray of computed entropy values for the specified view.
-        - 'view': tuple defining the original view of the data arrays.
+
+        - ``'data'``: NDArray of computed entropy values for the specified view.
+        - ``'view'``: tuple defining the original view of the data arrays.
+
+    See Also
+    --------
+    :func:`view_blurred` : Compute blurred binary arrays per category.
+    :func:`view_interaction` : Compute per-cell interaction for a set of category arrays.
+    :func:`compute_entropy` : Underlying entropy computation function.
     """
     entropy_array = compute_entropy(
         data_arrays=tuple(category_arrays.values()),
@@ -1007,8 +1089,15 @@ def view_interaction(category_arrays: dict[int, NDArray],
     -------
     dict
         Dictionary with keys:
-        - 'data': NDArray of computed interaction values for the specified view.
-        - 'view': tuple defining the original view of the data arrays.
+
+        - ``'data'``: NDArray of computed interaction values for the specified view.
+        - ``'view'``: tuple defining the original view of the data arrays.
+
+    See Also
+    --------
+    :func:`view_blurred` : Compute blurred binary arrays per category.
+    :func:`view_entropy` : Compute per-cell entropy for a set of category arrays.
+    :func:`compute_interaction` : Underlying interaction computation function.
     """
     interaction_array = compute_interaction(
         data_arrays=tuple(category_arrays.values()),
@@ -1054,7 +1143,12 @@ def get_entropy_view(source: str,
     **tags:
       Arbitrary number of keyword arguments to describe the band to select.
 
-      See `io.load_block` for further details.
+      See :func:`~riogrande.io.load_block` for further details.
+
+    See Also
+    --------
+    :func:`view_blurred` : Compute blurred binary arrays per category.
+    :func:`view_entropy` : Compute per-cell entropy for a set of category arrays.
     """
     warnings.warn("This function is deprecated and will be removed",
                   category=DeprecationWarning)

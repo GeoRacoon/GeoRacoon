@@ -26,6 +26,10 @@ def first_nonzero(data: NDArray , axis: int = 0, no_value: int = -1) -> NDArray:
         Array indices of the first non-zero values along the specified axis.
         If no non-zero is found, returns `no_value` for that slice.
 
+    See Also
+    --------
+    :func:`last_nonzero` : Return the index of the last non-zero value.
+
     Examples
     --------
     >>> a = np.array([
@@ -62,6 +66,10 @@ def last_nonzero(data, axis=0, no_value=-1):
     indices
      Array indices of the last non-zero values along the specified axis.
      If no non-zero is found, returns `no_value` for that slice.
+
+    See Also
+    --------
+    :func:`first_nonzero` : Return the index of the first non-zero value.
 
     Examples
     --------
