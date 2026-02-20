@@ -1,0 +1,10 @@
+/* External link indicator
+   Appends a small ↗ arrow after every external reference link so readers
+   can distinguish links with the class "reference external". */
+
+a.reference.external::after {
+    content: "\00A0↗";
+    font-size: 0.75em;
+    vertical-align: super;
+    opacity: 0.6;
+}
