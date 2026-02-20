@@ -1,49 +1,53 @@
 <div align="center">
 
-<img src="https://via.placeholder.com/400x150?text=Main+Project+Logo" alt="Project Logo" width="400">
+<img src="./docs/_static/georacoonPin.svg" alt="Project Logo" width="400">
 
 <p>
-  <img src="https://img.shields.io/github/license/username/repo?style=flat-square" alt="License">
-  <img src="https://img.shields.io/github/stars/username/repo?style=flat-square" alt="Stars">
-  <img src="https://img.shields.io/github/issues/username/repo?style=flat-square" alt="Issues">
+  <img src="https://github.com/GeoRacoon/georacoon/raw/python-coverage-comment-action-data/badge.svg" alt="Coverage">
+  <img src="https://img.shields.io/badge/version-1.0.0-blue)" alt="Version">
+  <a href="https://choosealicense.com/licenses/mit/">
+    <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
+  </a>
 </p>
 
 <br>
 
-</div>
+<h2 align="center"></h2>
 
---- 
+<h3>$\small \color{gray}{\mathsf{The\ aftermaths\ of\ a\ collaboration\ between:}}$</h3>
 
-<div align="center">
-
-<h3>The aftermaths of a collaboration between:</h3>
 
 <br>
 
-<table align="center" style="border: none; border-collapse: collapse;">
-  <tr>
-    <td align="center" style="border: none; padding: 20px;">
-      <img src="https://via.placeholder.com/120?text=Logo+A" width="120"><br>
-      <strong>UZH</strong>
-    </td>
-    <td align="center" style="border: none; padding: 20px;">
-      <img src="https://via.placeholder.com/120?text=Logo+B" width="120"><br>
-      <strong>T4D GmbH</strong>
-    </td>
-  </tr>
-</table>
+<img src="https://via.placeholder.com/120?text=Logo+A" width="120" style="vertical-align: middle;">
+  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_with_Ds_wb.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_with_Ds.svg">
+    <img alt="T4D Logo" src="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_color.svg" width="180" style="vertical-align: middle;">
+  </picture>
+
+  <br>
+
+  <strong>$\small \color{gray}{\mathbf{UZH}}$</strong>
+  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+  <strong>$\small \color{gray}{\mathbf{T4D\ GmbH}}$</strong>
+
+
+<h2 align="center"></h2>
+
+<h2 align="center"></h2>
+
 
 </div>
 
----
----
+
 
 # GeoRacoon
 
 <!-- badges: start -->
 [![Coverage](https://github.com/GeoRacoon/georacoon/raw/python-coverage-comment-action-data/badge.svg)](https://github.com/GeoRacoon/georacoon/tree/python-coverage-comment-action-data)
 ![version](https://img.shields.io/badge/version-1.0.0-blue)
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/) (all of these not linked)
 <!-- badges: end -->
 
 This project is an extension of [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) allowing to work with Sources (GeoTIFFS) and Bands as objects, which easily incorporate the use of tags.
