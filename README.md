@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/github/issues/username/repo?style=flat-square" alt="Issues">
 </p>
 
-<hr style="width: 50%; border: 0.5px solid #ccc; margin: 20px 0;">
+<hr style="width: 50%!important; border: 0.1px solid #ccc; margin: 20px 0;">
 
 <br>
 
@@ -29,8 +29,8 @@
   </tr>
 </table>
 
-<hr style="width: 100%; border: 0.5px solid #ccc;">
-<hr style="width: 100%; border: 0.5px solid #ccc;">
+<hr style="width: 80%; border: 0.1px solid #ccc;">
+<hr style="width: 80%; border: 0.1px solid #ccc;">
 
 </div>
 
