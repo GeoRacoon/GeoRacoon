@@ -8,9 +8,13 @@
   <img src="https://img.shields.io/github/issues/username/repo?style=flat-square" alt="Issues">
 </p>
 
-<hr style="width: 50%!important; border: 0.1px solid #ccc; margin: 20px 0;">
-
 <br>
+
+</div>
+
+--- 
+
+<div align="center">
 
 <h3>The aftermaths of a collaboration between:</h3>
 
@@ -29,10 +33,10 @@
   </tr>
 </table>
 
-<hr style="width: 80%; border: 0.1px solid #ccc;">
-<hr style="width: 80%; border: 0.1px solid #ccc;">
-
 </div>
+
+---
+---
 
 # GeoRacoon
 
