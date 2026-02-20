@@ -52,17 +52,6 @@ class Source:
     ns :
         Namespace string used to distinguish sources. Defaults to "GEORACOON".
 
-    Attributes
-    ----------
-    path : str
-        Path to the dataset file.
-    tags : dict
-        Metadata tags associated with the source.
-    profile : dict
-        Profile information about the dataset.
-    _ns : str
-        Namespace string associated with the source.
-
     Examples
     --------
     >>> s1 = Source("example.tif", tags={"type": "satellite"})
@@ -894,21 +883,6 @@ class Band:
     read_params :
        Dictionary of parameters controlling how the band is read (e.g.,
        windowing, resampling). Defaults to an empty dictionary.
-
-    Attributes
-    ----------
-    source : Source
-       Reference to the parent data source.
-    tags : dict
-       Metadata associated with the band.
-    bidx : int or None
-       Band index in the source dataset.
-    read_params : dict
-       Parameters for reading this band.
-    _use_mask : str
-       Internal flag for controlling masking behavior (default: "self").
-    _ns : str
-       Namespace identifier inherited from the source.
 
     Examples
     --------
