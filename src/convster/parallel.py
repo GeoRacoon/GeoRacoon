@@ -97,8 +97,13 @@ def _combine_blurred_categories(output_params: dict, blur_q: Queue) -> TimedTask
     gracefully when an item with ``signal="kill"`` is received. Proper queue
     management is essential to avoid deadlocks or unfinished writes.
 
-    The `write_band` helper function is called for each band to handle writing
+    :func:`~riogrande.io.write_band` is called for each band to handle writing
     and metadata tagging. Each output band is named ``LC_<band>`` for clarity.
+
+    See Also
+    --------
+    :func:`_block_category_extraction` : Produce blurred category blocks for this queue.
+    :func:`extract_categories` : Top-level function orchestrating category extraction.
     """
     with TimedTask() as timer:
         as_dtype = output_params.pop('as_dtype')
@@ -195,6 +200,11 @@ def _combine_entropy_blocks(output_params: dict, entropy_q: Queue):
     The function blocks while waiting for new items in the queue. It terminates
     gracefully when a dictionary with ``signal="kill"`` is received. Proper
     queue management is required to prevent deadlocks or resource leaks.
+
+    See Also
+    --------
+    :func:`_block_entropy` : Produce entropy blocks for this queue.
+    :func:`compute_entropy` : Top-level function orchestrating entropy computation.
     """
     with TimedTask() as timer:
         output_dtype = output_params.pop('output_dtype')
@@ -287,6 +297,11 @@ def _combine_interaction_blocks(output_params: dict, interaction_q: Queue):
     The function blocks while waiting for new items in the queue and terminates
     gracefully when a message with ``signal="kill"`` is received.
     Proper queue management is required to prevent deadlocks or resource leaks.
+
+    See Also
+    --------
+    :func:`_block_interaction` : Produce interaction blocks for this queue.
+    :func:`compute_interaction` : Top-level function orchestrating interaction computation.
     """
     with TimedTask() as timer:
         output_dtype = output_params.pop('output_dtype')
@@ -383,12 +398,18 @@ def _block_category_extraction(params: dict, blur_q: Queue) -> TimedTask:
     Notes
     -----
     This function serves as a wrapper that prepares parameters for
-    ``view_blurred`` and dispatches the computation through ``runner_call``.
+    :func:`~convster.processing.view_blurred` and dispatches the computation
+    through :func:`~riogrande.parallel.runner_call`.
     It is intended for internal use within a multiprocessing workflow that
     coordinates reading, processing, and writing of raster data blocks.
 
-    The queue consumer (e.g., ``combine_blurred_categories``) is responsible for
+    The queue consumer (e.g., :func:`_combine_blurred_categories`) is responsible for
     collecting and writing the processed results to disk.
+
+    See Also
+    --------
+    :func:`_combine_blurred_categories` : Queue consumer that writes blurred category blocks.
+    :func:`extract_categories` : Top-level function orchestrating category extraction.
     """
     with TimedTask() as timer:
         # this is only needed for the entropy part below
@@ -463,8 +484,13 @@ def _block_entropy(params: dict, entropy_q: Queue) -> TimedTask:
     Notes
     -----
     This function extracts category data from the provided input bands within the
-    specified window, computes entropy using ``view_entropy``, and sends the result
-    to ``entropy_q`` via ``runner_call``.
+    specified window, computes entropy using :func:`~convster.processing.view_entropy`,
+    and sends the result to ``entropy_q`` via :func:`~riogrande.parallel.runner_call`.
+
+    See Also
+    --------
+    :func:`_combine_entropy_blocks` : Queue consumer that writes entropy blocks.
+    :func:`compute_entropy` : Top-level function orchestrating entropy computation.
     """
     with TimedTask() as timer:
         input_bands = params.pop('input_bands')
@@ -553,9 +579,14 @@ def _block_interaction(params: dict, interaction_q: Queue) -> TimedTask:
     Notes
     -----
     This function extracts category data from the provided input bands within
-    the specified window, computes an interaction measure via the
-    ``view_interaction`` function, and sends the results to ``interaction_q``
-    using ``runner_call``.
+    the specified window, computes an interaction measure via
+    :func:`~convster.processing.view_interaction`, and sends the results to
+    ``interaction_q`` using :func:`~riogrande.parallel.runner_call`.
+
+    See Also
+    --------
+    :func:`_combine_interaction_blocks` : Queue consumer that writes interaction blocks.
+    :func:`compute_interaction` : Top-level function orchestrating interaction computation.
     """
     with TimedTask() as timer:
         input_bands = params.pop('input_bands')
@@ -667,11 +698,21 @@ def compute_entropy(source: str | Source,
     Notes
     -----
     - Each processing block computes entropy over the given categories using
-      the internal `_block_entropy` function and sends results to a queue.
-    - The function `_combine_entropy_blocks` merges these intermediate
+      the internal :func:`_block_entropy` function and sends results to a queue.
+    - The function :func:`_combine_entropy_blocks` merges these intermediate
       results into a single raster file.
     - The operation can be parallelized across multiple CPUs to handle
       large raster datasets efficiently.
+    - Block decomposition uses :func:`~riogrande.prepare.create_views`.
+    - Worker pool is created with :func:`~riogrande.helper.get_or_set_context`
+      and sized using :func:`~riogrande.helper.get_nbr_workers`.
+    - Output filename is constructed with :func:`~riogrande.helper.output_filename`.
+
+    See Also
+    --------
+    :func:`compute_interaction` : Compute spatial interaction between categorical bands.
+    :func:`extract_categories` : Extract per-category maps with optional filtering.
+    :func:`_block_entropy` : Worker function computing entropy for a single block.
     """
     print(f'compute_entropy - {source=}, {categories=}')
     if isinstance(source, str):
@@ -872,12 +913,21 @@ def compute_interaction(source: str | Source,
     -----
     - The computation proceeds in parallel by dividing the raster into
       independent processing blocks.
-    - Each worker executes an internal `_block_interaction` task and writes
+    - Each worker executes an internal :func:`_block_interaction` task and writes
       its results to a multiprocessing queue.
-    - The `_combine_interaction_blocks` function merges all block results
+    - The :func:`_combine_interaction_blocks` function merges all block results
       into a single output file.
-    - Designed for efficient large-scale raster analysis on multi-core
-      systems.
+    - Designed for efficient large-scale raster analysis on multi-core systems.
+    - Block decomposition uses :func:`~riogrande.prepare.create_views`.
+    - Worker pool is created with :func:`~riogrande.helper.get_or_set_context`
+      and sized using :func:`~riogrande.helper.get_nbr_workers`.
+    - Output filename is constructed with :func:`~riogrande.helper.output_filename`.
+
+    See Also
+    --------
+    :func:`compute_entropy` : Compute spatial entropy of categorical bands.
+    :func:`extract_categories` : Extract per-category maps with optional filtering.
+    :func:`_block_interaction` : Worker function computing interaction for a single block.
     """
     if isinstance(source, str):
         source = Source(path=source)
@@ -1062,7 +1112,17 @@ def extract_categories(source: str | Source,
     -----
     - Deprecated parameters (`blur_as_int`, `output_dtype`) are internally
       mapped to `output_params['as_dtype']` with warnings.
-    - Borders for filtering are automatically computed based on the filter kernel.
+    - Borders for filtering are automatically computed based on the filter kernel
+      using :func:`~convster.filters.gaussian.compatible_border_size`.
+    - Block decomposition uses :func:`~riogrande.prepare.create_views`.
+    - Worker pool is created with :func:`~riogrande.helper.get_or_set_context`
+      and sized using :func:`~riogrande.helper.get_nbr_workers`.
+
+    See Also
+    --------
+    :func:`compute_entropy` : Compute spatial entropy of categorical bands.
+    :func:`compute_interaction` : Compute spatial interaction between categorical bands.
+    :func:`apply_filter` : Apply a filter to one or more bands of a raster.
     """
     if output_params is None:
         output_params = dict()
@@ -1269,7 +1329,18 @@ def apply_filter(source: str | Source,
     Notes
     -----
     - Deprecated parameters (`output_dtype` vs `output_params['as_dtype']`) are internally handled with warnings.
-    - Borders for filtering are automatically computed from the filter kernel.
+    - Borders for filtering are automatically computed from the filter kernel
+      using :func:`~convster.filters.gaussian.compatible_border_size`.
+    - Block decomposition uses :func:`~riogrande.prepare.create_views`.
+    - Worker pool is created with :func:`~riogrande.helper.get_or_set_context`
+      and sized using :func:`~riogrande.helper.get_nbr_workers`.
+    - Each block is processed by :func:`~convster.processing._view_filtered`
+      via :func:`~riogrande.parallel.runner_call`.
+
+    See Also
+    --------
+    :func:`extract_categories` : Extract per-category maps with optional filtering.
+    :func:`compute_entropy` : Compute spatial entropy of categorical bands.
     """
     if isinstance(source, str):
         source = Source(path=source)

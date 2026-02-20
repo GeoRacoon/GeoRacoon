@@ -31,7 +31,8 @@ def get_nbr_workers(number: Optional[int] = None) -> int:
     ----------
     number: int or None, optional
         Desired number of workers. If ``None``, the function will use the
-        number of CPUs available, but never less than 2.
+        number of CPUs available via :func:`multiprocessing.cpu_count`,
+        but never less than 2.
 
     Returns
     -------
@@ -42,6 +43,10 @@ def get_nbr_workers(number: Optional[int] = None) -> int:
     -----
     A warning is emitted when a requested ``number`` is lower than 2 and the
     request is ignored setting the number of used workers to 2.
+
+    See Also
+    --------
+    :func:`~riogrande.helper.get_or_set_context` : Return a multiprocessing context.
     """
     _min_count = 2  # Hardcoded: some parallelization routines fail when < 2
     if number is None:
@@ -94,10 +99,11 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
     -------
     multiprocessing.context.BaseContext
         A multiprocessing context object appropriate for creating
-        ``Process``, ``Pool`` and related objects. The returned context will
-        use the start method determined by the logic described above. The
-        function always returns a context and never mutates an already-set
-        global start method to a different value.
+        :class:`multiprocessing.Process`, :class:`multiprocessing.pool.Pool`
+        and related objects. The returned context will use the start method
+        determined by the logic described above. The function always returns a
+        context and never mutates an already-set global start method to a
+        different value.
 
     Raises
     ------
@@ -124,6 +130,10 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
       ``'forkserver'`` may be available depending on the platform.
     - Use this helper in library code when you need a guaranteed context but
       do not want to unconditionally mutate global multiprocessing state.
+
+    See Also
+    --------
+    :func:`~riogrande.helper.get_nbr_workers` : Determine the number of worker processes.
 
     Examples
     --------
@@ -183,6 +193,8 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
 def serialize(tags: dict[str, Any]) -> dict[str, str]:
     """Convert the values of a dict into JSON
 
+    Each value is serialized using :func:`json.dumps`.
+
     Parameters
     ----------
     tags:
@@ -193,12 +205,19 @@ def serialize(tags: dict[str, Any]) -> dict[str, str]:
     -------
     dict
         Dictionary with tag as key and serialized value as value.
+
+    See Also
+    --------
+    :func:`~riogrande.helper.deserialize` : Inverse operation; parse JSON back to Python objects.
+    :func:`~riogrande.helper.sanitize` : Serialize then deserialize in one step.
     """
     return {tag: json.dumps(obj=value) for tag, value in tags.items()}
 
 
 def deserialize(tags: dict[str, str]) -> dict[str, Any]:
     """Reads python objects from JSON-encoded values of a dict
+
+    Each value is parsed using :func:`json.loads`.
 
     Parameters
     ----------
@@ -212,7 +231,12 @@ def deserialize(tags: dict[str, str]) -> dict[str, Any]:
 
     Notes
     ------
-    Contrasting function to serialize()
+    Inverse operation of :func:`~riogrande.helper.serialize`.
+
+    See Also
+    --------
+    :func:`~riogrande.helper.serialize` : Convert dict values to JSON strings.
+    :func:`~riogrande.helper.sanitize` : Serialize then deserialize in one step.
     """
     return {tag: json.loads(s=value)
             for tag, value in tags.items()}
@@ -220,6 +244,10 @@ def deserialize(tags: dict[str, str]) -> dict[str, Any]:
 
 def sanitize(tags: dict[str, Any]) -> Any:
     """Serializes then deserializes values of a dict
+
+    Convenience wrapper that calls :func:`~riogrande.helper.serialize`
+    followed by :func:`~riogrande.helper.deserialize`, ensuring values are
+    in the same form they would be when loaded back from a ``.tif`` tag.
 
     Parameters
     ----------
@@ -230,6 +258,11 @@ def sanitize(tags: dict[str, Any]) -> Any:
     ---------
     dict
         Dictionary with tag as key and deserialized value as value.
+
+    See Also
+    --------
+    :func:`~riogrande.helper.serialize` : Convert dict values to JSON strings.
+    :func:`~riogrande.helper.deserialize` : Parse JSON strings back to Python objects.
     """
     return deserialize(serialize(tags))
 
@@ -248,6 +281,10 @@ def match_all(targets: dict, tags: dict) -> bool:
     ---------
     bool
         True if all tags in targets are present in tags, otherwise False.
+
+    See Also
+    --------
+    :func:`~riogrande.helper.match_any` : Return True if *any* tag matches.
     """
     match = True
     for t, v in targets.items():
@@ -277,6 +314,10 @@ def match_any(targets: dict, tags: dict) -> bool:
     ---------
     bool
         True if any tags in targets are present in tags, otherwise False.
+
+    See Also
+    --------
+    :func:`~riogrande.helper.match_all` : Return True only if *all* tags match.
     """
     match = False
     for t, v in targets.items():
@@ -302,8 +343,8 @@ def view_to_window(view: None | tuple[int, int, int, int]) -> Window:
 
     Returns
     ---------
-    Window
-        Rasterio window object.
+    :class:`rasterio.windows.Window`
+        Rasterio window object, or ``None`` if `view` is ``None``.
     """
     if view is not None:
         window = Window(view[0], view[1], view[2], view[3])
@@ -324,6 +365,12 @@ def check_units(*sources: str) -> list:
     ---------
     list
         All unique units in a list.
+
+    See Also
+    --------
+    :func:`~riogrande.helper.check_crs` : Check that sources share the same CRS.
+    :func:`~riogrande.helper.check_resolution` : Check that sources share the same resolution.
+    :func:`~riogrande.helper.check_compatibility` : Run all three checks at once.
     """
     units = []
     for source in sources:
@@ -352,6 +399,12 @@ def check_crs(*sources: str) -> list:
     ---------
     list
         All unique crs from sources in a list.
+
+    See Also
+    --------
+    :func:`~riogrande.helper.check_units` : Check that sources share the same linear units.
+    :func:`~riogrande.helper.check_resolution` : Check that sources share the same resolution.
+    :func:`~riogrande.helper.check_compatibility` : Run all three checks at once.
     """
     crss = []
     for source in sources:
@@ -375,6 +428,12 @@ def check_resolution(*sources: str) -> list:
     ---------
     list
         All unique resolutions from sources in a list.
+
+    See Also
+    --------
+    :func:`~riogrande.helper.check_units` : Check that sources share the same linear units.
+    :func:`~riogrande.helper.check_crs` : Check that sources share the same CRS.
+    :func:`~riogrande.helper.check_compatibility` : Run all three checks at once.
     """
     ress = []
     for source in sources:
@@ -391,9 +450,9 @@ def check_compatibility(*sources: str) -> Tuple[list, list, list]:
     """Assert that all the sources are compatible with each other.
 
     The checks include:
-        - crs
-        - units
-        - resolution
+        - crs (via :func:`~riogrande.helper.check_crs`)
+        - units (via :func:`~riogrande.helper.check_units`)
+        - resolution (via :func:`~riogrande.helper.check_resolution`)
 
     Parameters
     ----------
@@ -403,11 +462,17 @@ def check_compatibility(*sources: str) -> Tuple[list, list, list]:
     Returns
     ---------
     crss:
-        All unique units from sources in a list (see check_units()).
+        All unique crs from sources in a list (see :func:`~riogrande.helper.check_crs`).
     units:
-        All unique crs from sources in a list (see check_crs()).
+        All unique units from sources in a list (see :func:`~riogrande.helper.check_units`).
     ress:
-        All unique resolutions from sources in a list (see check_resolution()).
+        All unique resolutions from sources in a list (see :func:`~riogrande.helper.check_resolution`).
+
+    See Also
+    --------
+    :func:`~riogrande.helper.check_crs` : Check that sources share the same CRS.
+    :func:`~riogrande.helper.check_units` : Check that sources share the same linear units.
+    :func:`~riogrande.helper.check_resolution` : Check that sources share the same resolution.
     """
     units = check_units(*sources)
     crss = check_crs(*sources)
@@ -446,11 +511,34 @@ def output_filename(base_name: str, out_type: str, blur_params: None | dict = No
 def dtype_range(dtype: type | str) -> Tuple[int | float, int | float]:
     """Get the range of the specified dtype
 
-    ..warning::
+    Uses :func:`numpy.iinfo` for integer types and :func:`numpy.finfo`
+    for floating-point types.
+
+    .. warning::
       This functions returns min or max as either `int` or `floats`.
 
       Be sure to convert them back into `dtype` if needed!
 
+    Parameters
+    ----------
+    dtype:
+        A NumPy dtype (e.g. ``np.uint8``, ``np.float32``) or a string
+        representation thereof (e.g. ``'uint8'``).
+
+    Returns
+    -------
+    tuple
+        ``(max, min)`` of the dtype's representable range as Python
+        ``int`` or ``float``.
+
+    Raises
+    ------
+    ValueError
+        If `dtype` has no defined min/max values.
+
+    See Also
+    --------
+    :func:`~riogrande.helper.convert_to_dtype` : Convert and optionally rescale an array.
     """
     if isinstance(dtype, str):
         dtype = np.dtype(dtype)
@@ -486,7 +574,7 @@ def convert_to_dtype(data: NDArray, as_dtype: None | type | np._dtype | str = No
     This is typically used if converting from a "limited" range, like `uint8`
     to a floating data type.
 
-    ..note::
+    .. note::
 
       The default range for any floating type is `[0,1]`!
 
@@ -508,21 +596,28 @@ def convert_to_dtype(data: NDArray, as_dtype: None | type | np._dtype | str = No
         which case the data type remains unchanges, but the data is
         rescaled.
     in_range:
-        an array or list from which min and max will be used as input range
+        an array or list from which min and max will be used as input range.
+        Min and max are read with :func:`numpy.nanmin` / :func:`numpy.nanmax`.
 
-        ..note::
+        .. note::
           You might simply provide the same value as for `data` in order to
           use its min an max for scaling
+
     out_range:
       an array or list from which min and max will be used as limits for the
       output.
       Alternatively, a data type can be specified, in which case the data
       will be scaled to the full range of the specified data type
+      (see :func:`~riogrande.helper.dtype_range`).
 
     Returns
     ----------
     NDArray
         Converted numpy NDArray with desired data type.
+
+    See Also
+    --------
+    :func:`~riogrande.helper.dtype_range` : Get the min/max of a NumPy dtype.
 
     Examples
     --------
@@ -619,18 +714,23 @@ def aggregated_selector(masks: list[NDArray], logic: str = 'all') -> NDArray:
     ----------
     masks:
         Arbitrary number of numpy arrays resulting from
-        `rasterio.io.DatasetReader.dataset_mask` or
-        `rasterio.io.DatasetReader.read_masks`
+        :meth:`rasterio.io.DatasetReader.dataset_mask` or
+        :meth:`rasterio.io.DatasetReader.read_masks`.
     logic:
         Determines how the aggreagation should happen.
-        If `all` (the default) a cell is only selected if **all** masks
-        consider it valid data. `logic="any"` will lead to selecting
-        all cells which **at least one** mask considers valid
+        If ``'all'`` (the default) a cell is only selected if **all** masks
+        consider it valid data — aggregated via :func:`numpy.logical_and`.
+        ``'any'`` selects cells which **at least one** mask considers valid
+        — aggregated via :func:`numpy.logical_or`.
 
     Returns
     ----------
     NDArray
         Boolean numpy array as result of logical mask applied.
+
+    See Also
+    --------
+    :func:`~riogrande.helper.reduced_mask` : Compute a mask from nodata values across bands.
     """
     selector = masks[0] != 0  # values > 0 are selected (i.e. True)
     if logic == 'any':
@@ -652,15 +752,23 @@ def reduced_mask(array: NDArray, nodata: float | int | np.nan = 0, logic: str = 
         3D array holding multiple bands of map data
     nodata:
         Nodata value to use. Defaults to 0.
+        Pass :data:`numpy.nan` to mask NaN cells (detected via :func:`numpy.isnan`).
     logic:
         Allowed strings are:
-        - `"any"`: Masked will be each cell for which any of the bands matches the nodata value
-        - `"all"`: Masked will be each cell for which all of the bands match the nodata value
+
+        - ``"all"`` : Masked will be each cell for which **all** bands match the nodata value
+          (aggregated via :func:`numpy.logical_or` across bands).
+        - ``"any"`` : Masked will be each cell for which **any** band matches the nodata value
+          (aggregated via :func:`numpy.logical_and` across bands).
 
     Returns
     ----------
     NDArray
         Boolean numpy array resulting from applied logic.
+
+    See Also
+    --------
+    :func:`~riogrande.helper.aggregated_selector` : Aggregate rasterio band masks into a selector.
 
     Examples
     --------
@@ -687,6 +795,8 @@ def reduced_mask(array: NDArray, nodata: float | int | np.nan = 0, logic: str = 
 def count_contribution(data: NDArray, selector: NDArray[np.bool_], no_data: Union[int, float] = 0) -> int:
     """The remaining number of data cells when applying the selector
 
+    Uses :func:`numpy.unique` with ``return_counts=True`` to count valid cells.
+
     Parameters
     ----------
     data:
@@ -697,14 +807,19 @@ def count_contribution(data: NDArray, selector: NDArray[np.bool_], no_data: Unio
     no_data:
       The value that should be considered as invalid.
 
+      .. note::
+        You might also provide :data:`numpy.nan` as no data value
+        (detected via :func:`numpy.isnan`).
+
     Returns
     ----------
     int
        Count of valid cells (pixels in rasterfile).
 
-      .. note::
-        You might also provide `np.nan` as no data value.
-
+    See Also
+    --------
+    :func:`~riogrande.helper.aggregated_selector` : Build a selector from rasterio band masks.
+    :func:`~riogrande.helper.reduced_mask` : Build a mask from nodata values across bands.
     """
     if np.isnan(no_data):
         b_vals, b_counts = np.unique(~np.isnan(data[selector]), return_counts=True)
@@ -721,18 +836,19 @@ def count_contribution(data: NDArray, selector: NDArray[np.bool_], no_data: Unio
 def rasterio_to_numpy_dtype(rasterio_dtype: str) -> np.dtype | None:
     """Map Rasterio actual data types to NumPy data types.
 
-    Rasterio types like rasterio.dtypes.int16, rasterio.dtypes.float32
+    Rasterio types like ``rasterio.dtypes.int16``, ``rasterio.dtypes.float32``
     are mapped to their NumPy equivalents.
 
     Parameters
     ----------
     rasterio_dtype:
-        Output of rasterio.open(source).profile['dtype']
+        Output of ``rasterio.open(source).profile['dtype']``, as returned by
+        :func:`rasterio.open`.
 
     Returns
     ----------
-    numpy.dtype
-        Data type as numpy dtype.
+    numpy.dtype or None
+        Data type as :class:`numpy.dtype`, or ``None`` if the type is unknown.
     """
     dtype_mapping = {
         rio.dtypes.int16: np.int16,

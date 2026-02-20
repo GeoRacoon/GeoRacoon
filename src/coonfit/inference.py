@@ -45,7 +45,7 @@ def _to_numpy_selector(rasterio_mask: NDArray) -> NDArray:
     Parameters
     ----------
     rasterio_mask : ndarray
-        Mask array as returned by `rasterio.io.DatasetReader.read_masks`.
+        Mask array as returned by :meth:`rasterio.io.DatasetReader.read_masks`.
         Non-zero values indicate valid data; zero values indicate masked data.
 
     Returns
@@ -54,6 +54,11 @@ def _to_numpy_selector(rasterio_mask: NDArray) -> NDArray:
         Boolean array with the same shape as `rasterio_mask`. `True` values
         indicate cells that can be used; `False` values indicate cells that
         should be excluded.
+
+    See Also
+    --------
+    :func:`_enrich_selector` : Refine a selector by combining predictor masks.
+    :func:`prepare_selector` : Build a combined selector from response and predictor masks.
     """
     return np.where(rasterio_mask != 0, True, False)
 
@@ -72,9 +77,9 @@ def _enrich_selector(selector: NDArray, *predictors: Band, verbose: bool = False
         indicate cells that can be used; `False` values indicate cells that
         should be excluded.
     *predictors : Band
-        Variable number of `.io_.Band` objects, each specifying one or more
+        Variable number of :class:`~riogrande.io.models.Band` objects, each specifying one or more
         predictor variables. Bands sharing the same mask reader are grouped
-        together for efficiency. See `prepare_predictors` for more details.
+        together for efficiency. See :func:`prepare_predictors` for more details.
     verbose : bool, optional
         If True, print runtime information including predictor names, mask
         readers, and usable pixel counts. Default is False.
@@ -85,6 +90,11 @@ def _enrich_selector(selector: NDArray, *predictors: Band, verbose: bool = False
         Boolean array with the same shape as `selector`. Contains the logical
         AND of the input selector and all predictor masks, indicating cells
         that are valid across all inputs.
+
+    See Also
+    --------
+    :func:`_to_numpy_selector` : Convert a rasterio mask to a boolean selector.
+    :func:`prepare_selector` : Build a combined selector from response and predictor masks.
     """
     aggr_selector = np.copy(selector)
     pred_mask_readers = dict()
@@ -146,7 +156,15 @@ def prepare_selector(response: str | Band, *predictors: Band, extra_masking_band
     The selector combines masks using logical AND operations, meaning a pixel
     is only usable (True) if it is valid across all input bands.
 
-    The mask reader can be configured using `response.set_mask_reader(use='band'/'source')`.
+    The mask reader can be configured using
+    :meth:`~riogrande.io.models.Band.set_mask_reader` with ``use='band'``
+    or ``use='source'``.
+
+    See Also
+    --------
+    :func:`_enrich_selector` : Refine a selector using predictor masks.
+    :func:`init_X` : Initialize the predictor matrix using the selector.
+    :func:`prepare_predictors` : High-level function that calls this internally.
 
     Examples
     --------
@@ -210,8 +228,8 @@ def init_X(predictors: Collection[Band], selector: NDArray, window: Window | Non
         True will be included in the matrix rows.
     window : Window or None
         Limits the data array to a specific spatial window. If provided, the
-        window is converted to slices using `window.toslices()`. If None, the
-        entire selector array is used.
+        window is converted to slices using :meth:`rasterio.windows.Window.toslices`.
+        If None, the entire selector array is used.
     include_intercept : bool
         If True, adds an extra column of ones at the end of the matrix for
         fitting intercept terms in regression models.
@@ -223,8 +241,9 @@ def init_X(predictors: Collection[Band], selector: NDArray, window: Window | Non
     -------
     ndarray
         Zero-initialized array of shape (n_rows, n_cols) where:
+
         - n_rows is the count of usable pixels in the (windowed) selector
-        - n_cols is len(predictors) + 1 if include_intercept else len(predictors)
+        - n_cols is ``len(predictors) + 1`` if include_intercept else ``len(predictors)``
 
     Notes
     -----
@@ -233,6 +252,11 @@ def init_X(predictors: Collection[Band], selector: NDArray, window: Window | Non
 
     If the window slicing results in an IndexError (e.g., window is completely
     outside the selector bounds), the function returns an array with 0 rows.
+
+    See Also
+    --------
+    :func:`populate_X` : Fill the initialized predictor matrix with data.
+    :func:`partial_X` : Initialize and populate a predictor matrix in one step.
     """
     if window is not None:
         partial = window.toslices()
@@ -269,12 +293,13 @@ def populate_X(X: NDArray, predictors: Collection[Band], as_dtype: type | str,
         Data from each band will be read and placed in the corresponding
         column of X.
     as_dtype : type or str
-        Target data type for predictor values. Data will be converted to this
-        type without rescaling (in_range and out_range are None).
+        Target data type for predictor values. Converted using
+        :func:`~riogrande.helper.convert_to_dtype` without rescaling
+        (``in_range`` and ``out_range`` are ``None``).
     window : Window or None
         Limits data reading to a specific spatial window. If provided, the
-        window is converted to slices using `window.toslices()`. If None,
-        the entire data array is used.
+        window is converted to slices using :meth:`rasterio.windows.Window.toslices`.
+        If None, the entire data array is used.
     selector : ndarray of bool
         Boolean array to select usable pixels. Applied after windowing to
         extract only valid data points for the predictor matrix.
@@ -286,6 +311,11 @@ def populate_X(X: NDArray, predictors: Collection[Band], as_dtype: type | str,
     -------
     None
         X is modified in-place.
+
+    See Also
+    --------
+    :func:`init_X` : Allocate the empty predictor matrix.
+    :func:`partial_X` : Initialize and populate in one step.
     """
     # Create a window
     if window is not None:
@@ -334,8 +364,8 @@ def prepare_predictors(response: str | Band, *predictors: Band | str, view: tupl
 
     Notes
     -----
-    An ``InferenceError`` is raised if an invalid predictor is detected.
-    A predictor is considered invalid in the following cases:
+    An :exc:`~coonfit.exceptions.InferenceError` is raised if an invalid
+    predictor is detected. A predictor is considered invalid in the following cases:
 
     * After masking, the predictor contains only zeros.
     * The predictor represents categorical data where all selected pixels
@@ -375,6 +405,12 @@ def prepare_predictors(response: str | Band, *predictors: Band | str, view: tupl
     y : ndarray of shape (n_samples,)
        Response vector containing the response values corresponding to the
        selected pixels.
+
+    See Also
+    --------
+    :func:`prepare_selector` : Build the boolean selector used internally.
+    :func:`init_X` : Allocate the predictor matrix.
+    :func:`transposed_product` : Compute X.T @ X for large spatial datasets.
     """
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
@@ -450,6 +486,12 @@ def transposed_product(predictors: Collection[Band], view: tuple[int, int, int, 
         The transposed product of the predictor matrix, ``X.T @ X``.
         The number of features corresponds to the number of predictors,
         plus one if ``include_intercept`` is ``True``.
+
+    See Also
+    --------
+    :func:`get_optimal_weights` : Compute regression weights from X and y.
+    :func:`get_optimal_weights_source` : Compute weights using precomputed inverse.
+    :func:`partial_X` : Generate the predictor matrix ``X``.
     """
     riow = view_to_window(view)
     X = partial_X(predictors=predictors,
@@ -500,7 +542,7 @@ def get_optimal_weights(X, y):
     * The matrix ``X^T X`` may be singular or ill-conditioned, in which case
       the inverse does not exist or the solution may be numerically unstable.
     * In such cases, alternative approaches such as singular value
-      decomposition (SVD) or ``numpy.linalg.lstsq`` are recommended.
+      decomposition (SVD) or :func:`numpy.linalg.lstsq` are recommended.
 
     Parameters
     ----------
@@ -514,6 +556,12 @@ def get_optimal_weights(X, y):
     -------
     beta : ndarray of shape (n_features,)
         Optimal regression weights minimizing the least-squares error.
+
+    See Also
+    --------
+    :func:`get_approx_weights` : Estimate weights via scikit-learn's LinearRegression.
+    :func:`transposed_product` : Compute X.T @ X from spatial band data.
+    :func:`prepare_predictors` : Build X and y from raster bands.
     """
     return (np.linalg.inv(X.T @ X) @ X.T) @ y
 
@@ -544,6 +592,11 @@ def partial_response(response: str | Band, window: Window | None, selector: NDAr
     -------
     y : ndarray of shape (n_samples,)
         One-dimensional array containing the selected response values.
+
+    See Also
+    --------
+    :func:`partial_X` : Generate the corresponding predictor matrix.
+    :func:`prepare_predictors` : Build X and y together from raster bands.
     """
     if not isinstance(response, Band):
         response = Band(source=Source(path=response),
@@ -596,6 +649,12 @@ def partial_X(predictors: Collection[Band], window: Window | None, selector: NDA
        Predictor matrix containing the selected predictor values. The number
        of features corresponds to the number of predictors, plus one if
        ``include_intercept`` is ``True``.
+
+    See Also
+    --------
+    :func:`init_X` : Allocate the empty predictor matrix.
+    :func:`populate_X` : Fill the predictor matrix with data.
+    :func:`transposed_product` : Compute X.T @ X using this function internally.
     """
     X = init_X(predictors,
                selector=selector,
@@ -654,7 +713,7 @@ def get_optimal_weights_source(Y: NDArray, response: str | Band, predictors: Col
         Notes
         -----
         Typically, ``Y`` is obtained by inverting the output of
-        :func:`transposed_product`.
+        :func:`transposed_product` via :func:`numpy.linalg.inv`.
     response : str or Band
         Response variable specified either as a ``Band`` object or as the path
         to a raster file (``.tif``). If a string is provided, the raster must
@@ -679,6 +738,12 @@ def get_optimal_weights_source(Y: NDArray, response: str | Band, predictors: Col
         Dictionary mapping each predictor to its fitted regression weight.
         If ``include_intercept`` is ``True``, an additional key ``'intercept'``
         is included.
+
+    See Also
+    --------
+    :func:`transposed_product` : Compute X.T @ X, whose inverse is ``Y``.
+    :func:`get_optimal_weights` : Direct computation from X and y.
+    :func:`partial_X` : Generate the partial predictor matrix used here.
     """
     riow = view_to_window(view)
     # First
@@ -738,8 +803,13 @@ def get_approx_weights(X: NDArray, y: NDArray,
 
     Returns
     -------
-    regression : sklearn.linear_model.LinearRegression
+    regression : :class:`sklearn.linear_model.LinearRegression`
         Fitted linear regression model.
+
+    See Also
+    --------
+    :func:`get_optimal_weights` : Analytic least-squares solution (normal equations).
+    :func:`prepare_predictors` : Build X and y from raster bands.
     """
     regression = LinearRegression(fit_intercept=fit_intercept)
     regression.fit(X, y)

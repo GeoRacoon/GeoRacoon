@@ -40,28 +40,33 @@ def _set_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS, **tags:
     """Update tags for a dataset or a single band of a dataset.
 
     Since metadata in a tif file is stored as a string the value of each tag is
-    serialized and converted to a string with `helper.serialize`.
-    A tag name must satisfy the python variable naming convention and must be different from `src`,
-    `bidx` and `ns` as these are reserved for the arguments of this function.
+    serialized and converted to a string with :func:`~riogrande.helper.serialize`.
+    A tag name must satisfy the python variable naming convention and must be different from ``src``,
+    ``bidx`` and ``ns`` as these are reserved for the arguments of this function.
     Existing tags are either kept or updated.
 
     Parameters
     ----------
     src:
-      `tif` file openend with `rasterio.open` in write mode (i.e. "w" or "r+")
+      ``tif`` file opened with :func:`rasterio.open` in write mode (i.e. ``"w"`` or ``"r+"``)
     bidx:
       Index of the band to set tags for (starting from 1 as is the convention
-      in rasterio). If set to `None` then the tags are set for the entire
+      in rasterio). If set to ``None`` then the tags are set for the entire
       dataset.
     ns:
       The namespace to set the tags in.
-      ..Note::
+      .. note::
         It is dicouraged to change this value from the default as all tagging
         related methods of this package use the same default namespace.
+
     **tags:
       Arbitrary number of keyword arguments that will be set as tags.
-      The value provided is converted to a string with `helper.serialize`
+      The value provided is converted to a string with :func:`~riogrande.helper.serialize`
       before the tag is written to the file.
+
+    See Also
+    --------
+    :func:`~riogrande.io.core._get_tags` : Read and deserialize tags from a dataset or band.
 
     Examples
     ----------
@@ -85,18 +90,21 @@ def _set_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS, **tags:
 def _get_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS) -> dict[str, Any]:
     """Get all the tags and deserialize the values
 
+    Reads raw tags from the dataset and deserializes them with
+    :func:`~riogrande.helper.deserialize`.
+
     Parameters
     ----------
     src:
-      `tif` file openend with `rasterio.open`
+      ``tif`` file opened with :func:`rasterio.open`
     bidx:
       Index of the band to get tags from (starting from 1 as is the convention
-      in rasterio). If set to `None` then the tags for the entire dataset are
+      in rasterio). If set to ``None`` then the tags for the entire dataset are
       returned.
     ns:
       The namespace to get the tags from.
 
-      ..Note::
+      .. note::
         It is dicouraged to change this value from the default as all tagging
         related methods of this package use the same default namespace.
 
@@ -104,6 +112,10 @@ def _get_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS) -> dict
     ----------
     dict
         Tags from queried band are returned in a dictionary form.
+
+    See Also
+    --------
+    :func:`~riogrande.io.core._set_tags` : Write and serialize tags to a dataset or band.
     """
     if bidx is None:
         bidx = 0  # get the tags for the files metadata
@@ -113,16 +125,20 @@ def _get_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS) -> dict
 def _find_bidxs(src: DatasetWriter, ns: str = NS, **tags: Any) -> list[int]:
     """Find all bands in src for which all tags match
 
+    Iterates over all bands and reads their tags via :func:`~riogrande.io.core._get_tags`,
+    then checks for full tag agreement with :func:`~riogrande.helper.match_all`.
+
     Parameters
     ----------
     src:
-      `tif` file openend with `rasterio.open`
+      ``tif`` file opened with :func:`rasterio.open`
     ns:
       The namespace to set the tags in.
 
-      ..Note::
+      .. note::
         It is dicouraged to change this value from the default as all tagging
         related methods of this package use the same default namespace.
+
     **tags:
       Arbitrary number of keyword arguments that will be compared to the tags
       of the bands in the dataset.
@@ -131,6 +147,11 @@ def _find_bidxs(src: DatasetWriter, ns: str = NS, **tags: Any) -> list[int]:
     ----------
     list[int]
         List of all indexes (integer) for bands where tags match.
+
+    See Also
+    --------
+    :func:`~riogrande.io.core._get_bidx_by_tag` : Return a single matching band index.
+    :func:`~riogrande.io.core.get_bands_by_tag` : Search across multiple source files.
     """
     _tags = sanitize(tags)
     matching_bidxs = []
@@ -154,15 +175,15 @@ def _get_bidx_by_tag(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | in
     Parameters
     ----------
     src:
-      `tif` file openend with `rasterio.open`
+      ``tif`` file opened with :func:`rasterio.open`
     ns:
       The namespace to set the tags in.
       It is dicouraged to change this value from the default as all tagging
       related methods of this package use the same default namespace.
     **tags:
       Arbitrary number of keyword arguments that will be compared to the tags
-      of the bands in the dataset. If `indexes` is provided as tag key then all other tags are ignored and
-      the indexes are directly passed as band indexes to rasterio
+      of the bands in the dataset. If ``indexes`` is provided as tag key then all other tags are ignored and
+      the indexes are directly passed as band indexes to rasterio.
 
     Returns
     ----------
@@ -172,16 +193,29 @@ def _get_bidx_by_tag(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | in
     Notes
     ----------
     The values of the provided tags are first serialized and then
-    deserialized again with `helper.serialize`, resp. `helper.deserialize`,
+    deserialized again with :func:`~riogrande.helper.serialize` /
+    :func:`~riogrande.helper.deserialize` (i.e. via :func:`~riogrande.helper.sanitize`)
     before comparing to the tags from the provided file.
 
     The reason for this procedure is the fact that the values of tags are
     converted to and stored as strings in the tif metadata.
-    Serializing the values with `helper.serialize` allows us to know how
+    Serializing the values with :func:`~riogrande.helper.serialize` allows us to know how
     arbitrary python objects are converted.
     As a consequence, we serialize/deserialize the values of the provided
     tags to bring them into the form they will we when loading them from
     the tif.
+
+    Raises
+    ------
+    :exc:`~riogrande.io.exceptions.BandSelectionAmbiguousError`
+        If the tags match more than one band.
+    :exc:`~riogrande.io.exceptions.BandSelectionNoMatchError`
+        If no band matches the provided tags.
+
+    See Also
+    --------
+    :func:`~riogrande.io.core._find_bidxs` : Return all matching band indexes.
+    :func:`~riogrande.io.core.get_bands_by_tag` : Search across multiple source files.
 
     Examples
     ----------
@@ -228,20 +262,24 @@ def get_bands_by_tag(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, 
     Parameters
     ----------
     source:
-      A string that is fed to `glob.glob` leading to (potentially) multiple
-      source files that will be checked
+      A glob pattern string passed to :func:`glob.glob`, leading to (potentially)
+      multiple source files that will be checked.
     ns:
       The namespace to search the tags in. It is dicouraged to change this value from the default as all tagging
-    related methods of this package use the same default namespace.
-
+      related methods of this package use the same default namespace.
     **tags:
       Arbitrary number of keyword arguments that will be compared to the tags
-      of each tif file
+      of each tif file.
 
     Returns
     ----------
     list
         A list of tuples with source (path) and bandindex entries in tuples.
+
+    See Also
+    --------
+    :func:`~riogrande.io.core._get_bidx_by_tag` : Find a single band in one open dataset.
+    :func:`~riogrande.io.core._find_bidxs` : Return all matching band indexes in one dataset.
     """
     _tags = sanitize(tags)
     _sources = glob.glob(source)
@@ -262,7 +300,9 @@ def load_block(source: str, view: None | tuple[int, int, int, int] = None, scali
     """Get a block from a specific band of a *.tif file along with the transform
 
     You can select what band(s) to load by passing keyword arguments as tags
-    (see `**tags` below) and limit the area to load by bassing a view.
+    (see `**tags` below) and limit the area to load by passing a view
+    (converted to a :class:`rasterio.windows.Window` via
+    :func:`~riogrande.helper.view_to_window`).
 
     Parameters
     ----------
@@ -270,7 +310,7 @@ def load_block(source: str, view: None | tuple[int, int, int, int] = None, scali
       The path to the tif file to load
     view:
       An optional tuple (x, y, width, height) defining the area to load.
-      If `None` is provided (the default) then the entire file is loaded.
+      If ``None`` is provided (the default) then the entire file is loaded.
 
     scaling_params:
       Optional dictionary to set a rescaling of the data.
@@ -278,21 +318,25 @@ def load_block(source: str, view: None | tuple[int, int, int, int] = None, scali
 
       scaling: tuple[float,float]
         Factors to rescale the number of pixels. Values >1 will upscale.
-      method: rasterio.enums.Resampling
-        The resampling method. If not provided then the bilinear resampling
-        is used.
+      method: :class:`rasterio.enums.Resampling`
+        The resampling method. If not provided then
+        :attr:`rasterio.enums.Resampling.bilinear` is used.
 
     **tags:
       Arbitrary number of keyword arguments to describe the band to select.
-      See `get_bidx` for further details
+      See :func:`~riogrande.io.core._get_bidx_by_tag` for further details.
 
     Returns
     -------
     dict
        data: holding a numpy array with the actual data
-       transform: an ???.Affine object that encodes the transformation used
-       orig_meta: The meta information of the original .tif file
+       transform: an :class:`affine.Affine` object that encodes the transformation used
        orig_profile: The profile information of the original .tif file
+
+    See Also
+    --------
+    :func:`~riogrande.io.core.write_band` : Write data to a specific band.
+    :func:`~riogrande.helper.view_to_window` : Convert a view tuple to a rasterio Window.
     """
     window = view_to_window(view)
     with rio.open(source) as img:
@@ -342,21 +386,26 @@ def write_band(src: DatasetWriter, data: NDArray, bidx: int = 1, window: Window 
     Parameters
     ----------
     src:
-        `tif` file openend with `rasterio.open`
+        ``tif`` file opened with :func:`rasterio.open`
     data:
         The array to write into the file
     bidx:
         Band index to write into the file
     window:
-        An optional window to specify an area to write
+        An optional :class:`rasterio.windows.Window` to specify an area to write.
     **tags:
       Arbitrary number of keyword arguments that will be set as tags.
-      The value provided is converted to a string with `helper.serialize`
-      before the tag is written to the file.
+      The value provided is converted to a string with :func:`~riogrande.helper.serialize`
+      via :func:`~riogrande.io.core._set_tags` before being written to the file.
 
     Returns
     -------
     None
+
+    See Also
+    --------
+    :func:`~riogrande.io.core.update_band` : Find a band by tags and update it.
+    :func:`~riogrande.io.core.load_block` : Load a block of data from a band.
     """
     src.write(data, indexes=bidx, window=window)
     _set_tags(src, bidx=bidx, **tags)
@@ -365,24 +414,30 @@ def write_band(src: DatasetWriter, data: NDArray, bidx: int = 1, window: Window 
 def update_band(src: DatasetWriter, data: NDArray, window: Window | None = None, **tags: Any) -> None:
     """Find a specific band and update it with data
 
-    This function writes a data array in a band specified with tags.
-    If no band with the matching tags is found a `BandSelectionNoMatchError` is raised.
+    This function writes a data array in a band specified with tags,
+    identified via :func:`~riogrande.io.core._get_bidx_by_tag`.
+    If no band with the matching tags is found a
+    :exc:`~riogrande.io.exceptions.BandSelectionNoMatchError` is raised.
 
     Parameters
     ----------
     src:
-      `tif` file openend with `rasterio.open`
+      ``tif`` file opened with :func:`rasterio.open`
     data:
       The array to write into the file
     window:
-      An optional window to specify an area to write
+      An optional :class:`rasterio.windows.Window` to specify an area to write.
     **tags:
       Arbitrary number of keyword arguments that will be used to find
-      the band to write into
+      the band to write into.
 
     Returns
     --------
     None
+
+    See Also
+    --------
+    :func:`~riogrande.io.core.write_band` : Write to a band by explicit index.
     """
     try:
         bidx = _get_bidx_by_tag(src=src, **tags)
@@ -439,7 +494,11 @@ def _export_to_tif(destination: str, data: NDArray, orig_profile: dict, start=(0
 def coregister_raster(source: str, reference: str, output: str | None = None) -> str:
     """Align raster to have identical resolution.
 
-    Resolution will be calculated automatically from bounds and height/width of reference raster.
+    Resolution will be calculated automatically from bounds and height/width of reference raster
+    using :func:`rasterio.warp.calculate_default_transform`.
+    Reprojection is performed with :func:`rasterio.warp.reproject` and
+    :attr:`rasterio.enums.Resampling.nearest`.
+    CRS compatibility is verified with :func:`~riogrande.helper.check_crs`.
 
     Parameters
     ----------
@@ -448,7 +507,8 @@ def coregister_raster(source: str, reference: str, output: str | None = None) ->
     reference:
       The path to the tif file with the pixel registration to use as reference for co-registration
     output:
-      The path to write the co-registered map to
+      The path to write the co-registered map to. If ``None``, a filename is generated
+      by :func:`~riogrande.helper.output_filename`.
 
     Returns
     -------
@@ -493,23 +553,29 @@ def coregister_raster(source: str, reference: str, output: str | None = None) ->
 def compress_tif(source, output: str | None = None, compression: str | None = 'lzw') -> str:
     """Compress tif file with LZW compression
 
+    Band tags are copied band-by-band using :func:`~riogrande.io.core._get_tags`
+    and :func:`~riogrande.io.core._set_tags`.
+
     Parameters
     ----------
     source: str
       The path to the tif file you want to compress
     output:
       Optional path to output file.
-      If not set, the resulting file will inherit the filename from `source` and get
-      a `_compress` appended to the filename.
-      If compression is `'none'`, i.e. no compression the appendix will be '_decompressed'
+      If not set, the resulting file will inherit the filename from ``source`` and get
+      a ``_compress`` appendix via :func:`~riogrande.helper.output_filename`.
+      If compression is ``'none'``, i.e. no compression the appendix will be ``'_decompressed'``.
     compression:
-        Type of compression to use, default is LZW. See GDAL documentation for details
-         https://gdal.org/en/stable/drivers/raster/gtiff.html
+        Type of compression to use, default is LZW. See GDAL documentation for details.
 
     Returns
     -------
     str
       The name of the compressed file
+
+    See Also
+    --------
+    :meth:`~riogrande.io.models.Source.compress` : Convenience wrapper on the :class:`~riogrande.io.models.Source` class.
     """
     if compression is None:
         compression = 'none'
