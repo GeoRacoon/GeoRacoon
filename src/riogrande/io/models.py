@@ -137,6 +137,8 @@ class Source:
         """
         Read the profile from the source file
 
+        Opens the file via :meth:`open` and reads the rasterio profile.
+
         Parameters
         ----------
         update_self :
@@ -148,6 +150,10 @@ class Source:
         -------
         dict
             The profile dictionary retrieved from the source file.
+
+        See Also
+        --------
+        :meth:`init_source` : Create or overwrite the source file using the stored profile.
         """
         with self.open(mode='r') as src:
             profile = src.profile
@@ -189,6 +195,8 @@ class Source:
         """
         Retrieve all tags for a specific band.
 
+        Reads and deserializes tags via :func:`~riogrande.io.core._get_tags`.
+
         Parameters
         ----------
         bidx :
@@ -198,6 +206,11 @@ class Source:
         -------
         dict
             A dictionary of tag key-value pairs associated with the band.
+
+        See Also
+        --------
+        :meth:`set_tags` : Write tags back to the source file.
+        :meth:`get_tag_values` : Fetch values for a single tag key across multiple bands.
         """
         with self.open(mode='r') as src:
             tags = core._get_tags(src=src, bidx=bidx, ns=self._ns)
@@ -240,6 +253,9 @@ class Source:
         """
         Set one or more tags for a specific band or the dataset.
 
+        Tags are serialized via :func:`~riogrande.helper.serialize` before being written
+        to the file by :func:`~riogrande.io.core._set_tags`.
+
         Parameters
         ----------
         bidx :
@@ -251,6 +267,10 @@ class Source:
         Returns
         -------
         None
+
+        See Also
+        --------
+        :meth:`get_tags` : Read and deserialize tags for a band.
         """
         with self.open(mode='r+') as src:
             core._set_tags(src=src, bidx=bidx, ns=self._ns, **tags)
@@ -282,12 +302,13 @@ class Source:
         Read the dataset mask from the file.
 
         Except `okwargs` all keyword arguments are passed to
-        the `dataset_mask` method of the source.
+        the :meth:`rasterio.io.DatasetReader.dataset_mask` method of the source
+        via :meth:`mask_reader`.
 
         Parameters
         ----------
         **kwargs :
-            Optional set of keyword arguments to pass to the `read` method of the source.
+            Optional set of keyword arguments to pass to the ``read`` method of the source.
             Notable exception:
 
             okwargs : dict
@@ -298,6 +319,10 @@ class Source:
         NDArray
             An array representing the dataset mask. Non-zero values indicate
             valid pixels, and 0 indicates masked/invalid pixels.
+
+        See Also
+        --------
+        :meth:`mask_reader` : Context manager yielding the underlying mask-read callable.
         """
         okwargs = kwargs.pop('okwargs', dict())
         with self.mask_reader(mode='r', **okwargs) as dataset_mask:
@@ -349,8 +374,8 @@ class Source:
     def init_source(self, overwrite: bool = False, **kwargs):
         """Initialize or create the source file.
 
-        This method either creates a new file (empty dataset) on disk or opens an existing one.
-        If ``overwrite`` is True, the existing file will be replaced.
+        This method either creates a new file (empty dataset) on disk or opens an existing one
+        via :meth:`open`. If ``overwrite`` is True, the existing file will be replaced.
 
         Parameters
         ----------
@@ -363,6 +388,10 @@ class Source:
         Returns
         -------
         None
+
+        See Also
+        --------
+        :meth:`import_profile` : Read the profile from an existing source file.
         """
         if overwrite or not self.exists:
             with self.open(mode='w', **self.profile, **kwargs) as _:
@@ -372,7 +401,7 @@ class Source:
         """
         Retrieve a specific band as a Band object.
 
-        A Band can be selected either by its index (`bidx`) or by matching
+        A :class:`Band` can be selected either by its index (`bidx`) or by matching
         tags. If both are provided, they must match the same band.
 
         Parameters
@@ -380,22 +409,27 @@ class Source:
         bidx :
             Optional band index to select.
         **tags :
-            Optional tag key-value pairs to match the band.
+            Optional tag key-value pairs to match the band via
+            :func:`~riogrande.io.core._get_bidx_by_tag`.
 
         Returns
         -------
-        Band
+        :class:`Band`
             A ``Band`` object corresponding to the requested band, including
             associated tags.
 
         Raises
         ------
-        SourceNotSavedError
+        :exc:`~riogrande.io.exceptions.SourceNotSavedError`
             If the source file does not exist on disk.
-        BandSelectionNoMatchError
+        :exc:`~riogrande.io.exceptions.BandSelectionNoMatchError`
             If no band matches the provided index or tags.
         AssertionError
             If the index and tag selection refer to different bands.
+
+        See Also
+        --------
+        :meth:`get_bands` : Return all bands in the dataset.
         """
         if not self.exists:
             raise SourceNotSavedError(
@@ -431,8 +465,12 @@ class Source:
 
         Returns
         -------
-        list
+        list of :class:`Band`
             A list of ``Band`` objects for all bands in the dataset.
+
+        See Also
+        --------
+        :meth:`get_band` : Retrieve a single band by index or tags.
         """
         bands = []
         with self.open(mode='r') as src:
@@ -727,8 +765,9 @@ class Source:
         """
         Compress the source file using a given compression algorithm.
 
-        A new compressed GeoTIFF is created. By default, the original file is
-        replaced with the compressed one unless `keep_original` is set.
+        A new compressed GeoTIFF is created via :func:`~riogrande.io.core.compress_tif`.
+        By default, the original file is replaced with the compressed one unless
+        `keep_original` is set.
 
         Parameters
         ----------
@@ -737,8 +776,7 @@ class Source:
             overwrites the current source path.
         compression :
             Compression algorithm to use. Default is ``'lzw'``.
-            Type of compression to use, default is LZW. See GDAL documentation for details
-            https://gdal.org/en/stable/drivers/raster/gtiff.html
+            See GDAL documentation for valid options.
         keep_original :
             If True, the original uncompressed file is preserved.
             If False (default), the uncompressed file is deleted after
@@ -750,8 +788,12 @@ class Source:
 
         Notes
         -----
-        - Updates the `path` attribute of the Source to point to the new
+        - Updates the ``path`` attribute of the Source to point to the new
           compressed file.
+
+        See Also
+        --------
+        :func:`~riogrande.io.core.compress_tif` : Underlying compression function.
         """
         uncompressed = self.path
         self.path = Path(core.compress_tif(str(self.path), output=output, compression=compression))
@@ -761,17 +803,23 @@ class Source:
     def check_compatibility(self, *sources: Source):
         """
         Check whether this source is compatible with one or more other sources.
-        See ``helper.check_compatibility`` for the precise definition.
+
+        Delegates to :func:`~riogrande.helper.check_compatibility`, which verifies
+        CRS, linear units, and spatial resolution.
 
         Parameters
         ----------
         *sources :
-           One or more additional Source objects to check against this one.
+           One or more additional :class:`Source` objects to check against this one.
 
         Returns
         -------
         bool
            True if all provided sources are compatible with this one.
+
+        See Also
+        --------
+        :func:`~riogrande.helper.check_compatibility` : Underlying compatibility check.
         """
         _sources = {self.path, }
         for source in sources:
@@ -785,7 +833,7 @@ class Source:
 
         Band where data is loaded from needs to be identified with tags.
         If no tags are provided data from bidx=1 is returned.
-        See `io.load_block` for further details
+        See :func:`~riogrande.io.core.load_block` for further details.
 
         Parameters
         ----------
@@ -814,9 +862,13 @@ class Source:
             - ``data`` :
               The loaded raster data. Shape depends on band selection and scaling.
             - ``transform`` :
-              Affine transform mapping array coordinates to spatial coordinates.
+              :class:`affine.Affine` transform mapping array coordinates to spatial coordinates.
             - ``orig_profile`` :
               Copy of the original raster profile metadata.
+
+        See Also
+        --------
+        :func:`~riogrande.io.core.load_block` : Underlying function with full parameter details.
         """
         return core.load_block(source=str(self.path), view=view, scaling_params=scaling_params, **tags)
 
@@ -1045,18 +1097,22 @@ class Band:
         """
         Add the values of another band to this band, element-wise.
 
-        The data from both bands are added using NumPy's ``add`` function,
+        The data from both bands are added using :func:`numpy.add`,
         and the result is stored in ``out_band`` or overwrites this band by default.
 
         Parameters
         ----------
         band :
-           Band whose values will be added.
+           :class:`Band` whose values will be added.
         out_band :
-           Destination band for storing the result. If None (default), the
+           Destination :class:`Band` for storing the result. If None (default), the
            operation overwrites this band.
         **add_kwargs : dict
-           Additional keyword arguments passed to NumPy's ``add``.
+           Additional keyword arguments passed to :func:`numpy.add`.
+
+        See Also
+        --------
+        :meth:`subtract` : Element-wise subtraction of another band.
         """
         return self._pair_operation(pair_op=np.add, band=band,
                                     out_band=out_band, **add_kwargs)
@@ -1065,19 +1121,23 @@ class Band:
         """
         Subtract another band from this band, element-wise.
 
-        The operation computes ``self - band`` (Numpy's add) by adding the negative
-        of the second band to this band. The result is stored in ``out_band`` or
-        overwrites this band by default.
+        The operation computes ``self - band`` by adding the negative
+        of the second band to this band via :func:`numpy.add`.
+        The result is stored in ``out_band`` or overwrites this band by default.
 
         Parameters
         ----------
         band :
-          Band to subtract from this band.
+          :class:`Band` to subtract from this band.
         out_band :
-          Destination band for storing the result. If None (default), the
+          Destination :class:`Band` for storing the result. If None (default), the
           operation overwrites this band.
         **sub_kwargs : dict
           Additional keyword arguments passed to the underlying operation.
+
+        See Also
+        --------
+        :meth:`add` : Element-wise addition of another band.
         """
         def _subtract(data1, data2, **kwargs):
             return np.add(data1, (-1) * data2, **kwargs)
@@ -1088,6 +1148,9 @@ class Band:
     def export_tags(self, match: str | list | None = None):
         """
         Write the band’s set tags back to the source file.
+
+        The band index is resolved with :meth:`get_bidx` and the tags are
+        written via :meth:`~riogrande.io.models.Source.set_tags`.
 
         Parameters
         ----------
@@ -1103,8 +1166,14 @@ class Band:
         -----
         - If the band has the ``bidx`` attribute set, ``match`` is ignored.
         - Example:
-        >>> b1.export_tags(match='category')
-        # Identifies the band via the 'category' tag and updates other tags
+
+        >>> b1.export_tags(match=’category’)
+        # Identifies the band via the ‘category’ tag and updates other tags
+
+        See Also
+        --------
+        :meth:`import_tags` : Load tags from the source file into this band object.
+        :meth:`get_bidx` : Resolve the band index in the source file.
          """
         bidx = self.get_bidx(match=match)
         self.source.set_tags(bidx=bidx, tags=self.tags)
@@ -1113,15 +1182,22 @@ class Band:
         """
         Import tags from the source file (at its band index) into this Band object.
 
+        The band index is resolved with :meth:`get_bidx` and tags are read via
+        :meth:`~riogrande.io.models.Source.get_tags`.
+
         Parameters
         ----------
         match :
             Optional selection of tags to match a band in the source file.
-            Used internally by ``get_bidx`` to locate the correct band.
+            Used internally by :meth:`get_bidx` to locate the correct band.
         keep :
             If True, update the existing ``tags`` dictionary with the imported
             tags. If False, replace the existing ``tags`` dictionary with the
             imported tags.
+
+        See Also
+        --------
+        :meth:`export_tags` : Write this band's tags back to the source file.
         """
         bidx = self.get_bidx(match=match)
         tags = self.source.get_tags(bidx)
@@ -1135,8 +1211,9 @@ class Band:
         Determine the correct band index in the source file.
 
         If the ``bidx`` attribute is already set, it is checked for existence
-        in the ``Source`` file. If ``bidx`` is None, the method tries to infer
-        the correct band index using the ``tags`` attribute. The optional
+        in the :class:`Source` file. If ``bidx`` is None, the method tries to infer
+        the correct band index using the ``tags`` attribute via
+        :meth:`~riogrande.io.models.Source.find_index`. The optional
         ``match`` argument can limit which tags are considered for matching.
 
         Parameters
@@ -1162,9 +1239,14 @@ class Band:
 
         Raises
         ------
-        BandSelectionNoMatchError
+        :exc:`~riogrande.io.exceptions.BandSelectionNoMatchError`
          If there is no clear match for the band in the source file or if the
          specified ``bidx`` does not exist.
+
+        See Also
+        --------
+        :meth:`export_tags` : Write tags using the resolved band index.
+        :meth:`import_tags` : Load tags using the resolved band index.
         """
         failed = ''
         bidx = None
@@ -1262,12 +1344,13 @@ class Band:
 
         Valid pixels are those that are not equal to `no_data`. If a selector
         mask is provided, only pixels where the selector is True are counted.
+        The per-block counting is delegated to :func:`~riogrande.helper.count_contribution`.
 
         Parameters
         ----------
         selector :
-            Boolean array of the same shape as the band, indicating which pixels
-            to include in the count. If None, all pixels are considered.
+            Boolean :class:`numpy.ndarray` of the same shape as the band, indicating
+            which pixels to include in the count. If None, all pixels are considered.
         no_data :
             Pixel value considered invalid (e.g., nodata value).
         limit_count :
@@ -1282,6 +1365,11 @@ class Band:
             - If `limit_count` is 0, returns the total count of valid pixels.
             - If `limit_count` > 0, returns True/False depending on whether the
               count exceeds the limit.
+
+        See Also
+        --------
+        :func:`~riogrande.helper.count_contribution` : Per-block pixel counting function.
+        :meth:`get_min_max` : Compute the min/max of valid pixels.
         """
         if selector is None:
             self.source.import_profile()
@@ -1310,20 +1398,25 @@ class Band:
         Compute the minimum and maximum values of the band, optionally under a selector.
 
         Only pixels not equal to `no_data` and selected by the `selector` are considered.
+        Per-block min/max are computed with :func:`numpy.nanmin` / :func:`numpy.nanmax`.
 
         Parameters
         ----------
         no_data :
             Value considered invalid; these pixels are ignored.
         selector :
-            Boolean array of the same shape as the band, indicating which pixels
-            to include. If None, all pixels are considered.
+            Boolean :class:`numpy.ndarray` of the same shape as the band, indicating
+            which pixels to include. If None, all pixels are considered.
 
         Returns
         -------
         tuple of (float, float) or None
             Tuple (min_value, max_value) over the selected valid pixels.
             Returns None if no valid pixels are found.
+
+        See Also
+        --------
+        :meth:`count_valid_pixels` : Count valid (non-nodata) pixels.
         """
         if selector is None:
             self.source.import_profile()
@@ -1412,15 +1505,21 @@ class Band:
         use : {'self', 'band', 'source', 'mask_none', 'mask_all'}, default 'band'
             Determines how the mask is applied:
 
-            - 'self' or 'band': use the band-specific mask (i.e., `read_masks`).
-            - 'source': use the dataset mask from the source (i.e., `dataset_mask`).
-            - 'mask_none': consider all pixels valid (returns an array of 1s).
-            - 'mask_all': consider all pixels invalid (returns an array of 0s).
+            - ``'self'`` or ``'band'``: use the band-specific mask
+              (i.e., :meth:`rasterio.io.DatasetReader.read_masks`).
+            - ``'source'``: use the dataset mask from the source
+              (i.e., :meth:`rasterio.io.DatasetReader.dataset_mask`).
+            - ``'mask_none'``: consider all pixels valid (returns an array of 1s).
+            - ``'mask_all'``: consider all pixels invalid (returns an array of 0s).
 
         Raises
         ------
         AssertionError
             If `use` is not one of the allowed options.
+
+        See Also
+        --------
+        :meth:`get_mask_reader` : Return the mask-reading callable based on the current setting.
         """
         assert use in ['self', 'band', 'source', 'mask_all', 'mask_none'], \
             f'"{use}" is an invalid selector for a mask, options are:' \
@@ -1439,13 +1538,19 @@ class Band:
         Returns
         -------
         Callable
-          A callable that reads a mask array when called. Depending on `_use_mask`,
-          it may read the band mask, dataset mask, or return a fully True/False array.
+          A callable that reads a mask array when called. Depending on ``_use_mask``,
+          it may read the band mask via :meth:`mask_reader`, the dataset mask via
+          :meth:`~riogrande.io.models.Source.mask_reader`, or return a constant array
+          via :meth:`_mask_full`.
 
         Raises
         ------
-        InvalidMaskSelectorError
+        :exc:`~riogrande.io.exceptions.InvalidMaskSelectorError`
           If `_use_mask` has an invalid value.
+
+        See Also
+        --------
+        :meth:`set_mask_reader` : Configure which mask to use.
         """
         if self._use_mask is None or self._use_mask == 'self':  # read the band mask
             return self.mask_reader
@@ -1536,15 +1641,22 @@ class Band:
         """
         Write data to the band in the underlying source file.
 
+        Uses :meth:`data_writer` as the context manager for writing.
+
         Parameters
         ----------
         data :
-           NumPy array containing the data to write.
+           :class:`numpy.ndarray` containing the data to write.
         overwrite :
            If True, overwrite an existing source file. If False and the source
-           exists, the file is opened in update mode ('r+').
+           exists, the file is opened in update mode (``'r+'``).
         **kwargs
-           Additional keyword arguments passed to the band `data_writer`.
+           Additional keyword arguments passed to :meth:`data_writer`.
+
+        See Also
+        --------
+        :meth:`get_data` : Read the full data array of this band.
+        :meth:`data_writer` : Context manager used for writing.
         """
         if self.source.exists and not overwrite:
             mode = 'r+'
@@ -1562,7 +1674,8 @@ class Band:
         This reads a portion of the band data from the source, optionally applying
         scaling/resampling. The block can be limited to a rectangular region (`view`),
         and the specific band can be selected via `match` (tags or `bidx`).
-        See `io.load_block` for further details
+        Delegates to :func:`~riogrande.io.core.load_block` via :meth:`~riogrande.io.models.Source.load_block`.
+        See :func:`~riogrande.io.core.load_block` for further details.
 
         Parameters
         ----------
@@ -1582,9 +1695,15 @@ class Band:
         -------
         dict[str, Any]
             Dictionary containing:
-              - `data`: numpy array with the band data of shape (1, height, width)
-              - `transform`: Affine transformation object for the loaded block
-              - `orig_profile`: Original raster profile of the source band
+
+              - ``data``: :class:`numpy.ndarray` with the band data of shape (1, height, width)
+              - ``transform``: :class:`affine.Affine` transformation object for the loaded block
+              - ``orig_profile``: Original raster profile of the source band
+
+        See Also
+        --------
+        :meth:`~riogrande.io.models.Source.load_block` : Analogous method on the Source class.
+        :func:`~riogrande.io.core.load_block` : Underlying function with full parameter details.
         """
         bidx = self.get_bidx(match=match)
         return self.source.load_block(view=view, scaling_params=scaling_params, indexes=bidx)

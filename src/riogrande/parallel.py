@@ -63,12 +63,16 @@ def data_writer(writer: Callable, writer_params: dict, aggr_q: Queue) -> TimedTa
     """Write out data using the context manager `writer`
 
     This function can be used with the various context managers defined
-    in the `io.Source` and `io.Band` classes.
+    in the :class:`~riogrande.io.models.Source` and :class:`~riogrande.io.models.Band` classes,
+    such as :meth:`~riogrande.io.models.Source.mask_writer` or
+    :meth:`~riogrande.io.models.Band.data_writer`.
 
     Parameters
     ----------
     writer:
-        A `io.Source` or `io.Band` `data_write` (or `mask_writer`)
+        A :meth:`~riogrande.io.models.Source.data_writer` or
+        :meth:`~riogrande.io.models.Source.mask_writer` context manager
+        from a :class:`~riogrande.io.models.Source` or :class:`~riogrande.io.models.Band`.
     writer_params:
         Keyword arguments that will be passed to the `writer` method
     aggr_q:
@@ -76,8 +80,13 @@ def data_writer(writer: Callable, writer_params: dict, aggr_q: Queue) -> TimedTa
 
     Returns
     -------
-    TimedTask:
-        Can report the duration of the task
+    :class:`~riogrande.timing.TimedTask`
+        Can report the duration of the task.
+
+    See Also
+    --------
+    :func:`~riogrande.parallel.combine_views` : Listener that writes views into a file.
+    :func:`~riogrande.parallel.process_block` : Worker that processes and enqueues a data block.
     """
     with TimedTask() as timer:
         with writer(**writer_params) as write:
@@ -102,32 +111,42 @@ def process_block(task: Callable, source: str | Source, bands: Collection[Band] 
     This is a general purpose function that can be used to process a large .tif
     in a parallelized manner.
 
+    The view is converted to a :class:`rasterio.windows.Window` via
+    :func:`~riogrande.helper.view_to_window`, and the result is enqueued
+    using :func:`~riogrande.parallel.runner_call`.
+
     Parameters
     ----------
     task:
         Function that will be called on the data from the specified band.
-        The first argument of the function must be `data`, a `numpy.array`
+        The first argument of the function must be `data`, a :class:`numpy.ndarray`
         that holds the data from this section.
     source:
-        Either a string or an `io.Source` object
+        Either a string or a :class:`~riogrande.io.models.Source` object.
     bands:
-        A collection of strings or `io.Band` object the specify which bands to use
+        A collection of :class:`~riogrande.io.models.Band` objects specifying
+        which bands to use.
     view:
       A tuple (x, y, width, height) defining the view of data to extract and
-      process
+      process.
     task_params:
         Keyword arguments that will be passed to the callable `task`
     read_params:
         Keyword arguments that are passed to the open method of the `source` object
     open_params:
         Keyword arguments that are passed to the reader method of the `source` object
-    out_q: 
+    out_q:
         The queue this job will put the output of the callable `task` into
 
     Returns
     -------
-    TimedTask:
-        Can report the duration of the task
+    :class:`~riogrande.timing.TimedTask`
+        Can report the duration of the task.
+
+    See Also
+    --------
+    :func:`~riogrande.parallel.process_masks` : Analogous function operating on band masks.
+    :func:`~riogrande.parallel.runner_call` : Helper that enqueues the callback result.
     """
     with TimedTask() as timer:
         if not isinstance(source, Source):
@@ -157,34 +176,47 @@ def process_masks(task: Callable, bands: Collection[Band], view: tuple[int, int,
     This is a general purpose function that can be used to process a large .tif
     in a parallelized manner.
 
+    The view is converted to a :class:`rasterio.windows.Window` via
+    :func:`~riogrande.helper.view_to_window`, and the result is enqueued
+    using :func:`~riogrande.parallel.runner_call`.
+
     Parameters
     ----------
     task:
         Function that will be called on the data from the specified band.
-        The first argument of the function must be `data`, a `numpy.array`
-        that holds the data from this section.
+        The first argument of the function must be `masks`, a list of
+        :class:`numpy.ndarray` holding the masks from this section.
     bands:
-        A collection of strings or `io.Band` object the specify which bands to use
+        A collection of :class:`~riogrande.io.models.Band` objects specifying
+        which bands to use. Their mask readers are obtained via
+        :meth:`~riogrande.io.models.Band.get_mask_reader`.
     view:
       A tuple (x, y, width, height) defining the view of data to extract and
-      process
+      process.
     task_params:
         Keyword arguments that will be passed to the callable `task`
     read_params:
         Keyword arguments that are passed to the open method of the `source` object
     open_params:
         Keyword arguments that are passed to the reader method of the `source` object
-    aggr_q: 
+    aggr_q:
         The queue this job will put the output of the callable `task` into
     extra_masking_band:
-        Optional `io.Band` object that is treated as a rasterio mask, i.e. values equal to 0
+        Optional :class:`~riogrande.io.models.Band` object that is treated as
+        a rasterio mask, i.e. values equal to 0 are masked.
+
         .. warning::
           This Band is treated as a mask itself, its own mask is ignored.
 
     Returns
     -------
-    TimedTask
-        Can report the duration of the task
+    :class:`~riogrande.timing.TimedTask`
+        Can report the duration of the task.
+
+    See Also
+    --------
+    :func:`~riogrande.parallel.process_block` : Analogous function operating on band data.
+    :func:`~riogrande.parallel.runner_call` : Helper that enqueues the callback result.
     """
     window = view_to_window(view)
     with TimedTask() as timer:
@@ -216,7 +248,8 @@ def runner_call(queue: Queue[Any], callback: Callable, params: dict, wrapper: Ca
     Parameters
     ----------
     queue :
-        A queue into which the result (wrapped or unwrapped) will be placed.
+        A :class:`multiprocessing.Queue` into which the result (wrapped or
+        unwrapped) will be placed.
     callback :
         A callable object (function or method) to be executed.
     params :
@@ -229,6 +262,11 @@ def runner_call(queue: Queue[Any], callback: Callable, params: dict, wrapper: Ca
     -------
     dict
         The unwrapped output.
+
+    See Also
+    --------
+    :func:`~riogrande.parallel.process_block` : Uses this function to enqueue block results.
+    :func:`~riogrande.parallel.process_masks` : Uses this function to enqueue mask results.
     """
     output = callback(**params)
     if wrapper is not None:
@@ -242,13 +280,16 @@ def compute_mask(source: str | Source, block_size: tuple[int, int], nodata=0, lo
                  bands: list[Band] | None = None, verbose: bool = False, **params) -> None:
     """Compute the mask of a dataset in parallel and write it out to the file
 
-    This function is checking validiaty against the nodata rule across all bands, provided the
-    selected logic.
+    This function is checking validity against the nodata rule across all bands, provided the
+    selected logic (via :func:`~riogrande.helper.reduced_mask`).
+    The dataset is split into blocks with :func:`~riogrande.prepare.create_views`
+    and each block is processed by :func:`~riogrande.parallel.process_block` in a
+    :class:`multiprocessing.pool.Pool` obtained via :func:`~riogrande.helper.get_or_set_context`.
 
     Parameters
     ----------
-    source : str
-        Path to the tif file
+    source : str or :class:`~riogrande.io.models.Source`
+        Path to the tif file or a Source object.
     block_size: tuple of int
         Size (width, height) in #pixel of the block that a single job processes
     nodata:
@@ -261,21 +302,27 @@ def compute_mask(source: str | Source, block_size: tuple[int, int], nodata=0, lo
         - ``"all"`` : Mask each cell where *all* of the bands match the nodata value.
 
     bands:
-        An optional selection of bands to use. If not provided all bands are used.
+        An optional selection of :class:`~riogrande.io.models.Band` objects to use.
+        If not provided all bands are used.
     verbose:
         Print out processing step infos
     **params:
         Optional arguments for the multiprocessing:
 
         - ``nbrcpu`` : int
-          Number of CPUs to use. If not set, the available number of threads
-          minus one is used.
+          Number of CPUs to use, passed to :func:`~riogrande.helper.get_nbr_workers`.
         - ``start_method`` : str
-          Starting method for multiprocessing jobs.
+          Starting method for multiprocessing jobs, passed to
+          :func:`~riogrande.helper.get_or_set_context`.
 
     Returns
     -------
     None
+
+    See Also
+    --------
+    :func:`~riogrande.parallel.prepare_selector` : Build a boolean selector from band masks.
+    :func:`~riogrande.helper.reduced_mask` : Per-block mask computation function used internally.
     """
     print(f'compute_mask - {source=}')
     if isinstance(source, str):
@@ -354,22 +401,30 @@ def compute_mask(source: str | Source, block_size: tuple[int, int], nodata=0, lo
 def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
     """Fill a matrix with data received through a queue.
 
+    Each received block is placed into `matrix` via
+    :func:`~riogrande.prepare.update_view`.
+
     Parameters
     ----------
     matrix :
-        The matrix to fill with data.
+        The :class:`numpy.ndarray` to fill with data.
     aggr_q:
-        The queue this job listens to. Each element in the queue must be a
-        `dict` containing either:
+        The :class:`multiprocessing.Queue` this job listens to. Each element
+        in the queue must be a ``dict`` containing either:
 
         - ``{"view": ..., "data": ...}`` specifying where to write what.
         - ``{"signal": "kill"}`` to terminate the process and return the filled matrix.
 
     Returns
     -------
-    matrice, (TimedTask, ):
-        The first object is the filled matrix, the second holds a
-        `TimedTask` object that holds information on the duration of this task
+    matrix, (timer,):
+        The first object is the filled :class:`numpy.ndarray`, the second holds a
+        :class:`~riogrande.timing.TimedTask` object with duration information.
+
+    See Also
+    --------
+    :func:`~riogrande.prepare.update_view` : Write a block into a view of an array.
+    :func:`~riogrande.parallel.prepare_selector` : Uses this function as the aggregator job.
     """
     with TimedTask() as timer:
         while True:
@@ -387,36 +442,47 @@ def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
 
 def prepare_selector(*bands: Band, block_size: tuple[int, int], extra_masking_band: Band | None = None,
                      verbose=False, **params) -> NDArray:
-    """Compute a boolean selector from masks of the provided `io.Band` objects
+    """Compute a boolean selector from masks of the provided :class:`~riogrande.io.models.Band` objects
 
-    Band masks are aggregated into a boolean selector that can be used to identify valid pixels
+    Band masks are aggregated into a boolean selector (via
+    :func:`~riogrande.helper.aggregated_selector`) that can be used to identify valid pixels
     across all provided bands. Optionally, an extra masking band may be applied where values
     equal to 0 are masked out.
+    The dataset is split into blocks with :func:`~riogrande.prepare.create_views`
+    and each block is processed by :func:`~riogrande.parallel.process_masks` in a
+    :class:`multiprocessing.pool.Pool` obtained via :func:`~riogrande.helper.get_or_set_context`.
+    Results are assembled by :func:`~riogrande.parallel.fill_matrix`.
 
     Parameters
     ----------
     bands:
-        A collection of strings or `io.Band` object the specify which bands to use
+        A collection of :class:`~riogrande.io.models.Band` objects specifying
+        which bands to use.
     block_size:
         Size (width, height) in #pixel of the block that a single job processes
     extra_masking_band:
-        Optional `io.Band` object thas is treated as a rasterio mask, i.e. values equal to 0
-        will be masked.
+        Optional :class:`~riogrande.io.models.Band` object that is treated as a rasterio
+        mask, i.e. values equal to 0 will be masked.
     verbose:
         Print out processing step infos
     **params:
         Optional arguments for the multiprocessing:
 
         - ``nbrcpu`` : int
-          The number of CPUs to use. If not set, then the available number of
-          threads -1 is used.
+          The number of CPUs to use, passed to :func:`~riogrande.helper.get_nbr_workers`.
         - ``start_method`` : str
-          Starting method for multiprocessing jobs.
+          Starting method for multiprocessing jobs, passed to
+          :func:`~riogrande.helper.get_or_set_context`.
 
     Returns
     -------
     NDArray
-       A boolean array that can be used as selector
+       A boolean :class:`numpy.ndarray` that can be used as selector.
+
+    See Also
+    --------
+    :func:`~riogrande.parallel.compute_mask` : Analogous function that writes the mask to file.
+    :func:`~riogrande.helper.aggregated_selector` : Per-block aggregation function used internally.
     """
     print(f'prepare_selector - {bands=}')
     # make sure the bands are compatible
