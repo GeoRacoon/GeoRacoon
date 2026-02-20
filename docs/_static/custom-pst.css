@@ -1,6 +1,29 @@
+html {
+  /*****************************************************************************
+  * Overall Layout Variables
+  */
+
+  --pst-color-link: green;
+  --pst-color-inline-code: green!important;
+}
+
+html[data-theme="light"] {
+  --pst-color-link: black;
+  // Announcement
+  --sbt-color-announcement: rgb(97, 97, 97);
+  // Default primary color (need to adjust on dark theme due to bad contrast)
+  --pst-color-primary: #176de8;
+}
+html[data-theme="dark"] {
+  --pst-color-link: lightgreen;
+  // Announcement
+  --sbt-color-announcement: rgb(97, 97, 97);
+  // Default primary color (need to adjust on dark theme due to bad contrast)
+  --pst-color-primary: #176de8;
+}
+
 /* External link indicator
-   Appends a small ↗ arrow after every external reference link so readers
-   can distinguish links with the class "reference external". */
+   Appends a small ↗ arrow after every external reference link */
 
 a.reference.external::after {
     content: "\00A0↗";
