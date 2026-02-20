@@ -23,6 +23,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
+    'sphinx.ext.intersphinx',
     "autoapi.extension",
     #    'ablog',
     #    'sphinx_design',
@@ -34,6 +35,16 @@ extensions = [
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = True
+
+# -- Intersphinx configuration -----------------------------------------------
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/', None),
+    'skimage': ('https://scikit-image.org/docs/stable/', None),
+    'sklearn': ('https://scikit-learn.org/stable/', None),
+    'rasterio': ('https://rasterio.readthedocs.io/en/stable/', None),
+}
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -92,7 +103,9 @@ autoapi_options = [
     "members",
     "undoc-members",
     "special-members",
-    "imported-members",
+    # "imported-members",  # disabled: causes duplicate inventory entries for re-exported symbols
+    #                        (e.g. riogrande.io.Band vs riogrande.io.models.Band), leading to ambiguous
+    #                       # cross-reference warnings. Canonical docs live at definition site (riogrande.io.models)
     # "private-members",
     "show-inheritance",
     "show-module-summary",
