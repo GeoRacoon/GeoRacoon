@@ -514,7 +514,7 @@ def dtype_range(dtype: type | str) -> Tuple[int | float, int | float]:
     Uses :func:`numpy.iinfo` for integer types and :func:`numpy.finfo`
     for floating-point types.
 
-    ..warning::
+    .. warning::
       This functions returns min or max as either `int` or `floats`.
 
       Be sure to convert them back into `dtype` if needed!
@@ -574,7 +574,7 @@ def convert_to_dtype(data: NDArray, as_dtype: None | type | np._dtype | str = No
     This is typically used if converting from a "limited" range, like `uint8`
     to a floating data type.
 
-    ..note::
+    .. note::
 
       The default range for any floating type is `[0,1]`!
 
@@ -599,9 +599,10 @@ def convert_to_dtype(data: NDArray, as_dtype: None | type | np._dtype | str = No
         an array or list from which min and max will be used as input range.
         Min and max are read with :func:`numpy.nanmin` / :func:`numpy.nanmax`.
 
-        ..note::
+        .. note::
           You might simply provide the same value as for `data` in order to
           use its min an max for scaling
+
     out_range:
       an array or list from which min and max will be used as limits for the
       output.

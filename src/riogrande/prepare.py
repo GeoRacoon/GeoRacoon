@@ -204,7 +204,7 @@ def create_views(view_size: tuple[int, int], border: tuple[int, int], size: tupl
 def get_view(data: NDArray, view: tuple[int, int, int, int]) -> NDArray:
     """Return a recatangular view of the data array
 
-    ..Note::
+    .. note::
       data.shape == height, width!
 
     Parameters

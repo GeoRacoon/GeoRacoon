@@ -55,9 +55,10 @@ def _set_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS, **tags:
       dataset.
     ns:
       The namespace to set the tags in.
-      ..Note::
+      .. note::
         It is dicouraged to change this value from the default as all tagging
         related methods of this package use the same default namespace.
+
     **tags:
       Arbitrary number of keyword arguments that will be set as tags.
       The value provided is converted to a string with :func:`~riogrande.helper.serialize`
@@ -103,7 +104,7 @@ def _get_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS) -> dict
     ns:
       The namespace to get the tags from.
 
-      ..Note::
+      .. note::
         It is dicouraged to change this value from the default as all tagging
         related methods of this package use the same default namespace.
 
@@ -134,9 +135,10 @@ def _find_bidxs(src: DatasetWriter, ns: str = NS, **tags: Any) -> list[int]:
     ns:
       The namespace to set the tags in.
 
-      ..Note::
+      .. note::
         It is dicouraged to change this value from the default as all tagging
         related methods of this package use the same default namespace.
+
     **tags:
       Arbitrary number of keyword arguments that will be compared to the tags
       of the bands in the dataset.

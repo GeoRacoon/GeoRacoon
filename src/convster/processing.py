@@ -1126,7 +1126,7 @@ def get_entropy_view(source: str,
                      **tags):
     """Returns the entropy for some categories over a view from a tif file
 
-    ..Warning::
+    .. warning::
       This function is deprecated and should not be used
 
     Parameters
@@ -1138,8 +1138,9 @@ def get_entropy_view(source: str,
     output_range:
       The data-range to use for the returned array.
 
-      ..note::
+      .. note::
         This argument is only taken into account if `normed=True`.
+
     **tags:
       Arbitrary number of keyword arguments to describe the band to select.
 
