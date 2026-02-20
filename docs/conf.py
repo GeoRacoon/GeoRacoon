@@ -68,6 +68,7 @@ html_context = {
     "github_user": "GeoRacoon",
     "github_repo": "GeoRacoon",
     "github_version": "main",
+    "doc_path": "docs/",
     "default_mode": "light",
 }
 
@@ -78,9 +79,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 html_title = 'GeoRacoon'
 html_theme_options = {
-    "path_to_docs": "docs/",
     "use_edit_page_button": True,
-    "use_repository_button": True,
     "navbar_start": ["navbar-logo"],
     "navbar_center": ["navbar-nav"],
     "navbar_end": ["theme-switcher", "navbar-icon-links"],
