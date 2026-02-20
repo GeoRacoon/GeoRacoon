@@ -23,9 +23,10 @@ html[data-theme="dark"] {
 }
 
 /* External link indicator
-   Appends a small ↗ arrow after every external reference link */
+   Appends a small ↗ arrow after external references to third-party packages
+   (numpy, rasterio, scipy, etc.) but NOT to the Python standard library. */
 
-a.reference.external::after {
+a.reference.external:not([href*="docs.python.org"])::after {
     content: "\00A0↗";
     font-size: 0.75em;
     vertical-align: super;
