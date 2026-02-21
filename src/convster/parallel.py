@@ -1312,10 +1312,7 @@ def apply_filter(source: str | Source,
         - **as_dtype** : data type for filtered output (overrides `output_dtype`)
         - **nodata** : value for missing data (default: None)
         - **bigtiff** : bool, whether to create a BIGTIFF for >4GB files
-
-            .. note::
-                This may become standard at a later point
-
+            .. note:: This may become standard at a later point
     verbose : bool, default=False
         Print progress and debug information.
     **params
