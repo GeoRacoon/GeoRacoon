@@ -532,7 +532,7 @@ def compute_interaction(data_arrays: Sequence[NDArray],
     -----
     - Standardization (`standardize=True`) scales the interaction by the sum of input layers.
     - Conversion to integer types uses scaling and :func:`numpy.ceil` to avoid rounding artifacts.
-    - `normed=True` ensures the maximum possible interaction corresponds to 1 (float) or the maximum of the integer type.
+    - `normed=True` ensures the maximum possible interaction corresponds to 1 (float) or the maximum of the integer.
     - Input/output range detection uses :func:`~riogrande.helper.dtype_range`.
 
     See Also
@@ -541,7 +541,7 @@ def compute_interaction(data_arrays: Sequence[NDArray],
 
     Examples
     --------
-    # Example 1: float inputs, 2 arrays
+    Example 1: float inputs, 2 arrays
     >>> a = np.array([[0.5, 0.25], [0.0, 0.05]])
     >>> b = np.array([[0.5, 0.25], [0.0, 0.3]])
     >>> compute_interaction([a, b], standardize=True, normed=True)
@@ -550,7 +550,7 @@ def compute_interaction(data_arrays: Sequence[NDArray],
     >>> compute_interaction([a, b], standardize=True, normed=False)
     array([[0.25      , 0.125     ],
            [0.        , 0.04285714]])
-    # Example 2: integer inputs (uint8), 3 arrays, float output
+    Example 2: integer inputs (uint8), 3 arrays, float output
     >>> a = np.array([[85, 100], [50, 60]], dtype=np.uint8)
     >>> b = np.array([[85, 50], [100, 80]], dtype=np.uint8)
     >>> c = np.array([[85, 105], [100, 10]], dtype=np.uint8)
@@ -754,7 +754,6 @@ def _filter_data(data: NDArray,
 
     Examples
     --------
-    >>> import numpy as np
     >>> from skimage.filters import gaussian
     >>> data = np.array([[1, 2, 1], [np.nan, 4, 5], [2, 4, 6]] )
     >>> data
@@ -1151,16 +1150,35 @@ def get_entropy_view(source: str,
 
     Parameters
     ----------
+    source : str
+        Path to the TIFF file to load.
+    view : tuple of int
+        A 4-tuple defining the view of the data array to update: `(start_row, end_row, start_col, end_col)`.
+    inner_view : tuple of int
+        A 4-tuple defining the inner part of the view, excluding border effects.
+    categories : Collection, optional
+        A collection of category values to extract. If `None`, all categories are processed.
+    img_filter : Callable
+        A function that will be applied to each category indicator array.
+    filter_params : dict, optional
+        Keyword arguments to pass to `img_filter`. Default is an empty dictionary.
+    filter_output_range : tuple, optional
+        Output range for the filtered arrays. If `None`, no explicit rescaling is applied.
+    view : tuple[int, int, int, int]
+        A tuple defining the subregion of the arrays to process (e.g., (x_start, x_end, y_start, y_end)).
     max_entropy_categories : int or None
         If normed is true, this determines the maximum n for Entropy to be used to caluclate the maximum to norm by.
         This argument is ignored if `normed=False`.
-
+    output_dtype : type or str or None
+        Data type for the returned entropy array. If None, the dtype is inferred.
     output_range : tuple or None
         The data-range to use for the returned array.
 
         .. note::
             This argument is only taken into account if `normed=True`.
-
+    normed : bool
+        If True, normalize the entropy values to the range [0, 1] using the maximum
+        possible entropy determined by `max_entropy_categories`.
     **tags : dict
         Arbitrary number of keyword arguments to describe the band to select.
 

@@ -2,7 +2,7 @@
 Array utility functions for the convster package.
 
 This module provides low-level helper functions for inspecting and manipulating
-NumPy arrays. Currently it exposes utilities for locating the first and last
+NumPy arrays. Currently, it exposes utilities for locating the first and last
 non-zero element along a given axis, which are used internally during filter
 application to determine valid data ranges within raster bands.
 """

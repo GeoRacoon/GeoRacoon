@@ -642,20 +642,24 @@ def convert_to_dtype(data: NDArray, as_dtype: None | type | np._dtype | str = No
 
     Examples
     --------
-    >>> # simple conversion, no rescalingm
+    >>> # simple conversion, no rescaling
     >>> my_data = np.array([0, 0.5, 1.], dtype=np.float64)
     >>> convert_to_dtype(my_data, as_dtype='uint8')
     array([0, 0, 1], dtype=uint8)
+
     >>> # conversion with rescaling specifying in_range only
     >>> new_data = convert_to_dtype(my_data, as_dtype='uint8', in_range=(0,1))
     >>> new_data
     array([  0, 127, 255], dtype=uint8)
+
     >>> # convert with scaling specifying out_range only
     >>> convert_to_dtype(data=new_data, as_dtype='float64', out_range=[-1, 1])
     array([-1.        , -0.00392157,  1.        ])
+
     >>> # only scaling, keeping data type
     >>> convert_to_dtype(data=my_data, in_range=[0,1], out_range=[-1, 1])
-    array([-1.,  0.,  1.])
+    array([-1.,  0.,  1.
+
     >>> # scaling with data type as range
     >>> convert_to_dtype(data=my_data, in_range=[0,1], as_dtype='uint16', out_range='uint8')
     array([  0, 127, 255], dtype=uint16)
