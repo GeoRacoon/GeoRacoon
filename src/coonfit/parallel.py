@@ -387,7 +387,15 @@ def get_optimal_betas(*predictors: Band | str,
 
     This function computes the optimal weights (beta coefficients) for a
     multiple linear regression by processing predictor data in parallel blocks.
-    The computation solves for beta in the normal equation (see Notes).
+    The computation solves for beta in the normal equation (ordinary least squares problem):
+
+    .. math::
+       \\beta = (X^T X)^{-1} X^T y
+
+    where X is the design matrix of predictors and y is the response vector.
+
+    This approach is memory-efficient for large spatial datasets as it avoids
+    loading the entire design matrix into memory at once.
 
     Parameters
     ----------
@@ -457,16 +465,6 @@ def get_optimal_betas(*predictors: Band | str,
        :func:`~coonfit.parallel_helpers._partial_optimal_betas`
     3. Aggregating the partial results via
        :func:`~coonfit.parallel_helpers._combine_matrices`
-
-    The optimal weights solve the ordinary least squares problem:
-
-    .. math::
-       \\beta = (X^T X)^{-1} X^T y
-
-    where X is the design matrix of predictors and y is the response vector.
-
-    This approach is memory-efficient for large spatial datasets as it avoids
-    loading the entire design matrix into memory at once.
 
     See Also
     --------
