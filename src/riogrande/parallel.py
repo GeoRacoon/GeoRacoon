@@ -1,5 +1,21 @@
 """
-This module contains various helper functions to parallelize
+Block-parallel processing utilities for raster operations.
+
+This module provides worker and aggregation functions that underpin the
+block-wise parallel processing pipelines in ``riogrande``. Rasters are
+decomposed into spatial views (see :mod:`~riogrande.prepare`) and each view
+is processed independently by a pool of worker processes.
+
+Key responsibilities include:
+
+- **Block processing**: Reading a spatial block from a raster source and
+  applying a task function (:func:`process_block`, :func:`process_masks`).
+- **Result aggregation**: Writing processed blocks back into an output raster
+  (:func:`combine_views`, :func:`fill_matrix`, :func:`data_writer`).
+- **Mask computation**: Computing a combined boolean selector mask across
+  multiple bands in parallel (:func:`compute_mask`, :func:`prepare_selector`).
+- **Queue-based runners**: A generic callback wrapper for multiprocessing queues
+  (:func:`runner_call`).
 """
 
 from __future__ import annotations

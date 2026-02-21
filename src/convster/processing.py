@@ -1,5 +1,25 @@
 """
-Preparing and processing data
+Data preparation and derived metric computation for categorical raster maps.
+
+This module provides functions for extracting, filtering, and transforming
+data from categorical raster maps, as well as for computing per-cell derived
+metrics. It is the primary processing layer of the ``convster`` package.
+
+Key functionality includes:
+
+- **Category handling**: Selecting pixels by category value, listing available
+  categories, and extracting per-category data arrays (:func:`select_category`,
+  :func:`get_categories`, :func:`get_category_data`).
+- **Filter application**: Applying arbitrary image filters per category with
+  optional output rescaling (:func:`get_filtered_categories`,
+  :func:`get_category_data`).
+- **Entropy computation**: Computing per-cell Shannon entropy across category
+  probability layers (:func:`compute_entropy`, :func:`get_max_entropy`,
+  :func:`get_entropy_view`).
+- **Interaction metrics**: Computing per-cell multi-layer interaction values
+  normalised by the theoretical maximum (:func:`view_interaction`).
+- **Visualisation helpers**: Generating entropy and interaction arrays ready
+  for display or export (:func:`view_entropy`, :func:`view_interaction`).
 """
 
 from __future__ import annotations

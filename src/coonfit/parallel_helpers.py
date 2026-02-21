@@ -1,5 +1,25 @@
 """
-This module contains internal functions as helpers for the parallellize of various inference methods.
+Internal worker functions for parallelized regression computations.
+
+This module contains the individual job functions executed by worker processes
+in the ``coonfit`` parallel pipeline. These functions are not part of the
+public API and are called exclusively by :mod:`~coonfit.parallel`.
+
+Worker functions cover:
+
+- **Matrix aggregation**: Combining partial ``X.T @ X`` or beta matrices
+  received from a multiprocessing queue (:func:`_combine_matrices`).
+- **Partial products**: Computing ``X.T @ X`` and beta coefficients for a
+  single spatial block (:func:`_partial_transposed_product`,
+  :func:`_partial_optimal_betas`).
+- **Predictor validation**: Counting valid pixels per predictor band and
+  checking that each band meets the minimum contribution threshold
+  (:func:`_process_band_count_valid`, :func:`_check_predictor_consistency`).
+- **Model prediction**: Applying fitted regression weights to a spatial block
+  to produce model output values (:func:`_block_model_prediction`).
+- **Goodness-of-fit**: Partially computing the sum of squared residuals (SSR)
+  and total sum of squares (SST) for RMSE and R² evaluation
+  (:func:`_block_ssr`, :func:`_block_sst`).
 """
 
 from __future__ import annotations

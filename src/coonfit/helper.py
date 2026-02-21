@@ -1,5 +1,10 @@
 """
-Helper functions for the linear fitting
+Utility functions for the coonfit regression workflow.
+
+This module provides supporting functions used during predictor validation and
+data quality assessment. It includes tools for detecting rank-deficient
+predictor matrices (which would cause the normal equations to be singular) and
+for counting the number of usable pixels within a boolean selector mask.
 """
 
 from __future__ import annotations

@@ -1,4 +1,24 @@
-"""This file provides helper functions including compatibility checks, dtype conversion, parallelization setup
+"""
+General-purpose helper functions for the riogrande package.
+
+This module collects utility functions that are used across the package but do
+not belong to the I/O layer or the parallelization machinery. It covers:
+
+- **Compatibility checks**: CRS, spatial resolution, and unit validation across
+  multiple raster sources (:func:`check_compatibility`, :func:`check_crs`,
+  :func:`check_resolution`, :func:`check_units`).
+- **Dtype conversion**: Converting array values between numeric types with
+  optional range rescaling (:func:`convert_to_dtype`, :func:`dtype_range`).
+- **Tag utilities**: Serializing, deserializing, sanitizing, and matching
+  metadata tag dictionaries (:func:`serialize`, :func:`deserialize`,
+  :func:`sanitize`, :func:`match_all`, :func:`match_any`).
+- **Mask aggregation**: Combining boolean selector arrays with logical AND/OR
+  (:func:`aggregated_selector`, :func:`reduced_mask`).
+- **Multiprocessing setup**: Obtaining a multiprocessing context and determining
+  the number of worker processes (:func:`get_or_set_context`,
+  :func:`get_nbr_workers`).
+- **Miscellaneous**: Output filename generation, window-to-view conversion, and
+  pixel contribution counting.
 """
 
 from __future__ import annotations

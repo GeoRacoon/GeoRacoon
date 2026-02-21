@@ -1,5 +1,15 @@
 """
-Holds [...] as well as internal functions largely used for Source and Band Classes
+Low-level I/O functions for reading and writing GeoTIFF raster data.
+
+This module provides the functional layer beneath :class:`~riogrande.io.models.Source`
+and :class:`~riogrande.io.models.Band`. It contains functions for tag management,
+band index lookup, block loading with optional rescaling, band writing and
+updating, coordinate registration, and LZW compression.
+
+Most functions in this module operate directly on open ``rasterio``
+:class:`~rasterio.io.DatasetWriter` or :class:`~rasterio.io.DatasetReader`
+objects and are called internally by the :class:`~riogrande.io.models.Source`
+and :class:`~riogrande.io.models.Band` class methods.
 """
 
 from __future__ import annotations

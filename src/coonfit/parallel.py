@@ -1,5 +1,27 @@
 """
-This module contains functions to parallellize various inference methods.
+High-level parallelized workflows for spatial multiple linear regression.
+
+This module exposes the main user-facing functions of the ``coonfit`` package.
+All computations are distributed across worker processes and operate on raster
+data block by block, making them suitable for large spatial datasets that do
+not fit in memory.
+
+Key functions:
+
+- :func:`compute_weights` — Full end-to-end workflow: builds the selector mask,
+  validates predictors, computes ``X.T @ X``, checks for linear dependencies,
+  inverts the matrix, and returns the optimal regression weights.
+- :func:`compute_model` — Applies fitted weights to predictor rasters and writes
+  the model prediction to a new GeoTIFF.
+- :func:`get_XT_X` — Parallelized computation of the transposed product
+  ``X.T @ X`` across spatial blocks.
+- :func:`get_optimal_betas` — Parallelized computation of regression coefficients
+  given a pre-inverted ``(X.T @ X)^{-1}``.
+- :func:`get_XT_X_dependency` — Checks for linear dependencies among predictors
+  without running the full fitting pipeline.
+- :func:`calculate_rmse` — Computes root mean square error between the model and
+  observed response.
+- :func:`calculate_r2` — Computes the coefficient of determination (R²).
 """
 from __future__ import annotations
 

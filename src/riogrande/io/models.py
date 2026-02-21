@@ -1,4 +1,14 @@
-"""Classes Source and Bands to use for GeoTifs
+"""
+Data model classes for GeoTIFF raster sources and bands.
+
+This module defines :class:`Source` and :class:`Band`, the two central data
+model classes of the ``riogrande`` package. A :class:`Source` represents a
+single GeoTIFF file together with its metadata (tags, profile, namespace),
+while a :class:`Band` encapsulates one raster band within a source, including
+band-specific tags, a band index, and configurable mask and data readers.
+
+Together these classes form the primary interface through which raster data is
+opened, read, written, and tagged throughout the package.
 """
 
 from __future__ import annotations
