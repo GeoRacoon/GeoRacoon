@@ -44,13 +44,13 @@ def _to_numpy_selector(rasterio_mask: NDArray) -> NDArray:
 
     Parameters
     ----------
-    rasterio_mask : ndarray
+    rasterio_mask : NDArray
         Mask array as returned by :meth:`rasterio.io.DatasetReader.read_masks`.
         Non-zero values indicate valid data; zero values indicate masked data.
 
     Returns
     -------
-    ndarray of bool
+    NDArray of bool
         Boolean array with the same shape as `rasterio_mask`. `True` values
         indicate cells that can be used; `False` values indicate cells that
         should be excluded.
@@ -72,7 +72,7 @@ def _enrich_selector(selector: NDArray, *predictors: Band, verbose: bool = False
 
     Parameters
     ----------
-    selector : ndarray of bool
+    selector : NDArray of bool
         Boolean array indicating usable cells in a 2D raster. `True` values
         indicate cells that can be used; `False` values indicate cells that
         should be excluded.
@@ -86,7 +86,7 @@ def _enrich_selector(selector: NDArray, *predictors: Band, verbose: bool = False
 
     Returns
     -------
-    ndarray of bool
+    NDArray of bool
         Boolean array with the same shape as `selector`. Contains the logical
         AND of the input selector and all predictor masks, indicating cells
         that are valid across all inputs.
@@ -147,7 +147,7 @@ def prepare_selector(response: str | Band, *predictors: Band, extra_masking_band
 
     Returns
     -------
-    ndarray of bool
+    NDArray of bool
         Boolean array of the same shape as the response band, where True
         indicates usable pixels and False indicates masked pixels.
 
@@ -223,7 +223,7 @@ def init_X(predictors: Collection[Band], selector: NDArray, window: Window | Non
         Collection of Band objects, each specifying one or more predictor
         variables. The number of predictors determines the number of columns
         in the output matrix (excluding the intercept).
-    selector : ndarray of bool
+    selector : NDArray of bool
         Boolean array to select usable cells. Only pixels where selector is
         True will be included in the matrix rows.
     window : Window or None
@@ -239,7 +239,7 @@ def init_X(predictors: Collection[Band], selector: NDArray, window: Window | Non
 
     Returns
     -------
-    ndarray
+    NDArray
         Zero-initialized array of shape (n_rows, n_cols) where:
 
         - n_rows is the count of usable pixels in the (windowed) selector
@@ -284,7 +284,7 @@ def populate_X(X: NDArray, predictors: Collection[Band], as_dtype: type | str,
 
     Parameters
     ----------
-    X : ndarray
+    X : NDArray
         Pre-initialized array to be populated with predictor data. Modified
         in-place. Should have shape (n_usable_pixels, n_predictors) or
         (n_usable_pixels, n_predictors + 1) if include_intercept is True.
@@ -300,7 +300,7 @@ def populate_X(X: NDArray, predictors: Collection[Band], as_dtype: type | str,
         Limits data reading to a specific spatial window. If provided, the
         window is converted to slices using :meth:`rasterio.windows.Window.toslices`.
         If None, the entire data array is used.
-    selector : ndarray of bool
+    selector : NDArray of bool
         Boolean array to select usable pixels. Applied after windowing to
         extract only valid data points for the predictor matrix.
     include_intercept : bool
@@ -376,35 +376,35 @@ def prepare_predictors(response: str | Band, *predictors: Band | str, view: tupl
     Parameters
     ----------
     response : str or Band
-       Response variable. Either a ``Band`` object or a string specifying the
-       path to a raster file (``.tif``) containing the response data.
+        Response variable. Either a ``Band`` object or a string specifying the
+        path to a raster file (``.tif``) containing the response data.
 
-       If a string is provided, the raster must contain exactly one band.
+        If a string is provided, the raster must contain exactly one band.
     *predictors : Band or str
-       One or more predictors specified as ``Band`` objects or file paths.
+        One or more predictors specified as ``Band`` objects or file paths.
 
-       If a string is provided, it is interpreted as the path to a raster file
-       and **all bands** in that file are added as individual predictors.
+        If a string is provided, it is interpreted as the path to a raster file
+        and **all bands** in that file are added as individual predictors.
 
-       Predictor data are cast to the same data type as the response. No
-       rescaling is performed.
+        Predictor data are cast to the same data type as the response. No
+        rescaling is performed.
     view : tuple of int, optional
-       Spatial subset of the data specified as ``(x, y, width, height)``.
-       If not provided, the entire response raster is used.
+        Spatial subset of the data specified as ``(x, y, width, height)``.
+        If not provided, the entire response raster is used.
     include_intercept : bool, default=True
-       If ``True``, an additional column of ones is appended to the predictor
-       matrix to model an intercept term.
+        If ``True``, an additional column of ones is appended to the predictor
+        matrix to model an intercept term.
     verbose : bool, default=False
-       If ``True``, print processing information.
+        If ``True``, print processing information.
 
     Returns
     -------
-    X : ndarray of shape (n_samples, n_features)
-       Predictor matrix. The number of features corresponds to the total number
-       of predictors, plus one if ``include_intercept`` is ``True``.
-    y : ndarray of shape (n_samples,)
-       Response vector containing the response values corresponding to the
-       selected pixels.
+    X : NDArray of shape (n_samples, n_features)
+        Predictor matrix. The number of features corresponds to the total number
+        of predictors, plus one if ``include_intercept`` is ``True``.
+    y : NDArray of shape (n_samples,)
+        Response vector containing the response values corresponding to the
+        selected pixels.
 
     See Also
     --------
@@ -471,7 +471,7 @@ def transposed_product(predictors: Collection[Band], view: tuple[int, int, int, 
     view : tuple of int or None
         Spatial subset specified as ``(x, y, width, height)``.
         If ``None``, the full spatial extent is used.
-    selector : ndarray of bool
+    selector : NDArray of bool
         Boolean array indicating which pixels are valid and should be included
         in the computation.
     include_intercept : bool, default=False
@@ -482,7 +482,7 @@ def transposed_product(predictors: Collection[Band], view: tuple[int, int, int, 
 
     Returns
     -------
-    transprodX : ndarray of shape (n_features, n_features)
+    transprodX : NDArray of shape (n_features, n_features)
         The transposed product of the predictor matrix, ``X.T @ X``.
         The number of features corresponds to the number of predictors,
         plus one if ``include_intercept`` is ``True``.
@@ -546,15 +546,15 @@ def get_optimal_weights(X, y):
 
     Parameters
     ----------
-    X : ndarray of shape (n_samples, n_features)
+    X : NDArray of shape (n_samples, n_features)
         Predictor matrix where each row corresponds to an observation and each
         column to a predictor variable.
-    y : ndarray of shape (n_samples,)
+    y : NDArray of shape (n_samples,)
         Response vector.
 
     Returns
     -------
-    beta : ndarray of shape (n_features,)
+    beta : NDArray of shape (n_features,)
         Optimal regression weights minimizing the least-squares error.
 
     See Also
@@ -584,13 +584,13 @@ def partial_response(response: str | Band, window: Window | None, selector: NDAr
     window : rasterio.windows.Window or None
         Spatial window defining the subset of the response raster to read.
         If ``None``, the full raster extent is used.
-    selector : ndarray of bool
+    selector : NDArray of bool
         Boolean array used to select valid pixels. If ``window`` is provided,
         the selector is sliced accordingly before being applied.
 
     Returns
     -------
-    y : ndarray of shape (n_samples,)
+    y : NDArray of shape (n_samples,)
         One-dimensional array containing the selected response values.
 
     See Also
@@ -624,31 +624,31 @@ def partial_X(predictors: Collection[Band], window: Window | None, selector: NDA
     Parameters
     ----------
     predictors : Collection[Band]
-       Collection of ``Band`` objects defining the predictor variables.
-       Individual bands may represent continuous or categorical predictors.
+        Collection of ``Band`` objects defining the predictor variables.
+        Individual bands may represent continuous or categorical predictors.
     window : rasterio.windows.Window or None
-       Spatial window defining the subset of predictor data to read.
-       If ``None``, the full spatial extent is used.
+        Spatial window defining the subset of predictor data to read.
+        If ``None``, the full spatial extent is used.
 
-       Notes
-       -----
-       This argument is primarily intended to enable partial processing of
-       predictors, e.g. in parallel or tiled computations.
-    selector : ndarray of bool
-       Boolean array used to select valid pixels from the predictor data.
+        Notes
+        -----
+        This argument is primarily intended to enable partial processing of
+        predictors, e.g. in parallel or tiled computations.
+    selector : NDArray of bool
+        Boolean array used to select valid pixels from the predictor data.
     include_intercept : bool
-       If ``True``, an additional column of ones is appended to the predictor
-       matrix to model an intercept term.
+        If ``True``, an additional column of ones is appended to the predictor
+        matrix to model an intercept term.
     as_dtype : str or type
-       Data type used for the resulting predictor matrix. This is also the
-       type used to represent categorical predictors, if present.
+        Data type used for the resulting predictor matrix. This is also the
+        type used to represent categorical predictors, if present.
 
     Returns
     -------
-    X : ndarray of shape (n_samples, n_features)
-       Predictor matrix containing the selected predictor values. The number
-       of features corresponds to the number of predictors, plus one if
-       ``include_intercept`` is ``True``.
+    X : NDArray of shape (n_samples, n_features)
+        Predictor matrix containing the selected predictor values. The number
+        of features corresponds to the number of predictors, plus one if
+        ``include_intercept`` is ``True``.
 
     See Also
     --------
@@ -706,7 +706,7 @@ def get_optimal_weights_source(Y: NDArray, response: str | Band, predictors: Col
 
     Parameters
     ----------
-    Y : ndarray of shape (n_features, n_features)
+    Y : NDArray of shape (n_features, n_features)
         Inverse of the transposed product of the predictor matrix,
         ``(X.T @ X)^{-1}``.
 
@@ -723,7 +723,7 @@ def get_optimal_weights_source(Y: NDArray, response: str | Band, predictors: Col
     view : tuple of int or None
         Spatial subset specified as ``(x, y, width, height)``.
         If ``None``, the full spatial extent is used.
-    selector : ndarray of bool
+    selector : NDArray of bool
         Boolean array indicating which pixels are valid and should be included
         in the regression.
     include_intercept : bool, default=False
@@ -787,10 +787,10 @@ def get_approx_weights(X: NDArray, y: NDArray,
 
     Parameters
     ----------
-    X : ndarray of shape (n_samples, n_features)
+    X : NDArray of shape (n_samples, n_features)
         Predictor matrix where each row corresponds to an observation and each
         column to a predictor variable.
-    y : ndarray of shape (n_samples,)
+    y : NDArray of shape (n_samples,)
         Response vector.
     fit_intercept : bool, default=False
         Whether to fit an intercept term.

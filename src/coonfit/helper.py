@@ -15,7 +15,7 @@ def check_rank_deficiency(array: np.ndarray, return_by_issue_type: bool = False,
 
     Parameters
     ----------
-    array : np.ndarray
+    array : NDArray
         Matrix to check for rank deficiency
     return_by_issue_type : bool, optional
         If True, returns nested dictionary separating issues by type:
@@ -87,15 +87,15 @@ def usable_pixels_count(selector):
 
     Parameters
     ----------
-    selector : np.ndarray
-      Boolean array where True indicates a usable pixel and False
-      indicates a pixel to be excluded
+    selector : NDArray
+        Boolean array where True indicates a usable pixel and False
+        indicates a pixel to be excluded
 
     Returns
     -------
     int
-      Number of True values in the selector array (count of usable pixels).
-      Uses :func:`numpy.unique` to count occurrences.
+        Number of True values in the selector array (count of usable pixels).
+        Uses :func:`numpy.unique` to count occurrences.
 
     See Also
     --------

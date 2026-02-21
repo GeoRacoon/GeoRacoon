@@ -121,7 +121,7 @@ def compatible_border_size(sigma: float | int, border: tuple[int, int] | None = 
 
     Parameters
     ----------
-    sigma : float | int
+    sigma : float or int
         Standard deviation for Gaussian kernel
     border : tuple[int, int] or None
         The border size (width, height) in number of pixels along each axis

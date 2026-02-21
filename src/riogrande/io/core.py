@@ -187,7 +187,7 @@ def _get_bidx_by_tag(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | in
 
     Returns
     ----------
-    int | None
+    int or None
         Band index (integer) of band matching provided tags. If no match was found None is returned.
 
     Notes

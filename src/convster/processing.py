@@ -309,7 +309,7 @@ def compute_entropy(data_arrays: Sequence[NDArray],
 
     Returns
     -------
-    np.ndarray
+    NDArray
         Array of the same shape as the input arrays, containing the per-cell entropy.
 
     Notes
@@ -432,7 +432,7 @@ def _get_entropy(data: NDArray,
 
     Returns
     -------
-    np.ndarray
+    NDArray
         Array of the same shape as `data`, containing the per-cell Shannon entropy.
 
     Notes
@@ -488,9 +488,9 @@ def compute_interaction(data_arrays: Sequence[NDArray],
 
     Parameters
     ----------
-    data_arrays : Sequence[np.ndarray]
+    data_arrays : Sequence[NDArray]
         Sequence of arrays to compute per-cell interaction over. All arrays must have the same shape.
-    input_dtype : type | str | None, default=None
+    input_dtype : type or str or None, default=None
         Expected data type of the input arrays. Raises an error if actual dtype does not match.
     standardize : bool, default=False
         If True, interaction is standardized by the sum of the layers:
@@ -498,14 +498,14 @@ def compute_interaction(data_arrays: Sequence[NDArray],
     normed : bool, default=True
         If True, interaction values are normalized to the theoretical maximum interaction:
         :math:`(1/n)^n` for n arrays.
-    output_dtype : type | str | None, default=None
+    output_dtype : type or str or None, default=None
         Data type for the output array. Values are rescaled appropriately for integer outputs.
-    output_range : tuple | None, default=None
+    output_range : tuple or None, default=None
         Target range for output values (currently used only for integer outputs; reserved for future use).
 
     Returns
     -------
-    np.ndarray
+    NDArray
         Array of the same shape as the input arrays, containing the per-cell interaction.
 
     Notes
@@ -716,7 +716,7 @@ def _filter_data(data: NDArray,
 
     Returns
     -------
-    np.ndarray
+    NDArray
         The filtered (and optionally rescaled) array with NaNs restored if applicable.
 
     Notes

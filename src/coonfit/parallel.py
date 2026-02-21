@@ -74,7 +74,7 @@ def compute_model(predictors: Collection[Band],
         The profile to use for the newly created output tif.
         By default the profile is copied from the first source of the
         predictor bands, updating the count to 1.
-    selector : ndarray of bool or None, optional
+    selector : NDArray of bool or None, optional
         A selector array to use to selectively calculate the model prediction.
 
         If a boolean array is provided then it is applied as an (inverted) mask:
@@ -90,7 +90,7 @@ def compute_model(predictors: Collection[Band],
         a dictionary with predictor specific weights.
     verbose : bool, optional
         Print out processing steps. Default is False.
-    **params
+    **params : dict
         Optional arguments for the multiprocessing:
 
         - nbrcpu : int, optional
@@ -103,8 +103,8 @@ def compute_model(predictors: Collection[Band],
     Returns
     -------
     output_file : str
-       Path to the newly created tif file holding the model prediction data.
-       If compression is enabled, this will be the path to the compressed file.
+        Path to the newly created tif file holding the model prediction data.
+        If compression is enabled, this will be the path to the compressed file.
 
     Notes
     -----
@@ -251,7 +251,7 @@ def get_XT_X(response: str | Band,
     verbose : bool, optional
         If True, print runtime information including number of workers used.
         Default is False.
-    **mpc_params
+    **mpc_params : dict
         Multiprocessing configuration parameters.
 
         Required:
@@ -269,7 +269,7 @@ def get_XT_X(response: str | Band,
 
     Returns
     -------
-    XT_X : ndarray
+    XT_X : NDArray
         The transpose-product matrix (X.T @ X) of shape (n_predictors, n_predictors).
         If `include_intercept=True`, the shape is (n_predictors+1, n_predictors+1)
         with the intercept column included as the last row and column.
@@ -370,52 +370,52 @@ def get_optimal_betas(*predictors: Band | str,
     Parameters
     ----------
     *predictors : Band or str
-       Variable number of predictor bands to include in the regression.
-       Can be Band objects or paths to source files.
-       See :func:`~coonfit.inference.prepare_predictors` for details on predictor
-       specification.
-    Y : ndarray
-       The pre-computed X.T @ y vector, where y is the response vector.
-       This should be a 1D array with length equal to the number of predictors
-       (or number of predictors + 1 if `include_intercept=True`).
+        Variable number of predictor bands to include in the regression.
+        Can be Band objects or paths to source files.
+        See :func:`~coonfit.inference.prepare_predictors` for details on predictor
+        specification.
+    Y : NDArray
+        The pre-computed X.T @ y vector, where y is the response vector.
+        This should be a 1D array with length equal to the number of predictors
+        (or number of predictors + 1 if `include_intercept=True`).
     response : str or Band
-       Path to a tif file or Band object containing the response data.
-       Used to determine spatial dimensions for block processing.
+        Path to a tif file or Band object containing the response data.
+        Used to determine spatial dimensions for block processing.
     selector : NDArray
-       Boolean array (:class:`numpy.bool_`) to select usable cells. Must have the same
-       spatial dimensions as the response. True values indicate pixels to
-       include in the regression.
+        Boolean array (:class:`numpy.bool_`) to select usable cells. Must have the same
+        spatial dimensions as the response. True values indicate pixels to
+        include in the regression.
     include_intercept : bool, optional
-       If True, fit an intercept term by appending a column of ones to the
-       design matrix X. The intercept will be included in the returned
-       dictionary with key 'intercept'. Default is True.
+        If True, fit an intercept term by appending a column of ones to the
+        design matrix X. The intercept will be included in the returned
+        dictionary with key 'intercept'. Default is True.
     verbose : bool, optional
-       If True, print runtime information including number of workers,
-       predictors, and computed beta values. Default is False.
+        If True, print runtime information including number of workers,
+        predictors, and computed beta values. Default is False.
     as_dtype : dtype, optional
-       Data type to use for internal computations. Default is np.float64.
-    **mpc_params
-       Multiprocessing configuration parameters.
+        Data type to use for internal computations. Default is np.float64.
+    **mpc_params : dict
+        Multiprocessing configuration parameters.
 
-       Required:
+        Required:
 
-       - view_size : tuple of int
-           Size (width, height) in pixels of a single view/block to process.
+        - view_size : tuple of int
+            Size (width, height) in pixels of a single view/block to process.
 
-       Optional:
+        Optional:
 
-       - nbrcpu : int, optional
-           Number of CPUs to use. If not set, uses (available threads - 1).
-       - start_method : str, optional
-           Starting method for multiprocessing ('fork', 'spawn', or
-           'forkserver').
+        - nbrcpu : int, optional
+            Number of CPUs to use. If not set, uses (available threads - 1).
+        - start_method : str, optional
+            Starting method for multiprocessing ('fork', 'spawn', or
+            'forkserver').
 
     Returns
     -------
     optimal_weights : dict of {Band or str: float}
-       Dictionary mapping each predictor to its optimal regression coefficient.
-       If `include_intercept=True`, includes an additional entry with key
-       'intercept' for the intercept term (beta_0).
+        Dictionary mapping each predictor to its optimal regression coefficient.
+        If `include_intercept=True`, includes an additional entry with key
+        'intercept' for the intercept term (beta_0).
 
     Raises
     ------
@@ -602,7 +602,7 @@ def get_XT_X_dependency(response: str | Band,
         found. Default is False.
     verbose : bool, optional
         If True, print processing step information. Default is False.
-    **params
+    **params : dict
         Optional multiprocessing arguments:
 
         - nbrcpu : int, optional
@@ -751,7 +751,7 @@ def compute_weights(response: str | Band,
         Default is False.
     verbose : bool, optional
         If True, print processing step information. Default is False.
-    **params
+    **params : dict
         Optional arguments:
 
         - extra_masking_band : Band or None, optional
@@ -1010,7 +1010,7 @@ def calculate_rmse(response: str | Band,
         If a dictionary, it should contain named blocks.
     verbose : bool, default=False
         If True, prints status information during computation.
-    **params : optional
+    **params : dict
         Additional parameters for parallel processing:
         - `nbr_cpus` (int): Number of CPUs to use (default: all available minus one).
         - `start_method` (str): Multiprocessing start method ('spawn', 'fork', or 'forkserver').
@@ -1122,7 +1122,7 @@ def calculate_r2(response: str | Band,
         If a dictionary, it should contain named blocks.
     verbose : bool, default=False
         If True, prints status information during computation.
-    **params : optional
+    **params : dict
         Additional parameters for parallel processing:
         - `nbr_cpus` (int): Number of CPUs to use (default: all available minus one).
         - `start_method` (str): Multiprocessing start method ('spawn', 'fork', or 'forkserver').
