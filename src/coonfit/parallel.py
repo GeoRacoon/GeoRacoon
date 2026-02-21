@@ -245,9 +245,9 @@ def get_XT_X(response: str | Band,
              **mpc_params
              ) -> np.ndarray:
     """
-    Calculate X.T @ X matrix in parallel from predictor data blocks.
+    Calculate ``X.T @ X`` matrix in parallel from predictor data blocks.
 
-    This function computes the transpose-product matrix (X.T @ X) used in
+    This function computes the transpose-product matrix ``X.T @ X`` used in
     linear regression by processing the predictor data in parallel blocks.
     The response parameter is only used to determine the spatial dimensions
     of the computation.
@@ -292,7 +292,7 @@ def get_XT_X(response: str | Band,
     Returns
     -------
     XT_X : NDArray
-        The transpose-product matrix (X.T @ X) of shape (n_predictors, n_predictors).
+        The transpose-product matrix ``X.T @ X`` of shape (n_predictors, n_predictors).
         If `include_intercept=True`, the shape is (n_predictors+1, n_predictors+1)
         with the intercept column included as the last row and column.
 
@@ -302,7 +302,7 @@ def get_XT_X(response: str | Band,
 
     1. Dividing the spatial domain into non-overlapping blocks via
        :func:`~riogrande.prepare.create_views`
-    2. Computing partial X.T @ X matrices for each block in parallel via
+    2. Computing partial ``X.T @ X`` matrices for each block in parallel via
        :func:`~coonfit.parallel_helpers._partial_transposed_product`
     3. Aggregating the partial results via
        :func:`~coonfit.parallel_helpers._combine_matrices`
@@ -315,7 +315,7 @@ def get_XT_X(response: str | Band,
 
     See Also
     --------
-    :func:`get_optimal_betas` : Compute beta coefficients from X.T @ X.
+    :func:`get_optimal_betas` : Compute beta coefficients from ``X.T @ X``.
     :func:`compute_weights` : Full workflow wrapping this function.
     """
     print(f'get_XT_X - {response=}, {predictors=}')
@@ -387,7 +387,7 @@ def get_optimal_betas(*predictors: Band | str,
 
     This function computes the optimal weights (beta coefficients) for a
     multiple linear regression by processing predictor data in parallel blocks.
-    The computation solves for beta in the normal equation: beta = (X.T @ X)^-1 @ X.T @ y.
+    The computation solves for beta in the normal equation (see Notes).
 
     Parameters
     ----------
@@ -397,9 +397,10 @@ def get_optimal_betas(*predictors: Band | str,
         See :func:`~coonfit.inference.prepare_predictors` for details on predictor
         specification.
     Y : NDArray
-        The pre-computed X.T @ y vector, where y is the response vector.
-        This should be a 1D array with length equal to the number of predictors
-        (or number of predictors + 1 if `include_intercept=True`).
+        Pre-inverted transpose-product matrix, ``(X.T @ X)^{-1}``, of shape
+        (n_predictors, n_predictors). Typically obtained via
+        ``numpy.linalg.inv(get_XT_X(...))``.
+        Shape is (n_predictors+1, n_predictors+1) if `include_intercept=True`.
     response : str or Band
         Path to a tif file or Band object containing the response data.
         Used to determine spatial dimensions for block processing.
@@ -469,14 +470,14 @@ def get_optimal_betas(*predictors: Band | str,
 
     See Also
     --------
-    :func:`get_XT_X` : Compute X.T @ X, whose inverse is passed as ``Y``.
+    :func:`get_XT_X` : Compute ``X.T @ X``, whose inverse is passed as ``Y``.
     :func:`compute_weights` : Full workflow wrapping this function.
 
     Examples
     --------
     >>> # Compute optimal betas with intercept
     >>> selector = np.ones((1000, 1000), dtype=bool)
-    >>> Y = np.array([10.5, 20.3, 15.7, 5.2])  # Pre-computed X.T @ y
+    >>> Y = np.linalg.inv(XT_X)  # Pre-inverted (X.T @ X)^{-1}
     >>> weights = get_optimal_betas(
     ...     band1, band2, band3,
     ...     Y=Y,
@@ -588,7 +589,7 @@ def get_XT_X_dependency(response: str | Band,
     """Test predictors for linear dependency before fitting multiple linear regression.
 
     This function checks whether predictor columns are linearly dependent by
-    computing the X.T @ X matrix and analyzing its rank. Linear dependencies
+    computing the ``X.T @ X`` matrix and analyzing its rank. Linear dependencies
     can cause numerical instability or singularity in regression fitting and
     should be resolved before proceeding with model estimation.
 
@@ -609,7 +610,7 @@ def get_XT_X_dependency(response: str | Band,
           'prepare_selector', 'get_XT_X'. Each value should be a tuple
           (width, height).
     include_intercept : bool, optional
-        If True, include an intercept term when computing X.T @ X.
+        If True, include an intercept term when computing ``X.T @ X``.
         Default is True.
     limit_contribution : float, optional
         Minimum fraction of valid cells each predictor must contribute to
@@ -645,7 +646,7 @@ def get_XT_X_dependency(response: str | Band,
     See Also
     --------
     :func:`compute_weights` : Full fitting workflow using this dependency check.
-    :func:`get_XT_X` : Compute the X.T @ X matrix analyzed here.
+    :func:`get_XT_X` : Compute the ``X.T @ X`` matrix analyzed here.
     """
 
     # if block sizes are provided as dictionary - some pre-check on input is desired - else
@@ -824,9 +825,9 @@ def compute_weights(response: str | Band,
        :func:`~coonfit.parallel_helpers._check_predictor_consistency`
        (removes invalid predictors if `sanitize_predictors=True`)
     3. Recalculates selector if predictors were removed
-    4. Computes X.T @ X matrix in parallel via :func:`get_XT_X`
+    4. Computes ``X.T @ X`` matrix in parallel via :func:`get_XT_X`
     5. Checks for rank deficiency via :func:`~coonfit.helper.check_rank_deficiency`
-    6. Inverts X.T @ X matrix using :func:`numpy.linalg.inv`: (X.T @ X)^-1
+    6. Inverts ``X.T @ X`` via :func:`numpy.linalg.inv` to obtain ``(X.T @ X)^{-1}``
     7. Computes optimal weights via :func:`get_optimal_betas`
 
     The optimal weights solve the ordinary least squares problem:
@@ -840,17 +841,17 @@ def compute_weights(response: str | Band,
     check, as the intercept is always included as the last column when
     `include_intercept=True`.
 
-    See Also
-    --------
-    :func:`compute_model` : Apply the fitted weights to produce a model raster.
-    :func:`get_XT_X` : Compute X.T @ X used in the normal equations.
-    :func:`get_optimal_betas` : Compute regression coefficients given Y = (X.T @ X)^-1.
-    :func:`calculate_rmse` : Evaluate model fit using RMSE.
-    :func:`get_XT_X_dependency` : Check for linear dependencies without full fitting.
-
     If predictors are removed during sanitization, the selector is recomputed
     to ensure consistency, as removed predictors may have contributed to
     masking certain pixels.
+
+    See Also
+    --------
+    :func:`compute_model` : Apply the fitted weights to produce a model raster.
+    :func:`get_XT_X` : Compute ``X.T @ X`` used in the normal equations.
+    :func:`get_optimal_betas` : Compute regression coefficients given ``Y = (X.T @ X)^{-1}``.
+    :func:`calculate_rmse` : Evaluate model fit using RMSE.
+    :func:`get_XT_X_dependency` : Check for linear dependencies without full fitting.
 
     Examples
     --------
@@ -1006,15 +1007,15 @@ def calculate_rmse(response: str | Band,
     """
     Compute the Root Mean Square Error (RMSE) for a predicted model and observed response data.
 
-    RMSE measures the average magnitude of the residuals (differences between
-    predicted and observed values) and is defined as:
+    RMSE measures the average magnitude of the residuals between predicted and
+    observed values and is defined as:
 
-        RMSE = sqrt(Σ((prediction_i - actual_i)²) / n)
+    .. math::
 
-    where:
-        - prediction_i are model-predicted values
-        - actual_i are observed response values
-        - n is the number of valid observations
+        \\text{RMSE} = \\sqrt{\\frac{\\sum_{i=1}^{n}(\\hat{y}_i - y_i)^2}{n}}
+
+    where :math:`\\hat{y}_i` are model-predicted values, :math:`y_i` are observed
+    response values, and :math:`n` is the number of valid observations.
 
     The function processes data in blocks for memory efficiency and parallelization.
 
@@ -1118,15 +1119,22 @@ def calculate_r2(response: str | Band,
     """
     Compute the Coefficient of Determination (R²) for a predicted model and observed response data.
 
-    The coefficient of determination, R², quantifies the proportion of variance in the response
-    variable that is predictable from the model. It is calculated as:
+    The coefficient of determination, :math:`R^2`, quantifies the proportion of
+    variance in the response variable that is predictable from the model:
 
-        R² = 1 - (SS_res / SS_tot)
+    .. math::
 
-    where:
-        - SS_res is the sum of squared residuals: Σ(y_i - f_i)²
-        - SS_tot is the total sum of squares: Σ(y_i - ȳ)²
-        - y_i are observed values, f_i are predicted values, and ȳ is the mean of observed values.
+        R^2 = 1 - \\frac{SS_{\\text{res}}}{SS_{\\text{tot}}}
+
+    where the sum of squared residuals and total sum of squares are defined as:
+
+    .. math::
+
+        SS_{\\text{res}} = \\sum_{i=1}^{n}(y_i - \\hat{y}_i)^2, \\qquad
+        SS_{\\text{tot}} = \\sum_{i=1}^{n}(y_i - \\bar{y})^2
+
+    with :math:`y_i` the observed values, :math:`\\hat{y}_i` the model-predicted
+    values, and :math:`\\bar{y}` the mean of the observed values.
 
     The function processes data in blocks for memory efficiency and parallelization.
 
