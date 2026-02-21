@@ -1,6 +1,6 @@
 import pytest
-
 import riogrande as riog
+
 
 def test_package_import():
     """

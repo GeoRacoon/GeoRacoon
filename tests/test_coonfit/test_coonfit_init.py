@@ -1,6 +1,6 @@
 import pytest
-
 import coonfit as lft
+
 
 def test_package_import():
     """
