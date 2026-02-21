@@ -29,7 +29,7 @@ def get_nbr_workers(number: Optional[int] = None) -> int:
 
     Parameters
     ----------
-    number: int or None, optional
+    number : int or None, optional
         Desired number of workers. If ``None``, the function will use the
         number of CPUs available via :func:`multiprocessing.cpu_count`,
         but never less than 2.
@@ -197,7 +197,7 @@ def serialize(tags: dict[str, Any]) -> dict[str, str]:
 
     Parameters
     ----------
-    tags:
+    tags : dict[str, Any]
         Dictionary of tags with string keywords and any-type values,
         which are serializable.
 
@@ -221,7 +221,7 @@ def deserialize(tags: dict[str, str]) -> dict[str, Any]:
 
     Parameters
     ----------
-    tags:
+    tags : dict[str, str]
         Dictionary with tag as key and serialized values.
 
     Returns
@@ -251,7 +251,7 @@ def sanitize(tags: dict[str, Any]) -> Any:
 
     Parameters
     ----------
-    tags:
+    tags : dict[str, Any]
         Dictionary with tag as key and serializable value as value.
 
     Returns
@@ -272,9 +272,9 @@ def match_all(targets: dict, tags: dict) -> bool:
 
     Parameters
     ----------
-    targets:
+    targets : dict
         Dictionary with tags to match to.
-    tags:
+    tags : dict
         Dictionary with tags to check for matching items.
 
     Returns
@@ -305,9 +305,9 @@ def match_any(targets: dict, tags: dict) -> bool:
 
     Parameters
     ----------
-    targets:
+    targets : dict
         Dictionary with tags to match to.
-    tags:
+    tags : dict
         Dictionary with tags to check for matching items.
 
     Returns
@@ -338,8 +338,8 @@ def view_to_window(view: None | tuple[int, int, int, int]) -> Window:
 
     Parameters
     ----------
-    view:
-      tuple (x, y, width, height) defining the view of the data array to update
+    view : tuple[int, int, int, int] or None
+        tuple (x, y, width, height) defining the view of the data array to update
 
     Returns
     ---------
@@ -358,7 +358,7 @@ def check_units(*sources: str) -> list:
 
     Parameters
     ----------
-    sources:
+    *sources : str
         List of sources (paths to files) from which units are to be compared to each other.
 
     Returns
@@ -392,7 +392,7 @@ def check_crs(*sources: str) -> list:
 
     Parameters
     ----------
-    sources:
+    *sources : str
         List of sources (paths to files) from which crs are to be compared to each other.
 
     Returns
@@ -421,7 +421,7 @@ def check_resolution(*sources: str) -> list:
 
     Parameters
     ----------
-    sources:
+    *sources : str
         List of sources (paths to files) from which resolutions are to be compared to each other.
 
     Returns
@@ -456,16 +456,16 @@ def check_compatibility(*sources: str) -> Tuple[list, list, list]:
 
     Parameters
     ----------
-    sources:
+    *sources : str
         List of sources (paths to files) from which are to be compared to each other.
 
     Returns
     ---------
-    crss:
+    crss : list
         All unique crs from sources in a list (see :func:`~riogrande.helper.check_crs`).
-    units:
+    units : list
         All unique units from sources in a list (see :func:`~riogrande.helper.check_units`).
-    ress:
+    ress : list
         All unique resolutions from sources in a list (see :func:`~riogrande.helper.check_resolution`).
 
     See Also
@@ -485,20 +485,20 @@ def output_filename(base_name: str, out_type: str, blur_params: None | dict = No
 
     Parameters
     ----------
-    base_name: str
-      The basic output name in the form <name>.tif
-    out_type: str
-      The type of output that will be saved.
-      This should be either 'blur' or 'entropy' but any string is accepted
-    blur_params: dict
-      Output of `get_blur_params`, so 'sigma', 'truncate' and 'diameter'
-      are expected keys.
+    base_name : str
+        The basic output name in the form <name>.tif
+    out_type : str
+        The type of output that will be saved.
+        This should be either 'blur' or 'entropy' but any string is accepted
+    blur_params : dict or None
+        Output of `get_blur_params`, so 'sigma', 'truncate' and 'diameter'
+        are expected keys.
 
     Returns
-    ------
-    str:
-      The resulting filename of the form
-      '<name>_<out_type>_sig_<{sigma}>_diam_<{diameter}>_trunc_<{truncate}>.tif'
+    -------
+    str
+        The resulting filename of the form
+        '<name>_<out_type>_sig_<{sigma}>_diam_<{diameter}>_trunc_<{truncate}>.tif'
     """
     _base_name, _ext = os.path.splitext(base_name)
     _blur_string = ""
@@ -521,7 +521,7 @@ def dtype_range(dtype: type | str) -> Tuple[int | float, int | float]:
 
     Parameters
     ----------
-    dtype:
+    dtype : type or str
         A NumPy dtype (e.g. ``np.uint8``, ``np.float32``) or a string
         representation thereof (e.g. ``'uint8'``).
 
@@ -589,26 +589,27 @@ def convert_to_dtype(data: NDArray, as_dtype: None | type | np._dtype | str = No
 
     Parameters
     ----------
-    data:
+    data : NDArray
         Input numpy NDArray
-    as_dtype: desired data type to convert to (e.g. np.float64)
+    as_dtype : type or str or None
+        Desired data type to convert to (e.g. np.float64).
         If not provided then at least the `out_range` needs to be set in
         which case the data type remains unchanges, but the data is
         rescaled.
-    in_range:
-        an array or list from which min and max will be used as input range.
+    in_range : NDArray or Collection or None
+        An array or list from which min and max will be used as input range.
         Min and max are read with :func:`numpy.nanmin` / :func:`numpy.nanmax`.
 
         .. note::
           You might simply provide the same value as for `data` in order to
           use its min an max for scaling
 
-    out_range:
-      an array or list from which min and max will be used as limits for the
-      output.
-      Alternatively, a data type can be specified, in which case the data
-      will be scaled to the full range of the specified data type
-      (see :func:`~riogrande.helper.dtype_range`).
+    out_range : NDArray or Collection or str or type or None
+        An array or list from which min and max will be used as limits for the
+        output.
+        Alternatively, a data type can be specified, in which case the data
+        will be scaled to the full range of the specified data type
+        (see :func:`~riogrande.helper.dtype_range`).
 
     Returns
     ----------
@@ -712,11 +713,11 @@ def aggregated_selector(masks: list[NDArray], logic: str = 'all') -> NDArray:
 
     Parameters
     ----------
-    masks:
+    masks : list[NDArray]
         Arbitrary number of numpy arrays resulting from
         :meth:`rasterio.io.DatasetReader.dataset_mask` or
         :meth:`rasterio.io.DatasetReader.read_masks`.
-    logic:
+    logic : str
         Determines how the aggreagation should happen.
         If ``'all'`` (the default) a cell is only selected if **all** masks
         consider it valid data — aggregated via :func:`numpy.logical_and`.
@@ -748,12 +749,12 @@ def reduced_mask(array: NDArray, nodata: float | int | np.nan = 0, logic: str = 
 
     Parameters
     ----------
-    array:
+    array : NDArray
         3D array holding multiple bands of map data
-    nodata:
+    nodata : float or int or None
         Nodata value to use. Defaults to 0.
         Pass :data:`numpy.nan` to mask NaN cells (detected via :func:`numpy.isnan`).
-    logic:
+    logic : str
         Allowed strings are:
 
         - ``"all"`` : Masked will be each cell for which **all** bands match the nodata value
@@ -799,17 +800,17 @@ def count_contribution(data: NDArray, selector: NDArray[np.bool_], no_data: Unio
 
     Parameters
     ----------
-    data:
-      The data to cont the contribution in
-    selector:
-      A boolean array in the shape of `data` selecting the single cells that
-      should be considered
-    no_data:
-      The value that should be considered as invalid.
+    data : NDArray
+        The data to cont the contribution in
+    selector : NDArray
+        A boolean array in the shape of `data` selecting the single cells that
+        should be considered
+    no_data : int or float
+        The value that should be considered as invalid.
 
-      .. note::
-        You might also provide :data:`numpy.nan` as no data value
-        (detected via :func:`numpy.isnan`).
+        .. note::
+          You might also provide :data:`numpy.nan` as no data value
+          (detected via :func:`numpy.isnan`).
 
     Returns
     ----------
@@ -841,7 +842,7 @@ def rasterio_to_numpy_dtype(rasterio_dtype: str) -> np.dtype | None:
 
     Parameters
     ----------
-    rasterio_dtype:
+    rasterio_dtype : str
         Output of ``rasterio.open(source).profile['dtype']``, as returned by
         :func:`rasterio.open`.
 
