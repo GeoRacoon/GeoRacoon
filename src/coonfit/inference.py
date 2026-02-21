@@ -341,7 +341,7 @@ def populate_X(X: NDArray, predictors: Collection[Band], as_dtype: type | str,
 
 def prepare_predictors(response: str | Band, *predictors: Band | str, view: tuple[int, int, int, int] | None = None,
                        include_intercept=True, verbose: bool = False):
-    r"""
+    """
     Generate the predictor matrix and response vector for multiple linear regression.
 
     This function constructs the predictor matrix ``X`` and the response vector
@@ -516,7 +516,7 @@ def transposed_product(predictors: Collection[Band], view: tuple[int, int, int, 
 
 
 def get_optimal_weights(X, y):
-    r"""
+    """
     Compute the optimal regression weights for a multiple linear regression.
 
     The multiple linear regression model is defined as
@@ -673,7 +673,7 @@ def partial_X(predictors: Collection[Band], window: Window | None, selector: NDA
 def get_optimal_weights_source(Y: NDArray, response: str | Band, predictors: Collection[Band],
                                view: tuple[int, int, int, int] | None, selector,
                                include_intercept: bool = False, as_dtype="float64") -> dict[Band, float]:
-    r"""
+    """
     Compute optimal regression weights directly from predictors and a precomputed
     inverse transposed product.
 
@@ -768,7 +768,7 @@ def get_optimal_weights_source(Y: NDArray, response: str | Band, predictors: Col
 
 def get_approx_weights(X: NDArray, y: NDArray,
                        fit_intercept: bool = False) -> LinearRegression:
-    r"""
+    """
     Estimate regression weights using numerical optimization.
 
     This function fits a multiple linear regression model of the form
