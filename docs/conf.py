@@ -38,6 +38,9 @@ napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = True
 
+# Type hints only in description( not in signatures) for readability
+autodoc_typehints = "description"
+
 # -- Intersphinx configuration -----------------------------------------------
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
