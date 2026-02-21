@@ -18,12 +18,12 @@ def update_view(data: NDArray, view: tuple[int, int, int, int], block: ArrayLike
 
     Parameters
     ----------
-    data:
-      The array that we want to update
-    view:
-      tuple (x, y, width, height) defining the view of the data array to update
-    block:
-      np.array with the updated values.
+    data : NDArray
+        The array that we want to update
+    view : tuple[int, int, int, int]
+        tuple (x, y, width, height) defining the view of the data array to update
+    block : ArrayLike
+        np.array with the updated values.
 
     Returns
     --------
@@ -54,12 +54,12 @@ def create_views(view_size: tuple[int, int], border: tuple[int, int], size: tupl
 
     Parameters
     ----------
-    view_size:
-      The size (width, height) in pixels of a single view (excluding borders)
-    border:
-      The border size (width, height) in number of pixels along each axis
-    size:
-      The total size of the map in number of pixels (width, height)
+    view_size : tuple[int, int]
+        The size (width, height) in pixels of a single view (excluding borders)
+    border : tuple[int, int]
+        The border size (width, height) in number of pixels along each axis
+    size : tuple[int, int]
+        The total size of the map in number of pixels (width, height)
 
     Return
     ------
@@ -209,10 +209,10 @@ def get_view(data: NDArray, view: tuple[int, int, int, int]) -> NDArray:
 
     Parameters
     ----------
-    data:
-      np.array to return the view from
-    view:
-      tuple (x, y, width, height) defining the view
+    data : NDArray
+        np.array to return the view from
+    view : tuple[int, int, int, int]
+        tuple (x, y, width, height) defining the view
 
     Returns
     -------
@@ -251,9 +251,9 @@ def relative_view(view: tuple[int, int, int, int],
 
     Parameters
     ----------
-    view :
+    view : tuple[int, int, int, int]
         A 4-tuple `(x, y, width, height)` defining the outer view.
-    inner_view :
+    inner_view : tuple[int, int, int, int]
         A 4-tuple `(x, y, width, height)` defining a subregion inside `view`.
 
     Returns

@@ -69,13 +69,13 @@ def data_writer(writer: Callable, writer_params: dict, aggr_q: Queue) -> TimedTa
 
     Parameters
     ----------
-    writer:
+    writer : Callable
         A :meth:`~riogrande.io.models.Source.data_writer` or
         :meth:`~riogrande.io.models.Source.mask_writer` context manager
         from a :class:`~riogrande.io.models.Source` or :class:`~riogrande.io.models.Band`.
-    writer_params:
+    writer_params : dict
         Keyword arguments that will be passed to the `writer` method
-    aggr_q:
+    aggr_q : Queue
         The queue this job listens to.
 
     Returns
@@ -117,25 +117,25 @@ def process_block(task: Callable, source: str | Source, bands: Collection[Band] 
 
     Parameters
     ----------
-    task:
+    task : Callable
         Function that will be called on the data from the specified band.
         The first argument of the function must be `data`, a :class:`numpy.ndarray`
         that holds the data from this section.
-    source:
+    source : str or Source
         Either a string or a :class:`~riogrande.io.models.Source` object.
-    bands:
+    bands : Collection[Band] or None
         A collection of :class:`~riogrande.io.models.Band` objects specifying
         which bands to use.
-    view:
-      A tuple (x, y, width, height) defining the view of data to extract and
-      process.
-    task_params:
+    view : tuple[int, int, int, int]
+        A tuple (x, y, width, height) defining the view of data to extract and
+        process.
+    task_params : dict
         Keyword arguments that will be passed to the callable `task`
-    read_params:
+    read_params : dict
         Keyword arguments that are passed to the open method of the `source` object
-    open_params:
+    open_params : dict
         Keyword arguments that are passed to the reader method of the `source` object
-    out_q:
+    out_q : Queue
         The queue this job will put the output of the callable `task` into
 
     Returns
@@ -182,26 +182,26 @@ def process_masks(task: Callable, bands: Collection[Band], view: tuple[int, int,
 
     Parameters
     ----------
-    task:
+    task : Callable
         Function that will be called on the data from the specified band.
         The first argument of the function must be `masks`, a list of
         :class:`numpy.ndarray` holding the masks from this section.
-    bands:
+    bands : Collection[Band]
         A collection of :class:`~riogrande.io.models.Band` objects specifying
         which bands to use. Their mask readers are obtained via
         :meth:`~riogrande.io.models.Band.get_mask_reader`.
-    view:
-      A tuple (x, y, width, height) defining the view of data to extract and
-      process.
-    task_params:
+    view : tuple[int, int, int, int]
+        A tuple (x, y, width, height) defining the view of data to extract and
+        process.
+    task_params : dict
         Keyword arguments that will be passed to the callable `task`
-    read_params:
+    read_params : dict
         Keyword arguments that are passed to the open method of the `source` object
-    open_params:
+    open_params : dict
         Keyword arguments that are passed to the reader method of the `source` object
-    aggr_q:
+    aggr_q : Queue
         The queue this job will put the output of the callable `task` into
-    extra_masking_band:
+    extra_masking_band : Band or None
         Optional :class:`~riogrande.io.models.Band` object that is treated as
         a rasterio mask, i.e. values equal to 0 are masked.
 
@@ -247,14 +247,14 @@ def runner_call(queue: Queue[Any], callback: Callable, params: dict, wrapper: Ca
 
     Parameters
     ----------
-    queue :
+    queue : Queue[Any]
         A :class:`multiprocessing.Queue` into which the result (wrapped or
         unwrapped) will be placed.
-    callback :
+    callback : Callable
         A callable object (function or method) to be executed.
-    params :
+    params : dict
         A dictionary of keyword arguments passed to the callback.
-    wrapper :
+    wrapper : Callable or None
         A function applied to the callback result before it is placed into the
         queue. If ``None``, the raw result is placed into the queue.
 
@@ -290,23 +290,23 @@ def compute_mask(source: str | Source, block_size: tuple[int, int], nodata=0, lo
     ----------
     source : str or :class:`~riogrande.io.models.Source`
         Path to the tif file or a Source object.
-    block_size: tuple of int
+    block_size : tuple[int, int]
         Size (width, height) in #pixel of the block that a single job processes
-    nodata:
+    nodata : int or float
         Supply nodata value to use for mask computation
-    logic:
+    logic : str
         Either a string or a callable.
         Allowed strings are:
 
         - ``"any"`` : Mask each cell where *any* of the bands matches the nodata value.
         - ``"all"`` : Mask each cell where *all* of the bands match the nodata value.
 
-    bands:
+    bands : list[Band] or None
         An optional selection of :class:`~riogrande.io.models.Band` objects to use.
         If not provided all bands are used.
-    verbose:
+    verbose : bool
         Print out processing step infos
-    **params:
+    **params : dict
         Optional arguments for the multiprocessing:
 
         - ``nbrcpu`` : int
@@ -406,9 +406,9 @@ def fill_matrix(matrix: NDArray, aggr_q: Queue) -> tuple[NDArray | None, tuple]:
 
     Parameters
     ----------
-    matrix :
+    matrix : NDArray
         The :class:`numpy.ndarray` to fill with data.
-    aggr_q:
+    aggr_q : Queue
         The :class:`multiprocessing.Queue` this job listens to. Each element
         in the queue must be a ``dict`` containing either:
 
@@ -455,17 +455,17 @@ def prepare_selector(*bands: Band, block_size: tuple[int, int], extra_masking_ba
 
     Parameters
     ----------
-    bands:
+    bands : Band
         A collection of :class:`~riogrande.io.models.Band` objects specifying
         which bands to use.
-    block_size:
+    block_size : tuple[int, int]
         Size (width, height) in #pixel of the block that a single job processes
-    extra_masking_band:
+    extra_masking_band : Band or None
         Optional :class:`~riogrande.io.models.Band` object that is treated as a rasterio
         mask, i.e. values equal to 0 will be masked.
-    verbose:
+    verbose : bool
         Print out processing step infos
-    **params:
+    **params : dict
         Optional arguments for the multiprocessing:
 
         - ``nbrcpu`` : int
