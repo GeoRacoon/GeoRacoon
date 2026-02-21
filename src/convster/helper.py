@@ -6,17 +6,17 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-def first_nonzero(data: NDArray , axis: int = 0, no_value: int = -1) -> NDArray:
+def first_nonzero(data: NDArray, axis: int = 0, no_value: int = -1) -> NDArray:
     """
     Return the index of the first non-zero value along the given axis.
 
     Parameters
     ----------
-    data
+    data : NDArray
         Input array to examine.
-    axis
+    axis : int
         Array axis along which to search for the first non-zero. Default is 0.
-    no_value
+    no_value : int
         Value to return when no non-zero entries are found along an axis.
         Default is -1.
 
@@ -47,25 +47,25 @@ def first_nonzero(data: NDArray , axis: int = 0, no_value: int = -1) -> NDArray:
     return np.where(mask.any(axis=axis), mask.argmax(axis=axis), no_value)
 
 
-def last_nonzero(data, axis=0, no_value=-1):
+def last_nonzero(data: NDArray, axis: int = 0, no_value: int = -1) -> NDArray:
     """
     Return the index of the last non-zero value along the given axis.
 
     Parameters
     ----------
-    data
-     Input array to examine.
-    axis
-     Array axis along which to search for the last non-zero. Default is 0.
-    no_value
-     Value to return when no non-zero entries are found along an axis.
-     Default is -1.
+    data : NDArray
+        Input array to examine.
+    axis : int
+        Array axis along which to search for the last non-zero. Default is 0.
+    no_value : int
+        Value to return when no non-zero entries are found along an axis.
+        Default is -1.
 
     Returns
     -------
     indices
-     Array indices of the last non-zero values along the specified axis.
-     If no non-zero is found, returns `no_value` for that slice.
+        Array indices of the last non-zero values along the specified axis.
+        If no non-zero is found, returns `no_value` for that slice.
 
     See Also
     --------
