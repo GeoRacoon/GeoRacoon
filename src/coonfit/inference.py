@@ -368,8 +368,8 @@ def prepare_predictors(response: str | Band, *predictors: Band | str, view: tupl
     predictor is detected. A predictor is considered invalid in the following cases:
 
     * After masking, the predictor contains only zeros.
-    * The predictor represents categorical data where all selected pixels
-     belong to a category and ``include_intercept`` is ``True``.
+    * The predictor represents categorical data where all selected pixels \
+    belong to a category and ``include_intercept`` is ``True``.
 
     No general test for linear dependence between predictors is performed.
 
