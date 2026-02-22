@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./docs/_static/georacoonPin.svg" alt="Project Logo" width="400">
+<img src="./docs/_static/georacoonPin.svg" alt="GeoRacoon Logo" width="400">
 
 <p>
   <img src="https://github.com/GeoRacoon/georacoon/raw/python-coverage-comment-action-data/badge.svg" alt="Coverage">
@@ -12,9 +12,19 @@
 
 <br>
 
+</div>
+<div align="center">
+  <h3>$\huge \mathsf{\textbf{GeoRacoon}}$<h3>
+</div>
+<div align="center">
+
+
+<p>$\mathsf{The\ RasterIO\ extension\ you\ didn't\ know\ you\ needed.}$</p>
+
 <h2 align="center"></h2>
 
-<h3>$\small \color{gray}{\mathsf{The\ aftermaths\ of\ a\ collaboration\ between:}}$</h3>
+<p>$\color{gray}{\mathsf{A\ harvest\ from\ a\ collaboration\ between:}}$</p>
+<p></p>
 
 
 <br>
@@ -30,7 +40,7 @@
   <br>
 
   <strong>$\small \color{gray}{\mathbf{UZH}}$</strong>
-      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
   <strong>$\small \color{gray}{\mathbf{T4D\ GmbH}}$</strong>
 
 
