@@ -16,8 +16,8 @@ inference
     boolean pixel selectors.
 parallel
     High-level parallelized workflows for computing regression weights
-    (``compute_weights``), generating model prediction rasters
-    (``compute_model``), and evaluating model quality via RMSE and R².
+    (:func:`~coonfit.parallel.compute_weights`), generating model prediction rasters
+    (:func:`~coonfit.parallel.compute_model`), and evaluating model quality via RMSE and R².
 parallel_helpers
     Internal worker functions used by :mod:`~coonfit.parallel` for
     block-wise computation of partial matrix products, beta coefficients,

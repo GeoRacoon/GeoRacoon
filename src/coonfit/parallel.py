@@ -405,7 +405,7 @@ def get_optimal_betas(*predictors: Band | str,
         See :func:`~coonfit.inference.prepare_predictors` for details on predictor
         specification.
     Y : NDArray
-        Pre-inverted transpose-product matrix, ``(X.T @ X)^{-1}``, of shape
+        Pre-inverted transpose-product matrix, :math:`(X^T X)^{-1}`, of shape
         (n_predictors, n_predictors). Typically obtained via
         ``numpy.linalg.inv(get_XT_X(...))``.
         Shape is (n_predictors+1, n_predictors+1) if `include_intercept=True`.

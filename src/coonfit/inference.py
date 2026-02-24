@@ -211,7 +211,7 @@ def prepare_selector(response: str | Band, *predictors: Band, extra_masking_band
 def init_X(predictors: Collection[Band], selector: NDArray, window: Window | None,
            include_intercept: bool, as_dtype: type | str) -> NDArray:
     """
-    Initialize the predictor matrix X with appropriate dimensions.
+    Initialize the predictor matrix :math:`X`  with appropriate dimensions.
 
     Creates an empty predictor matrix with rows corresponding to usable pixels
     (as determined by the selector) and columns for each predictor band, plus
@@ -247,10 +247,9 @@ def init_X(predictors: Collection[Band], selector: NDArray, window: Window | Non
 
     Notes
     -----
-    The `window` parameter is intended for parallelized processing where
-    different processes handle different spatial subsets of the data.
-
-    If the window slicing results in an IndexError (e.g., window is completely
+    The ``window`` parameter is intended for parallelized processing where
+    different processes handle different spatial subsets of the data. If the window
+    slicing results in an IndexError (e.g., window is completely
     outside the selector bounds), the function returns an array with 0 rows.
 
     See Also
@@ -276,10 +275,10 @@ def init_X(predictors: Collection[Band], selector: NDArray, window: Window | Non
 def populate_X(X: NDArray, predictors: Collection[Band], as_dtype: type | str,
                window: Window | None, selector: NDArray, include_intercept: bool):
     """
-    Populate predictor matrix X with data from predictor bands.
+    Populate predictor matrix :math:`X` with data from predictor bands.
 
     Reads data from each predictor band, applies the selector mask within the
-    specified window, and fills the columns of matrix X. Optionally adds an intercept
+    specified window, and fills the columns of matrix :math:`X`. Optionally adds an intercept
     column of ones.
 
     Parameters
@@ -291,7 +290,7 @@ def populate_X(X: NDArray, predictors: Collection[Band], as_dtype: type | str,
     predictors : Collection of Band
         Collection of Band objects, each specifying one predictor variable.
         Data from each band will be read and placed in the corresponding
-        column of X.
+        column of :math:`X`.
     as_dtype : type or str
         Target data type for predictor values. Converted using
         :func:`~riogrande.helper.convert_to_dtype` without rescaling
@@ -344,14 +343,14 @@ def prepare_predictors(response: str | Band, *predictors: Band | str, view: tupl
     """
     Generate the predictor matrix and response vector for multiple linear regression.
 
-    This function constructs the predictor matrix ``X`` and the response vector
-    ``y`` used in a multiple linear regression model of the form
+    This function constructs the predictor matrix :math:`X` and the response vector
+    :math:`\\mathbf{y}` used in a multiple linear regression model of the form
 
     .. math::
 
        \\mathbf{y} = X\\boldsymbol{\\beta} + \\boldsymbol{\\epsilon}
 
-    where ``y`` represents the response data and ``X`` the predictor matrix.
+    where :math:`\\mathbf{y}` represents the response data and :math:`X` the predictor matrix.
 
     The response data are used as a reference to determine valid pixels. A mask
     is extracted from the response (e.g., nodata values or an 8-bit mask) and
@@ -457,11 +456,11 @@ def prepare_predictors(response: str | Band, *predictors: Band | str, view: tupl
 def transposed_product(predictors: Collection[Band], view: tuple[int, int, int, int] | None, selector: NDArray,
                        include_intercept: bool = False, as_dtype: str | type = "float64"):
     """
-    Compute the transposed product ``X.T @ X`` for a set of predictors.
+    Compute the transposed product :math:`X^T X` for a set of predictors.
 
     This function extracts predictor values within a specified spatial view,
     applies a boolean selector to filter valid pixels, constructs the predictor
-    matrix ``X``, and returns its transposed product. The result is commonly
+    matrix :math:`X`, and returns its transposed product. The result is commonly
     used in linear regression for computing normal equations.
 
     Parameters
@@ -525,11 +524,11 @@ def get_optimal_weights(X, y):
 
         \\mathbf{y} = X\\boldsymbol{\\beta} + \\boldsymbol{\\epsilon}
 
-    where ``X`` is the predictor matrix, ``y`` the response vector,
-    ``\\boldsymbol{\\beta}`` the vector of regression weights, and
-    ``\\boldsymbol{\\epsilon}`` a random error term.
+    where :math:`X` is the predictor matrix, :math:`\\mathbf{y}` the response vector,
+    :math:`\\boldsymbol{\\beta}` the vector of regression weights, and
+    :math:`\\boldsymbol{\\epsilon}` a random error term.
 
-    The optimal least-squares solution for ``\\boldsymbol{\\beta}`` is given by
+    The optimal least-squares solution for :math:`\\boldsymbol{\\beta}` is given by
 
     .. math::
 
@@ -539,7 +538,7 @@ def get_optimal_weights(X, y):
 
     Notes
     -----
-    * The matrix ``X^T X`` may be singular or ill-conditioned, in which case
+    * The matrix :math:`X^T X` may be singular or ill-conditioned, in which case
       the inverse does not exist or the solution may be numerically unstable.
     * In such cases, alternative approaches such as singular value
       decomposition (SVD) or :func:`numpy.linalg.lstsq` are recommended.
@@ -613,7 +612,7 @@ def partial_response(response: str | Band, window: Window | None, selector: NDAr
 def partial_X(predictors: Collection[Band], window: Window | None, selector: NDArray,
               include_intercept: bool, as_dtype: type | str):
     """
-    Generate a (partial) predictor matrix ``X``.
+    Generate a (partial) predictor matrix :math:`X`.
 
     This function constructs the predictor matrix from a collection of raster
     bands, optionally restricted to a spatial window. A boolean selector is
@@ -702,13 +701,13 @@ def get_optimal_weights_source(Y: NDArray, response: str | Band, predictors: Col
         \\hat{\\boldsymbol{\\beta}} = Y X^T \\mathbf{y}
 
     directly from the predictor data and the response values, without explicitly
-    recomputing ``X.T @ X``.
+    recomputing :math:`X^T X`.
 
     Parameters
     ----------
     Y : NDArray of shape (n_features, n_features)
         Inverse of the transposed product of the predictor matrix,
-        ``(X.T @ X)^{-1}``.
+        :math:`(X^T X)^{-1}`.
 
         Notes
         -----
@@ -777,9 +776,9 @@ def get_approx_weights(X: NDArray, y: NDArray,
 
         \\mathbf{y} = X\\boldsymbol{\\beta} + \\boldsymbol{\\epsilon}
 
-    where ``X`` is the predictor matrix, ``y`` the response vector,
-    ``\\boldsymbol{\\beta}`` the regression weights, and
-    ``\\boldsymbol{\\epsilon}`` a random error term.
+    where :math:`X` is the predictor matrix, :math:`\\mathbf{y}` the response vector,
+    :math:`\\boldsymbol{\\beta}` the vector of regression weights, and
+    :math:`\\boldsymbol{\\epsilon}` a random error term.
 
     The weights are estimated using scikit-learn’s
     :class:`sklearn.linear_model.LinearRegression` estimator, which computes a
