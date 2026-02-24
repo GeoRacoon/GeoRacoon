@@ -389,7 +389,7 @@ def compute_mask(source: str | Source, block_size: tuple[int, int], nodata=0, lo
         # start the aggregator task
         aggr_params = dict(mode='r+')
         aggregator_job = pool.apply_async(
-            func=data_writer,   # TODO: this is the only use of the data_writer function I believ
+            func=data_writer,
             kwds=dict(
                 writer=source.mask_writer,
                 writer_params=aggr_params,
