@@ -1089,6 +1089,7 @@ def extract_categories(source: str | Source,
         Data type of the output bands. Deprecated; use ``output_params['as_dtype']`` instead.
     output_params : dict, optional
         Dictionary of output settings:
+
         - **as_dtype** : data type for the filtered output (overrides `output_dtype`)
         - **nodata** : value used for missing data (default: None)
         - **bigtiff** : bool, whether to create a BIGTIFF for >4GB files
@@ -1099,6 +1100,7 @@ def extract_categories(source: str | Source,
         Print processing information and progress.
     **params
         Additional optional arguments:
+
         - **nbrcpu** : int, number of CPU cores to use (default: available cores minus one)
         - **start_method** : str, multiprocessing start method (e.g., 'spawn' or 'fork')
         - **compress** : bool, if True, compress the final output with LZW
@@ -1309,14 +1311,17 @@ def apply_filter(source: str | Source,
         selectively across categories.
     output_params : dict, optional
         Additional output configuration:
+
         - **as_dtype** : data type for filtered output (overrides `output_dtype`)
         - **nodata** : value for missing data (default: None)
         - **bigtiff** : bool, whether to create a BIGTIFF for >4GB files
-            .. note:: This may become standard at a later point
+
+          .. note:: This may become standard at a later point
     verbose : bool, default=False
         Print progress and debug information.
     **params
         Additional optional arguments:
+
         - **nbrcpu** : int, number of CPU cores for multiprocessing.
         - **start_method** : str, multiprocessing start method.
         - **compress** : bool, whether to compress the final output with LZW.

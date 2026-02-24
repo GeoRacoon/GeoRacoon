@@ -470,6 +470,7 @@ def check_compatibility(*sources: str) -> Tuple[list, list, list]:
     """Assert that all the sources are compatible with each other.
 
     The checks include:
+
         - crs (via :func:`~riogrande.helper.check_crs`)
         - units (via :func:`~riogrande.helper.check_units`)
         - resolution (via :func:`~riogrande.helper.check_resolution`)
@@ -658,7 +659,7 @@ def convert_to_dtype(data: NDArray, as_dtype: None | type | np._dtype | str = No
 
     >>> # only scaling, keeping data type
     >>> convert_to_dtype(data=my_data, in_range=[0,1], out_range=[-1, 1])
-    array([-1.,  0.,  1.
+    array([-1.,  0.,  1.])
 
     >>> # scaling with data type as range
     >>> convert_to_dtype(data=my_data, in_range=[0,1], as_dtype='uint16', out_range='uint8')

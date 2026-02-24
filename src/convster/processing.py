@@ -80,13 +80,13 @@ def select_category(data: NDArray, category: int | list[int],
     ... ])
     >>> select_category(data, category=1)
     array([[  0, 255,   0],
-          [  0, 255,   0],
-          [255,   0,   0]], dtype=uint8)
+           [  0, 255,   0],
+           [255,   0,   0]], dtype=uint8)
 
     >>> select_category(data, category=[1, 2], as_dtype="int16", limits=(1000, -1000))
     array([[-1000,  1000,  1000],
-          [ 1000,  1000, -1000],
-          [ 1000, -1000,  1000]], dtype=int16)
+           [ 1000,  1000, -1000],
+           [ 1000, -1000,  1000]], dtype=int16)
     """
     if isinstance(as_dtype, str):
         _as_dtype = np.dtype(as_dtype)

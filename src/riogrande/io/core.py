@@ -65,6 +65,7 @@ def _set_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS, **tags:
         dataset.
     ns : str
         The namespace to set the tags in.
+
         .. note::
           It is dicouraged to change this value from the default as all tagging
           related methods of this package use the same default namespace.

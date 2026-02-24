@@ -308,10 +308,8 @@ class Source:
         ----------
         **kwargs : dict
             Optional set of keyword arguments to pass to the ``read`` method of the source.
-            Notable exception:
-
-            okwargs : dict
-                Keyword arguments passed to :meth:`open` when accessing the source.
+            Notable exception: if ``okwargs`` is present, it is passed to :meth:`open`
+            when accessing the source.
 
         Returns
         -------
