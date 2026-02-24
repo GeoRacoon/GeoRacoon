@@ -1,5 +1,27 @@
 """
-This module contains functions to parallellize various inference methods.
+High-level parallelized workflows for spatial multiple linear regression.
+
+This module exposes the main user-facing functions of the ``coonfit`` package.
+All computations are distributed across worker processes and operate on raster
+data block by block, making them suitable for large spatial datasets that do
+not fit in memory.
+
+Key functions:
+
+- :func:`compute_weights` — Full end-to-end workflow: builds the selector mask,
+  validates predictors, computes :math:`X^T X`, checks for linear dependencies,
+  inverts the matrix, and returns the optimal regression weights.
+- :func:`compute_model` — Applies fitted weights to predictor rasters and writes
+  the model prediction to a new GeoTIFF.
+- :func:`get_XT_X` — Parallelized computation of the transposed product
+  :math:`X^T X` across spatial blocks.
+- :func:`get_optimal_betas` — Parallelized computation of regression coefficients
+  given a pre-inverted  :math:`(X^T X)^{-1}`.
+- :func:`get_XT_X_dependency` — Checks for linear dependencies among predictors
+  without running the full fitting pipeline.
+- :func:`calculate_rmse` — Computes Root Mean Square Error (RMSE) between the model and
+  observed response.
+- :func:`calculate_r2` — Computes the coefficient of determination (:math:`R^2`).
 """
 from __future__ import annotations
 
@@ -39,7 +61,7 @@ def compute_model(predictors: Collection[Band],
                   verbose: bool = False,
                   **params) -> str:
     """
-    Create a tif file with the model prediction values from a fitted model.
+    Create a ``.tif`` file with the model prediction values from a fitted model.
 
     Parameters
     ----------
@@ -74,7 +96,7 @@ def compute_model(predictors: Collection[Band],
         The profile to use for the newly created output tif.
         By default the profile is copied from the first source of the
         predictor bands, updating the count to 1.
-    selector : ndarray of bool or None, optional
+    selector : NDArray of bool or None, optional
         A selector array to use to selectively calculate the model prediction.
 
         If a boolean array is provided then it is applied as an (inverted) mask:
@@ -90,7 +112,7 @@ def compute_model(predictors: Collection[Band],
         a dictionary with predictor specific weights.
     verbose : bool, optional
         Print out processing steps. Default is False.
-    **params
+    **params : dict
         Optional arguments for the multiprocessing:
 
         - nbrcpu : int, optional
@@ -103,8 +125,8 @@ def compute_model(predictors: Collection[Band],
     Returns
     -------
     output_file : str
-       Path to the newly created tif file holding the model prediction data.
-       If compression is enabled, this will be the path to the compressed file.
+        Path to the newly created tif file holding the model prediction data.
+        If compression is enabled, this will be the path to the compressed file.
 
     Notes
     -----
@@ -223,9 +245,9 @@ def get_XT_X(response: str | Band,
              **mpc_params
              ) -> np.ndarray:
     """
-    Calculate X.T @ X matrix in parallel from predictor data blocks.
+    Calculate :math:`X^T X` matrix in parallel from predictor data blocks.
 
-    This function computes the transpose-product matrix (X.T @ X) used in
+    This function computes the transpose-product matrix :math:`X^T X` used in
     linear regression by processing the predictor data in parallel blocks.
     The response parameter is only used to determine the spatial dimensions
     of the computation.
@@ -251,7 +273,7 @@ def get_XT_X(response: str | Band,
     verbose : bool, optional
         If True, print runtime information including number of workers used.
         Default is False.
-    **mpc_params
+    **mpc_params : dict
         Multiprocessing configuration parameters.
 
         Required:
@@ -269,8 +291,8 @@ def get_XT_X(response: str | Band,
 
     Returns
     -------
-    XT_X : ndarray
-        The transpose-product matrix (X.T @ X) of shape (n_predictors, n_predictors).
+    XT_X : NDArray
+        The transpose-product matrix :math:`X^T X` of shape (n_predictors, n_predictors).
         If `include_intercept=True`, the shape is (n_predictors+1, n_predictors+1)
         with the intercept column included as the last row and column.
 
@@ -280,7 +302,7 @@ def get_XT_X(response: str | Band,
 
     1. Dividing the spatial domain into non-overlapping blocks via
        :func:`~riogrande.prepare.create_views`
-    2. Computing partial X.T @ X matrices for each block in parallel via
+    2. Computing partial :math:`X^T X` matrices for each block in parallel via
        :func:`~coonfit.parallel_helpers._partial_transposed_product`
     3. Aggregating the partial results via
        :func:`~coonfit.parallel_helpers._combine_matrices`
@@ -293,7 +315,7 @@ def get_XT_X(response: str | Band,
 
     See Also
     --------
-    :func:`get_optimal_betas` : Compute beta coefficients from X.T @ X.
+    :func:`get_optimal_betas` : Compute beta coefficients from ``X.T @ X``.
     :func:`compute_weights` : Full workflow wrapping this function.
     """
     print(f'get_XT_X - {response=}, {predictors=}')
@@ -361,61 +383,70 @@ def get_optimal_betas(*predictors: Band | str,
                       **mpc_params
                       ) -> dict[Band | str, float]:
     """
-    Calculate optimal regression coefficients (betas) in parallel from spatial data.
+    Calculate optimal regression coefficients (:math:`\\beta`) in parallel from spatial data.
 
-    This function computes the optimal weights (beta coefficients) for a
+    This function computes the optimal weights ((:math:`\\beta`) coefficients) for a
     multiple linear regression by processing predictor data in parallel blocks.
-    The computation solves for beta in the normal equation: beta = (X.T @ X)^-1 @ X.T @ y.
+    The computation solves for beta in the normal equation (ordinary least squares problem):
+
+    .. math::
+       \\beta = (X^T X)^{-1} X^T y
+
+    where :math:`X` is the design matrix of predictors and :math:`y` is the response vector.
+
+    This approach is memory-efficient for large spatial datasets as it avoids
+    loading the entire design matrix into memory at once.
 
     Parameters
     ----------
     *predictors : Band or str
-       Variable number of predictor bands to include in the regression.
-       Can be Band objects or paths to source files.
-       See :func:`~coonfit.inference.prepare_predictors` for details on predictor
-       specification.
-    Y : ndarray
-       The pre-computed X.T @ y vector, where y is the response vector.
-       This should be a 1D array with length equal to the number of predictors
-       (or number of predictors + 1 if `include_intercept=True`).
+        Variable number of predictor bands to include in the regression.
+        Can be Band objects or paths to source files.
+        See :func:`~coonfit.inference.prepare_predictors` for details on predictor
+        specification.
+    Y : NDArray
+        Pre-inverted transpose-product matrix, :math:`(X^T X)^{-1}`, of shape
+        (n_predictors, n_predictors). Typically obtained via
+        ``numpy.linalg.inv(get_XT_X(...))``.
+        Shape is (n_predictors+1, n_predictors+1) if `include_intercept=True`.
     response : str or Band
-       Path to a tif file or Band object containing the response data.
-       Used to determine spatial dimensions for block processing.
+        Path to a tif file or Band object containing the response data.
+        Used to determine spatial dimensions for block processing.
     selector : NDArray
-       Boolean array (:class:`numpy.bool_`) to select usable cells. Must have the same
-       spatial dimensions as the response. True values indicate pixels to
-       include in the regression.
+        Boolean array (:class:`numpy.bool_`) to select usable cells. Must have the same
+        spatial dimensions as the response. True values indicate pixels to
+        include in the regression.
     include_intercept : bool, optional
-       If True, fit an intercept term by appending a column of ones to the
-       design matrix X. The intercept will be included in the returned
-       dictionary with key 'intercept'. Default is True.
+        If True, fit an intercept term by appending a column of ones to the
+        design matrix X. The intercept will be included in the returned
+        dictionary with key 'intercept'. Default is True.
     verbose : bool, optional
-       If True, print runtime information including number of workers,
-       predictors, and computed beta values. Default is False.
+        If True, print runtime information including number of workers,
+        predictors, and computed beta values. Default is False.
     as_dtype : dtype, optional
-       Data type to use for internal computations. Default is np.float64.
-    **mpc_params
-       Multiprocessing configuration parameters.
+        Data type to use for internal computations. Default is np.float64.
+    **mpc_params : dict
+        Multiprocessing configuration parameters.
 
-       Required:
+        Required:
 
-       - view_size : tuple of int
-           Size (width, height) in pixels of a single view/block to process.
+        - view_size : tuple of int
+            Size (width, height) in pixels of a single view/block to process.
 
-       Optional:
+        Optional:
 
-       - nbrcpu : int, optional
-           Number of CPUs to use. If not set, uses (available threads - 1).
-       - start_method : str, optional
-           Starting method for multiprocessing ('fork', 'spawn', or
-           'forkserver').
+        - nbrcpu : int, optional
+            Number of CPUs to use. If not set, uses (available threads - 1).
+        - start_method : str, optional
+            Starting method for multiprocessing ('fork', 'spawn', or
+            'forkserver').
 
     Returns
     -------
     optimal_weights : dict of {Band or str: float}
-       Dictionary mapping each predictor to its optimal regression coefficient.
-       If `include_intercept=True`, includes an additional entry with key
-       'intercept' for the intercept term (beta_0).
+        Dictionary mapping each predictor to its optimal regression coefficient.
+        If `include_intercept=True`, includes an additional entry with key
+        'intercept' for the intercept term (beta_0).
 
     Raises
     ------
@@ -435,26 +466,16 @@ def get_optimal_betas(*predictors: Band | str,
     3. Aggregating the partial results via
        :func:`~coonfit.parallel_helpers._combine_matrices`
 
-    The optimal weights solve the ordinary least squares problem:
-
-    .. math::
-       \\beta = (X^T X)^{-1} X^T y
-
-    where X is the design matrix of predictors and y is the response vector.
-
-    This approach is memory-efficient for large spatial datasets as it avoids
-    loading the entire design matrix into memory at once.
-
     See Also
     --------
-    :func:`get_XT_X` : Compute X.T @ X, whose inverse is passed as ``Y``.
+    :func:`get_XT_X` : Compute ``X.T @ X``, whose inverse is passed as ``Y``.
     :func:`compute_weights` : Full workflow wrapping this function.
 
     Examples
     --------
     >>> # Compute optimal betas with intercept
     >>> selector = np.ones((1000, 1000), dtype=bool)
-    >>> Y = np.array([10.5, 20.3, 15.7, 5.2])  # Pre-computed X.T @ y
+    >>> Y = np.linalg.inv(XT_X)  # Pre-inverted (X.T @ X)^{-1}
     >>> weights = get_optimal_betas(
     ...     band1, band2, band3,
     ...     Y=Y,
@@ -566,7 +587,7 @@ def get_XT_X_dependency(response: str | Band,
     """Test predictors for linear dependency before fitting multiple linear regression.
 
     This function checks whether predictor columns are linearly dependent by
-    computing the X.T @ X matrix and analyzing its rank. Linear dependencies
+    computing the :math:`X^T X` matrix and analyzing its rank. Linear dependencies
     can cause numerical instability or singularity in regression fitting and
     should be resolved before proceeding with model estimation.
 
@@ -587,7 +608,7 @@ def get_XT_X_dependency(response: str | Band,
           'prepare_selector', 'get_XT_X'. Each value should be a tuple
           (width, height).
     include_intercept : bool, optional
-        If True, include an intercept term when computing X.T @ X.
+        If True, include an intercept term when computing ``X.T @ X``.
         Default is True.
     limit_contribution : float, optional
         Minimum fraction of valid cells each predictor must contribute to
@@ -602,7 +623,7 @@ def get_XT_X_dependency(response: str | Band,
         found. Default is False.
     verbose : bool, optional
         If True, print processing step information. Default is False.
-    **params
+    **params : dict
         Optional multiprocessing arguments:
 
         - nbrcpu : int, optional
@@ -623,7 +644,7 @@ def get_XT_X_dependency(response: str | Band,
     See Also
     --------
     :func:`compute_weights` : Full fitting workflow using this dependency check.
-    :func:`get_XT_X` : Compute the X.T @ X matrix analyzed here.
+    :func:`get_XT_X` : Compute the ``X.T @ X`` matrix analyzed here.
     """
 
     # if block sizes are provided as dictionary - some pre-check on input is desired - else
@@ -707,7 +728,7 @@ def compute_weights(response: str | Band,
     This function fits a multiple linear regression model by computing the
     optimal weights (beta coefficients) for each predictor. The computation
     involves creating a selector mask, validating predictor consistency,
-    calculating the X.T @ X matrix, checking for linear dependencies, and
+    calculating the :math:`X^T X` matrix, checking for linear dependencies, and
     solving the normal equations.
 
     Parameters
@@ -751,7 +772,7 @@ def compute_weights(response: str | Band,
         Default is False.
     verbose : bool, optional
         If True, print processing step information. Default is False.
-    **params
+    **params : dict
         Optional arguments:
 
         - extra_masking_band : Band or None, optional
@@ -802,9 +823,9 @@ def compute_weights(response: str | Band,
        :func:`~coonfit.parallel_helpers._check_predictor_consistency`
        (removes invalid predictors if `sanitize_predictors=True`)
     3. Recalculates selector if predictors were removed
-    4. Computes X.T @ X matrix in parallel via :func:`get_XT_X`
+    4. Computes :math:`X^T X` matrix in parallel via :func:`get_XT_X`
     5. Checks for rank deficiency via :func:`~coonfit.helper.check_rank_deficiency`
-    6. Inverts X.T @ X matrix using :func:`numpy.linalg.inv`: (X.T @ X)^-1
+    6. Inverts :math:`X^T X` via :func:`numpy.linalg.inv` to obtain :math:`(X^T X)^{-1}`
     7. Computes optimal weights via :func:`get_optimal_betas`
 
     The optimal weights solve the ordinary least squares problem:
@@ -812,23 +833,23 @@ def compute_weights(response: str | Band,
     .. math::
         \\beta = (X^T X)^{-1} X^T y
 
-    where X is the design matrix of predictors and y is the response vector.
+    where :math:`X` is the design matrix of predictors and :math:`y` is the response vector.
 
     Linear dependency detection excludes the intercept column from the rank
     check, as the intercept is always included as the last column when
     `include_intercept=True`.
 
-    See Also
-    --------
-    :func:`compute_model` : Apply the fitted weights to produce a model raster.
-    :func:`get_XT_X` : Compute X.T @ X used in the normal equations.
-    :func:`get_optimal_betas` : Compute regression coefficients given Y = (X.T @ X)^-1.
-    :func:`calculate_rmse` : Evaluate model fit using RMSE.
-    :func:`get_XT_X_dependency` : Check for linear dependencies without full fitting.
-
     If predictors are removed during sanitization, the selector is recomputed
     to ensure consistency, as removed predictors may have contributed to
     masking certain pixels.
+
+    See Also
+    --------
+    :func:`compute_model` : Apply the fitted weights to produce a model raster.
+    :func:`get_XT_X` : Compute ``X.T @ X`` used in the normal equations.
+    :func:`get_optimal_betas` : Compute regression coefficients given ``Y = (X.T @ X)^{-1}``.
+    :func:`calculate_rmse` : Evaluate model fit using RMSE.
+    :func:`get_XT_X_dependency` : Check for linear dependencies without full fitting.
 
     Examples
     --------
@@ -984,15 +1005,15 @@ def calculate_rmse(response: str | Band,
     """
     Compute the Root Mean Square Error (RMSE) for a predicted model and observed response data.
 
-    RMSE measures the average magnitude of the residuals (differences between
-    predicted and observed values) and is defined as:
+    RMSE measures the average magnitude of the residuals between predicted and
+    observed values and is defined as:
 
-        RMSE = sqrt(Σ((prediction_i - actual_i)²) / n)
+    .. math::
 
-    where:
-        - prediction_i are model-predicted values
-        - actual_i are observed response values
-        - n is the number of valid observations
+        \\text{RMSE} = \\sqrt{\\frac{\\sum_{i=1}^{n}(\\hat{y}_i - y_i)^2}{n}}
+
+    where :math:`\\hat{y}_i` are model-predicted values, :math:`y_i` are observed
+    response values, and :math:`n` is the number of valid observations.
 
     The function processes data in blocks for memory efficiency and parallelization.
 
@@ -1010,7 +1031,7 @@ def calculate_rmse(response: str | Band,
         If a dictionary, it should contain named blocks.
     verbose : bool, default=False
         If True, prints status information during computation.
-    **params : optional
+    **params : dict
         Additional parameters for parallel processing:
         - `nbr_cpus` (int): Number of CPUs to use (default: all available minus one).
         - `start_method` (str): Multiprocessing start method ('spawn', 'fork', or 'forkserver').
@@ -1094,17 +1115,24 @@ def calculate_r2(response: str | Band,
                  verbose: bool = False,
                  **params) -> float:
     """
-    Compute the Coefficient of Determination (R²) for a predicted model and observed response data.
+    Compute the Coefficient of Determination (:math:`R^2`) for a predicted model and observed response data.
 
-    The coefficient of determination, R², quantifies the proportion of variance in the response
-    variable that is predictable from the model. It is calculated as:
+    The coefficient of determination, :math:`R^2`, quantifies the proportion of
+    variance in the response variable that is predictable from the model:
 
-        R² = 1 - (SS_res / SS_tot)
+    .. math::
 
-    where:
-        - SS_res is the sum of squared residuals: Σ(y_i - f_i)²
-        - SS_tot is the total sum of squares: Σ(y_i - ȳ)²
-        - y_i are observed values, f_i are predicted values, and ȳ is the mean of observed values.
+        R^2 = 1 - \\frac{SS_{\\text{res}}}{SS_{\\text{tot}}}
+
+    where the sum of squared residuals and total sum of squares are defined as:
+
+    .. math::
+
+        SS_{\\text{res}} = \\sum_{i=1}^{n}(y_i - \\hat{y}_i)^2, \\qquad
+        SS_{\\text{tot}} = \\sum_{i=1}^{n}(y_i - \\bar{y})^2
+
+    with :math:`y_i` the observed values, :math:`\\hat{y}_i` the model-predicted
+    values, and :math:`\\bar{y}` the mean of the observed values.
 
     The function processes data in blocks for memory efficiency and parallelization.
 
@@ -1122,7 +1150,7 @@ def calculate_r2(response: str | Band,
         If a dictionary, it should contain named blocks.
     verbose : bool, default=False
         If True, prints status information during computation.
-    **params : optional
+    **params : dict
         Additional parameters for parallel processing:
         - `nbr_cpus` (int): Number of CPUs to use (default: all available minus one).
         - `start_method` (str): Multiprocessing start method ('spawn', 'fork', or 'forkserver').
@@ -1130,7 +1158,7 @@ def calculate_r2(response: str | Band,
     Returns
     -------
     float
-        The R² coefficient ranging from -∞ to 1, where 1 indicates perfect prediction.
+        The :math:`R^2` coefficient ranging from -∞ to 1, where 1 indicates perfect prediction.
         Computed via :func:`~coonfit.parallel_helpers._block_ssr` and
         :func:`~coonfit.parallel_helpers._block_sst`.
 

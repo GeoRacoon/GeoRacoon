@@ -1,4 +1,24 @@
-"""This file provides helper functions including compatibility checks, dtype conversion, parallelization setup
+"""
+General-purpose helper functions for the riogrande package.
+
+This module collects utility functions that are used across the package but do
+not belong to the I/O layer or the parallelization machinery. It covers:
+
+- **Compatibility checks**: CRS, spatial resolution, and unit validation across
+  multiple raster sources (:func:`check_compatibility`, :func:`check_crs`,
+  :func:`check_resolution`, :func:`check_units`).
+- **Dtype conversion**: Converting array values between numeric types with
+  optional range rescaling (:func:`convert_to_dtype`, :func:`dtype_range`).
+- **Tag utilities**: Serializing, deserializing, sanitizing, and matching
+  metadata tag dictionaries (:func:`serialize`, :func:`deserialize`,
+  :func:`sanitize`, :func:`match_all`, :func:`match_any`).
+- **Mask aggregation**: Combining boolean selector arrays with logical AND/OR
+  (:func:`aggregated_selector`, :func:`reduced_mask`).
+- **Multiprocessing setup**: Obtaining a multiprocessing context and determining
+  the number of worker processes (:func:`get_or_set_context`,
+  :func:`get_nbr_workers`).
+- **Miscellaneous**: Output filename generation, window-to-view conversion, and
+  pixel contribution counting.
 """
 
 from __future__ import annotations
@@ -29,7 +49,7 @@ def get_nbr_workers(number: Optional[int] = None) -> int:
 
     Parameters
     ----------
-    number: int or None, optional
+    number : int or None, optional
         Desired number of workers. If ``None``, the function will use the
         number of CPUs available via :func:`multiprocessing.cpu_count`,
         but never less than 2.
@@ -69,6 +89,7 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
     Return a multiprocessing context and set the global start method if unset.
 
     The function tries to be conservative about changing global interpreter state:
+
     - If `method` is None, it returns a context for the currently configured
       global start method when one exists; otherwise it warns and returns a
       context for a sensible default ('spawn' is used to establish
@@ -87,10 +108,12 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
     method : {None, 'fork', 'spawn', 'forkserver'}, optional
         Desired multiprocessing start method to use for the returned context.
         If ``None`` the function will:
+
         - return a context for the currently configured global start method if
           one exists, or
         - emit a ``RuntimeWarning`` and return a context for the configured
           default method (``spawn``) if no global method is set.
+
         Valid explicit values are ``'fork'``, ``'spawn'`` and ``'forkserver'``
         (availability depends on the platform and Python build). Passing an
         unsupported value raises ``ValueError``.
@@ -197,7 +220,7 @@ def serialize(tags: dict[str, Any]) -> dict[str, str]:
 
     Parameters
     ----------
-    tags:
+    tags : dict[str, Any]
         Dictionary of tags with string keywords and any-type values,
         which are serializable.
 
@@ -221,7 +244,7 @@ def deserialize(tags: dict[str, str]) -> dict[str, Any]:
 
     Parameters
     ----------
-    tags:
+    tags : dict[str, str]
         Dictionary with tag as key and serialized values.
 
     Returns
@@ -251,7 +274,7 @@ def sanitize(tags: dict[str, Any]) -> Any:
 
     Parameters
     ----------
-    tags:
+    tags : dict[str, Any]
         Dictionary with tag as key and serializable value as value.
 
     Returns
@@ -272,9 +295,9 @@ def match_all(targets: dict, tags: dict) -> bool:
 
     Parameters
     ----------
-    targets:
+    targets : dict
         Dictionary with tags to match to.
-    tags:
+    tags : dict
         Dictionary with tags to check for matching items.
 
     Returns
@@ -305,9 +328,9 @@ def match_any(targets: dict, tags: dict) -> bool:
 
     Parameters
     ----------
-    targets:
+    targets : dict
         Dictionary with tags to match to.
-    tags:
+    tags : dict
         Dictionary with tags to check for matching items.
 
     Returns
@@ -338,8 +361,8 @@ def view_to_window(view: None | tuple[int, int, int, int]) -> Window:
 
     Parameters
     ----------
-    view:
-      tuple (x, y, width, height) defining the view of the data array to update
+    view : tuple[int, int, int, int] or None
+        tuple (x, y, width, height) defining the view of the data array to update
 
     Returns
     ---------
@@ -358,7 +381,7 @@ def check_units(*sources: str) -> list:
 
     Parameters
     ----------
-    sources:
+    *sources : str
         List of sources (paths to files) from which units are to be compared to each other.
 
     Returns
@@ -392,7 +415,7 @@ def check_crs(*sources: str) -> list:
 
     Parameters
     ----------
-    sources:
+    *sources : str
         List of sources (paths to files) from which crs are to be compared to each other.
 
     Returns
@@ -421,7 +444,7 @@ def check_resolution(*sources: str) -> list:
 
     Parameters
     ----------
-    sources:
+    *sources : str
         List of sources (paths to files) from which resolutions are to be compared to each other.
 
     Returns
@@ -450,22 +473,23 @@ def check_compatibility(*sources: str) -> Tuple[list, list, list]:
     """Assert that all the sources are compatible with each other.
 
     The checks include:
+
         - crs (via :func:`~riogrande.helper.check_crs`)
         - units (via :func:`~riogrande.helper.check_units`)
         - resolution (via :func:`~riogrande.helper.check_resolution`)
 
     Parameters
     ----------
-    sources:
+    *sources : str
         List of sources (paths to files) from which are to be compared to each other.
 
     Returns
     ---------
-    crss:
+    crss : list
         All unique crs from sources in a list (see :func:`~riogrande.helper.check_crs`).
-    units:
+    units : list
         All unique units from sources in a list (see :func:`~riogrande.helper.check_units`).
-    ress:
+    ress : list
         All unique resolutions from sources in a list (see :func:`~riogrande.helper.check_resolution`).
 
     See Also
@@ -485,20 +509,20 @@ def output_filename(base_name: str, out_type: str, blur_params: None | dict = No
 
     Parameters
     ----------
-    base_name: str
-      The basic output name in the form <name>.tif
-    out_type: str
-      The type of output that will be saved.
-      This should be either 'blur' or 'entropy' but any string is accepted
-    blur_params: dict
-      Output of `get_blur_params`, so 'sigma', 'truncate' and 'diameter'
-      are expected keys.
+    base_name : str
+        The basic output name in the form <name>.tif
+    out_type : str
+        The type of output that will be saved.
+        This should be either 'blur' or 'entropy' but any string is accepted
+    blur_params : dict or None
+        Output of `get_blur_params`, so 'sigma', 'truncate' and 'diameter'
+        are expected keys.
 
     Returns
-    ------
-    str:
-      The resulting filename of the form
-      '<name>_<out_type>_sig_<{sigma}>_diam_<{diameter}>_trunc_<{truncate}>.tif'
+    -------
+    str
+        The resulting filename of the form
+        '<name>_<out_type>_sig_<{sigma}>_diam_<{diameter}>_trunc_<{truncate}>.tif'
     """
     _base_name, _ext = os.path.splitext(base_name)
     _blur_string = ""
@@ -521,7 +545,7 @@ def dtype_range(dtype: type | str) -> Tuple[int | float, int | float]:
 
     Parameters
     ----------
-    dtype:
+    dtype : type or str
         A NumPy dtype (e.g. ``np.uint8``, ``np.float32``) or a string
         representation thereof (e.g. ``'uint8'``).
 
@@ -589,26 +613,27 @@ def convert_to_dtype(data: NDArray, as_dtype: None | type | np._dtype | str = No
 
     Parameters
     ----------
-    data:
+    data : NDArray
         Input numpy NDArray
-    as_dtype: desired data type to convert to (e.g. np.float64)
+    as_dtype : type or str or None
+        Desired data type to convert to (e.g. np.float64).
         If not provided then at least the `out_range` needs to be set in
         which case the data type remains unchanges, but the data is
         rescaled.
-    in_range:
-        an array or list from which min and max will be used as input range.
+    in_range : NDArray or Collection or None
+        An array or list from which min and max will be used as input range.
         Min and max are read with :func:`numpy.nanmin` / :func:`numpy.nanmax`.
 
         .. note::
           You might simply provide the same value as for `data` in order to
           use its min an max for scaling
 
-    out_range:
-      an array or list from which min and max will be used as limits for the
-      output.
-      Alternatively, a data type can be specified, in which case the data
-      will be scaled to the full range of the specified data type
-      (see :func:`~riogrande.helper.dtype_range`).
+    out_range : NDArray or Collection or str or type or None
+        An array or list from which min and max will be used as limits for the
+        output.
+        Alternatively, a data type can be specified, in which case the data
+        will be scaled to the full range of the specified data type
+        (see :func:`~riogrande.helper.dtype_range`).
 
     Returns
     ----------
@@ -621,20 +646,24 @@ def convert_to_dtype(data: NDArray, as_dtype: None | type | np._dtype | str = No
 
     Examples
     --------
-    >>> # simple conversion, no rescalingm
+    >>> # simple conversion, no rescaling
     >>> my_data = np.array([0, 0.5, 1.], dtype=np.float64)
     >>> convert_to_dtype(my_data, as_dtype='uint8')
     array([0, 0, 1], dtype=uint8)
+
     >>> # conversion with rescaling specifying in_range only
     >>> new_data = convert_to_dtype(my_data, as_dtype='uint8', in_range=(0,1))
     >>> new_data
     array([  0, 127, 255], dtype=uint8)
+
     >>> # convert with scaling specifying out_range only
     >>> convert_to_dtype(data=new_data, as_dtype='float64', out_range=[-1, 1])
     array([-1.        , -0.00392157,  1.        ])
+
     >>> # only scaling, keeping data type
     >>> convert_to_dtype(data=my_data, in_range=[0,1], out_range=[-1, 1])
     array([-1.,  0.,  1.])
+
     >>> # scaling with data type as range
     >>> convert_to_dtype(data=my_data, in_range=[0,1], as_dtype='uint16', out_range='uint8')
     array([  0, 127, 255], dtype=uint16)
@@ -712,11 +741,11 @@ def aggregated_selector(masks: list[NDArray], logic: str = 'all') -> NDArray:
 
     Parameters
     ----------
-    masks:
+    masks : list[NDArray]
         Arbitrary number of numpy arrays resulting from
         :meth:`rasterio.io.DatasetReader.dataset_mask` or
         :meth:`rasterio.io.DatasetReader.read_masks`.
-    logic:
+    logic : str
         Determines how the aggreagation should happen.
         If ``'all'`` (the default) a cell is only selected if **all** masks
         consider it valid data — aggregated via :func:`numpy.logical_and`.
@@ -748,12 +777,12 @@ def reduced_mask(array: NDArray, nodata: float | int | np.nan = 0, logic: str = 
 
     Parameters
     ----------
-    array:
+    array : NDArray
         3D array holding multiple bands of map data
-    nodata:
+    nodata : float or int or None
         Nodata value to use. Defaults to 0.
         Pass :data:`numpy.nan` to mask NaN cells (detected via :func:`numpy.isnan`).
-    logic:
+    logic : str
         Allowed strings are:
 
         - ``"all"`` : Masked will be each cell for which **all** bands match the nodata value
@@ -799,17 +828,17 @@ def count_contribution(data: NDArray, selector: NDArray[np.bool_], no_data: Unio
 
     Parameters
     ----------
-    data:
-      The data to cont the contribution in
-    selector:
-      A boolean array in the shape of `data` selecting the single cells that
-      should be considered
-    no_data:
-      The value that should be considered as invalid.
+    data : NDArray
+        The data to cont the contribution in
+    selector : NDArray
+        A boolean array in the shape of `data` selecting the single cells that
+        should be considered
+    no_data : int or float
+        The value that should be considered as invalid.
 
-      .. note::
-        You might also provide :data:`numpy.nan` as no data value
-        (detected via :func:`numpy.isnan`).
+        .. note::
+          You might also provide :data:`numpy.nan` as no data value
+          (detected via :func:`numpy.isnan`).
 
     Returns
     ----------
@@ -841,7 +870,7 @@ def rasterio_to_numpy_dtype(rasterio_dtype: str) -> np.dtype | None:
 
     Parameters
     ----------
-    rasterio_dtype:
+    rasterio_dtype : str
         Output of ``rasterio.open(source).profile['dtype']``, as returned by
         :func:`rasterio.open`.
 

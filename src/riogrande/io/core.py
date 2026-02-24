@@ -1,5 +1,15 @@
 """
-Holds [...] as well as internal functions largely used for Source and Band Classes
+Low-level I/O functions for reading and writing GeoTIFF raster data.
+
+This module provides the functional layer beneath :class:`~riogrande.io.models.Source`
+and :class:`~riogrande.io.models.Band`. It contains functions for tag management,
+band index lookup, block loading with optional rescaling, band writing and
+updating, coordinate registration, and LZW compression.
+
+Most functions in this module operate directly on open ``rasterio``
+:class:`~rasterio.io.DatasetWriter` or :class:`~rasterio.io.DatasetReader`
+objects and are called internally by the :class:`~riogrande.io.models.Source`
+and :class:`~riogrande.io.models.Band` class methods.
 """
 
 from __future__ import annotations
@@ -47,22 +57,23 @@ def _set_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS, **tags:
 
     Parameters
     ----------
-    src:
-      ``tif`` file opened with :func:`rasterio.open` in write mode (i.e. ``"w"`` or ``"r+"``)
-    bidx:
-      Index of the band to set tags for (starting from 1 as is the convention
-      in rasterio). If set to ``None`` then the tags are set for the entire
-      dataset.
-    ns:
-      The namespace to set the tags in.
-      .. note::
-        It is dicouraged to change this value from the default as all tagging
-        related methods of this package use the same default namespace.
+    src : DatasetWriter
+        ``tif`` file opened with :func:`rasterio.open` in write mode (i.e. ``"w"`` or ``"r+"``)
+    bidx : int or None
+        Index of the band to set tags for (starting from 1 as is the convention
+        in rasterio). If set to ``None`` then the tags are set for the entire
+        dataset.
+    ns : str
+        The namespace to set the tags in.
 
-    **tags:
-      Arbitrary number of keyword arguments that will be set as tags.
-      The value provided is converted to a string with :func:`~riogrande.helper.serialize`
-      before the tag is written to the file.
+        .. note::
+          It is dicouraged to change this value from the default as all tagging
+          related methods of this package use the same default namespace.
+
+    **tags : Any
+        Arbitrary number of keyword arguments that will be set as tags.
+        The value provided is converted to a string with :func:`~riogrande.helper.serialize`
+        before the tag is written to the file.
 
     See Also
     --------
@@ -95,18 +106,18 @@ def _get_tags(src: DatasetWriter, bidx: int | None = None, ns: str = NS) -> dict
 
     Parameters
     ----------
-    src:
-      ``tif`` file opened with :func:`rasterio.open`
-    bidx:
-      Index of the band to get tags from (starting from 1 as is the convention
-      in rasterio). If set to ``None`` then the tags for the entire dataset are
-      returned.
-    ns:
-      The namespace to get the tags from.
+    src : DatasetWriter
+        ``tif`` file opened with :func:`rasterio.open`
+    bidx : int or None
+        Index of the band to get tags from (starting from 1 as is the convention
+        in rasterio). If set to ``None`` then the tags for the entire dataset are
+        returned.
+    ns : str
+        The namespace to get the tags from.
 
-      .. note::
-        It is dicouraged to change this value from the default as all tagging
-        related methods of this package use the same default namespace.
+        .. note::
+          It is dicouraged to change this value from the default as all tagging
+          related methods of this package use the same default namespace.
 
     Returns
     ----------
@@ -130,18 +141,18 @@ def _find_bidxs(src: DatasetWriter, ns: str = NS, **tags: Any) -> list[int]:
 
     Parameters
     ----------
-    src:
-      ``tif`` file opened with :func:`rasterio.open`
-    ns:
-      The namespace to set the tags in.
+    src : DatasetWriter
+        ``tif`` file opened with :func:`rasterio.open`
+    ns : str
+        The namespace to set the tags in.
 
-      .. note::
-        It is dicouraged to change this value from the default as all tagging
-        related methods of this package use the same default namespace.
+        .. note::
+          It is dicouraged to change this value from the default as all tagging
+          related methods of this package use the same default namespace.
 
-    **tags:
-      Arbitrary number of keyword arguments that will be compared to the tags
-      of the bands in the dataset.
+    **tags : Any
+        Arbitrary number of keyword arguments that will be compared to the tags
+        of the bands in the dataset.
 
     Returns
     ----------
@@ -174,20 +185,20 @@ def _get_bidx_by_tag(src: DatasetWriter, ns: str = NS, **tags: Any) -> None | in
 
     Parameters
     ----------
-    src:
-      ``tif`` file opened with :func:`rasterio.open`
-    ns:
-      The namespace to set the tags in.
-      It is dicouraged to change this value from the default as all tagging
-      related methods of this package use the same default namespace.
-    **tags:
-      Arbitrary number of keyword arguments that will be compared to the tags
-      of the bands in the dataset. If ``indexes`` is provided as tag key then all other tags are ignored and
-      the indexes are directly passed as band indexes to rasterio.
+    src : DatasetWriter
+        ``tif`` file opened with :func:`rasterio.open`
+    ns : str
+        The namespace to set the tags in.
+        It is dicouraged to change this value from the default as all tagging
+        related methods of this package use the same default namespace.
+    **tags : Any
+        Arbitrary number of keyword arguments that will be compared to the tags
+        of the bands in the dataset. If ``indexes`` is provided as tag key then all other tags are ignored and
+        the indexes are directly passed as band indexes to rasterio.
 
     Returns
     ----------
-    int | None
+    int or None
         Band index (integer) of band matching provided tags. If no match was found None is returned.
 
     Notes
@@ -261,15 +272,15 @@ def get_bands_by_tag(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, 
 
     Parameters
     ----------
-    source:
-      A glob pattern string passed to :func:`glob.glob`, leading to (potentially)
-      multiple source files that will be checked.
-    ns:
-      The namespace to search the tags in. It is dicouraged to change this value from the default as all tagging
-      related methods of this package use the same default namespace.
-    **tags:
-      Arbitrary number of keyword arguments that will be compared to the tags
-      of each tif file.
+    source : str
+        A glob pattern string passed to :func:`glob.glob`, leading to (potentially)
+        multiple source files that will be checked.
+    ns : str
+        The namespace to search the tags in. It is dicouraged to change this value from the default as all tagging
+        related methods of this package use the same default namespace.
+    **tags : Any
+        Arbitrary number of keyword arguments that will be compared to the tags
+        of each tif file.
 
     Returns
     ----------
@@ -297,7 +308,7 @@ def get_bands_by_tag(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, 
 
 def load_block(source: str, view: None | tuple[int, int, int, int] = None, scaling_params: dict | None = None,
                **tags: Any) -> dict[str, Any]:
-    """Get a block from a specific band of a *.tif file along with the transform
+    """Get a block from a specific band of a ``.tif`` file along with the transform
 
     You can select what band(s) to load by passing keyword arguments as tags
     (see `**tags` below) and limit the area to load by passing a view
@@ -306,25 +317,25 @@ def load_block(source: str, view: None | tuple[int, int, int, int] = None, scali
 
     Parameters
     ----------
-    source:
-      The path to the tif file to load
-    view:
-      An optional tuple (x, y, width, height) defining the area to load.
-      If ``None`` is provided (the default) then the entire file is loaded.
+    source : str
+        The path to the tif file to load
+    view : tuple[int, int, int, int] or None
+        An optional tuple (x, y, width, height) defining the area to load.
+        If ``None`` is provided (the default) then the entire file is loaded.
 
-    scaling_params:
-      Optional dictionary to set a rescaling of the data.
-      If provided, the following keywords are accepted:
+    scaling_params : dict or None
+        Optional dictionary to set a rescaling of the data.
+        If provided, the following keywords are accepted:
 
-      scaling: tuple[float,float]
-        Factors to rescale the number of pixels. Values >1 will upscale.
-      method: :class:`rasterio.enums.Resampling`
-        The resampling method. If not provided then
-        :attr:`rasterio.enums.Resampling.bilinear` is used.
+        scaling : tuple[float, float]
+            Factors to rescale the number of pixels. Values >1 will upscale.
+        method : rasterio.enums.Resampling
+            The resampling method. If not provided then
+            :attr:`rasterio.enums.Resampling.bilinear` is used.
 
-    **tags:
-      Arbitrary number of keyword arguments to describe the band to select.
-      See :func:`~riogrande.io.core._get_bidx_by_tag` for further details.
+    **tags : Any
+        Arbitrary number of keyword arguments to describe the band to select.
+        See :func:`~riogrande.io.core._get_bidx_by_tag` for further details.
 
     Returns
     -------
@@ -385,18 +396,18 @@ def write_band(src: DatasetWriter, data: NDArray, bidx: int = 1, window: Window 
 
     Parameters
     ----------
-    src:
+    src : DatasetWriter
         ``tif`` file opened with :func:`rasterio.open`
-    data:
+    data : NDArray
         The array to write into the file
-    bidx:
+    bidx : int
         Band index to write into the file
-    window:
+    window : Window or None
         An optional :class:`rasterio.windows.Window` to specify an area to write.
-    **tags:
-      Arbitrary number of keyword arguments that will be set as tags.
-      The value provided is converted to a string with :func:`~riogrande.helper.serialize`
-      via :func:`~riogrande.io.core._set_tags` before being written to the file.
+    **tags : Any
+        Arbitrary number of keyword arguments that will be set as tags.
+        The value provided is converted to a string with :func:`~riogrande.helper.serialize`
+        via :func:`~riogrande.io.core._set_tags` before being written to the file.
 
     Returns
     -------
@@ -421,15 +432,15 @@ def update_band(src: DatasetWriter, data: NDArray, window: Window | None = None,
 
     Parameters
     ----------
-    src:
-      ``tif`` file opened with :func:`rasterio.open`
-    data:
-      The array to write into the file
-    window:
-      An optional :class:`rasterio.windows.Window` to specify an area to write.
-    **tags:
-      Arbitrary number of keyword arguments that will be used to find
-      the band to write into.
+    src : DatasetWriter
+        ``tif`` file opened with :func:`rasterio.open`
+    data : NDArray
+        The array to write into the file
+    window : Window or None
+        An optional :class:`rasterio.windows.Window` to specify an area to write.
+    **tags : Any
+        Arbitrary number of keyword arguments that will be used to find
+        the band to write into.
 
     Returns
     --------
@@ -460,16 +471,16 @@ def _export_to_tif(destination: str, data: NDArray, orig_profile: dict, start=(0
 
     Parameters
     ----------
-    destination:
+    destination : str
         location to export save the .tif file
-    data:
+    data : NDArray
         The map to export
-    start:
-      horizontal and vertical starting coordinate
-    orig_profile:
+    start : tuple[int, int]
+        horizontal and vertical starting coordinate
+    orig_profile : dict
         the profile of the original map
         (see https://rasterio.readthedocs.io/en/stable/topics/profiles.html)
-    **pparams:
+    **pparams : Any
         further parameter to be added to the profile
 
     Returns
@@ -502,13 +513,13 @@ def coregister_raster(source: str, reference: str, output: str | None = None) ->
 
     Parameters
     ----------
-    source:
-      The path to the tif file you want to co-register
-    reference:
-      The path to the tif file with the pixel registration to use as reference for co-registration
-    output:
-      The path to write the co-registered map to. If ``None``, a filename is generated
-      by :func:`~riogrande.helper.output_filename`.
+    source : str
+        The path to the tif file you want to co-register
+    reference : str
+        The path to the tif file with the pixel registration to use as reference for co-registration
+    output : str or None
+        The path to write the co-registered map to. If ``None``, a filename is generated
+        by :func:`~riogrande.helper.output_filename`.
 
     Returns
     -------
@@ -558,14 +569,14 @@ def compress_tif(source, output: str | None = None, compression: str | None = 'l
 
     Parameters
     ----------
-    source: str
-      The path to the tif file you want to compress
-    output:
-      Optional path to output file.
-      If not set, the resulting file will inherit the filename from ``source`` and get
-      a ``_compress`` appendix via :func:`~riogrande.helper.output_filename`.
-      If compression is ``'none'``, i.e. no compression the appendix will be ``'_decompressed'``.
-    compression:
+    source : str
+        The path to the tif file you want to compress
+    output : str or None
+        Optional path to output file.
+        If not set, the resulting file will inherit the filename from ``source`` and get
+        a ``_compress`` appendix via :func:`~riogrande.helper.output_filename`.
+        If compression is ``'none'``, i.e. no compression the appendix will be ``'_decompressed'``.
+    compression : str or None
         Type of compression to use, default is LZW. See GDAL documentation for details.
 
     Returns

@@ -1,4 +1,9 @@
-"""This module defines custom exceptions
+"""
+Custom exceptions for the coonfit inference workflow.
+
+Exceptions defined here are raised when the multiple linear regression
+pipeline encounters invalid predictor data or configuration errors, such as
+predictors with insufficient valid pixels or ill-conditioned regression setups.
 """
 
 

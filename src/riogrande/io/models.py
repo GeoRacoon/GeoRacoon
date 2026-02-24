@@ -1,4 +1,14 @@
-"""Classes Source and Bands to use for GeoTifs
+"""
+Data model classes for GeoTIFF raster sources and bands.
+
+This module defines :class:`Source` and :class:`Band`, the two central data
+model classes of the ``riogrande`` package. A :class:`Source` represents a
+single GeoTIFF file together with its metadata (tags, profile, namespace),
+while a :class:`Band` encapsulates one raster band within a source, including
+band-specific tags, a band index, and configurable mask and data readers.
+
+Together these classes form the primary interface through which raster data is
+opened, read, written, and tagged throughout the package.
 """
 
 from __future__ import annotations
@@ -41,15 +51,15 @@ class Source:
 
     Parameters
     ----------
-    path :
+    path : str or Path
         Path to the dataset file.
-    tags :
+    tags : dict or None
         Optional dictionary of key-value metadata associated with the source.
         Defaults to an empty dictionary.
-    profile :
+    profile : dict or None
         Optional dictionary of dataset profile information (e.g. width, height,
         dtype). Defaults to an empty dictionary.
-    ns :
+    ns : str
         Namespace string used to distinguish sources. Defaults to "GEORACOON".
 
     Examples
@@ -108,8 +118,8 @@ class Source:
 
         Parameters
         ----------
-        other :
-         Source object to compare against.
+        other : Source
+            Source object to compare against.
 
         Returns
         -------
@@ -130,7 +140,7 @@ class Source:
 
         Parameters
         ----------
-        update_self :
+        update_self : bool
             If True (default), update the ``profile`` attribute with the values
             fetched from the source file. If False, the object's profile remains
             unchanged.
@@ -188,7 +198,7 @@ class Source:
 
         Parameters
         ----------
-        bidx :
+        bidx : int
             The band index to query.
 
         Returns
@@ -214,16 +224,16 @@ class Source:
 
         Parameters
         ----------
-        tag :
-           The tag key to look up.
-        bidx :
-           Band index (int), list of indices, or None.
-           If None, all bands are queried.
+        tag : str
+            The tag key to look up.
+        bidx : int or list or None
+            Band index (int), list of indices, or None.
+            If None, all bands are queried.
 
         Returns
         -------
         dict
-           A mapping of band index to the tag value (or None if missing).
+            A mapping of band index to the tag value (or None if missing).
         """
         t_vals = dict()
         with self.open(mode='r') as src:
@@ -247,10 +257,10 @@ class Source:
 
         Parameters
         ----------
-        bidx :
+        bidx : int or None
             The band index to set tags for. If None, tags are applied to the
             Source metadata (bidx=0).
-        tags :
+        tags : dict
             A dictionary of key-value pairs to assign as tags.
 
         Returns
@@ -274,13 +284,13 @@ class Source:
 
         Parameters
         ----------
-        **kwargs :
-         Keyword arguments passed to :meth:`open`.
+        **kwargs : dict
+            Keyword arguments passed to :meth:`open`.
 
         Yields
         ------
         callable
-         A callable that can be used to read the mask.
+            A callable that can be used to read the mask.
         """
         mode = kwargs.pop('mode', 'r')
         with self.open(mode=mode, **kwargs) as src:
@@ -296,12 +306,10 @@ class Source:
 
         Parameters
         ----------
-        **kwargs :
+        **kwargs : dict
             Optional set of keyword arguments to pass to the ``read`` method of the source.
-            Notable exception:
-
-            okwargs : dict
-                Keyword arguments passed to :meth:`open` when accessing the source.
+            Notable exception: if ``okwargs`` is present, it is passed to :meth:`open`
+            when accessing the source.
 
         Returns
         -------
@@ -328,13 +336,13 @@ class Source:
 
         Parameters
         ----------
-        **kwargs :
-           Keyword arguments passed to :meth:`open`.
+        **kwargs : dict
+            Keyword arguments passed to :meth:`open`.
 
         Yields
         ------
         callable
-           A callable that can be used to write a mask array.
+            A callable that can be used to write a mask array.
         """
         mode = kwargs.pop('mode', 'r+')
         with rio.Env(GDAL_TIFF_INTERNAL_MASK=True):
@@ -347,10 +355,10 @@ class Source:
 
         Parameters
         ----------
-        mask :
+        mask : NDArray
             Array to use as a mask. Values greater than 0 represent valid pixels;
             0 represents invalid/masked pixels.
-        window :
+        window : Window
             The raster window to which the mask should be written.
 
         Returns
@@ -368,9 +376,9 @@ class Source:
 
         Parameters
         ----------
-        overwrite :
+        overwrite : bool
             If True, overwrite an existing file.
-        **kwargs :
+        **kwargs : dict
             Additional keyword arguments passed to the :meth:`open` method when
             creating the dataset (e.g., driver options, compression).
 
@@ -395,9 +403,9 @@ class Source:
 
         Parameters
         ----------
-        bidx :
+        bidx : int or None
             Optional band index to select.
-        **tags :
+        **tags : dict
             Optional tag key-value pairs to match the band via
             :func:`~riogrande.io.core._get_bidx_by_tag`.
 
@@ -478,16 +486,16 @@ class Source:
 
         Parameters
         ----------
-        *args :
-           Positional arguments forwarded to ``rasterio.open``.
-        **kwargs :
-           Keyword arguments forwarded to ``rasterio.open``. The ``mode`` argument
-           defaults to the source's default mode.
+        *args : tuple
+            Positional arguments forwarded to ``rasterio.open``.
+        **kwargs : dict
+            Keyword arguments forwarded to ``rasterio.open``. The ``mode`` argument
+            defaults to the source's default mode.
 
         Returns
         -------
         DatasetReader or DatasetWriter
-           Partially-evaluated rasterio open object ready to be used or called.
+            Partially-evaluated rasterio open object ready to be used or called.
 
         Raises
         ------
@@ -521,9 +529,9 @@ class Source:
 
         Parameters
         ----------
-        *args :
+        *args : tuple
             Positional arguments forwarded to :meth:`_get_source`.
-        **kwargs :
+        **kwargs : dict
             Keyword arguments forwarded to :meth:`_get_source`.
 
         Yields
@@ -547,10 +555,10 @@ class Source:
 
         Parameters
         ----------
-        bands :
+        bands : list[Band] or None
             A collection of ``Band`` objects specifying which bands to read.
             If None, all bands in the dataset are used.
-        **kwargs :
+        **kwargs : dict
             Additional keyword arguments forwarded to :meth:`open` (e.g., mode,
             driver options).
 
@@ -587,7 +595,7 @@ class Source:
 
         Parameters
         ----------
-        bidx :
+        bidx : int
             The band index to check for (1-based, as in rasterio).
 
         Returns
@@ -608,13 +616,13 @@ class Source:
 
         Parameters
         ----------
-        tags :
-           Dictionary of tag key–value pairs to look for.
+        tags : dict
+            Dictionary of tag key–value pairs to look for.
 
         Returns
         -------
         bool
-           True if at least one band contains all provided tags.
+            True if at least one band contains all provided tags.
         """
         all_tags = []
         with rio.open(self.path, 'r') as src:
@@ -628,9 +636,9 @@ class Source:
 
         Parameters
         ----------
-        tags :
+        tags : dict
             Tag key–value pairs to search for.
-        mode :
+        mode : str
             Matching mode:
 
             - 'all': All provided tags must be present.
@@ -656,7 +664,7 @@ class Source:
 
         Parameters
         ----------
-        tags :
+        tags : dict
             Tag key–value pairs to search for.
 
         Returns
@@ -678,7 +686,7 @@ class Source:
 
         Parameters
         ----------
-        band :
+        band : Band
             The band object to test for.
 
         Returns
@@ -705,13 +713,13 @@ class Source:
 
         Parameters
         ----------
-        band :
-           The Band object for which to resolve the band index.
+        band : Band
+            The Band object for which to resolve the band index.
 
         Returns
         -------
         int or None
-           The resolved band index if a unique match is found, otherwise None.
+            The resolved band index if a unique match is found, otherwise None.
 
         Raises
         ------
@@ -760,13 +768,13 @@ class Source:
 
         Parameters
         ----------
-        output :
+        output : str or None
             Path to the output file. If None (default), the compressed file
             overwrites the current source path.
-        compression :
+        compression : str or None
             Compression algorithm to use. Default is ``'lzw'``.
             See GDAL documentation for valid options.
-        keep_original :
+        keep_original : bool
             If True, the original uncompressed file is preserved.
             If False (default), the uncompressed file is deleted after
             compression.
@@ -798,13 +806,13 @@ class Source:
 
         Parameters
         ----------
-        *sources :
-           One or more additional :class:`Source` objects to check against this one.
+        *sources : Source
+            One or more additional :class:`Source` objects to check against this one.
 
         Returns
         -------
         bool
-           True if all provided sources are compatible with this one.
+            True if all provided sources are compatible with this one.
 
         See Also
         --------
@@ -826,7 +834,7 @@ class Source:
 
         Parameters
         ----------
-        view :
+        view : tuple[int, int, int, int] or None
             The window to read, given as (row_start, row_stop, col_start, col_stop).
             If None (default), the entire raster is read.
         scaling_params : dict, optional
@@ -873,16 +881,16 @@ class Band:
     Parameters
     ----------
     source : Source
-       The ``Source`` object from which this band originates.
-    tags :
-       Optional dictionary of key-value metadata associated with the band.
-       Defaults to an empty dictionary.
-    bidx :
-       Band index in the source dataset (1-based). If ``None``, defaults to
-       an implicit index or is determined at runtime.
-    read_params :
-       Dictionary of parameters controlling how the band is read (e.g.,
-       windowing, resampling). Defaults to an empty dictionary.
+        The ``Source`` object from which this band originates.
+    tags : dict
+        Optional dictionary of key-value metadata associated with the band.
+        Defaults to an empty dictionary.
+    bidx : int or None
+        Band index in the source dataset (1-based). If ``None``, defaults to
+        an implicit index or is determined at runtime.
+    read_params : dict
+        Dictionary of parameters controlling how the band is read (e.g.,
+        windowing, resampling). Defaults to an empty dictionary.
 
     Examples
     --------
@@ -1043,12 +1051,12 @@ class Band:
 
         Parameters
         ----------
-        pair_op :
+        pair_op : Callable
             Function that performs an element-wise operation on two arrays.
             Should accept two arrays as first arguments and return an array.
-        band :
+        band : Band
             The second band participating in the operation.
-        out_band :
+        out_band : Band or None
             Destination band for storing the result. If None, this band is
             overwritten.
         **op_kwargs : dict
@@ -1076,13 +1084,13 @@ class Band:
 
         Parameters
         ----------
-        band :
-           :class:`Band` whose values will be added.
-        out_band :
-           Destination :class:`Band` for storing the result. If None (default), the
-           operation overwrites this band.
+        band : Band
+            :class:`Band` whose values will be added.
+        out_band : Band or None
+            Destination :class:`Band` for storing the result. If None (default), the
+            operation overwrites this band.
         **add_kwargs : dict
-           Additional keyword arguments passed to :func:`numpy.add`.
+            Additional keyword arguments passed to :func:`numpy.add`.
 
         See Also
         --------
@@ -1101,13 +1109,13 @@ class Band:
 
         Parameters
         ----------
-        band :
-          :class:`Band` to subtract from this band.
-        out_band :
-          Destination :class:`Band` for storing the result. If None (default), the
-          operation overwrites this band.
+        band : Band
+            :class:`Band` to subtract from this band.
+        out_band : Band or None
+            Destination :class:`Band` for storing the result. If None (default), the
+            operation overwrites this band.
         **sub_kwargs : dict
-          Additional keyword arguments passed to the underlying operation.
+            Additional keyword arguments passed to the underlying operation.
 
         See Also
         --------
@@ -1128,7 +1136,7 @@ class Band:
 
         Parameters
         ----------
-        match :
+        match : str or list or None
             Optional selection of tags to identify a matching band.
             If provided, the routine tries to find a single band in the
             source file for which only the tags specified in this list
@@ -1161,10 +1169,10 @@ class Band:
 
         Parameters
         ----------
-        match :
+        match : str or list or None
             Optional selection of tags to match a band in the source file.
             Used internally by :meth:`get_bidx` to locate the correct band.
-        keep :
+        keep : bool
             If True, update the existing ``tags`` dictionary with the imported
             tags. If False, replace the existing ``tags`` dictionary with the
             imported tags.
@@ -1192,10 +1200,10 @@ class Band:
 
         Parameters
         ----------
-        match :
-         Selection of tags to identify the correct band. If an integer is
-         provided, it is converted to a single-element list. If None (default),
-         all tags in ``self.tags`` are considered. Ignored if ``bidx`` is set.
+        match : str or list or None
+            Selection of tags to identify the correct band. If an integer is
+            provided, it is converted to a single-element list. If None (default),
+            all tags in ``self.tags`` are considered. Ignored if ``bidx`` is set.
 
          Notes
          -----
@@ -1255,10 +1263,10 @@ class Band:
 
          Parameters
          ----------
-         profile :
+         profile : dict
              Dictionary specifying the profile of the dataset.
              This will update the source's profile before creating or opening the file.
-         overwrite :
+         overwrite : bool
              If True, any existing file at the source path will be overwritten.
              Equivalent to deleting the existing source and creating a new one.
          **kwargs
@@ -1281,10 +1289,8 @@ class Band:
         **kwargs
            Optional keyword arguments for ``Source.read``. Common options include
            `window`, `out_shape`, `resampling`, etc.
-
-           Special keyword:
-           okwargs : dict, optional
-               Arguments passed to ``Source.open`` when opening the file.
+           Special keyword: if ``okwargs`` is present, it is passed to
+           ``Source.open`` when opening the file.
 
         Returns
         -------
@@ -1322,12 +1328,12 @@ class Band:
 
         Parameters
         ----------
-        selector :
+        selector : NDArray or None
             Boolean :class:`numpy.ndarray` of the same shape as the band, indicating
             which pixels to include in the count. If None, all pixels are considered.
-        no_data :
+        no_data : int or float
             Pixel value considered invalid (e.g., nodata value).
-        limit_count :
+        limit_count : int
             Optional early-exit threshold. If > 0, the method returns a boolean:
             - True if the number of valid pixels exceeds `limit_count`
             - False otherwise
@@ -1376,9 +1382,9 @@ class Band:
 
         Parameters
         ----------
-        no_data :
+        no_data : int or float
             Value considered invalid; these pixels are ignored.
-        selector :
+        selector : NDArray or None
             Boolean :class:`numpy.ndarray` of the same shape as the band, indicating
             which pixels to include. If None, all pixels are considered.
 
@@ -1426,7 +1432,7 @@ class Band:
 
         Parameters
         ----------
-        match :
+        match : str or list or None
             Optional selection of tags to identify a matching band. Ignored if
             the band has ``bidx`` set.
         **kwargs
@@ -1453,7 +1459,7 @@ class Band:
 
         Parameters
         ----------
-        match :
+        match : str or list or None
             Optional selection of tags to identify a matching band. Ignored if
             the band has ``bidx`` set.
         **kwargs
@@ -1555,7 +1561,7 @@ class Band:
 
         Parameters
         ----------
-        match :
+        match : str or list or None
             Optional selection of tags to identify the band.
         **kwargs
             Keyword arguments passed to `Source.open`.
@@ -1586,9 +1592,9 @@ class Band:
 
         Parameters
         ----------
-        match :
+        match : str or list or None
             Optional selection of tags to identify the band.
-        fill_value :
+        fill_value : int or float or bool
             Value to fill in the mask array. Accepts also True/False.
         **kwargs
             Keyword arguments passed to `Source.open`.
@@ -1619,13 +1625,13 @@ class Band:
 
         Parameters
         ----------
-        data :
-           :class:`numpy.ndarray` containing the data to write.
-        overwrite :
-           If True, overwrite an existing source file. If False and the source
-           exists, the file is opened in update mode (``'r+'``).
+        data : NDArray
+            :class:`numpy.ndarray` containing the data to write.
+        overwrite : bool
+            If True, overwrite an existing source file. If False and the source
+            exists, the file is opened in update mode (``'r+'``).
         **kwargs
-           Additional keyword arguments passed to :meth:`data_writer`.
+            Additional keyword arguments passed to :meth:`data_writer`.
 
         See Also
         --------
@@ -1653,15 +1659,15 @@ class Band:
 
         Parameters
         ----------
-        view :
+        view : tuple[int, int, int, int] or None
             Optional window defined as (x, y, width, height) in pixels.
             If `None`, the entire band is read.
-        scaling_params :
+        scaling_params : dict or None
             Optional dictionary specifying rescaling parameters:
               - `scaling`: tuple[float, float], factors to rescale the number of pixels.
                            Values >1 will upscale.
               - `method`: rasterio.enums.Resampling, resampling method (default: bilinear)
-        match :
+        match : str or list or None
             Optional tag(s) or criteria to identify the band in the source.
             If `None`, the current `bidx` or all tags are used.
 

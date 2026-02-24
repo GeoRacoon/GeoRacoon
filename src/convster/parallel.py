@@ -810,7 +810,7 @@ def compute_entropy(source: str | Source,
         # collect results
         job_timers = []
         for job in all_jobs:
-            # await for the jobs to return (i.e. complete) by calling .get
+            # await for the jobs to return (i.e. complete) by calling .get()
             # get the duration from the timer object that is returned by .get()
             job_timers.append(job.get().get_duration())
 
@@ -917,7 +917,7 @@ def compute_interaction(source: str | Source,
       its results to a multiprocessing queue.
     - The :func:`_combine_interaction_blocks` function merges all block results
       into a single output file.
-    - Designed for efficient large-scale raster analysis on multi-core systems.
+    - Designed for efficient large-scale raster analysis on multicore systems.
     - Block decomposition uses :func:`~riogrande.prepare.create_views`.
     - Worker pool is created with :func:`~riogrande.helper.get_or_set_context`
       and sized using :func:`~riogrande.helper.get_nbr_workers`.
@@ -1026,8 +1026,8 @@ def compute_interaction(source: str | Source,
         # collect results
         job_timers = []
         for job in all_jobs:
-            # await for the jobs to return (i.e. complete) by calling .get
-            # get the duration from the timer object that is returned by .get()
+            # await for the jobs to return (i.e. complete) by calling get()
+            # get the duration from the timer object that is returned by get()
             job_timers.append(job.get().get_duration())
 
         # once we have all the blocks, add a last element to the queue to stop
@@ -1089,6 +1089,7 @@ def extract_categories(source: str | Source,
         Data type of the output bands. Deprecated; use ``output_params['as_dtype']`` instead.
     output_params : dict, optional
         Dictionary of output settings:
+
         - **as_dtype** : data type for the filtered output (overrides `output_dtype`)
         - **nodata** : value used for missing data (default: None)
         - **bigtiff** : bool, whether to create a BIGTIFF for >4GB files
@@ -1099,6 +1100,7 @@ def extract_categories(source: str | Source,
         Print processing information and progress.
     **params
         Additional optional arguments:
+
         - **nbrcpu** : int, number of CPU cores to use (default: available cores minus one)
         - **start_method** : str, multiprocessing start method (e.g., 'spawn' or 'fork')
         - **compress** : bool, if True, compress the final output with LZW
@@ -1225,7 +1227,7 @@ def extract_categories(source: str | Source,
         # collect results
         job_timers = []
         for job in all_jobs:
-            # await for the jobs to return (i.e. complete) by calling .get
+            # await for the jobs to return (i.e. complete) by calling .get()
             # get the duration from the timer object that is returned by .get()
             job_timers.append(job.get().get_duration())
 
@@ -1305,18 +1307,21 @@ def apply_filter(source: str | Source,
     output_range : tuple, optional
         Value range to rescale the final output raster.
     selector_band : Band, optional
-        Optional categorical band used as a mask to apply the filter
+        Categorical band used as a mask to apply the filter
         selectively across categories.
     output_params : dict, optional
         Additional output configuration:
+
         - **as_dtype** : data type for filtered output (overrides `output_dtype`)
         - **nodata** : value for missing data (default: None)
         - **bigtiff** : bool, whether to create a BIGTIFF for >4GB files
-            ..Note: this may become standard if
+
+          .. note:: This may become standard at a later point
     verbose : bool, default=False
         Print progress and debug information.
     **params
         Additional optional arguments:
+
         - **nbrcpu** : int, number of CPU cores for multiprocessing.
         - **start_method** : str, multiprocessing start method.
         - **compress** : bool, whether to compress the final output with LZW.
@@ -1446,7 +1451,7 @@ def apply_filter(source: str | Source,
         # collect results
         job_outputs = []
         for job in all_jobs:
-            # await for the jobs to return (i.e. complete) by calling .get
+            # await for the jobs to return (i.e. complete) by calling .get()
             # get the duration from the timer object that is returned by .get()
             job_outputs.append(job.get())
 
