@@ -9,19 +9,19 @@ not fit in memory.
 Key functions:
 
 - :func:`compute_weights` — Full end-to-end workflow: builds the selector mask,
-  validates predictors, computes ``X.T @ X``, checks for linear dependencies,
+  validates predictors, computes :math:`X^T X`, checks for linear dependencies,
   inverts the matrix, and returns the optimal regression weights.
 - :func:`compute_model` — Applies fitted weights to predictor rasters and writes
   the model prediction to a new GeoTIFF.
 - :func:`get_XT_X` — Parallelized computation of the transposed product
-  ``X.T @ X`` across spatial blocks.
+  :math:`X^T X` across spatial blocks.
 - :func:`get_optimal_betas` — Parallelized computation of regression coefficients
-  given a pre-inverted ``(X.T @ X)^{-1}``.
+  given a pre-inverted  :math:`(X^T X)^{-1}`.
 - :func:`get_XT_X_dependency` — Checks for linear dependencies among predictors
   without running the full fitting pipeline.
-- :func:`calculate_rmse` — Computes root mean square error between the model and
+- :func:`calculate_rmse` — Computes Root Mean Square Error (RMSE) between the model and
   observed response.
-- :func:`calculate_r2` — Computes the coefficient of determination (R²).
+- :func:`calculate_r2` — Computes the coefficient of determination (:math:`R^2`).
 """
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def compute_model(predictors: Collection[Band],
                   verbose: bool = False,
                   **params) -> str:
     """
-    Create a tif file with the model prediction values from a fitted model.
+    Create a ``.tif`` file with the model prediction values from a fitted model.
 
     Parameters
     ----------
@@ -245,9 +245,9 @@ def get_XT_X(response: str | Band,
              **mpc_params
              ) -> np.ndarray:
     """
-    Calculate ``X.T @ X`` matrix in parallel from predictor data blocks.
+    Calculate :math:`X^T X` matrix in parallel from predictor data blocks.
 
-    This function computes the transpose-product matrix ``X.T @ X`` used in
+    This function computes the transpose-product matrix :math:`X^T X` used in
     linear regression by processing the predictor data in parallel blocks.
     The response parameter is only used to determine the spatial dimensions
     of the computation.
@@ -292,7 +292,7 @@ def get_XT_X(response: str | Band,
     Returns
     -------
     XT_X : NDArray
-        The transpose-product matrix ``X.T @ X`` of shape (n_predictors, n_predictors).
+        The transpose-product matrix :math:`X^T X` of shape (n_predictors, n_predictors).
         If `include_intercept=True`, the shape is (n_predictors+1, n_predictors+1)
         with the intercept column included as the last row and column.
 
@@ -302,7 +302,7 @@ def get_XT_X(response: str | Band,
 
     1. Dividing the spatial domain into non-overlapping blocks via
        :func:`~riogrande.prepare.create_views`
-    2. Computing partial ``X.T @ X`` matrices for each block in parallel via
+    2. Computing partial :math:`X^T X` matrices for each block in parallel via
        :func:`~coonfit.parallel_helpers._partial_transposed_product`
     3. Aggregating the partial results via
        :func:`~coonfit.parallel_helpers._combine_matrices`
@@ -383,16 +383,16 @@ def get_optimal_betas(*predictors: Band | str,
                       **mpc_params
                       ) -> dict[Band | str, float]:
     """
-    Calculate optimal regression coefficients (betas) in parallel from spatial data.
+    Calculate optimal regression coefficients (:math:`\\beta`) in parallel from spatial data.
 
-    This function computes the optimal weights (beta coefficients) for a
+    This function computes the optimal weights ((:math:`\\beta`) coefficients) for a
     multiple linear regression by processing predictor data in parallel blocks.
     The computation solves for beta in the normal equation (ordinary least squares problem):
 
     .. math::
        \\beta = (X^T X)^{-1} X^T y
 
-    where X is the design matrix of predictors and y is the response vector.
+    where :math:`X` is the design matrix of predictors and :math:`y` is the response vector.
 
     This approach is memory-efficient for large spatial datasets as it avoids
     loading the entire design matrix into memory at once.
@@ -587,7 +587,7 @@ def get_XT_X_dependency(response: str | Band,
     """Test predictors for linear dependency before fitting multiple linear regression.
 
     This function checks whether predictor columns are linearly dependent by
-    computing the ``X.T @ X`` matrix and analyzing its rank. Linear dependencies
+    computing the :math:`X^T X` matrix and analyzing its rank. Linear dependencies
     can cause numerical instability or singularity in regression fitting and
     should be resolved before proceeding with model estimation.
 
@@ -728,7 +728,7 @@ def compute_weights(response: str | Band,
     This function fits a multiple linear regression model by computing the
     optimal weights (beta coefficients) for each predictor. The computation
     involves creating a selector mask, validating predictor consistency,
-    calculating the X.T @ X matrix, checking for linear dependencies, and
+    calculating the :math:`X^T X` matrix, checking for linear dependencies, and
     solving the normal equations.
 
     Parameters
@@ -823,9 +823,9 @@ def compute_weights(response: str | Band,
        :func:`~coonfit.parallel_helpers._check_predictor_consistency`
        (removes invalid predictors if `sanitize_predictors=True`)
     3. Recalculates selector if predictors were removed
-    4. Computes ``X.T @ X`` matrix in parallel via :func:`get_XT_X`
+    4. Computes :math:`X^T X` matrix in parallel via :func:`get_XT_X`
     5. Checks for rank deficiency via :func:`~coonfit.helper.check_rank_deficiency`
-    6. Inverts ``X.T @ X`` via :func:`numpy.linalg.inv` to obtain ``(X.T @ X)^{-1}``
+    6. Inverts :math:`X^T X` via :func:`numpy.linalg.inv` to obtain :math:`(X^T X)^{-1}`
     7. Computes optimal weights via :func:`get_optimal_betas`
 
     The optimal weights solve the ordinary least squares problem:
@@ -833,7 +833,7 @@ def compute_weights(response: str | Band,
     .. math::
         \\beta = (X^T X)^{-1} X^T y
 
-    where X is the design matrix of predictors and y is the response vector.
+    where :math:`X` is the design matrix of predictors and :math:`y` is the response vector.
 
     Linear dependency detection excludes the intercept column from the rank
     check, as the intercept is always included as the last column when
@@ -1115,7 +1115,7 @@ def calculate_r2(response: str | Band,
                  verbose: bool = False,
                  **params) -> float:
     """
-    Compute the Coefficient of Determination (R²) for a predicted model and observed response data.
+    Compute the Coefficient of Determination (:math:`R^2`) for a predicted model and observed response data.
 
     The coefficient of determination, :math:`R^2`, quantifies the proportion of
     variance in the response variable that is predictable from the model:
@@ -1158,7 +1158,7 @@ def calculate_r2(response: str | Band,
     Returns
     -------
     float
-        The R² coefficient ranging from -∞ to 1, where 1 indicates perfect prediction.
+        The :math:`R^2` coefficient ranging from -∞ to 1, where 1 indicates perfect prediction.
         Computed via :func:`~coonfit.parallel_helpers._block_ssr` and
         :func:`~coonfit.parallel_helpers._block_sst`.
 

@@ -7,7 +7,7 @@ to use categorical and any other type of maps as predictors for some response
 variable that is also provided as a map.
 
 An exemplary use case is the usage of land-cover types and various derivatives
-thereof as predictors for NDVI or the temperature based response maps.
+thereof as predictors for NDVI or land surface temperature.
 
 """
 from __future__ import annotations
