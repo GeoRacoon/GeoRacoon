@@ -9,47 +9,19 @@
     <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
   </a>
 </p>
-
-<br>
-
-</div>
-<div align="center">
-  <h1>GeoRacoon</h1>
+<h1>GeoRacoon</h1>
 <p>Out and about<br><><br>ready to tackle Geographic Raster</p>
 
-<h2 align="center"></h2>
-
   <br>
   <br>
-<pre><small>Born from a collaboration between:</small></pre>
+<pre><small>Born from a collaboration between:</small>
+<br>
 
-   <a href="https://www.ieu.uzh.ch/en/research/ecology/soil.html"><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://www.cd.uzh.ch/dam/jcr:9528e314-fbb5-4ede-b7a5-3446bf8d9337/UZH_Logo_white.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg">
-    <img alt="UZH logo" src="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg" width="290" style="vertical-align: middle;">
-  </picture></a>
-  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-  <a href="https://github.com/t4d-gmbh"><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_with_Ds_wb.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_with_Ds.svg">
-    <img alt="T4D Logo" src="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_color.svg" width="220" style="vertical-align: middle;">
-  </picture></a>
-  <br>
- <strong>$\small \color{gray}{\mathbf{UZH}}$</strong>
-      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-  <strong>$\small \color{gray}{\mathbf{T4D}}$</strong>
-
-
-<h2 align="center"></h2>
-
-<h2 align="center"></h2>
-
-
+<a href="https://www.ieu.uzh.ch/en/research/ecology/soil.html"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.cd.uzh.ch/dam/jcr:9528e314-fbb5-4ede-b7a5-3446bf8d9337/UZH_Logo_white.svg"><source media="(prefers-color-scheme: light)" srcset="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg"><img alt="UZH logo" src="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg" width="290" style="vertical-align: middle;"></picture></a>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="https://github.com/t4d-gmbh"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_with_Ds_wb.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_with_Ds.svg"><img alt="T4D Logo" src="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_color.svg" width="220" style="vertical-align: middle;"></picture></a>
+</pre>
 </div>
 
-
-
-# GeoRacoon
+# Quickstart
 
 <!-- badges: start -->
 [![Coverage](https://github.com/GeoRacoon/georacoon/raw/python-coverage-comment-action-data/badge.svg)](https://github.com/GeoRacoon/georacoon/tree/python-coverage-comment-action-data)
