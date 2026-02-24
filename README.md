@@ -19,7 +19,7 @@
 <div align="center">
 
 
-<p>$\mathsf{The\ RasterIO\ extension\ you\ didn't\ know\ you\ needed.}$</p>
+<p>Out and about<br><><br>ready to tackle Geographic Raster</p>
 
 <h2 align="center"></h2>
 
@@ -30,6 +30,11 @@
 <br>
 
   <img src="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg" width="290" style="vertical-align: middle;">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg">
+    <img alt="UZH logo" src="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg" width="220" style="vertical-align: middle;">
+  </picture>
   &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_with_Ds_wb.svg">
