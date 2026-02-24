@@ -5,21 +5,15 @@ tags:
   - GIS
   - parallelization
   - MLR
-  - remote sensing
+  - ...
 authors:
-  - name:
-      given-names: Simon
-      surname: Landauer
+  - name: Simon Landauer
     orcid: 0009-0002-5031-8378
     affiliation: 1
-  - name:
-      given-names: Pascal A.
-      surname: Niklaus
+  - name: Pascal A. Niklaus
     orcid: 0000-0002-2360-1357
     affiliation: 1 # (Multiple affiliations must be quoted)
-  - name:
-      given-names: Jonas I. 
-      surname: Liechti
+  - name: Jonas I. Liechti
     orcid: 0000-0003-3447-3060
     affiliation: 2 # (Multiple affiliations must be quoted)
     corresponding: true # (This is how to denote the corresponding author)
@@ -30,33 +24,16 @@ affiliations:
  - name: T4D GmbH, 8045 Zurich, Switzerland
    index: 2
    ror: 055j0y167
-date: 06 March 2026
+date: 24 February 2017
 bibliography: paper.bib
 
 ---
 
 # Summary
-The Python package `GeoRacoon` is aimed at supporting analyses and work with large spatial raster data. It consists of 
-3 sub-packages: `riogrande`, a class based extension of rasterio [@Gillies_2019] with extended functionalities
-for tag based raster object management; `convster`, a fully parallelized module for convolution of spatial raster data
-(e.g. satellite imagery); `coonfit`, a multiple linear regression module using analytical solutions, yet fully
-parallelized to allow for large data analysis.
 
+A citation for rasterio: @gillies_2019
 
 # Statement of need
-
-
-
-At the time of development, to the authors knowledge, there existed no comprehensive software which would allow for 
-seamless gaussian convolution of large raster datasets. In addition, as convolution is a relatively frequently used 
-process in image analysis - scalability of such a process is of great need. 
-
-... 
-Within the process of developing `GeoRacoon` the 3 sub-packages evolved as a necessity to tackle a research project on ...
-Yet, due to the lack of existing software - the development will fill a gap by ...
-During the development process `riogrande` evolved as a necessary extension to `GeoRaccon` to handle vast amounts of 
-imagery data in easier, object based way - allowing for even better usability for broader use in other applications after
-the depolyment of 
 
 
 # State of the field                                                                                                                  
@@ -67,8 +44,6 @@ the depolyment of
 
 # Research impact statement
 
-The package supported carrying out a research project on landscape diversity using effects on vegetation productivity
-on a global scale leading [@Landauer_2025_preprint].
 
 # Citations
 
@@ -100,11 +75,6 @@ of this manuscript, or the preparation of supporting materials.
 
 
 # Acknowledgements
-
-[//]: # (# TODO: Jonas - Not sure if we need or should put this here)
-The initial stages of development for this package was supported by the European Union’s Horizon 2020
-research and innovation programme under the Marie Sklodowska-Curie (MSC) grant agreement No 847585 
-as well as a grant of the University of Zurich Research Priority Program Global Change and Biodiversity (URPP GCB).
 
 
 # References
