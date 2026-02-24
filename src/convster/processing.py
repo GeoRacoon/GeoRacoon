@@ -546,17 +546,17 @@ def compute_interaction(data_arrays: Sequence[NDArray],
     >>> b = np.array([[0.5, 0.25], [0.0, 0.3]])
     >>> compute_interaction([a, b], standardize=True, normed=True)
     array([[1.        , 0.5       ],
-           [0.        , 0.17142857]])
+    [0.        , 0.17142857]])
     >>> compute_interaction([a, b], standardize=True, normed=False)
     array([[0.25      , 0.125     ],
-           [0.        , 0.04285714]])
+    [0.        , 0.04285714]])
     Example 2: integer inputs (uint8), 3 arrays, float output
     >>> a = np.array([[85, 100], [50, 60]], dtype=np.uint8)
     >>> b = np.array([[85, 50], [100, 80]], dtype=np.uint8)
     >>> c = np.array([[85, 105], [100, 10]], dtype=np.uint8)
     >>> compute_interaction([a, b, c], standardize=True, normed=True, output_dtype=np.float64)
     array([[1.        , 0.85487482],
-           [0.83044983, 0.13287197]])
+    [0.83044983, 0.13287197]])
     """
     array_dtype = data_arrays[0].dtype
 

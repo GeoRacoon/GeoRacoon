@@ -89,6 +89,7 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
     Return a multiprocessing context and set the global start method if unset.
 
     The function tries to be conservative about changing global interpreter state:
+
     - If `method` is None, it returns a context for the currently configured
       global start method when one exists; otherwise it warns and returns a
       context for a sensible default ('spawn' is used to establish
@@ -107,10 +108,12 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
     method : {None, 'fork', 'spawn', 'forkserver'}, optional
         Desired multiprocessing start method to use for the returned context.
         If ``None`` the function will:
+
         - return a context for the currently configured global start method if
           one exists, or
         - emit a ``RuntimeWarning`` and return a context for the configured
           default method (``spawn``) if no global method is set.
+
         Valid explicit values are ``'fork'``, ``'spawn'`` and ``'forkserver'``
         (availability depends on the platform and Python build). Passing an
         unsupported value raises ``ValueError``.

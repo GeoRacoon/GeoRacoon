@@ -1289,10 +1289,8 @@ class Band:
         **kwargs
            Optional keyword arguments for ``Source.read``. Common options include
            `window`, `out_shape`, `resampling`, etc.
-
-           Special keyword:
-           okwargs : dict, optional
-               Arguments passed to ``Source.open`` when opening the file.
+           Special keyword: if ``okwargs`` is present, it is passed to
+           ``Source.open`` when opening the file.
 
         Returns
         -------

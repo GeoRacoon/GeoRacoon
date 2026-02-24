@@ -308,7 +308,7 @@ def get_bands_by_tag(source: str, ns: str = NS, **tags: Any) -> list[tuple[str, 
 
 def load_block(source: str, view: None | tuple[int, int, int, int] = None, scaling_params: dict | None = None,
                **tags: Any) -> dict[str, Any]:
-    """Get a block from a specific band of a *.tif file along with the transform
+    """Get a block from a specific band of a ``.tif`` file along with the transform
 
     You can select what band(s) to load by passing keyword arguments as tags
     (see `**tags` below) and limit the area to load by passing a view
