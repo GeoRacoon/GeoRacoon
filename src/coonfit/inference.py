@@ -344,13 +344,13 @@ def prepare_predictors(response: str | Band, *predictors: Band | str, view: tupl
     Generate the predictor matrix and response vector for multiple linear regression.
 
     This function constructs the predictor matrix :math:`X` and the response vector
-    :math:`\\mathbf{y}` used in a multiple linear regression model of the form
+    :math:`y` used in a multiple linear regression model of the form
 
     .. math::
 
-       \\mathbf{y} = X\\boldsymbol{\\beta} + \\boldsymbol{\\epsilon}
+       y = X\\beta + \\epsilon
 
-    where :math:`\\mathbf{y}` represents the response data and :math:`X` the predictor matrix.
+    where :math:`y` represents the response data and :math:`X` the predictor matrix.
 
     The response data are used as a reference to determine valid pixels. A mask
     is extracted from the response (e.g., nodata values or an 8-bit mask) and
@@ -522,17 +522,17 @@ def get_optimal_weights(X, y):
 
     .. math::
 
-        \\mathbf{y} = X\\boldsymbol{\\beta} + \\boldsymbol{\\epsilon}
+        y = X\\beta + \\epsilon
 
-    where :math:`X` is the predictor matrix, :math:`\\mathbf{y}` the response vector,
-    :math:`\\boldsymbol{\\beta}` the vector of regression weights, and
-    :math:`\\boldsymbol{\\epsilon}` a random error term.
+    where :math:`X` is the predictor matrix, :math:`y` the response vector,
+    :math:`\\beta` the vector of regression weights, and
+    :math:`\\epsilon` a random error term.
 
-    The optimal least-squares solution for :math:`\\boldsymbol{\\beta}` is given by
+    The optimal least-squares solution for :math:`\\beta` is given by
 
     .. math::
 
-        \\boldsymbol{\\beta} = (X^T X)^{-1} X^T \\mathbf{y}
+        \\beta = (X^T X)^{-1} X^T y
 
     which is computed directly using NumPy linear algebra routines.
 
@@ -680,13 +680,13 @@ def get_optimal_weights_source(Y: NDArray, response: str | Band, predictors: Col
 
     .. math::
 
-        \\mathbf{y} = X\\boldsymbol{\\beta} + \\boldsymbol{\\epsilon}
+        y = X\\beta + \\epsilon
 
     The least-squares solution for the regression weights is
 
     .. math::
 
-        \\hat{\\boldsymbol{\\beta}} = (X^T X)^{-1} X^T \\mathbf{y}
+        \\hat{\\beta} = (X^T X)^{-1} X^T y
 
     Defining
 
@@ -698,7 +698,7 @@ def get_optimal_weights_source(Y: NDArray, response: str | Band, predictors: Col
 
     .. math::
 
-        \\hat{\\boldsymbol{\\beta}} = Y X^T \\mathbf{y}
+        \\hat{\\beta} = Y X^T y
 
     directly from the predictor data and the response values, without explicitly
     recomputing :math:`X^T X`.
@@ -774,11 +774,11 @@ def get_approx_weights(X: NDArray, y: NDArray,
 
     .. math::
 
-        \\mathbf{y} = X\\boldsymbol{\\beta} + \\boldsymbol{\\epsilon}
+        y = X\\beta + \\epsilon
 
-    where :math:`X` is the predictor matrix, :math:`\\mathbf{y}` the response vector,
-    :math:`\\boldsymbol{\\beta}` the vector of regression weights, and
-    :math:`\\boldsymbol{\\epsilon}` a random error term.
+    where :math:`X` is the predictor matrix, :math:`y` the response vector,
+    :math:`\\beta` the vector of regression weights, and
+    :math:`\\epsilon` a random error term.
 
     The weights are estimated using scikit-learn’s
     :class:`sklearn.linear_model.LinearRegression` estimator, which computes a
