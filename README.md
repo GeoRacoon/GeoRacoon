@@ -14,20 +14,14 @@
 
 </div>
 <div align="center">
-  <h3>$\huge \mathsf{\textbf{GeoRacoon}}$<h3>
-</div>
-<div align="center">
-
-
+  <h1>GeoRacoon</h1>
 <p>Out and about<br><><br>ready to tackle Geographic Raster</p>
 
 <h2 align="center"></h2>
 
-<p>$\color{gray}{\mathsf{A\ harvest\ from\ a\ collaboration\ between:}}$</p>
-<p></p>
-
-
-<br>
+  <br>
+  <br>
+<pre><small>Harvest from a collaboration between:</small></pre>
 
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://www.cd.uzh.ch/dam/jcr:9528e314-fbb5-4ede-b7a5-3446bf8d9337/UZH_Logo_white.svg">
