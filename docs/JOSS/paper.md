@@ -5,7 +5,7 @@ tags:
   - GIS
   - parallelization
   - MLR
-  - ...
+  - remote sensing
 authors:
   - name: Simon Landauer
     orcid: 0009-0002-5031-8378
@@ -24,14 +24,18 @@ affiliations:
  - name: T4D GmbH, 8045 Zurich, Switzerland
    index: 2
    ror: 055j0y167
-date: 24 February 2017
+date: 06 March 2026
 bibliography: paper.bib
 
 ---
 
 # Summary
+The Python package `GeoRacoon` is aimed at supporting analyses and work with large spatial raster data. It consists of 
+3 modules: `riogrande`, a class based extension of rasterio [@gillies_2019] with extended functionalities
+for tag based raster object management; `convster`, a fully parallelized module for convolution of spatial raster data
+(e.g. satellite imagery); `coonfit`, a multiple linear regression module using analytical solutions, yet fully
+parallelized to allow for large data analysis. 
 
-A citation for rasterio: @gillies_2019
 
 # Statement of need
 
