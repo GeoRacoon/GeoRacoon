@@ -155,8 +155,12 @@ def test_optimal_weights_example_data(datafiles, create_blurred_tif):
                                     include_intercept=False,
                                     verbose=True,
                                     )
-    b = np.round(lfinf.get_optimal_weights(X, y), 6)
-    reg = lfinf.get_approx_weights(X, y, fit_intercept=False)
+    # Cast to float64: float32 normal equations are numerically unstable for
+    # large matrices, and sklearn 1.8+ uses an SVD cutoff proportional to
+    # max(X.shape)*eps which becomes ~0.44 for float32 with ~3.6M rows.
+    X64, y64 = X.astype(np.float64), y.astype(np.float64)
+    b = np.round(lfinf.get_optimal_weights(X64, y64), 6)
+    reg = lfinf.get_approx_weights(X64, y64, fit_intercept=False)
     b_approx = np.round(reg.coef_, 6)
     # print(f"\n{b=}\n{b_approx=}\n")
     np.testing.assert_allclose(b, b_approx, rtol=1e-05)
@@ -164,8 +168,9 @@ def test_optimal_weights_example_data(datafiles, create_blurred_tif):
     X, y = lfinf.prepare_predictors(ndvi_map,
                                     *predictors,
                                     include_intercept=False,)
-    b = np.round(lfinf.get_optimal_weights(X, y), 6)
-    reg = lfinf.get_approx_weights(X, y, fit_intercept=False)
+    X64, y64 = X.astype(np.float64), y.astype(np.float64)
+    b = np.round(lfinf.get_optimal_weights(X64, y64), 6)
+    reg = lfinf.get_approx_weights(X64, y64, fit_intercept=False)
     b_approx = np.round(reg.coef_, 6)
     # print(f"\n{b=}\n{b_approx=}\n")
     np.testing.assert_allclose(b, b_approx, rtol=1e-05)
@@ -211,7 +216,9 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif,
                                     include_intercept=False,
                                     verbose=True,
                                     )
-    tpX = X.T @ X
+    # Cast to float64: numpy 2.x uses float32 accumulators for float32 matmul,
+    # which causes accumulation errors over ~3.6M rows that exceed rtol=1e-05.
+    tpX = X.astype(np.float64).T @ X.astype(np.float64)
     # calculate it per predictor columns
     selector = lfinf.prepare_selector(response,
                                       *predictors)
