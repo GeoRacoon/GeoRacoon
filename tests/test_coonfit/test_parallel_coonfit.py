@@ -255,8 +255,10 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
                                     include_intercept=include_intercept,
                                     verbose=verbose,
                                     )
-    # round both to the 6th digit
-    b = np.round(lfinf.get_optimal_weights(X, y), 6)
+    # Cast to float64: parallel betas use float64; comparing against float32
+    # normal equations is unreliable for large matrices (see numpy 2.x / sklearn 1.8+).
+    X64, y64 = X.astype(np.float64), y.astype(np.float64)
+    b = np.round(lfinf.get_optimal_weights(X64, y64), 6)
     betas = np.round(list(betas_dict.values()), 6)
     # print(f"{b=}\n{betas=}")
     np.testing.assert_allclose(betas, b, rtol=1e-04)
