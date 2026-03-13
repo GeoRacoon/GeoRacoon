@@ -37,7 +37,7 @@ bibliography: paper.bib
 
 # Summary
 The Python package `GeoRacoon` is aimed at supporting analyses and work with large spatial raster data. It consists of 
-3 sub-packages: `riogrande`, a class based extension of rasterio [@gillies_2019] with extended functionalities
+3 sub-packages: `riogrande`, a class based extension of rasterio [@Gillies_2019] with extended functionalities
 for tag based raster object management; `convster`, a fully parallelized module for convolution of spatial raster data
 (e.g. satellite imagery); `coonfit`, a multiple linear regression module using analytical solutions, yet fully
 parallelized to allow for large data analysis.
@@ -98,6 +98,11 @@ of this manuscript, or the preparation of supporting materials.
 
 
 # Acknowledgements
+
+[//]: # (# TODO: Jonas - Not sure if we need or should put this here)
+The initial stages of development for this package was supported by the European Union’s Horizon 2020
+research and innovation programme under the Marie Sklodowska-Curie (MSC) grant agreement No 847585 
+as well as a grant of the University of Zurich Research Priority Program Global Change and Biodiversity (URPP GCB).
 
 
 # References
