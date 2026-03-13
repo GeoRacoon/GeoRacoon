@@ -67,6 +67,8 @@ the depolyment of
 
 # Research impact statement
 
+The package supported carrying out a research project on landscape diversity using effects on vegetation productivity
+on a global scale leading [@Landauer_2025_preprint].
 
 # Citations
 
