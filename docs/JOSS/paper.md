@@ -7,13 +7,19 @@ tags:
   - MLR
   - remote sensing
 authors:
-  - name: Simon Landauer
+  - name:
+      given-names: Simon
+      surname: Landauer
     orcid: 0009-0002-5031-8378
     affiliation: 1
-  - name: Pascal A. Niklaus
+  - name:
+      given-names: Pascal A.
+      surname: Niklaus
     orcid: 0000-0002-2360-1357
     affiliation: 1 # (Multiple affiliations must be quoted)
-  - name: Jonas I. Liechti
+  - name:
+      given-names: Jonas I. 
+      surname: Liechti
     orcid: 0000-0003-3447-3060
     affiliation: 2 # (Multiple affiliations must be quoted)
     corresponding: true # (This is how to denote the corresponding author)
