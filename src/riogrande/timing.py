@@ -12,23 +12,24 @@ class TimedTask:
 
     This class allows timing of an entire block of code and
     recording intermediate checkpoints ("laps") within it.
+    Internally uses :func:`time.perf_counter` for high-resolution timing.
 
-    Attributes
-    ----------
-    labs : (list[float])
-        Stores elapsed times for each recorded lap.
+    See Also
+    --------
+    :meth:`get_duration` : Return the total elapsed time.
+    :meth:`new_lab` : Record an intermediate lap time.
 
     Examples
     ---------
-        >>> with TimedTask() as t:
-        ...     do_work()
-        ...     t.new_lab()
-        ...     do_more_work()
-        ...
-        >>> t.get_duration()
-        2.3512  # total seconds elapsed
-        >>> t.labs
-        [0.7543, 1.5969]  # lap times
+    >>> with TimedTask() as t:
+    ...     do_work()
+    ...     t.new_lab()
+    ...     do_more_work()
+    ...
+    >>> t.get_duration()
+    2.3512  # total seconds elapsed
+    >>> t.labs
+    [0.7543, 1.5969]  # lap times
     """
 
     def __init__(self):
@@ -67,6 +68,10 @@ class TimedTask:
         -------
         float
             Total elapsed time in seconds.
+
+        See Also
+        --------
+        :meth:`new_lab` : Record an intermediate lap time.
         """
         return self.stop - self.start
 
@@ -76,6 +81,10 @@ class TimedTask:
 
         Each call appends the time elapsed since the previous
         lap (or since the start if it's the first lap).
+
+        See Also
+        --------
+        :meth:`get_duration` : Return the total elapsed time.
         """
         self.now = perf_counter()
         try:

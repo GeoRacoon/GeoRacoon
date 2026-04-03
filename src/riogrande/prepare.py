@@ -18,16 +18,21 @@ def update_view(data: NDArray, view: tuple[int, int, int, int], block: ArrayLike
 
     Parameters
     ----------
-    data:
-      The array that we want to update
-    view:
-      tuple (x, y, width, height) defining the view of the data array to update
-    block:
-      np.array with the updated values.
+    data : NDArray
+        The array that we want to update
+    view : tuple[int, int, int, int]
+        tuple (x, y, width, height) defining the view of the data array to update
+    block : ArrayLike
+        np.array with the updated values.
 
     Returns
     --------
     None
+
+    See Also
+    --------
+    :func:`~riogrande.prepare.get_view` : Read a rectangular view from an array.
+    :func:`~riogrande.prepare.create_views` : Generate a set of views covering an array.
 
     Examples
     --------
@@ -49,12 +54,12 @@ def create_views(view_size: tuple[int, int], border: tuple[int, int], size: tupl
 
     Parameters
     ----------
-    view_size:
-      The size (width, height) in pixels of a single view (excluding borders)
-    border:
-      The border size (width, height) in number of pixels along each axis
-    size:
-      The total size of the map in number of pixels (width, height)
+    view_size : tuple[int, int]
+        The size (width, height) in pixels of a single view (excluding borders)
+    border : tuple[int, int]
+        The border size (width, height) in number of pixels along each axis
+    size : tuple[int, int]
+        The total size of the map in number of pixels (width, height)
 
     Return
     ------
@@ -69,8 +74,15 @@ def create_views(view_size: tuple[int, int], border: tuple[int, int], size: tupl
     Notes
     -----
     - Handles cases where the region cannot be divided evenly by `view_size`.
-    The last row/column of views may be smaller (`leftovers`) and are still included.
+      The last row/column of views may be smaller (`leftovers`) and are still included.
+      Uses :func:`math.floor` to compute the number of full blocks.
     - Borders on the outer edges are reduced to fit within the total size.
+
+    See Also
+    --------
+    :func:`~riogrande.prepare.update_view` : Write a block into a view of an array.
+    :func:`~riogrande.prepare.get_view` : Read a rectangular view from an array.
+    :func:`~riogrande.prepare.relative_view` : Express an inner view relative to an outer view.
 
     Examples
     --------
@@ -192,21 +204,26 @@ def create_views(view_size: tuple[int, int], border: tuple[int, int], size: tupl
 def get_view(data: NDArray, view: tuple[int, int, int, int]) -> NDArray:
     """Return a recatangular view of the data array
 
-    ..Note::
+    .. note::
       data.shape == height, width!
 
     Parameters
     ----------
-    data:
-      np.array to return the view from
-    view:
-      tuple (x, y, width, height) defining the view
+    data : NDArray
+        np.array to return the view from
+    view : tuple[int, int, int, int]
+        tuple (x, y, width, height) defining the view
 
     Returns
     -------
     NDArray
         A view (slice) of `data` with shape `(height, width)` as specified
         by the `view` tuple.
+
+    See Also
+    --------
+    :func:`~riogrande.prepare.update_view` : Write a block into a view of an array.
+    :func:`~riogrande.prepare.create_views` : Generate a set of views covering an array.
 
     Examples
     --------
@@ -234,9 +251,9 @@ def relative_view(view: tuple[int, int, int, int],
 
     Parameters
     ----------
-    view :
+    view : tuple[int, int, int, int]
         A 4-tuple `(x, y, width, height)` defining the outer view.
-    inner_view :
+    inner_view : tuple[int, int, int, int]
         A 4-tuple `(x, y, width, height)` defining a subregion inside `view`.
 
     Returns
@@ -244,6 +261,10 @@ def relative_view(view: tuple[int, int, int, int],
     tuple
         A 4-tuple `(x, y, width, height)` giving the position and size of
         `inner_view` relative to `view`. The width and height are unchanged.
+
+    See Also
+    --------
+    :func:`~riogrande.prepare.create_views` : Generate outer and inner view pairs.
 
     Examples
     --------

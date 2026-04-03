@@ -2,10 +2,9 @@ import os
 import pytest
 import glob
 
-from convster.filters import get_blur_params
-from convster.parallel import (
-    extract_categories,)
-from convster.filters.gaussian import gaussian
+import numpy as np
+import rasterio as rio
+from skimage.filters import gaussian
 
 from riogrande.helper import get_or_set_context
 from riogrande.io import Source
@@ -40,44 +39,38 @@ def get_file(pattern: str, datafiles):
 def set_mpc_strategy():
     return get_or_set_context(method='fork')
 
-
 @pytest.fixture(scope="function")  # is function scope since datafiles is too
 def create_blurred_tif(datafiles):
-    """Create blurred single land-cover type layers in uint8 format
+    """Create blurred single land-cover type layers in uint8 format.
     """
-    as_dtype = 'uint8'
     landcover_map = get_file(pattern="Switzerland_CLC_*.tif",
                              datafiles=datafiles)
     ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
     print(f"Using\n- landcover map: {landcover_map}\n- ndvi map {ndvi_map}")
-    lct_source = Source(path=landcover_map)
-    # ###
-    # compute blurred layers
-    blur_out = str(datafiles / 'blur_out_uint.tif')
-    diameter = 5000  # this is in meter
-    scale = 100  # meter per pixel
+
+    # Blur parameters (equivalent to get_blur_params(diameter=50, truncate=3))
+    diameter = 5000 / 100  # 50 pixels
     truncate = 3
-    _diameter = diameter / scale
-    blur_params = get_blur_params(diameter=_diameter, truncate=truncate)
-    filter_params = blur_params.copy()
-    filter_params['preserve_range'] = False
-    _ = filter_params.pop('diameter')
-    blurred_tif = extract_categories(
-        source=lct_source,
-        categories=[1, 3, 4, 5, 6],
-        output_file=blur_out,
-        img_filter=gaussian,
-        filter_params=filter_params,
-        filter_output_range=(0,1),
-        output_params=dict(
-            as_dtype=as_dtype,
-        ),
-        block_size=(500, 500),
-        compress=True,
-    )
-    blurr_source = Source(path=blurred_tif)
-    # compute the mask
-    view_size = (500, 400)
-    compute_mask(source=blurr_source, block_size=view_size, logic='all')
-    # ###
-    return blurred_tif
+    sigma = 0.5 * diameter / truncate  # ≈ 8.333
+
+    categories = [1, 3, 4, 5, 6]
+    blur_out = str(datafiles / 'blur_out_uint_compress.tif')
+
+    with rio.open(landcover_map) as src:
+        lct_data = src.read(1)
+        out_profile = src.profile.copy()
+
+    out_profile.update(count=len(categories), dtype='uint8', compress='lzw')
+
+    with rio.open(blur_out, 'w', **out_profile) as dst:
+        for band_idx, cat in enumerate(categories, start=1):
+            binary = np.where(lct_data == cat, 1.0, 0.0)
+            blurred = gaussian(binary, sigma=sigma, truncate=truncate,
+                               preserve_range=False)
+            # Rescale float [0, 1] → uint8 [0, 255]
+            scaled = np.clip(blurred * 255, 0, 255).astype(np.uint8)
+            dst.write(scaled, band_idx)
+
+    blurr_source = Source(path=blur_out)
+    compute_mask(source=blurr_source, block_size=(500, 400), logic='all')
+    return blur_out

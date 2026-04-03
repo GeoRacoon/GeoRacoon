@@ -1,5 +1,25 @@
 """
-This module contains internal functions as helpers for the parallellize of various inference methods.
+Internal worker functions for parallelized regression computations.
+
+This module contains the individual job functions executed by worker processes
+in the ``coonfit`` parallel pipeline. These functions are not part of the
+public API and are called exclusively by :mod:`~coonfit.parallel`.
+
+Worker functions cover:
+
+- **Matrix aggregation**: Combining partial ``X.T @ X`` or beta matrices
+  received from a multiprocessing queue (:func:`_combine_matrices`).
+- **Partial products**: Computing ``X.T @ X`` and beta coefficients for a
+  single spatial block (:func:`_partial_transposed_product`,
+  :func:`_partial_optimal_betas`).
+- **Predictor validation**: Counting valid pixels per predictor band and
+  checking that each band meets the minimum contribution threshold
+  (:func:`_process_band_count_valid`, :func:`_check_predictor_consistency`).
+- **Model prediction**: Applying fitted regression weights to a spatial block
+  to produce model output values (:func:`_block_model_prediction`).
+- **Goodness-of-fit**: Partially computing the sum of squared residuals (SSR)
+  and total sum of squares (SST) for RMSE and R² evaluation
+  (:func:`_block_ssr`, :func:`_block_sst`).
 """
 
 from __future__ import annotations
@@ -41,25 +61,31 @@ def _combine_matrices(output_q: Queue) -> tuple[NDArray | None, tuple]:
     Parameters
     ----------
     output_q : Queue
-       Queue containing dictionaries with partial matrices under the 'X' key
-       and optional control signals under the 'signal' key. The function
-       terminates when it receives a dictionary with signal="kill".
+        Queue containing dictionaries with partial matrices under the 'X' key
+        and optional control signals under the 'signal' key. The function
+        terminates when it receives a dictionary with signal="kill".
 
     Returns
     -------
     out_matrix : NDArray or None
-       The aggregated matrix with all partial sums combined. NaN values
-       are replaced with zeros. Returns None if no matrices were processed.
+        The aggregated matrix with all partial sums combined. NaN values
+        are replaced with zeros. Returns None if no matrices were processed.
     timer : tuple of TimedTask
-       A single-element tuple containing a TimedTask object with timing
-       information for the aggregation process.
+        A single-element tuple containing a TimedTask object with timing
+        information for the aggregation process.
 
     Notes
     -----
     - NaN values in partial matrices are automatically replaced with zeros
      before aggregation.
     - The function blocks until a "kill" signal is received.
-    - Each partial matrix extraction is timed with a new lap marker.
+    - Each partial matrix extraction is timed with a new lap marker
+      via :meth:`~riogrande.timing.TimedTask.new_lab`.
+
+    See Also
+    --------
+    :func:`_partial_transposed_product` : Produces X.T @ X blocks for this queue.
+    :func:`_partial_optimal_betas` : Produces beta blocks for this queue.
     """
     out_matrix = None
     with TimedTask() as timer:
@@ -93,11 +119,15 @@ def _partial_transposed_product(params: dict, output_q: Queue):
     Parameters
     ----------
     params : dict
-        Keyword arguments to pass to `transposed_product`. See
-        `inference.transposed_product` for valid parameters.
+        Keyword arguments to pass to :func:`~coonfit.inference.transposed_product`.
     output_q : Queue
         Queue where the computed result will be placed. The result is wrapped
-        in a dictionary as {'X': result}.
+        in a dictionary as ``{'X': result}``.
+
+    See Also
+    --------
+    :func:`_combine_matrices` : Aggregates the results from this function.
+    :func:`~coonfit.inference.transposed_product` : The underlying computation.
     """
 
     def _wrap(tpX):
@@ -122,11 +152,15 @@ def _partial_optimal_betas(params: dict, output_q: Queue):
        Parameters
        ----------
        params : dict
-           Keyword arguments to pass to `get_optimal_weights_source`. See
-           `inference.get_optimal_weights_source` for valid parameters.
+           Keyword arguments to pass to :func:`~coonfit.inference.get_optimal_weights_source`.
        output_q : Queue
            Queue where the computed result will be placed. The beta weights
-           dictionary is converted to a list and wrapped as {'X': list_of_values}.
+           dictionary is converted to a list and wrapped as ``{'X': list_of_values}``.
+
+       See Also
+       --------
+       :func:`_combine_matrices` : Aggregates the results from this function.
+       :func:`~coonfit.inference.get_optimal_weights_source` : The underlying computation.
        """
 
     def _wrap(beta_dict):
@@ -151,25 +185,29 @@ def _process_band_count_valid(band: Band, selector: NDArray[np.bool_], no_data: 
     Parameters
     ----------
     band : Band
-      The band object on which to count valid pixels.
-    selector : ndarray of bool
-      Boolean mask array indicating which pixels to consider in the count.
-      True values indicate pixels to include.
+        The band object on which to count valid pixels.
+    selector : NDArray of bool
+        Boolean mask array indicating which pixels to consider in the count.
+        True values indicate pixels to include.
     no_data : int or float
-      Value representing no-data or missing pixels. Pixels with this value
-      are excluded from the valid pixel count.
+        Value representing no-data or missing pixels. Pixels with this value
+        are excluded from the valid pixel count.
     limit_count : int
-      Minimum number of valid pixels required. The interpretation of this
-      parameter depends on the Band.count_valid_pixels implementation.
+        Minimum number of valid pixels required. The interpretation of this
+        parameter depends on the Band.count_valid_pixels implementation.
 
     Returns
     -------
     valid_counts : dict
-      Dictionary mapping the band to its valid pixel count, formatted as
-      {band: count}.
+        Dictionary mapping the band to its valid pixel count, formatted as
+        ``{band: count}``. Uses :meth:`~riogrande.io.models.Band.count_valid_pixels`.
     timer : tuple of TimedTask
-      Single-element tuple containing a TimedTask object with timing
-      information for the counting operation.
+        Single-element tuple containing a :class:`~riogrande.timing.TimedTask`
+        object with timing information for the counting operation.
+
+    See Also
+    --------
+    :func:`_check_predictor_consistency` : Uses this function in parallel to validate predictors.
     """
     with TimedTask() as timer:
         valid = band.count_valid_pixels(selector=selector,
@@ -196,9 +234,9 @@ def _check_predictor_consistency(predictors: Collection[Band],
     ----------
     predictors : Collection of Band
         A collection with arbitrary many predictor bands to validate.
-        See `inference.prepare_predictors` for further details on how to
-        specify predictors.
-    selector : ndarray of bool
+        See :func:`~coonfit.inference.prepare_predictors` for further details
+        on how to specify predictors.
+    selector : NDArray of bool
         Boolean array with the same shape as the predictors that indicates
         which cells are usable. True values indicate pixels to consider.
     tolerance : float, optional
@@ -217,7 +255,7 @@ def _check_predictor_consistency(predictors: Collection[Band],
         If True, automatically remove predictors that fail the validity check.
         If False, raise an InvalidPredictorError when invalid predictors are
         found. Default is False.
-    **params
+    **params : dict
         Optional arguments for multiprocessing:
 
         - nbrcpu : int, optional
@@ -236,18 +274,24 @@ def _check_predictor_consistency(predictors: Collection[Band],
 
     Raises
     ------
-    InvalidPredictorError
+    :exc:`~coonfit.exceptions.InvalidPredictorError`
         If `sanitize=False` and one or more predictors fail to meet the
         minimum valid pixel threshold.
 
     Notes
     -----
-    The function uses multiprocessing to validate predictors in parallel for
-    improved performance with large collections.
+    The function uses multiprocessing (via :func:`~riogrande.helper.get_or_set_context`
+    and :func:`~riogrande.helper.get_nbr_workers`) to validate predictors in parallel
+    for improved performance with large collections.
 
     The minimum number of valid pixels required is calculated as:
     ``max(1, ceil(tolerance * total_selected_pixels))``
     ensuring at least 1 valid pixel is required even when tolerance=0.0.
+
+    See Also
+    --------
+    :func:`_process_band_count_valid` : Worker function counting valid pixels per band.
+    :func:`_block_model_prediction` : Uses the validated predictors for model prediction.
     """
     print(f'check_predictor_consistency - {predictors=}')
     _vals, _counts = np.unique(selector, return_counts=True)
@@ -315,45 +359,49 @@ def _block_model_prediction(params: dict, job_out_q: Queue) -> TimedTask:
     Parameters
     ----------
     params : dict
-      Dictionary containing all parameters for processing a single block.
-      Required keys:
+        Dictionary containing all parameters for processing a single block.
+        Required keys:
 
-      - view : tuple of int
-          (x, y, width, height) defining the spatial block to process.
-      - predictors : Collection of Band
-          Band objects used as predictors in the regression model.
-      - optimal_weights : dict or dict of dict
-          Optimal weights for each predictor. If `selector_band` is not
-          provided, this is a simple dict mapping predictors to weights.
-          If `selector_band` is provided, this maps category values to
-          dicts of predictor weights.
+        - view : tuple of int
+            (x, y, width, height) defining the spatial block to process.
+        - predictors : Collection of Band
+            Band objects used as predictors in the regression model.
+        - optimal_weights : dict or dict of dict
+            Optimal weights for each predictor. If `selector_band` is not
+            provided, this is a simple dict mapping predictors to weights.
+            If `selector_band` is provided, this maps category values to
+            dicts of predictor weights.
 
-          May include an 'intercept' key for the model intercept (beta0).
-      - as_dtype : str or type
-          Data type for the output prediction array.
+            May include an 'intercept' key for the model intercept (beta0).
+        - as_dtype : str or type
+            Data type for the output prediction array.
 
-      Optional keys:
+        Optional keys:
 
-      - selector : ndarray of bool, optional
-          Boolean mask to selectively compute predictions. Pixels where
-          selector is False are set to NaN in the output.
-      - selector_band : Band, optional
-          Band containing categorical data for stratified predictions.
-          If provided, `optimal_weights` must map each category to its
-          own weight dictionary.
-      - predictors_as_dtype : str or type, optional
-          Data type to convert predictor data to before applying weights.
+        - selector : NDArray of bool, optional
+            Boolean mask to selectively compute predictions. Pixels where
+            selector is False are set to NaN in the output.
+        - selector_band : Band, optional
+            Band containing categorical data for stratified predictions.
+            If provided, `optimal_weights` must map each category to its
+            own weight dictionary.
+        - predictors_as_dtype : str or type, optional
+            Data type to convert predictor data to before applying weights.
 
     job_out_q : Queue
-      Multiprocessing queue where the computed block result is placed.
-      Results are dictionaries with keys 'data' (prediction array) and
-      'view' (spatial location).
+        Multiprocessing queue where the computed block result is placed.
+        Results are dictionaries with keys 'data' (prediction array) and
+        'view' (spatial location).
 
     Returns
     -------
-    timer : TimedTask
-      TimedTask object containing timing information for the block
-      processing operation.
+    timer : :class:`~riogrande.timing.TimedTask`
+        TimedTask object containing timing information for the block
+        processing operation.
+
+    See Also
+    --------
+    :func:`_check_predictor_consistency` : Validates predictors before this step.
     """
     with TimedTask() as timer:
         predictors = params.pop('predictors')
@@ -421,23 +469,28 @@ def _block_ssr(params: dict, ssr_parts: list):
     Parameters
     ----------
     params : dict
-      Dictionary containing required inputs:
-      - 'response' : object
-          An object with a `get_data(window)` method returning the observed data.
-      - 'model' : object
-          An object with a `get_data(window)` method returning model predictions.
-      - 'selector' : array-like
-          Boolean mask indicating which data points to include.
-      - 'view' : optional
-          A view object used to determine the window of data to process.
+        Dictionary containing required inputs:
+        - 'response' : object
+            An object with a `get_data(window)` method returning the observed data.
+        - 'model' : object
+            An object with a `get_data(window)` method returning model predictions.
+        - 'selector' : array-like
+            Boolean mask indicating which data points to include.
+        - 'view' : optional
+            A view object used to determine the window of data to process.
     ssr_parts : list
-      A list to which a tuple `(sum_of_squares, count)` will be appended. Each tuple
-      contains the sum of squared residuals and the number of valid residuals.
+        A list to which a tuple `(sum_of_squares, count)` will be appended. Each tuple
+        contains the sum of squared residuals and the number of valid residuals.
 
     Returns
     -------
     None
       The function appends results directly to `ssr_parts` and does not return anything.
+      Uses :func:`~riogrande.helper.view_to_window` to obtain the spatial window.
+
+    See Also
+    --------
+    :func:`_block_sst` : Compute partial Total Sum of Squares (SST) for a window.
     """
     response = params.pop("response")
     model = params.pop("model")
@@ -488,6 +541,11 @@ def _block_sst(params: dict, sst_parts: list):
     -------
     None
         The function appends results directly to `sst_parts` and does not return anything.
+        Uses :func:`~riogrande.helper.view_to_window` to obtain the spatial window.
+
+    See Also
+    --------
+    :func:`_block_ssr` : Compute partial Sum of Squares of Residuals (SSR) for a window.
     """
     response = params.pop("response")
     y_mean = params.pop("y_mean")

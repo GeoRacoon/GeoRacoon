@@ -1,4 +1,10 @@
-"""This module defines custom exceptions
+"""
+Custom exceptions for the riogrande I/O layer.
+
+Exceptions defined here are raised when operations on :class:`~riogrande.io.models.Source`
+and :class:`~riogrande.io.models.Band` objects encounter invalid or ambiguous
+states, such as band selection failures, missing source files, or unrecognised
+file extensions.
 """
 
 

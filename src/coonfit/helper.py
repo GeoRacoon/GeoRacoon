@@ -1,5 +1,10 @@
 """
-Helper functions for the linear fitting
+Utility functions for the coonfit regression workflow.
+
+This module provides supporting functions used during predictor validation and
+data quality assessment. It includes tools for detecting rank-deficient
+predictor matrices (which would cause the normal equations to be singular) and
+for counting the number of usable pixels within a boolean selector mask.
 """
 
 from __future__ import annotations
@@ -15,7 +20,7 @@ def check_rank_deficiency(array: np.ndarray, return_by_issue_type: bool = False,
 
     Parameters
     ----------
-    array : np.ndarray
+    array : NDArray
         Matrix to check for rank deficiency
     return_by_issue_type : bool, optional
         If True, returns nested dictionary separating issues by type:
@@ -24,7 +29,12 @@ def check_rank_deficiency(array: np.ndarray, return_by_issue_type: bool = False,
     Returns
     -------
     dict[int, str] or dict[str, list[int]]
-    Problematic columns and their issues
+        Problematic columns and their issues. Uses :func:`numpy.linalg.matrix_rank`
+        to determine the rank of the array.
+
+    See Also
+    --------
+    :func:`~coonfit.parallel.get_XT_X_dependency` : Check predictors for linear dependency.
     """
     all_zero_cols = {}
     rank_deficient_cols = {}
@@ -64,6 +74,10 @@ def usable_pixels_info(all_pixels: int, data_pixels: int) -> None:
     data_pixels : int
         Number of pixels that contain usable data
 
+    See Also
+    --------
+    :func:`usable_pixels_count` : Count the number of usable pixels.
+
     Examples
     --------
     >>> usable_pixels_info(1000, 750)
@@ -78,14 +92,19 @@ def usable_pixels_count(selector):
 
     Parameters
     ----------
-    selector : np.ndarray
-      Boolean array where True indicates a usable pixel and False
-      indicates a pixel to be excluded
+    selector : NDArray
+        Boolean array where True indicates a usable pixel and False
+        indicates a pixel to be excluded
 
     Returns
     -------
     int
-      Number of True values in the selector array (count of usable pixels)
+        Number of True values in the selector array (count of usable pixels).
+        Uses :func:`numpy.unique` to count occurrences.
+
+    See Also
+    --------
+    :func:`usable_pixels_info` : Print the fraction of usable pixels.
 
     Examples
     --------
