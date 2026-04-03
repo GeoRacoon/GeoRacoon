@@ -87,6 +87,46 @@ computing infrastructure.
 
 # Software design
 
+`GeoRacoon` is organized into three sub-packages with clear separation of concerns:
+`riogrande` provides the foundation and parallelization infrastructure,
+`convster` implements spatial convolution and derived metrics,
+and `coonfit` provides parallelized multiple linear regression.
+The packages build on `rasterio` [@Gillies_2019], NumPy [@Harris_2020], `scikit-image` [@van_der_Walt_2014], and SciPy [@Virtanen_2020].
+
+**Parallelization model.**  
+All computationally intensive operations follow a common block-parallel architecture.
+Rasters are decomposed into spatial blocks via a view system, with configurable overlap (borders) to prevent edge
+artifacts in filter operations.
+Workers are dispatched via Python's `multiprocessing.Pool`, each processing a block
+independently, while a dedicated aggregator process collects results from a shared queue and writes them to disk.
+This producer-consumer pattern enables processing of rasters that exceed available memory without requiring external
+distributed computing frameworks.
+
+**`riogrande` — tag-based raster management.**  
+The `Source` and `Band` classes extend `rasterio` with a structured metadata layer.
+Band-level metadata is stored as JSON-serialized key-value pairs in a dedicated GeoTIFF tag namespace,
+enabling tag-based band selection (e.g., querying by land-cover category or date) instead of manual index tracking.
+Additional functionality includes configurable mask strategies per band, compatibility checks across rasters
+(CRS, resolution, units), data type conversion with range rescaling, and file compression utilities.
+
+**`convster` — parallelized spatial convolution.**  
+The convolution module follows a filter-agnostic design: any callable matching the expected signature can be used as the spatial filter.
+The default Gaussian filter wraps `skimage.filters.gaussian`, and a custom border-preserving variant (`bpgaussian`)
+correctly handles nodata boundaries through a normalization-correction approach.
+Kernel dimensions are estimated adaptively from the filter's impulse response,
+and border sizes are computed automatically to ensure artifact-free block-parallel processing.
+Beyond raw convolution, `convster` provides derived spatial metrics including Shannon entropy and an interaction index inspired
+by the Simpson index, computed from filtered categorical layers.
+
+**`coonfit` — parallelized multiple linear regression.**  
+The regression module exploits the decomposability of the normal equations:
+since $X^TX = \sum_b X_b^TX_b$ and $X^Ty = \sum_b X_b^Ty_b$ over spatial blocks $b$, both terms can be computed in parallel.
+The workflow proceeds in three stages:
+(1) parallel accumulation of the block-wise $X^TX$ matrices,
+(2) serial inversion of the resulting (small) matrix, and
+(3) parallel computation of the regression coefficients.
+Rank-deficiency detection, predictor consistency validation, and model evaluation metrics (RMSE, $R^2$)
+are provided as part of the pipeline.
 
 # Research impact statement
 
