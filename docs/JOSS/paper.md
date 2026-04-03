@@ -136,8 +136,10 @@ at a global scale [@Landauer_2025_preprint].
 
 # AI usage disclosure
 
-No generative AI tools were used in the development of this software, the writing
-of this manuscript, or the preparation of supporting materials.
+No generative AI tools were used in the development of this software.
+AI-assisted tools were used to format some of the source code docstrings
+and to support the drafting of portions of this manuscript, which were
+subsequently reviewed and edited by the authors.
 
 
 # Acknowledgements
