@@ -1,9 +1,31 @@
-# GeoRacoon
+<div align="center">
+
+<img src="./docs/_static/georacoonPin.svg" alt="GeoRacoon Logo" width="400">
+
+<p>
+  <img src="https://github.com/GeoRacoon/georacoon/raw/python-coverage-comment-action-data/badge.svg" alt="Coverage">
+  <img src="https://img.shields.io/badge/version-1.0.0-blue)" alt="Version">
+  <a href="https://choosealicense.com/licenses/mit/">
+    <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
+  </a>
+</p>
+<h1>GeoRacoon</h1>
+<p>Out and about<br><><br>ready to tackle Geographic Raster</p>
+
+  <br>
+  <br>
+<pre><small>Born from a collaboration between:</small>
+<br>
+
+<a href="https://www.ieu.uzh.ch/en/research/ecology/soil.html"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.cd.uzh.ch/dam/jcr:9528e314-fbb5-4ede-b7a5-3446bf8d9337/UZH_Logo_white.svg"><source media="(prefers-color-scheme: light)" srcset="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg"><img alt="UZH logo" src="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg" width="290" style="vertical-align: middle;"></picture></a>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="https://github.com/t4d-gmbh"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_with_Ds_wb.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_with_Ds.svg"><img alt="T4D Logo" src="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_color.svg" width="220" style="vertical-align: middle;"></picture></a>
+</pre>
+</div>
+
+# Quickstart
 
 <!-- badges: start -->
 [![Coverage](https://github.com/GeoRacoon/georacoon/raw/python-coverage-comment-action-data/badge.svg)](https://github.com/GeoRacoon/georacoon/tree/python-coverage-comment-action-data)
 ![version](https://img.shields.io/badge/version-1.0.0-blue)
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/) (all of these not linked)
 <!-- badges: end -->
 
 This project is an extension of [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) allowing to work with Sources (GeoTIFFS) and Bands as objects, which easily incorporate the use of tags.
