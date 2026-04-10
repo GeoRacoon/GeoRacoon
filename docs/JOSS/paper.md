@@ -36,9 +36,8 @@ bibliography: paper.bib
 ---
 
 # Summary
-The Python package `GeoRacoon` is aimed at supporting analyses and work with
-large spatial raster data.
-It consists of 3 sub-packages: `riogrande`, a class based extension of rasterio
+The Python package `GeoRacoon` is aimed at supporting work and analyses with
+large spatial raster data. It consists of 3 sub-packages: `riogrande`, a class based extension of rasterio
 [@Gillies_2019] with extended functionalities for tag based raster object
 management; `convster`, a fully parallelized module for convolution of spatial
 raster data (e.g. satellite imagery); `coonfit`, a multiple linear regression
@@ -49,11 +48,11 @@ data analysis.
 # Statement of need
 
 Analyses of global-scale raster datasets — such as satellite-derived land-cover maps, vegetation indices, and climate
-variables — frequently involve spatial filtering (convolution) and pixel-wise statistical modelling. When applied to
-rasters comprising billions of pixels, these operations become computationally prohibitive without parallelization and
+variables frequently involve spatial filtering (convolution) and pixel-wise statistical modelling. When applied to
+large rasters with billions of pixels, these operations become computationally prohibitive without parallelization and
 out-of-core processing strategies.
 
-At the time of development, to the authors' knowledge, no Python package provided a turnkey, parallelized workflow for
+At the time of development, to the authors' best knowledge, no Python package provided a turnkey, parallelized workflow for
 Gaussian convolution of large categorical rasters with correct handling of nodata boundaries. Existing tools either
 required users to implement parallelization themselves or did not support border-preserving convolution for categorical
 data. Similarly, fitting pixel-wise multiple linear regression (MLR) across full rasters — where spatial bands serve as
@@ -131,8 +130,19 @@ are provided as part of the pipeline.
 
 # Research impact statement
 
-The package supported carrying out a research project on landscape diversity effects on vegetation productivity
-at a global scale [@Landauer_2025_preprint].
+The package `GeoRacoon` was central to carrying out a research project on the effects of landscape diversity on vegetation 
+productivity at a global scale [@Landauer_2025_preprint]. The analyses required Gaussian convolution and heterogeneity 
+metric computation of land-cover data, as well as per-pixel MLR with numerous predictors in billion-pixel 
+multi-band remote sensning imagery. Given the non-availability of could based solutions for the datasets as well as the 
+methods, this research would have not been computationally feasable without the provided parallelization in this package.
+
+Beyond this initial application, the package holds high usability in any research involving large geospatial rasters. 
+While `riogrande` can generally assist in the simplified management of multi-band remote sensing raster objects,
+the parallelization allows for large-scale geospatial analysis for researchers who lack access
+to cloud platforms. Specific use cases range from multi-raster earth observation studies applying spatial filtering to
+remote sensing imagery all the way to climate-impact analyses in need of efficient pixel-wise regression.
+By packaging these workflows with no dependency on external computing infrastructure, 
+`GeoRacoon` lowers the barrier to reproducible, 
 
 # AI usage disclosure
 
