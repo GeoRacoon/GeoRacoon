@@ -130,19 +130,19 @@ are provided as part of the pipeline.
 
 # Research impact statement
 
-The package `GeoRacoon` was central to carrying out a research project on the effects of landscape diversity on vegetation 
+The `GeoRacoon` package was central to carrying out a research project on the effects of landscape diversity on vegetation 
 productivity at a global scale [@Landauer_2025_preprint]. The analyses required Gaussian convolution and heterogeneity 
 metric computation of land-cover data, as well as per-pixel MLR with numerous predictors in billion-pixel 
 multi-band remote sensning imagery. Given the non-availability of could based solutions for the datasets as well as the 
 methods, this research would have not been computationally feasable without the provided parallelization in this package.
 
-Beyond this initial application, the package holds high usability in any research involving large geospatial rasters. 
-While `riogrande` can generally assist in the simplified management of multi-band remote sensing raster objects,
-the parallelization allows for large-scale geospatial analysis for researchers who lack access
+Beyond this initial application, the package is highly usable in any research involving large geospatial rasters. 
+While `riogrande` can generally assist with the simplified management of multi-band remote sensing raster objects,
+the parallelization enables large-scale geospatial analysis for researchers who lack access
 to cloud platforms. Specific use cases range from multi-raster earth observation studies applying spatial filtering to
-remote sensing imagery all the way to climate-impact analyses in need of efficient pixel-wise regression.
-By packaging these workflows with no dependency on external computing infrastructure, 
-`GeoRacoon` lowers the barrier to reproducible, 
+remote sensing imagery, to climate-impact analyses requiring efficient pixel-wise regression.
+By providing these workflows without any dependency on external computing infrastructure, 
+`GeoRacoon` lowers the barrier to reproducible research.
 
 # AI usage disclosure
 
@@ -154,8 +154,7 @@ subsequently reviewed and edited by the authors.
 
 # Acknowledgements
 
-[//]: # (# TODO: Jonas - Not sure if we need or should put this here)
-The initial stages of development for this package were supported by the European Union’s Horizon 2020
+The initial stages of development for this package were financially supported by the European Union’s Horizon 2020
 research and innovation programme under the Marie Sklodowska-Curie (MSC) grant agreement No 847585 
 as well as a grant of the University of Zurich Research Priority Program Global Change and Biodiversity (URPP GCB).
 
