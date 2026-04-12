@@ -47,10 +47,11 @@ data analysis.
 
 # Statement of need
 
-Analyses of global-scale raster datasets — such as satellite-derived land-cover maps, vegetation indices, and climate
-variables frequently involve spatial filtering (convolution) and pixel-wise statistical modelling. When applied to
-large rasters with billions of pixels, these operations become computationally prohibitive without parallelization and
-out-of-core processing strategies.
+Analyses of large geospatial raster datasets such as remote sensing-derived imagery (e.g. land-cover maps, 
+vegetation indices) and climate variables frequently involve spatial filtering (convolution) and pixel-wise statistical modelling 
+within their analysis pipelines. When applied to imagery with billions of pixels, these operations become 
+computationally prohibitive without parallelization and out-of-core processing strategies, in particular when performed
+on local computation infrastructure. 
 
 At the time of development, to the authors' best knowledge, no Python package provided a turnkey, parallelized workflow for
 Gaussian convolution of large categorical rasters with correct handling of nodata boundaries. Existing tools either
@@ -64,7 +65,7 @@ identifiers) required manual bookkeeping of band indices; no library offered tag
 landscape diversity effects on vegetation productivity [@Landauer_2025_preprint], where large-scale spatial convolution,
 derived heterogeneity metrics, and raster-based regression were essential. During development, `riogrande` emerged as a
 foundational extension of `rasterio` [@Gillies_2019] to manage large volumes of imagery in an object-oriented, tag-based
-manner — improving usability for broader applications beyond the original research context.
+manner, improving easy usability of remote sensing imagery for broader applications beyond the original research context.
 
 
 # State of the field
