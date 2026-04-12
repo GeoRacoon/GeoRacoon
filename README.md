@@ -160,10 +160,8 @@ To contribute to the development of RioGrande, follow the steps below:
 
 
 ## Authors
-<a href="https://github.com/GeoRacoon">
-<img src="./images/georacoon_v02_202509.svg" alt="GeoRacoon Logo" width="50">
-</a>
-
+[<img src="https://github.com/simonsaysenjoy.png" width="60" height="60" style="border-radius:50%">](https://github.com/simonsaysenjoy)
+[<img src="https://github.com/j-i-l.png" width="60" height="60" style="border-radius:50%">](https://github.com/j-i-l)
 ## Release History
 
 - 1.0.0
