@@ -69,21 +69,20 @@ manner — improving usability for broader applications beyond the original rese
 
 # State of the field
 
-Several established tools address parts of the geospatial raster processing pipeline. First, `rasterio` [@Gillies_2019]
-provides the baseline Python interface for geospatial raster I/O, built on top of GDAL [@GDAL_2025], but offers no
+Several well-established tools address different parts of the geospatial raster processing pipeline. First, 
+`rasterio` [@Gillies_2019] provides the baseline Python interface for geospatial raster input/output (I/O), built on top of GDAL [@GDAL_2025], but offers no
 high-level analytical operations such as convolution or regression. Next, `xarray` [@Hoyer_2017] and its geospatial extension
-`rioxarray` enable lazy, chunked computation via Dask, facilitating the basic handling of large multidimensional arrays,
-yet again lack analytical capabilityies for spatial filtering or pixel-wise MLR. While `scipy.ndimage` [@Virtanen_2020] 
+`rioxarray` enable lazy, chunked computation via Dask, facilitating the basic handling of large multidimensional arrays. 
+However, they lack analytical capabilityies for spatial filtering or pixel-wise MLR. While `scipy.ndimage` [@Virtanen_2020] 
 and `scikit-image` [@van_der_Walt_2014] provide spatial filters, including Gaussian, both operate in-memory and do not 
 handle geospatial metadata or nodata boundaries, also lacking block-parallel decomposition. While cloud-based platforms 
 such as Google Earth Engine [@Gorelick_2017] - also accessible via Python API - excel at large-scale analysism, 
 these plattforms are tied to proprietary infrastructure and do not support full custom filter implementations and often 
 limit incorporation of personal datasets, not part of the provided catalogue.
 
-`GeoRacoon` differentiates itself by combining block-parallel processing with correct nodata handling, tag-based
-metadata management, and analytical MLR for large geospatial raster data, all within a single, pip-installable Python 
-package that requires no external cloud infrastracture, yet can be used with clusters.
-
+`GeoRacoon` stands out by combining block-parallel processing with correct nodata handling, tag-based
+metadata management, and analytical MLR for large geospatial raster data. It is all contained within a single Python 
+package that can be installed using Pip and requires no external cloud infrastructure, yet it can be used with clusters.
 
 # Software design
 
