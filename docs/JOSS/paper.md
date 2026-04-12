@@ -69,19 +69,20 @@ manner — improving usability for broader applications beyond the original rese
 
 # State of the field
 
-Several established tools address parts of the geospatial raster processing pipeline. `rasterio` [@Gillies_2019]
-provides the standard Python interface for geospatial raster I/O, built on top of GDAL [@GDAL_2025], but offers no
-high-level analytical operations such as convolution or regression. `xarray` [@Hoyer_2017] and its geospatial extension
-`rioxarray` enable lazy, chunked computation via Dask for large arrays, yet do not provide turnkey pipelines for
-categorical convolution, entropy-based heterogeneity metrics, or pixel-wise MLR. Cloud-based platforms such as Google
-Earth Engine [@Gorelick_2017] excel at large-scale analysis but are tied to proprietary infrastructure and do not
-support custom filter implementations or analytical regression decomposition. `scipy.ndimage` [@Virtanen_2020] and
-`scikit-image` [@van_der_Walt_2014] provide spatial filters — including Gaussian — but operate entirely in-memory,
-do not handle geospatial metadata or nodata boundaries, and lack block-parallel decomposition.
+Several established tools address parts of the geospatial raster processing pipeline. First, `rasterio` [@Gillies_2019]
+provides the baseline Python interface for geospatial raster I/O, built on top of GDAL [@GDAL_2025], but offers no
+high-level analytical operations such as convolution or regression. Next, `xarray` [@Hoyer_2017] and its geospatial extension
+`rioxarray` enable lazy, chunked computation via Dask, facilitating the basic handling of large multidimensional arrays,
+yet again lack analytical capabilityies for spatial filtering or pixel-wise MLR. While `scipy.ndimage` [@Virtanen_2020] 
+and `scikit-image` [@van_der_Walt_2014] provide spatial filters, including Gaussian, both operate in-memory and do not 
+handle geospatial metadata or nodata boundaries, also lacking block-parallel decomposition. While cloud-based platforms 
+such as Google Earth Engine [@Gorelick_2017] - also accessible via Python API - excel at large-scale analysism, 
+these plattforms are tied to proprietary infrastructure and do not support full custom filter implementations and often 
+limit incorporation of personal datasets, not part of the provided catalogue.
 
 `GeoRacoon` differentiates itself by combining block-parallel processing with correct nodata handling, tag-based
-metadata management, and analytical MLR — all within a single, pip-installable Python package that requires no external
-computing infrastructure.
+metadata management, and analytical MLR for large geospatial raster data, all within a single, pip-installable Python 
+package that requires no external cloud infrastracture, yet can be used with clusters.
 
 
 # Software design
