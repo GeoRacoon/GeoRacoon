@@ -269,7 +269,7 @@ ax.plot([lit_low, lit_high],  [0, 0],         color="black", linewidth=2, zorder
 ax.plot([lit_low, lit_low],   [-0.05, 0.05],  color="black", linewidth=2, zorder=2)
 ax.plot([lit_high, lit_high], [-0.05, 0.05],  color="black", linewidth=2, zorder=2,
         label=f"Literature range ({lit_low} to {lit_high} °C km⁻¹)")
-ax.plot(lapse_rate, 0, "o", color="steelblue", markersize=10, zorder=3,
+ax.plot(lapse_rate, 0, "x", color="darkred", markersize=10, markeredgewidth=2.5, zorder=3,
         label=f"This study: {lapse_rate:.2f} °C km⁻¹")
 ax.set_xlabel("Lapse rate (°C km⁻¹)")
 ax.set_xlim(-6, -5)
