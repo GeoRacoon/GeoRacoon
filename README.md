@@ -25,7 +25,7 @@
 </pre>
 </div>
 
-# Quickstart
+## Quickstart
 
 This project is an extension of [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) allowing to work with Sources (GeoTIFFS) and Bands as objects, which easily incorporate the use of tags.
 
@@ -41,7 +41,7 @@ reliance on matrix operations
 <!-- quickstart -->
 
 
-**Table of Contents**
+## Table of Contents
 
 - [Installation](#installation)
 - [Usage](#usage)
@@ -53,6 +53,7 @@ reliance on matrix operations
 
 ## Installation
 
+<!-- installation-start -->
 GeoRacoon can be installed directly from GitHub into your virtual environment.
 Simply run:
 
@@ -100,8 +101,11 @@ _We also use the python package `gdal` which depends on `libgdal` that has been 
 _It is important to install matching version, so first check with `gdalinfo --version` what version of `libgdal`_
 _you have installed and then install the corresponding python package with `pip install gdal==x.x.x`._
 
+<!-- installation-end -->
 
 ## Usage
+
+<!-- usage-start -->
 
 <details>
 <summary><b>RioGrande — open a GeoTIFF and work with Sources and Bands</b></summary>
@@ -193,6 +197,8 @@ lfpara.compute_model(
 Head over to the [examples/](examples/) folder for a full end-to-end walk-through.
 
 For more examples, please refer to the project's [documentation page](docs).
+
+<!-- usage-end -->
 
 ## Technologies
 
