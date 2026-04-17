@@ -2,10 +2,10 @@
 title: GeoRacoon
 ---
 
-# GeoRacoon
+![GeoRacoon Logo](_static/georacoonPin.svg)
 
 ```{include} ../README.md
-:start-line: 1
+:start-line: 3
 :end-before: <!-- quickstart -->
 
 ```
