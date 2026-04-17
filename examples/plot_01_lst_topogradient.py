@@ -264,10 +264,17 @@ print(f"Estimated lapse rate:    {lapse_rate:.2f} °C km⁻¹")
 print(f"Literature range (Alps): {lit_low} to {lit_high} °C km⁻¹")
 
 fig, ax = plt.subplots(figsize=(4, 2.5))
-ax.axvspan(lit_low, lit_high, color="lightgray", label=f"Literature range ({lit_low} – {lit_high} °C km⁻¹)")
-ax.plot(lapse_rate, 0, "o", color="steelblue", markersize=10, label=f"This study: {lapse_rate:.2f} °C km⁻¹")
+ax.plot([-5, -6], [0, 0], color="lightgray", linestyle="dotted", linewidth=1.5, zorder=1)
+ax.plot([lit_low, lit_high],  [0, 0],         color="black", linewidth=2, zorder=2)
+ax.plot([lit_low, lit_low],   [-0.05, 0.05],  color="black", linewidth=2, zorder=2)
+ax.plot([lit_high, lit_high], [-0.05, 0.05],  color="black", linewidth=2, zorder=2,
+        label=f"Literature range ({lit_low} to {lit_high} °C km⁻¹)")
+ax.plot(lapse_rate, 0, "o", color="steelblue", markersize=10, zorder=3,
+        label=f"This study: {lapse_rate:.2f} °C km⁻¹")
 ax.set_xlabel("Lapse rate (°C km⁻¹)")
+ax.set_xlim(-6, -5)
 ax.set_yticks([])
+ax.set_ylim(-0.3, 0.3)
 ax.legend(fontsize=8, loc="upper left")
 ax.set_title("Estimated vs. literature lapse rate")
 fig.tight_layout()
@@ -350,7 +357,7 @@ lst_org_band.subtract(band=model_band, out_band=resid_band)
 
 # %%
 # Residuals reveal where the model over- or under-predicts - for example,
-# urban heat islands or cold air pooling in valleys:
+# urban heat islands or cold air pooling around water bodies:
 
 fig, ax = plt.subplots(1, 1, figsize=(7, 5))
 show_map(ax, resid_file, f"Residuals (°C)  -  R² = {r2_full:.2f}", limits=(-10, 10))
