@@ -27,6 +27,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
     "autoapi.extension",
+    'sphinx_gallery.gen_gallery',
     #    'ablog',
     #    'sphinx_design',
     #    'cloud_sptheme.ext.relbar_links',
@@ -128,3 +129,11 @@ autoapi_options = [
 ]
 autoapi_ignore = [
 ]
+
+# -- Sphinx-Gallery configuration ---------------------------------------------
+sphinx_gallery_conf = {
+    "examples_dirs": "../examples",     # path to your example scripts
+    "gallery_dirs": "auto_examples",    # path to where to save gallery generated output
+    "filename_pattern": r"/plot_",      # only execute files prefixed with plot_
+    "plot_gallery": True,
+}
