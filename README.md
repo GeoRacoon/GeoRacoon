@@ -25,6 +25,8 @@
 </pre>
 </div>
 
+# GeoRacoon
+
 ## Quickstart
 
 This project is an extension of [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) allowing to work with Sources (GeoTIFFS) and Bands as objects, which easily incorporate the use of tags.
