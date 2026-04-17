@@ -18,4 +18,5 @@ content/georacoon/index
 content/riogrande/index
 content/convster/index
 content/coonfit/index
+auto_examples/index
 ```
