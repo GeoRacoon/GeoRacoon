@@ -41,8 +41,8 @@ from coonfit import parallel as lfpara
 # %%
 # We load two raster datasets covering the European Alps at ~1 km resolution:
 #
-# * **LST** — MODIS mean summer land surface temperature (°C)
-# * **Elevation** — Copernicus DEM 90 m (aggregated to 1 km)
+# * **LST** - MODIS mean summer land surface temperature (°C)
+# * **Elevation** - Copernicus DEM 90 m (aggregated to 1 km)
 
 base_dir =  os.getcwd()
 
@@ -98,7 +98,7 @@ def show_map(ax, file, title, limits, cmap="RdBu_r", label="°C", bidx=1):
 # The raw inputs look like this:
 
 fig, axes = plt.subplots(1, 2, figsize=(11, 4))
-show_map(axes[0], lst_file_org,  "LST — mean summer 2015 (°C)",   limits=(0, 50))
+show_map(axes[0], lst_file_org,  "LST - mean summer 2015 (°C)",   limits=(0, 50))
 show_map(axes[1], topo_file_org, "Elevation (m)", limits=(0, 3500),
          cmap="terrain", label="m a.s.l.")
 fig.suptitle("Input data", fontweight="bold")
@@ -106,12 +106,12 @@ fig.tight_layout()
 plt.show()
 
 # %%
-# Step 1 — Remove the Regional Climate Signal from LST
+# Step 1 - Remove the Regional Climate Signal from LST
 # -----------------------------------------------------
 #
 # A large-kernel Gaussian filter (σ = 30 km) smooths the LST image to
 # capture regional climate variation.  Subtracting this smooth surface from
-# the original leaves only the *local deviation* — what we want to model.
+# the original leaves only the *local deviation*, which is what we eventually want to model.
 #
 # The choice of σ reflects the spatial scale at which we consider climate
 # to be "regional".  A larger σ preserves more large-scale structure in the
@@ -157,14 +157,14 @@ lst_band.subtract(band=lst_conv_band)
 
 fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 show_map(axes[0], lst_file_org,  "Original LST (°C)",              limits=(0, 50))
-show_map(axes[1], lst_conv_file, "Regional climate — convolution (°C)", limits=(0, 50))
-show_map(axes[2], lst_file,      "LST anomaly — deviation (°C)",   limits=(-10, 10))
-fig.suptitle("Step 1 — LST decomposition", fontweight="bold")
+show_map(axes[1], lst_conv_file, "Regional climate - convolution (°C)", limits=(0, 50))
+show_map(axes[2], lst_file,      "LST anomaly - deviation (°C)",   limits=(-10, 10))
+fig.suptitle("Step 1 - LST decomposition", fontweight="bold")
 fig.tight_layout()
 plt.show()
 
 # %%
-# Step 2 — Remove the Regional Elevation Signal
+# Step 2 - Remove the Regional Elevation Signal
 # ---------------------------------------------
 #
 # For the same reason, elevation must also be expressed as a *local deviation*
@@ -196,22 +196,22 @@ cvpara.apply_filter(
 elev_band.subtract(band=elev_conv_band)
 
 # %%
-# Elevation anomaly — local height above (positive) or below (negative) the
+# Elevation anomaly - local height above (positive) or below (negative) the
 # regional mean surface:
 
 fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 show_map(axes[0], topo_file_org,  "Original elevation (m)",              limits=(0, 3500),
          cmap="terrain", label="m a.s.l.")
-show_map(axes[1], elev_conv_file, "Regional elevation — convolution (m)", limits=(0, 3500),
+show_map(axes[1], elev_conv_file, "Regional elevation - convolution (m)", limits=(0, 3500),
          cmap="terrain", label="m a.s.l.")
-show_map(axes[2], topo_file,      "Elevation anomaly — deviation (m)",    limits=(-1500, 1500),
+show_map(axes[2], topo_file,      "Elevation anomaly - deviation (m)",    limits=(-1500, 1500),
          cmap="RdBu_r", label="Δm")
-fig.suptitle("Step 2 — Elevation decomposition", fontweight="bold")
+fig.suptitle("Step 2 - Elevation decomposition", fontweight="bold")
 fig.tight_layout()
 plt.show()
 
 # %%
-# Step 3 — Fit the Lapse-Rate Model
+# Step 3 - Fit the Lapse-Rate Model
 # ----------------------------------
 #
 # We now regress the LST anomaly on the elevation anomaly using a
@@ -275,7 +275,7 @@ print(f"Estimated lapse rate:    {lapse_rate:.2f} °C km⁻¹")
 print(f"Literature range (Alps): {lit_low} to {lit_high} °C km⁻¹")
 
 # %%
-# Step 4 — Reconstruct the Full Model
+# Step 4 - Reconstruct the Full Model
 # ------------------------------------
 #
 # To assess the model we add the regional climate signal back to the
@@ -303,19 +303,19 @@ model_band.add(band=lst_conv_band)
 fig, axes = plt.subplots(1, 2, figsize=(11, 4))
 show_map(axes[0], lst_file_org, "Original LST (°C)",       limits=(0, 50))
 show_map(axes[1], model_file,   "Modelled LST (°C)",        limits=(0, 50))
-fig.suptitle("Step 4 — Model reconstruction", fontweight="bold")
+fig.suptitle("Step 4 - Model reconstruction", fontweight="bold")
 fig.tight_layout()
 plt.show()
 
 # %%
-# Step 5 — Accuracy Assessment & Residuals
+# Step 5 - Accuracy Assessment & Residuals
 # -----------------------------------------
 #
 # We quantify model performance with RMSE and R².  Two variants are reported:
 #
-# * **Residual** — how well the lapse-rate component alone explains the
+# * **Residual** - how well the lapse-rate component alone explains the
 #   LST anomaly (what was directly fit).
-# * **Overall** — how well the complete model (convolution + lapse rate)
+# * **Overall** - how well the complete model (convolution + lapse rate)
 #   explains the original LST.
 
 lst_org_source = Source(path=lst_file_org)
@@ -338,8 +338,8 @@ r2_resid = lfpara.calculate_r2(  response=lst_band,     model=model_data_tif,
 r2_full  = lfpara.calculate_r2(  response=lst_org_band, model=model_data_tif,
                                   selector=_selector_all, block_size=block_size, **params)
 
-print(f"Residual model — RMSE: {rmse:.2f} °C  |  R²: {r2_resid:.2f}")
-print(f"Full model     — RMSE: {rmse:.2f} °C  |  R²: {r2_full:.2f}")
+print(f"Residual model - RMSE: {rmse:.2f} °C  |  R²: {r2_resid:.2f}")
+print(f"Full model     - RMSE: {rmse:.2f} °C  |  R²: {r2_full:.2f}")
 
 # Residual map
 resid_file   = os.path.join(base_dir, f"../data/example/_tmp_resid_model_conv_{kernel_m_sigma}_m.tif")
@@ -349,11 +349,11 @@ resid_band   = Band(source=resid_source, bidx=1)
 lst_org_band.subtract(band=model_band, out_band=resid_band)
 
 # %%
-# Residuals reveal where the model over- or under-predicts — for example,
+# Residuals reveal where the model over- or under-predicts - for example,
 # urban heat islands or cold air pooling in valleys:
 
 fig, ax = plt.subplots(1, 1, figsize=(7, 5))
-show_map(ax, resid_file, f"Residuals (°C)  —  R² = {r2_full:.2f}", limits=(-10, 10))
-fig.suptitle("Step 5 — Residuals", fontweight="bold")
+show_map(ax, resid_file, f"Residuals (°C)  -  R² = {r2_full:.2f}", limits=(-10, 10))
+fig.suptitle("Step 5 - Residuals", fontweight="bold")
 fig.tight_layout()
 plt.show()
