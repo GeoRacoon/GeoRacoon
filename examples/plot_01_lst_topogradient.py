@@ -1,8 +1,8 @@
 """
-Estimating the Lapse Rate from MODIS Land Surface Temperature
+Estimating the Lapse Rate from MODIS LST
 ==============================================================
 
-Alpine temperatures drop with altitude — a relationship known as the
+Alpine temperatures drop with altitude, a relationship known as the
 **lapse rate**.  But estimating it from satellite imagery is not
 straightforward: regional climate differences across the Alps would bias
 a naïve regression, because a warm lowland pixel and a cold highland pixel
@@ -22,34 +22,32 @@ pixel-wise linear model to recover the lapse rate.
 # %%
 # Setup
 # -----
-#
+# Packages we need for this process, including our GeoRacoon.
+import os
+import shutil
+
+import numpy as np
+from matplotlib import pyplot as plt
+
+# Modules from GeoRacoon we use here
+from riogrande.io import Source, Band
+from riogrande import parallel as rgpara
+
+from convster import parallel as cvpara
+from convster.filters import bpgaussian
+
+from coonfit import parallel as lfpara
+
+# %%
 # We load two raster datasets covering the European Alps at ~1 km resolution:
 #
 # * **LST** — MODIS mean summer land surface temperature (°C)
 # * **Elevation** — Copernicus DEM 90 m (aggregated to 1 km)
 
-import os
-import shutil
-
-import numpy as np
-import rasterio as rio
-from matplotlib import pyplot as plt
-
-from riogrande.io import Source, Band
-from riogrande import parallel as rgpara
-from convster import parallel as cvpara
-from convster.filters import bpgaussian
-from coonfit import parallel as lfpara
-
-# __file__ is not defined when sphinx-gallery executes the script; fall back to cwd
-base_dir = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
+base_dir =  os.getcwd()
 
 lst_file_org  = os.path.join(base_dir, "../data/example/lst_day_mean_summer_2015_MODISLST8D_alps.tif")
 topo_file_org = os.path.join(base_dir, "../data/example/elevation_mean_COP90_alps.tif")
-
-params     = dict(nbrcpu=6)
-block_size = (200, 200)
-data_type  = np.float32
 
 # Work on copies so the originals are never altered
 lst_file  = os.path.join(base_dir, "../data/example/_tmp_lst_diff_alps.tif")
@@ -57,24 +55,40 @@ topo_file = os.path.join(base_dir, "../data/example/_tmp_elevation_diff_alps.tif
 shutil.copy(src=lst_file_org,  dst=lst_file)
 shutil.copy(src=topo_file_org, dst=topo_file)
 
-# Source / Band objects
+# %%
+# Get working with the :class:`~riogrande.io.models.Source` and
+# :class:`~riogrande.io.models.Band` objects from ``riogrande``, and set a tag for the elevation band we want to use
+
+# Land Surface Temperature
 lst_source  = Source(path=lst_file)
 lst_profile = lst_source.import_profile()
 lst_band    = Band(source=lst_source, bidx=1)
 
+# Elevation
 topo_source  = Source(path=topo_file)
 topo_profile = topo_source.import_profile()
 
 elev_cat = "elevation_mean"
-topo_source.set_tags(bidx=1, tags=dict(category=elev_cat))
+topo_source.set_tags(bidx=1, tags=dict(category=elev_cat))      # set a tag
 elev_band = topo_source.get_band(category=elev_cat)
 
+
 # %%
-# A shared helper for all maps in this example
+# Set some general paremeters (for parallelization etc. for later use)
+params     = dict(nbrcpu=6)
+block_size = (200, 200)
+data_type  = np.float32
+
+
+# %%
+# A shared helper for all maps in this example, using
+# :class:`~riogrande.io.models.Source` and :class:`~riogrande.io.models.Band`
+# with :meth:`~riogrande.io.models.Band.get_data` to read the pixel array
 
 def show_map(ax, file, title, limits, cmap="RdBu_r", label="°C", bidx=1):
-    with rio.open(file) as src:
-        data = src.read(bidx)
+    src = Source(path=file)
+    band = Band(source=src, bidx=bidx)
+    data = band.get_data()
     ax.set_axis_off()
     img = ax.imshow(data, cmap=cmap, vmin=limits[0], vmax=limits[1])
     ax.set_title(title, fontsize=10)
