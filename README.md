@@ -3,9 +3,13 @@
 <img src="./docs/_static/georacoonPin.svg" alt="GeoRacoon Logo" width="400">
 
 <p>
-  <img src="https://github.com/GeoRacoon/georacoon/raw/python-coverage-comment-action-data/badge.svg" alt="Coverage">
-  <img src="https://img.shields.io/badge/version-1.0.0-blue)" alt="Version">
-  <a href="https://choosealicense.com/licenses/mit/">
+  <a href="https://github.com/GeoRacoon/georacoon/tree/python-coverage-comment-action-data">
+    <img src="https://github.com/GeoRacoon/georacoon/raw/python-coverage-comment-action-data/badge.svg" alt="Coverage">
+  </a>
+  <a href="https://github.com/GeoRacoon/GeoRacoon/releases/latest">
+    <img src="https://img.shields.io/github/v/release/GeoRacoon/GeoRacoon?label=release" alt="Latest Release">
+  </a>
+  <a href="https://github.com/GeoRacoon/GeoRacoon/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
   </a>
 </p>
@@ -22,11 +26,6 @@
 </div>
 
 # Quickstart
-
-<!-- badges: start -->
-[![Coverage](https://github.com/GeoRacoon/georacoon/raw/python-coverage-comment-action-data/badge.svg)](https://github.com/GeoRacoon/georacoon/tree/python-coverage-comment-action-data)
-![version](https://img.shields.io/badge/version-1.0.0-blue)
-<!-- badges: end -->
 
 This project is an extension of [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) allowing to work with Sources (GeoTIFFS) and Bands as objects, which easily incorporate the use of tags.
 
