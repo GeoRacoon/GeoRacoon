@@ -260,19 +260,19 @@ lapse_rate = beta_elev * 1000   # °C m⁻¹ → °C km⁻¹
 
 lit_low, lit_high = -5.8, -5.4   # °C km⁻¹, literature range
 
-fig, ax = plt.subplots(figsize=(5, 3))
-ax.barh(["This study"], [lapse_rate], color="steelblue", label=f"Estimated: {lapse_rate:.2f} °C km⁻¹")
-ax.barh(["Literature\n(Rolland 2003)"], [lit_high - lit_low], left=lit_low,
-        color="lightgray", edgecolor="gray", label=f"Range: {lit_low} – {lit_high} °C km⁻¹")
-ax.axvline(0, color="black", linewidth=0.8)
+print(f"Estimated lapse rate:    {lapse_rate:.2f} °C km⁻¹")
+print(f"Literature range (Alps): {lit_low} to {lit_high} °C km⁻¹")
+
+fig, ax = plt.subplots(figsize=(4, 2.5))
+ax.axvspan(lit_low, lit_high, color="lightgray", label=f"Literature range ({lit_low} – {lit_high} °C km⁻¹)")
+ax.plot(lapse_rate, 0, "o", color="steelblue", markersize=10, label=f"This study: {lapse_rate:.2f} °C km⁻¹")
 ax.set_xlabel("Lapse rate (°C km⁻¹)")
+ax.set_yticks([])
+ax.legend(fontsize=8, loc="upper left")
 ax.set_title("Estimated vs. literature lapse rate")
-ax.legend(fontsize=8)
 fig.tight_layout()
 plt.show()
 
-print(f"Estimated lapse rate:    {lapse_rate:.2f} °C km⁻¹")
-print(f"Literature range (Alps): {lit_low} to {lit_high} °C km⁻¹")
 
 # %%
 # Step 4 - Reconstruct the Full Model
