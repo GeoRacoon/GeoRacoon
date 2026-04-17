@@ -91,10 +91,10 @@ _Note:_
 _This package relies on [rasterio](https://rasterio.readthedocs.io/en/latest/index.html)_
 _which partially depends on [libgdal](https://gdal.org/)._
 _If you follow the installation instructions below you will attempt to install_
-_rasterio from the Python Package Index in which chase the libgdal library_
+_rasterio from the Python Package Index in which case the libgdal library_
 _will be shipped along._
-_However, if you encounter any issues with the installaiton of rasterio, head_
-_over to the [rasterio installation insructions](https://rasterio.readthedocs.io/en/stable/installation.html) for more details._
+_However, if you encounter any issues with the installation of rasterio, head_
+_over to the [rasterio installation instructions](https://rasterio.readthedocs.io/en/stable/installation.html) for more details._
 
 _We also use the python package `gdal` which depends on `libgdal` that has been installed (see comment above)._
 _It is important to install matching version, so first check with `gdalinfo --version` what version of `libgdal`_
@@ -190,7 +190,7 @@ lfpara.compute_model(
 
 </details>
 
-Head over to the [examples/](examples/) folder for a full end-to-end walkthrough.
+Head over to the [examples/](examples/) folder for a full end-to-end walk-through.
 
 For more examples, please refer to the project's [documentation page](docs).
 
