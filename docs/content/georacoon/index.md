@@ -6,5 +6,4 @@ This is a collection of three python modules, [RioGrande](../riogrande/index.md#
 
 intro
 installation
-examples
 ```
