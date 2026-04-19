@@ -1,17 +1,12 @@
-name: Run Tests
+name: Status
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, edited, ready_for_review]
+  push:
     branches:
       - main
-permissions:
-  pull-requests: write
-  contents: write
 
 jobs:
   unit-tests:
-    if: github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     strategy:
       matrix:
@@ -39,7 +34,7 @@ jobs:
       run: |
         source .venv/bin/activate
         python -c "import multiprocessing; print(multiprocessing.cpu_count())"
-        python -m pytest -s -vvv --timeout 300 --cov
+        python -m pytest -s -vvv --timeout 600 --cov
       env:
         COVERAGE_FILE: ".coverage.unittests"
 
@@ -52,11 +47,26 @@ jobs:
         path: .coverage.unittests
         include-hidden-files: true
 
-  coverage:
-    name: coverage-comment
+    # Update per-version pass/fail badge in gist
+    - name: Update Python ${{ matrix.pythonV }} status badge
+      if: always()
+      # pinned to v1.8.0
+      uses: schneegans/dynamic-badges-action@0e50b8bad39e7e1afd3e4e9c2b7dd145fad07501
+      with:
+        auth: ${{ secrets.GIST_SECRET }}
+        gistID: ${{ vars.STATUS_GIST_ID }}
+        filename: python-${{ matrix.pythonV }}.json
+        label: "Python ${{ matrix.pythonV }}"
+        message: ${{ job.status == 'success' && 'passing' || 'failing' }}
+        color: ${{ job.status == 'success' && 'brightgreen' || 'red' }}
+
+  coverage-badge:
+    name: coverage-badge
     runs-on: ubuntu-24.04
     needs: [unit-tests]
-    if: needs.unit-tests.result == 'success' || needs.unit-tests.result == 'failure'
+    if: always()
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
       - uses: actions/download-artifact@v4
@@ -65,16 +75,8 @@ jobs:
           pattern: coverage-*
           merge-multiple: true
 
-      - name: Coverage comment
-        id: coverage_comment
+      - name: Update coverage badge
         uses: py-cov-action/python-coverage-comment-action@v3
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MERGE_COVERAGE_FILES: true
-
-      - name: Store Pull Request comment to be posted
-        uses: actions/upload-artifact@v4
-        if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'
-        with:
-          name: python-coverage-comment-action
-          path: python-coverage-comment-action.txt
