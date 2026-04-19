@@ -54,6 +54,10 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
+    - name: Mark workspace safe for git
+      if: matrix.os == 'ubuntu'
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
     - name: Install GeoRacoon
       run: |
         python3 -m pip install --upgrade pip
