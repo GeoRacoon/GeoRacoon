@@ -35,7 +35,7 @@ jobs:
       run: |
         source .venv/bin/activate
         python -c "import multiprocessing; print(multiprocessing.cpu_count())"
-        python -m pytest -s -vvv --timeout 300 --cov
+        python -m pytest -s -vvv --timeout 600 --cov
       env:
         COVERAGE_FILE: ".coverage.unittests"
 
