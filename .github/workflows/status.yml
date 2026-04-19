@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - 140-finish-the-readme
 
 jobs:
   unit-tests:
