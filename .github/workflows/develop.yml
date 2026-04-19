@@ -10,6 +10,9 @@ jobs:
   unit-tests:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: write
+      contents: write
     strategy:
       matrix:
         pythonV: ["3.10", "3.11", "3.12", "3.13", "3.14"]
