@@ -59,6 +59,11 @@ reliance on matrix operations
 [![Python 3.13](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.13.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
 [![Python 3.14](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.14.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
 
+[![Ubuntu](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/deploy-ubuntu.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/deploy.yml)
+[![Fedora](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/deploy-fedora.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/deploy.yml)
+[![macOS](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/deploy-macos.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/deploy.yml)
+[![Windows](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/deploy-windows.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/deploy.yml)
+
 GeoRacoon can be installed directly from GitHub into your virtual environment.
 Simply run:
 
