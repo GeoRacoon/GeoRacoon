@@ -54,17 +54,19 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Mark workspace safe for git
-      if: matrix.os == 'ubuntu'
-      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
     - name: Install GeoRacoon
+      shell: bash
       run: |
-        python3 -m pip install --upgrade pip
-        pip3 install .
+        git config --global --add safe.directory '*'
+        python3 -m venv .venv
+        source .venv/bin/activate
+        pip install --upgrade pip
+        pip install .
 
     - name: Smoke test
+      shell: bash
       run: |
+        source .venv/bin/activate
         python3 -c "
         import os, tempfile
         import numpy as np
