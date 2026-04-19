@@ -101,10 +101,8 @@ pip install git+https://github.com/GeoRacoon/georacoon.git
 
 Alternatively, you can clone the repository and install the package from your
 local copy.
-This might be the desired strategy if you intend to work on the source code, in
-which case you can replace `install` by `install -e` and modify the files
-in-place.
-
+This is the recommended strategy if you intend to work on the source code,
+allowing you to modify the files in-place.
 
 To install:
 1. Clone this repository
@@ -113,13 +111,21 @@ To install:
 On macOS and Linux:
 
 ```sh
-$ python -m pip install .
+$ python -m pip install -e .
 ```
 
 On Windows:
 
 ```sh
-PS> python -m pip install .
+PS> python -m pip install -e .
+```
+
+Alternatively, if you're using `uv`:
+
+```sh
+$ git clone https://github.com/GeoRacoon/GeoRacoon.git
+$ cd GeoRacoon
+$ uv sync
 ```
 </details>
 
@@ -270,12 +276,12 @@ Here are some guidelines to help you get started:
 
    In case you are unsure about how to proceed  with a contribution, you can follow these steps:
 
-1. Fork GeoRacoon from <https://github.com/GeoRacoon/GeoRacoon/fork>
-2. Create your feature branch (`git checkout -b feature-new`)
-3. Make your changes
-4. Commit your changes (`git commit -am 'Add some new feature'`)
-5. Push to the branch (`git push origin feature-new`)
-6. Create a new pull request
+   1. Fork GeoRacoon from <https://github.com/GeoRacoon/GeoRacoon/fork>
+   2. Create your feature branch (`git checkout -b feature-new`)
+   3. Make your changes
+   4. Commit your changes (`git commit -am 'Add some new feature'`)
+   5. Push to the branch (`git push origin feature-new`)
+   6. Create a new pull request
 
 
 ## Authors
