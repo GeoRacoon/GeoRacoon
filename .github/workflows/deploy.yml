@@ -59,14 +59,24 @@ jobs:
       run: |
         git config --global --add safe.directory '*'
         python3 -m venv .venv
-        source .venv/bin/activate
+        # Windows venv uses Scripts/, Unix uses bin/
+        if [[ -f .venv/bin/activate ]]; then
+          source .venv/bin/activate
+        else
+          source .venv/Scripts/activate
+        fi
         pip install --upgrade pip
         pip install .
 
     - name: Smoke test
       shell: bash
       run: |
-        source .venv/bin/activate
+        # Windows venv uses Scripts/, Unix uses bin/
+        if [[ -f .venv/bin/activate ]]; then
+          source .venv/bin/activate
+        else
+          source .venv/Scripts/activate
+        fi
         python3 -c "
         import os, tempfile
         import numpy as np
