@@ -1,41 +1,37 @@
 name: Run Tests
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
-    # we exclude draft here
     types: [opened, synchronize, reopened, edited, ready_for_review]
     branches:
       - main
 
 jobs:
   unit-tests:
-    if: github.event_name == 'pull_request' && github.event.pull_request != null && github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        pythonV : ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        pythonV: ["3.10", "3.11", "3.12", "3.13", "3.14"]
       fail-fast: false
     steps:
     - uses: actions/checkout@v5
       with:
         lfs: 'true'
         submodules: recursive
-    
+
     - name: Set up Python ${{ matrix.pythonV }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.pythonV }}
-    
+
     - name: Install dependencies
       run: |
         python -m venv .venv
         source .venv/bin/activate
         pip install --upgrade pip
         pip install -e .[testing]
-    
+
     - name: Run tests with coverage
       run: |
         source .venv/bin/activate
@@ -46,7 +42,6 @@ jobs:
 
     # NOTE: we report the coverage only for the oldest python version supported
     - name: Store coverage file
-      # if: always()
       if: matrix.pythonV == '3.10'
       uses: actions/upload-artifact@v4
       with:
@@ -55,9 +50,9 @@ jobs:
         include-hidden-files: true
 
   coverage:
-    name: coverage-combine-publish
+    name: coverage-comment
     runs-on: ubuntu-24.04
-    needs: [unit-tests, ]
+    needs: [unit-tests]
     if: needs.unit-tests.result == 'success' || needs.unit-tests.result == 'failure'
     permissions:
       pull-requests: write
@@ -69,9 +64,6 @@ jobs:
         with:
           pattern: coverage-*
           merge-multiple: true
-      - name: Check content
-        run: |
-          ls -ahl
 
       - name: Coverage comment
         id: coverage_comment
