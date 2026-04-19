@@ -2,22 +2,21 @@
 
 
 
-| Name                              |    Stmts |     Miss |   Cover |   Missing |
-|---------------------------------- | -------: | -------: | ------: | --------: |
-| src/convster/array\_processing.py |        8 |        0 |    100% |           |
-| src/convster/filters/gaussian.py  |       35 |        0 |    100% |           |
-| src/convster/plotting.py          |      108 |       70 |     35% |49, 96-107, 131-134, 141-146, 195-254, 347-369 |
-| src/convster/processing.py        |      194 |       64 |     67% |60, 253-272, 406-457, 501, 672, 677, 866-887, 925-932, 960-968, 1011-1042 |
-| src/linfit/inference.py           |      142 |        9 |     94% |168-170, 213, 218-219, 266, 520, 640 |
-| src/riogrande/exceptions.py       |       10 |        0 |    100% |           |
-| src/riogrande/helper.py           |      211 |       25 |     88% |159-161, 186-188, 267, 315, 334, 395, 398-399, 420-425, 490-491, 581, 663, 667-668, 692, 696, 749-758 |
-| src/riogrande/io.py               |      183 |       50 |     73% |370-372, 387, 421-422, 449-459, 529-569, 591-613, 639, 642, 702-706 |
-| src/riogrande/io\_.py             |      415 |       82 |     80% |75, 82, 143-155, 201-204, 219-220, 239, 247, 256, 299, 366-370, 381, 402-409, 425-435, 438, 442, 486, 521, 530, 540-602, 718, 769, 774, 917, 1013, 1090, 1105-1106 |
-| src/riogrande/parallel.py         |      175 |       66 |     62% |41-43, 46, 51-71, 98-110, 114-115, 161-176, 225-229, 232, 235-237, 318, 329-330, 426, 430-434, 539 |
-| src/riogrande/prepare.py          |       91 |        2 |     98% |   99, 106 |
-| src/riogrande/select.py           |       22 |       22 |      0% |     7-100 |
-| src/riogrande/timing.py           |       22 |       13 |     41% |12, 15-18, 24-26, 29-33 |
-|                         **TOTAL** | **1616** |  **403** | **75%** |           |
+| Name                             |    Stmts |     Miss |   Cover |   Missing |
+|--------------------------------- | -------: | -------: | ------: | --------: |
+| src/convster/filters/gaussian.py |       46 |        0 |    100% |           |
+| src/convster/processing.py       |      195 |       65 |     67% |96, 254, 567, 569, 659-678, 882-933, 1002-1023, 1066-1073, 1121-1129, 1192-1223 |
+| src/coonfit/exceptions.py        |        4 |        0 |    100% |           |
+| src/coonfit/inference.py         |      142 |        8 |     94% |196-198, 261, 266-267, 321, 764 |
+| src/coonfit/parallel\_helpers.py |      142 |       58 |     59% |90-109, 133-136, 345, 406-458 |
+| src/riogrande/helper.py          |      191 |       15 |     92% |181-183, 353, 407, 437, 579-580, 682, 766, 770-771, 815, 819, 882-891 |
+| src/riogrande/io/core.py         |      138 |       12 |     91% |365-367, 382, 421-422, 453-463, 532 |
+| src/riogrande/io/exceptions.py   |       10 |        0 |    100% |           |
+| src/riogrande/io/models.py       |      414 |       79 |     81% |113, 131, 238-249, 347-350, 368-369, 432, 440, 449, 515, 627-631, 655-656, 697-704, 738-747, 750, 754, 949, 964, 981-1042, 1189, 1239, 1244, 1423, 1546, 1644 |
+| src/riogrande/parallel.py        |      177 |       65 |     63% |46, 48, 51, 54, 62-75, 107-120, 167-168, 175-176, 238-239, 241-242, 246-247, 249-255, 287-292, 345, 386, 445-456, 569 |
+| src/riogrande/prepare.py         |       92 |        2 |     98% |  118, 125 |
+| src/riogrande/timing.py          |       22 |        0 |    100% |           |
+| **TOTAL**                        | **1573** |  **304** | **81%** |           |
 
 
 ## Setup coverage badge
@@ -26,7 +25,7 @@ Below are examples of the badges you can use in your main branch `README` file.
 
 ### Direct image
 
-[![Coverage badge](https://github.com/GeoRacoon/landiv/raw/python-coverage-comment-action-data/badge.svg)](https://github.com/GeoRacoon/landiv/tree/python-coverage-comment-action-data)
+[![Coverage badge](https://github.com/GeoRacoon/GeoRacoon/raw/python-coverage-comment-action-data/badge.svg)](https://github.com/GeoRacoon/GeoRacoon/tree/python-coverage-comment-action-data)
 
 This is the one to use if your repository is private or if you don't want to customize anything.
 
