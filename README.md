@@ -61,11 +61,13 @@ reliance on matrix operations
 
 ## Installation
 
-[![Python 3.10](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.10.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
-[![Python 3.11](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.11.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
-[![Python 3.12](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.12.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
-[![Python 3.13](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.13.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
+**Supported Python versions:**
+
 [![Python 3.14](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.14.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
+[![Python 3.13](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.13.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
+[![Python 3.12](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.12.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
+[![Python 3.11](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.11.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
+[![Python 3.10](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.10.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
 
 GeoRacoon can be installed directly from GitHub into your virtual environment.
 Simply run:
