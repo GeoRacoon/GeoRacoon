@@ -3,17 +3,33 @@
 <img src="./docs/_static/georacoonPin.svg" alt="GeoRacoon Logo" width="400">
 
 <p>
-  <a href="https://github.com/GeoRacoon/georacoon/tree/python-coverage-comment-action-data">
-    <img src="https://github.com/GeoRacoon/georacoon/raw/python-coverage-comment-action-data/badge.svg" alt="Coverage">
-  </a>
   <a href="https://github.com/GeoRacoon/GeoRacoon/releases/latest">
-    <img src="https://img.shields.io/github/v/release/GeoRacoon/GeoRacoon?label=release" alt="Latest Release">
+    <img src="https://img.shields.io/github/v/release/GeoRacoon/GeoRacoon?label=Release" alt="Release">
   </a>
   <a href="https://georacoon.github.io/GeoRacoon" target="_blank">
-    <img src="https://img.shields.io/badge/Documentation-online-blue.svg" alt="Documentation">
+    <img src="https://img.shields.io/badge/Docs-online-blue.svg" alt="Docs">
   </a>
   <a href="https://github.com/GeoRacoon/GeoRacoon/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
+  </a>
+</p>
+<p>
+  <a href="https://github.com/GeoRacoon/GeoRacoon/actions/workflows/deploy.yml">
+    <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/deploy-ubuntu.json" alt="Ubuntu">
+  </a>
+  <a href="https://github.com/GeoRacoon/GeoRacoon/actions/workflows/deploy.yml">
+    <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/deploy-fedora.json" alt="Fedora">
+  </a>
+  <a href="https://github.com/GeoRacoon/GeoRacoon/actions/workflows/deploy.yml">
+    <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/deploy-macos.json" alt="macOS">
+  </a>
+  <a href="https://github.com/GeoRacoon/GeoRacoon/actions/workflows/deploy.yml">
+    <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/deploy-windows.json" alt="Windows">
+  </a>
+</p>
+<p>
+  <a href="https://github.com/GeoRacoon/georacoon/tree/python-coverage-comment-action-data">
+    <img src="https://github.com/GeoRacoon/georacoon/raw/python-coverage-comment-action-data/badge.svg" alt="Coverage">
   </a>
 </p>
 <h1>GeoRacoon</h1>
@@ -50,11 +66,6 @@ reliance on matrix operations
 [![Python 3.12](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.12.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
 [![Python 3.13](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.13.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
 [![Python 3.14](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.14.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
-
-[![Ubuntu](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/deploy-ubuntu.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/deploy.yml)
-[![Fedora](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/deploy-fedora.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/deploy.yml)
-[![macOS](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/deploy-macos.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/deploy.yml)
-[![Windows](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/deploy-windows.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/deploy.yml)
 
 GeoRacoon can be installed directly from GitHub into your virtual environment.
 Simply run:
@@ -205,22 +216,22 @@ We welcome contributions from the community!
 Here are some guidelines to help you get started:
 
 1. **Seeking Support:** 
-If you need help with one of the GeoRacoon packages, you can seek support at [the issue page](https://github.com/GeoRacoon/GeoRacoon/issues) on this GitHub repository. 
-Before you open a new issue, please first have a look at the existing - also the closed - ones, maybe you are not to first to run into it!
-
-If you decide to open a new issue, please describe your problem in detail and include a minimal reproducible example if possible.
-
+   If you need help with one of the GeoRacoon packages, you can seek support at [the issue page](https://github.com/GeoRacoon/GeoRacoon/issues) on this GitHub repository. 
+   Before you open a new issue, please first have a look at the existing - also the closed - ones, maybe you are not to first to run into it!
+   
+   If you decide to open a new issue, please describe your problem in detail and include a minimal reproducible example if possible.
+   
 2. **Reporting Issues or Problems:** 
-If you encounter any issues, problems or otherwise unexpected behaviour with GeoRacoon, please report them on [the issue page](https://github.com/GeoRacoon/GeoRacoon/issues).
-Before you open a new issue, please first have a look at the existing - also the closed - ones, maybe you are not to first to run into it!
-When reporting an issue, include as much detail as possible, including steps to reproduce the issue, your operating system and R version, and any error messages you received.
+   If you encounter any issues, problems or otherwise unexpected behaviour with GeoRacoon, please report them on [the issue page](https://github.com/GeoRacoon/GeoRacoon/issues).
+   Before you open a new issue, please first have a look at the existing - also the closed - ones, maybe you are not to first to run into it!
+   When reporting an issue, include as much detail as possible, including steps to reproduce the issue, your operating system and R version, and any error messages you received.
 
 3. **Software Contributions:**
-We encourage contributions directly via pull requests on the GeoRacoon repository.
-Before starting your work, please first create an issue describing the contribution you wish to make. 
-This allows us to discuss and agree on the best way to integrate your contribution into the package.
+   We encourage contributions directly via pull requests on the GeoRacoon repository.
+   Before starting your work, please first create an issue describing the contribution you wish to make. 
+   This allows us to discuss and agree on the best way to integrate your contribution into the package.
 
-In case you are unsure about how to proceed  with a contribution, you can follow these steps:
+   In case you are unsure about how to proceed  with a contribution, you can follow these steps:
 
 1. Fork GeoRacoon from <https://github.com/GeoRacoon/GeoRacoon/fork>
 2. Create your feature branch (`git checkout -b feature-new`)
