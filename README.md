@@ -9,6 +9,9 @@
   <a href="https://github.com/GeoRacoon/GeoRacoon/releases/latest">
     <img src="https://img.shields.io/github/v/release/GeoRacoon/GeoRacoon?label=release" alt="Latest Release">
   </a>
+  <a href="https://georacoon.github.io/GeoRacoon" target="_blank">
+    <img src="https://img.shields.io/badge/Documentation-online-blue.svg" alt="Documentation">
+  </a>
   <a href="https://github.com/GeoRacoon/GeoRacoon/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
   </a>
@@ -33,23 +36,12 @@ _GeoRacoon_ provides 3 packages, `riogrande`, `convster` and `coonfit`, which fa
 
 - **RioGrande** provides the great heart of the GeoRacoon and adds functionality for parallel processing using Windows, dataset compatibility checks, data type 
 conversion, mask and selector creation as well as simple file compression.  
-- **Convster** allows for (gaussian) convolution of raster files using parallelized processing, _coon-style_. 
-While gaussian and border-preserving gaussian filters are default parameters, other filters can be used.
-- **CoonFit** allows to fit linear moodls the _coon-way_, meaning parallelized and fast, while understanable due to the
+- **Convster** allows for (Gaussian) convolution of raster files using parallelized processing, _coon-style_. 
+While Gaussian and border-preserving Gaussian filters are default parameters, other filters can be used.
+- **CoonFit** allows to fit linear models the _coon-way_, meaning parallelized and fast, while understandable due to the
 reliance on matrix operations
 
 <!-- quickstart -->
-
-
-**Table of Contents**
-
-- [Installation](#installation)
-- [Usage](#usage)
-- [Technologies](#technologies)
-- [Features](#features)
-- [Authors](#authors)
-- [Release History](#release-history)
-- [License](#license)
 
 ## Installation
 
@@ -68,7 +60,7 @@ GeoRacoon can be installed directly from GitHub into your virtual environment.
 Simply run:
 
 ```
-pip install git+https://github.com/ReoRacoon/georacoon.git
+pip install git+https://github.com/GeoRacoon/georacoon.git
 ```
 
 <details>
@@ -203,27 +195,34 @@ lfpara.compute_model(
 
 Head over to the [examples/](examples/) folder for a full end-to-end walk-through.
 
-For more examples, please refer to the project's [documentation page](docs).
+For more examples, please refer to the project's [documentation page](https://georacoon.github.io/GeoRacoon).
 
-## Technologies
-
-RioGrande uses the following technologies and tools:
-
-- [Python](https://www.python.org/): ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
-
-
-## Features
-
-RioGrande currently has the following set of features:
-
-- Support for...
-- ...
 
 ## Contributing
 
-To contribute to the development of RioGrande, follow the steps below:
+We welcome contributions from the community!
 
-1. Fork RioGrande from <https://github.com/yourusername/yourproject/fork>
+Here are some guidelines to help you get started:
+
+1. **Seeking Support:** 
+If you need help with one of the GeoRacoon packages, you can seek support at [the issue page](https://github.com/GeoRacoon/GeoRacoon/issues) on this GitHub repository. 
+Before you open a new issue, please first have a look at the existing - also the closed - ones, maybe you are not to first to run into it!
+
+If you decide to open a new issue, please describe your problem in detail and include a minimal reproducible example if possible.
+
+2. **Reporting Issues or Problems:** 
+If you encounter any issues, problems or otherwise unexpected behaviour with GeoRacoon, please report them on [the issue page](https://github.com/GeoRacoon/GeoRacoon/issues).
+Before you open a new issue, please first have a look at the existing - also the closed - ones, maybe you are not to first to run into it!
+When reporting an issue, include as much detail as possible, including steps to reproduce the issue, your operating system and R version, and any error messages you received.
+
+3. **Software Contributions:**
+We encourage contributions directly via pull requests on the GeoRacoon repository.
+Before starting your work, please first create an issue describing the contribution you wish to make. 
+This allows us to discuss and agree on the best way to integrate your contribution into the package.
+
+In case you are unsure about how to proceed  with a contribution, you can follow these steps:
+
+1. Fork GeoRacoon from <https://github.com/GeoRacoon/GeoRacoon/fork>
 2. Create your feature branch (`git checkout -b feature-new`)
 3. Make your changes
 4. Commit your changes (`git commit -am 'Add some new feature'`)
@@ -234,15 +233,13 @@ To contribute to the development of RioGrande, follow the steps below:
 ## Authors
 [<img src="https://github.com/simonsaysenjoy.png" width="60" height="60" style="border-radius:50%">](https://github.com/simonsaysenjoy)
 [<img src="https://github.com/j-i-l.png" width="60" height="60" style="border-radius:50%">](https://github.com/j-i-l)
-## Release History
 
-- 1.0.0
-    - First working version
+<!-- ## Citation
+
+Citation information will be added here.
+
+-->
 
 ## License
 
-RioGrande is distributed under the < license > license.
-
-## Acknowledgements
-
-Mention
+GeoRacoon is distributed under a MIT license: [LICENSE](./LICENSE).
