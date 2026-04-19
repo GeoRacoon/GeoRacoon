@@ -40,7 +40,7 @@
 <pre><small>Born from a collaboration between:</small>
 <br>
 
-<a href="https://www.ieu.uzh.ch/en/research/ecology/soil.html"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.cd.uzh.ch/dam/jcr:9528e314-fbb5-4ede-b7a5-3446bf8d9337/UZH_Logo_white.svg"><source media="(prefers-color-scheme: light)" srcset="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg"><img alt="UZH logo" src="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg" width="290" style="vertical-align: middle;"></picture></a>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="https://github.com/t4d-gmbh"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_with_Ds_wb.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_with_Ds.svg"><img alt="T4D Logo" src="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/logo_color.svg" width="220" style="vertical-align: middle;"></picture></a>
+<a href="https://www.ieu.uzh.ch/en/research/ecology/soil.html"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.cd.uzh.ch/dam/jcr:9528e314-fbb5-4ede-b7a5-3446bf8d9337/UZH_Logo_white.svg"><source media="(prefers-color-scheme: light)" srcset="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg"><img alt="UZH logo" src="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg" width="290" style="vertical-align: middle;"></picture></a>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="https://github.com/t4d-gmbh"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/wb/T4D_design_develop.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/bw/T4D_design_develop.svg"><img alt="T4D Logo" src="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/bw/T4D_design_develop.svg" width="220" style="vertical-align: middle;"></picture></a>
 </pre>
 </div>
 
@@ -68,6 +68,26 @@ reliance on matrix operations
 [![Python 3.12](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.12.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
 [![Python 3.11](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.11.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
 [![Python 3.10](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.10.json)](https://github.com/GeoRacoon/GeoRacoon/actions/workflows/status.yml)
+
+### Setting up a virtual environment
+
+We recommend installing GeoRacoon in a virtual environment to avoid dependency conflicts.
+
+On macOS and Linux:
+
+```sh
+$ python -m venv .venv
+$ source .venv/bin/activate
+```
+
+On Windows:
+
+```sh
+PS> python -m venv .venv
+PS> .venv\Scripts\activate
+```
+
+### Installing GeoRacoon
 
 GeoRacoon can be installed directly from GitHub into your virtual environment.
 Simply run:
@@ -116,6 +136,21 @@ _We also use the python package `gdal` which depends on `libgdal` that has been 
 _It is important to install matching version, so first check with `gdalinfo --version` what version of `libgdal`_
 _you have installed and then install the corresponding python package with `pip install gdal==x.x.x`._
 
+### Alternative installation using uv
+
+If you prefer using [uv](https://docs.astral.sh/uv/) for faster package management, you can install GeoRacoon as follows:
+
+```sh
+$ uv pip install git+https://github.com/GeoRacoon/georacoon.git
+```
+
+For development installation with uv:
+
+```sh
+$ git clone https://github.com/GeoRacoon/GeoRacoon.git
+$ cd GeoRacoon
+$ uv pip install -e .
+```
 
 ## Usage
 
