@@ -66,28 +66,43 @@ jobs:
     - name: Smoke test
       run: |
         python3 -c "
+        import os, tempfile
         import numpy as np
-        import rasterio
-        from rasterio.io import MemoryFile
-        from rasterio.transform import from_bounds
-        import riogrande
-        import convster
-        import coonfit
+        from riogrande.io import Source, Band, write_band
+        from convster.processing import select_category
+        from coonfit.inference import get_optimal_weights
 
-        data = np.array([[42.0]], dtype='float32')
-        profile = dict(
-            driver='GTiff', dtype='float32',
-            width=1, height=1, count=1,
-            crs='EPSG:4326',
-            transform=from_bounds(0, 0, 1, 1, 1, 1),
-        )
-        with MemoryFile() as mem:
-            with mem.open(**profile) as dst:
-                dst.write(data, 1)
-            with mem.open() as src:
-                result = src.read(1)
-                assert result[0, 0] == 42.0, f'Expected 42.0, got {result[0, 0]}'
-        print('Smoke test passed')
+        # -- riogrande: write a GeoTIFF via Source, then read it back via Band
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'smoke.tif')
+            data = np.array([[42.0]], dtype='float32')
+            profile = dict(
+                driver='GTiff', dtype='float32',
+                width=1, height=1, count=1,
+                crs='EPSG:4326',
+            )
+            src = Source(path, profile=profile)
+            with src.open(mode='w') as dst:
+                write_band(dst, data, bidx=1, name='smoke')
+            band = Band(source=src, bidx=1, tags={'name': 'smoke'})
+            result = band.get_data()
+            assert result[0, 0] == 42.0, f'Expected 42.0, got {result[0, 0]}'
+        print('riogrande: Source write + Band read OK')
+
+        # -- convster: select_category on a tiny categorical array
+        cat = np.array([[2]], dtype='uint8')
+        sel = select_category(cat, category=2)
+        assert sel[0, 0] == np.iinfo(sel.dtype).max, f'select_category failed: {sel[0, 0]}'
+        print('convster: select_category OK')
+
+        # -- coonfit: get_optimal_weights on trivial regression
+        X = np.array([[1.0]])
+        y = np.array([2.0])
+        w = get_optimal_weights(X, y)
+        assert abs(w[0] - 2.0) < 1e-6, f'get_optimal_weights failed: {w}'
+        print('coonfit: get_optimal_weights OK')
+
+        print('All smoke tests passed')
         "
 
     # Update OS badge in gist (only on push to main)
