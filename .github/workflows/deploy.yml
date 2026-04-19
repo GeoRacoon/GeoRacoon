@@ -68,6 +68,19 @@ jobs:
         pip install --upgrade pip
         pip install .
 
+    - name: Debug Python path
+      shell: bash
+      run: |
+        # Windows venv uses Scripts/, Unix uses bin/
+        if [[ -f .venv/bin/activate ]]; then
+          source .venv/bin/activate
+        else
+          source .venv/Scripts/activate
+        fi
+        echo "which python:  $(which python)"
+        echo "which python3: $(which python3 2>/dev/null || echo 'not found')"
+        python -c "import sys; print(f'sys.executable: {sys.executable}'); print(f'sys.prefix: {sys.prefix}')"
+
     - name: Smoke test
       shell: bash
       run: |
@@ -77,7 +90,7 @@ jobs:
         else
           source .venv/Scripts/activate
         fi
-        python3 -c "
+        python -c "
         import os, tempfile
         import numpy as np
         from riogrande.io import Source, Band, write_band
