@@ -53,6 +53,12 @@ reliance on matrix operations
 
 ## Installation
 
+![Python 3.10](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.10.json)
+![Python 3.11](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.11.json)
+![Python 3.12](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.12.json)
+![Python 3.13](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.13.json)
+![Python 3.14](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/j-i-l/b692f90cf16ebc9a3646ce218df856e8/raw/python-3.14.json)
+
 GeoRacoon can be installed directly from GitHub into your virtual environment.
 Simply run:
 
@@ -61,7 +67,7 @@ pip install git+https://github.com/ReoRacoon/georacoon.git
 ```
 
 <details>
-<summary><b>Local install</b></summary>
+<summary><b>Development install</b></summary>
 
 Alternatively, you can clone the repository and install the package from your
 local copy.

@@ -1,0 +1,83 @@
+name: Status
+
+on:
+  push:
+    branches:
+      - main
+      - 140-finish-the-readme
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        pythonV: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        lfs: 'true'
+        submodules: recursive
+
+    - name: Set up Python ${{ matrix.pythonV }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.pythonV }}
+
+    - name: Install dependencies
+      run: |
+        python -m venv .venv
+        source .venv/bin/activate
+        pip install --upgrade pip
+        pip install -e .[testing]
+
+    - name: Run tests with coverage
+      run: |
+        source .venv/bin/activate
+        python -c "import multiprocessing; print(multiprocessing.cpu_count())"
+        python -m pytest -s -vvv --timeout 300 --cov
+      env:
+        COVERAGE_FILE: ".coverage.unittests"
+
+    # NOTE: we report the coverage only for the oldest python version supported
+    - name: Store coverage file
+      if: matrix.pythonV == '3.10'
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-unittests
+        path: .coverage.unittests
+        include-hidden-files: true
+
+    # Update per-version pass/fail badge in gist
+    - name: Update Python ${{ matrix.pythonV }} status badge
+      if: always()
+      # pinned to v1.8.0
+      uses: schneegans/dynamic-badges-action@0e50b8bad39e7e1afd3e4e9c2b7dd145fad07501
+      with:
+        auth: ${{ secrets.GIST_SECRET }}
+        gistID: ${{ vars.STATUS_GIST_ID }}
+        filename: python-${{ matrix.pythonV }}.json
+        label: "Python ${{ matrix.pythonV }}"
+        message: ${{ job.status == 'success' && 'passing' || 'failing' }}
+        color: ${{ job.status == 'success' && 'brightgreen' || 'red' }}
+
+  coverage-badge:
+    name: coverage-badge
+    runs-on: ubuntu-24.04
+    needs: [unit-tests]
+    if: always()
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        id: download
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+
+      - name: Update coverage badge
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGE_COVERAGE_FILES: true
