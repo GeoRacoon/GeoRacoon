@@ -117,8 +117,10 @@ plt.show()
 # to be "regional".  A larger σ preserves more large-scale structure in the
 # residual; a smaller σ removes less.
 
-kernel_m_sigma     = 30_000   # sigma in metres
-resolution         = 1_000    # pixel size in metres
+# We are setting the sigma in the CRS units (meters)
+
+kernel_m_sigma     = 30_000   # sigma in meters
+resolution         = 1_000    # pixel size in meters
 kernel_pixel_sigma = kernel_m_sigma / resolution
 
 params_filter = dict(
@@ -127,10 +129,16 @@ params_filter = dict(
     preserve_range=True,
 )
 
+# %%
+# Prepare the dataset objects for the filter ...
+
 lst_conv_file   = os.path.join(base_dir, f"../data/example/_tmp_lst_conv_{kernel_m_sigma}m_alps.tif")
 lst_conv_source = Source(path=lst_conv_file, profile=lst_profile)
 lst_conv_source.init_source(overwrite=True)
 lst_conv_band   = Band(lst_conv_source, bidx=1)
+
+# %%
+# ... and perform the filter operation.
 
 cvpara.apply_filter(
     source=lst_source,
@@ -148,7 +156,9 @@ cvpara.apply_filter(
     **params,
 )
 
-# Subtract → LST band now holds the local anomaly
+# %%
+# Subtract the filterd band from the LST band (inplace). The LST band now holds the local anomaly.
+
 lst_band.subtract(band=lst_conv_band)
 
 # %%
@@ -171,10 +181,15 @@ plt.show()
 # from the regional mean.  Without this, a high plateau would have high
 # absolute elevation but zero local anomaly, masking the signal we care about.
 
+# Again we prepare the data ...
+
 elev_conv_file   = os.path.join(base_dir, f"../data/example/_tmp_elev_conv_{kernel_m_sigma}m_alps.tif")
 elev_conv_source = Source(path=elev_conv_file, profile=topo_profile)
 elev_conv_source.init_source(overwrite=True)
 elev_conv_band   = Band(elev_conv_source, bidx=1)
+
+# %%
+# ... and run the filter using the same parameter as above.
 
 cvpara.apply_filter(
     source=topo_source,
@@ -193,6 +208,7 @@ cvpara.apply_filter(
     **params,
 )
 
+# Subract the band again for the anomalies
 elev_band.subtract(band=elev_conv_band)
 
 # %%
@@ -218,7 +234,10 @@ plt.show()
 # pixel-wise ordinary least squares model (no intercept).  The fitted
 # coefficient *β* directly gives the lapse rate in °C m⁻¹.
 
-predictors = []
+# %%
+# Let's create a mask, so we are only fitting relevant data (not ``np.nan``).
+# We will then tell the :class:`~riogrande.io.models.Band` object to use the mask
+# from the source (not a band specific mask - which is also possible).
 
 rgpara.compute_mask(
     topo_source,
@@ -229,7 +248,12 @@ rgpara.compute_mask(
     **params,
 )
 elev_band.set_mask_reader(use="source")
-predictors.append(elev_band)
+
+# %%
+# Collect the predictors for the model fitting (here only 1), and fit the model to comupte the
+# weights for the predictors.
+
+predictors = [elev_band]
 
 band_weight = lfpara.compute_weights(
     response=lst_band,
@@ -245,6 +269,9 @@ band_weight = lfpara.compute_weights(
     **params,
 )
 
+# %%
+# Get the specific results from the returned *β* values.
+# (Remember no intercept was fitted, which would be in position 0 here the list)
 beta_elev  = band_weight[elev_band]
 lapse_rate = beta_elev * 1000   # °C m⁻¹ → °C km⁻¹
 
