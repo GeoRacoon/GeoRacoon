@@ -194,6 +194,7 @@ cvpara.apply_filter(
 )
 ```
 
+### Minimal Examples
 
 <details>
 <summary><b>RioGrande — open a GeoTIFF and work with Sources and Bands</b></summary>
