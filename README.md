@@ -179,6 +179,30 @@ Head over to the [examples/](examples/) folder for full end-to-end examples.
 Also, refer to the project's [documentation page](https://georacoon.github.io/GeoRacoon) for more details.
 
 <!-- usage-start -->
+GeoRacoon provides high-level functions that allow you to do many things in just a few lines of code:
+
+```python
+from riogrande.io import Source
+from convster import parallel as cvpara
+from convster.filters import bpgaussian  # border-preserving Gaussian
+
+source = Source("landcover.tif")
+
+# Kernel: 30 km sigma, 1 km resolution → 30 pixels
+params_filter = dict(sigma=30, truncate=3, preserve_range=True)
+
+cvpara.apply_filter(
+    source=source,
+    output_file="landcover_blurred.tif",
+    block_size=(200, 200),
+    img_filter=bpgaussian,
+    filter_params=params_filter,
+    data_as_dtype="float32",
+    nbrcpu=4,
+)
+```
+
+
 <details>
 <summary><b>RioGrande — open a GeoTIFF and work with Sources and Bands</b></summary>
 
@@ -265,27 +289,6 @@ lfpara.compute_model(
 ```
 
 </details>
-
-```python
-from riogrande.io import Source
-from convster import parallel as cvpara
-from convster.filters import bpgaussian  # border-preserving Gaussian
-
-source = Source("landcover.tif")
-
-# Kernel: 30 km sigma, 1 km resolution → 30 pixels
-params_filter = dict(sigma=30, truncate=3, preserve_range=True)
-
-cvpara.apply_filter(
-    source=source,
-    output_file="landcover_blurred.tif",
-    block_size=(200, 200),
-    img_filter=bpgaussian,
-    filter_params=params_filter,
-    data_as_dtype="float32",
-    nbrcpu=4,
-)
-```
 
 </details>
 
