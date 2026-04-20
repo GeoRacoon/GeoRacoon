@@ -31,3 +31,8 @@ a.reference.external:not([href*="docs.python.org"])::after {
     font-size: 0.75em;
     opacity: 0.6;
 }
+
+/* Hide sphinx-gallery execution time note at the bottom of example pages */
+.sphx-glr-timing {
+    display: none;
+}

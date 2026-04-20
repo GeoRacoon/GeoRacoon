@@ -1,7 +1,7 @@
 <div align="center">
-
 <img src="./docs/_static/georacoonPin.svg" alt="GeoRacoon Logo" width="400">
-
+</div>
+<div align="center">
 <p>
   <a href="https://github.com/GeoRacoon/GeoRacoon/releases/latest">
     <img src="https://img.shields.io/github/v/release/GeoRacoon/GeoRacoon?label=Release" alt="Release">
@@ -44,7 +44,11 @@
 </pre>
 </div>
 
+<!-- header-end -->
+
 # Overview
+
+<!-- overview-start -->
 
 GeoRacoon is aimed at supporting work and analyses with large spatial raster data.
 It heavily relies on [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) extending its functionality and usability.
@@ -60,11 +64,13 @@ While Gaussian and border-preserving Gaussian filters are default parameters, ot
 - **CoonFit** allows to fit linear models the _coon-way_, meaning parallelized and fast, while understandable due to the
 reliance on matrix operations
 
+<!-- overview-end -->
+
 # Quickstart
 
-<!-- quickstart -->
-
 ## Installation
+
+<!-- installation-start -->
 
 **Supported Python versions:**
 
@@ -157,7 +163,38 @@ $ uv pip install -e .
 ```
 </details>
 
+<!-- installation-end -->
+
 ## Usage
+
+Head over to the [examples/](examples/) folder for full end-to-end examples.
+Also, refer to the project's [documentation page](https://georacoon.github.io/GeoRacoon) for more details.
+
+<!-- usage-start -->
+GeoRacoon provides high-level functions that allow you to do many things in just a few lines of code:
+
+```python
+from riogrande.io import Source
+from convster import parallel as cvpara
+from convster.filters import bpgaussian  # border-preserving Gaussian
+
+source = Source("landcover.tif")
+
+# Kernel: 30 km sigma, 1 km resolution → 30 pixels
+params_filter = dict(sigma=30, truncate=3, preserve_range=True)
+
+cvpara.apply_filter(
+    source=source,
+    output_file="landcover_blurred.tif",
+    block_size=(200, 200),
+    img_filter=bpgaussian,
+    filter_params=params_filter,
+    data_as_dtype="float32",
+    nbrcpu=4,
+)
+```
+
+### Minimal Examples
 
 <details>
 <summary><b>RioGrande — open a GeoTIFF and work with Sources and Bands</b></summary>
@@ -179,7 +216,6 @@ band = source.get_band(category="elevation_mean")
 band = source.get_band(bidx=1)
 print(band.tags)
 ```
-
 </details>
 
 <details>
@@ -205,7 +241,6 @@ cvpara.apply_filter(
     nbrcpu=4,
 )
 ```
-
 </details>
 
 <details>
@@ -243,12 +278,9 @@ lfpara.compute_model(
     nbrcpu=4,
 )
 ```
-
 </details>
 
-Head over to the [examples/](examples/) folder for a full end-to-end walk-through.
-
-For more examples, please refer to the project's [documentation page](https://georacoon.github.io/GeoRacoon).
+<!-- usage-end -->
 
 
 ## Contributing
