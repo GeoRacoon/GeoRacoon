@@ -44,9 +44,12 @@
 </pre>
 </div>
 
-# Quickstart
+# Overview
 
-This project is an extension of [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) allowing to work with Sources (GeoTIFFS) and Bands as objects, which easily incorporate the use of tags.
+GeoRacoon is aimed at supporting work and analyses with large spatial raster data.
+It heavily relies on [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) extending its functionality and usability.
+Leveraging `gdal`'s block-based read/write capability, GeoRacoon implements efficient multi-core support (i.e. parallelization) for various high and low-level operations, such as convolution operations (e.g., applying a Gaussian filter) or even area-wide multiple linear regressions.
+It also facilitates GeoTIFF handling with an object oriented abstraction layer to RasterIO which incorporates the management of metadata with source and band tagging.
 
 _GeoRacoon_ provides 3 packages, `riogrande`, `convster` and `coonfit`, which facilitate (in our opinion) working with TIFF files.
 
@@ -56,6 +59,8 @@ conversion, mask and selector creation as well as simple file compression.
 While Gaussian and border-preserving Gaussian filters are default parameters, other filters can be used.
 - **CoonFit** allows to fit linear models the _coon-way_, meaning parallelized and fast, while understandable due to the
 reliance on matrix operations
+
+# Quickstart
 
 <!-- quickstart -->
 
@@ -99,7 +104,7 @@ pip install git+https://github.com/GeoRacoon/georacoon.git
 <details>
 <summary><b>Development install</b></summary>
 
-Alternatively, you can clone the repository and install the package from your
+You can also clone the repository and install the package from your
 local copy.
 This is the recommended strategy if you intend to work on the source code,
 allowing you to modify the files in-place.
@@ -119,14 +124,6 @@ On Windows:
 ```sh
 PS> python -m pip install -e .
 ```
-
-Alternatively, if you're using `uv`:
-
-```sh
-$ git clone https://github.com/GeoRacoon/GeoRacoon.git
-$ cd GeoRacoon
-$ uv sync
-```
 </details>
 
 _Note:_
@@ -142,7 +139,8 @@ _We also use the python package `gdal` which depends on `libgdal` that has been 
 _It is important to install matching version, so first check with `gdalinfo --version` what version of `libgdal`_
 _you have installed and then install the corresponding python package with `pip install gdal==x.x.x`._
 
-### Alternative installation using uv
+<details>
+<summary><b>Installation with `uv`</b></summary>
 
 If you prefer using [uv](https://docs.astral.sh/uv/) for faster package management, you can install GeoRacoon as follows:
 
@@ -157,6 +155,7 @@ $ git clone https://github.com/GeoRacoon/GeoRacoon.git
 $ cd GeoRacoon
 $ uv pip install -e .
 ```
+</details>
 
 ## Usage
 
@@ -258,18 +257,12 @@ We welcome contributions from the community!
 
 Here are some guidelines to help you get started:
 
-1. **Seeking Support:** 
-   If you need help with one of the GeoRacoon packages, you can seek support at [the issue page](https://github.com/GeoRacoon/GeoRacoon/issues) on this GitHub repository. 
-   Before you open a new issue, please first have a look at the existing - also the closed - ones, maybe you are not to first to run into it!
-   
-   If you decide to open a new issue, please describe your problem in detail and include a minimal reproducible example if possible.
-   
-2. **Reporting Issues or Problems:** 
-   If you encounter any issues, problems or otherwise unexpected behaviour with GeoRacoon, please report them on [the issue page](https://github.com/GeoRacoon/GeoRacoon/issues).
-   Before you open a new issue, please first have a look at the existing - also the closed - ones, maybe you are not to first to run into it!
-   When reporting an issue, include as much detail as possible, including steps to reproduce the issue, your operating system and R version, and any error messages you received.
+1. **Seeking Support or Reporting Issues:** 
+   If you need help or encounter unexpected behaviour, head over to [the issue page](https://github.com/GeoRacoon/GeoRacoon/issues).
+   Before opening a new issue, please check the existing ones (including closed issues) — someone may have run into the same problem.
+   When opening an issue, include as much detail as possible: steps to reproduce, your operating system, Python version, and any error messages.
 
-3. **Software Contributions:**
+2. **Software Contributions:**
    We encourage contributions directly via pull requests on the GeoRacoon repository.
    Before starting your work, please first create an issue describing the contribution you wish to make. 
    This allows us to discuss and agree on the best way to integrate your contribution into the package.
