@@ -223,7 +223,6 @@ band = source.get_band(category="elevation_mean")
 band = source.get_band(bidx=1)
 print(band.tags)
 ```
-
 </details>
 
 <details>
@@ -249,7 +248,6 @@ cvpara.apply_filter(
     nbrcpu=4,
 )
 ```
-
 </details>
 
 <details>
@@ -287,48 +285,8 @@ lfpara.compute_model(
     nbrcpu=4,
 )
 ```
-
 </details>
 
-</details>
-
-<details>
-<summary><b>CoonFit — fit a linear model and generate a prediction raster</b></summary>
-
-```python
-import numpy as np
-from riogrande.io import Source, Band
-from coonfit import parallel as lfpara
-
-# Set up response and predictor bands
-response_band = Band(Source("lst.tif"), bidx=1)
-
-pred_source = Source("elevation.tif")
-pred_source.set_tags(bidx=1, tags={"category": "elevation"})
-predictor_band = pred_source.get_band(category="elevation")
-
-# Fit the model — returns a dict of {band: weight}
-weights = lfpara.compute_weights(
-    response=response_band,
-    predictors=[predictor_band],
-    block_size=(200, 200),
-    include_intercept=True,
-    no_data=np.nan,
-    nbrcpu=4,
-)
-print(weights)
-
-# Apply the fitted weights to produce a prediction raster
-lfpara.compute_model(
-    predictors=[predictor_band],
-    optimal_weights=weights,
-    output_file="lst_predicted.tif",
-    block_size=(200, 200),
-    nbrcpu=4,
-)
-```
-
-</details>
 <!-- usage-end -->
 
 
