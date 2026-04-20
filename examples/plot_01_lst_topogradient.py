@@ -138,7 +138,8 @@ lst_conv_source.init_source(overwrite=True)
 lst_conv_band   = Band(lst_conv_source, bidx=1)
 
 # %%
-# ... and perform the filter operation.
+# ... and perform the filter operation with :func:`~convster.parallel.apply_filter`, using
+# :func:`~convster.filters.bpgaussian` as the filter kernel.
 
 cvpara.apply_filter(
     source=lst_source,
@@ -157,7 +158,8 @@ cvpara.apply_filter(
 )
 
 # %%
-# Subtract the filterd band from the LST band (inplace). The LST band now holds the local anomaly.
+# Subtract the filtered band from the LST band using :meth:`~riogrande.io.models.Band.subtract`
+# (inplace). The LST band now holds the local anomaly.
 
 lst_band.subtract(band=lst_conv_band)
 
@@ -235,9 +237,10 @@ plt.show()
 # coefficient *β* directly gives the lapse rate in °C m⁻¹.
 
 # %%
-# Let's create a mask, so we are only fitting relevant data (not ``np.nan``).
-# We will then tell the :class:`~riogrande.io.models.Band` object to use the mask
-# from the source (not a band specific mask - which is also possible).
+# Let's create a mask with :func:`~riogrande.parallel.compute_mask`, so we are only fitting
+# relevant data (not ``np.nan``).  We will then tell the :class:`~riogrande.io.models.Band`
+# object to use the mask from the source via :meth:`~riogrande.io.models.Band.set_mask_reader`
+# (not a band specific mask - which is also possible).
 
 rgpara.compute_mask(
     topo_source,
@@ -250,8 +253,8 @@ rgpara.compute_mask(
 elev_band.set_mask_reader(use="source")
 
 # %%
-# Collect the predictors for the model fitting (here only 1), and fit the model to comupte the
-# weights for the predictors.
+# Collect the predictors for the model fitting (here only 1), and fit the model with
+# :func:`~coonfit.parallel.compute_weights` to compute the weights for the predictors.
 
 predictors = [elev_band]
 
@@ -312,8 +315,9 @@ plt.show()
 # Step 4 - Reconstruct the Full Model
 # ------------------------------------
 #
-# To assess the model we add the regional climate signal back to the
-# lapse-rate prediction.  The result should approximate the original LST.
+# :func:`~coonfit.parallel.compute_model` reconstructs the full spatial prediction from
+# the fitted weights.  We then add the regional climate signal back via
+# :meth:`~riogrande.io.models.Band.add`.  The result should approximate the original LST.
 
 model_file     = os.path.join(base_dir, f"../data/example/_tmp_model_conv_{kernel_m_sigma}_m.tif")
 model_data_tif = lfpara.compute_model(
@@ -345,7 +349,10 @@ plt.show()
 # Step 5 - Accuracy Assessment & Residuals
 # -----------------------------------------
 #
-# We quantify model performance with RMSE and R².  Two variants are reported:
+# We quantify model performance with RMSE and R² using
+# :func:`~coonfit.parallel.calculate_rmse` and :func:`~coonfit.parallel.calculate_r2`.
+# :func:`~riogrande.parallel.prepare_selector` builds a shared valid-pixel mask across
+# response and predictors.  Two variants are reported:
 #
 # * **Residual** - how well the lapse-rate component alone explains the
 #   LST anomaly (what was directly fit).
