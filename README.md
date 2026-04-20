@@ -1,7 +1,7 @@
 <div align="center">
-
 <img src="./docs/_static/georacoonPin.svg" alt="GeoRacoon Logo" width="400">
-
+</div>
+<div align="center">
 <p>
   <a href="https://github.com/GeoRacoon/GeoRacoon/releases/latest">
     <img src="https://img.shields.io/github/v/release/GeoRacoon/GeoRacoon?label=Release" alt="Release">

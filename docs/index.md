@@ -2,6 +2,7 @@
 title: GeoRacoon
 ---
 
+{.centered}
 ![GeoRacoon Logo](_static/georacoonPin.svg)
 
 ```{include} ../README.md
