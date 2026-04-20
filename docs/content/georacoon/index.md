@@ -1,8 +1,8 @@
-# GeoRacoon
+# Introduction 
 
 ```{toctree}
 
-intro
+overview
 installation
 usage
 ```

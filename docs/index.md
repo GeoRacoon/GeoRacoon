@@ -7,7 +7,7 @@ title: GeoRacoon
 
 ```{include} ../README.md
 :start-line: 3
-:end-before: <!-- quickstart -->
+:end-before: <!-- header-end -->
 
 ```
 

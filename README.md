@@ -44,7 +44,11 @@
 </pre>
 </div>
 
+<!-- header-end -->
+
 # Overview
+
+<!-- overview-start -->
 
 GeoRacoon is aimed at supporting work and analyses with large spatial raster data.
 It heavily relies on [RasterIO](https://rasterio.readthedocs.io/en/stable/) (rio) extending its functionality and usability.
@@ -60,9 +64,10 @@ While Gaussian and border-preserving Gaussian filters are default parameters, ot
 - **CoonFit** allows to fit linear models the _coon-way_, meaning parallelized and fast, while understandable due to the
 reliance on matrix operations
 
+<!-- overview-end -->
+
 # Quickstart
 
-<!-- quickstart -->
 
 ## Table of Contents
 
@@ -77,8 +82,6 @@ reliance on matrix operations
 ## Installation
 
 <!-- installation-start -->
-
-## Installation
 
 **Supported Python versions:**
 
