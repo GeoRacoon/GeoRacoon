@@ -171,9 +171,14 @@ $ uv pip install -e .
 ```
 </details>
 
+<!-- installation-end -->
+
 ## Usage
 
->>>>>>> main
+Head over to the [examples/](examples/) folder for full end-to-end examples.
+Also, refer to the project's [documentation page](https://georacoon.github.io/GeoRacoon) for more details.
+
+<!-- usage-start -->
 <details>
 <summary><b>RioGrande — open a GeoTIFF and work with Sources and Bands</b></summary>
 
@@ -261,8 +266,6 @@ lfpara.compute_model(
 
 </details>
 
-Head over to the [examples/](examples/) folder for a full end-to-end walk-through.
-
 ```python
 from riogrande.io import Source
 from convster import parallel as cvpara
@@ -323,10 +326,7 @@ lfpara.compute_model(
 ```
 
 </details>
-
-Head over to the [examples/](examples/) folder for a full end-to-end walk-through.
-
-For more examples, please refer to the project's [documentation page](https://georacoon.github.io/GeoRacoon).
+<!-- usage-end -->
 
 
 ## Contributing

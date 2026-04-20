@@ -16,8 +16,8 @@ title: GeoRacoon
 :maxdepth: 2
 
 content/georacoon/index
-content/riogrande/index
-content/convster/index
-content/coonfit/index
+# content/riogrande/index
+# content/convster/index
+# content/coonfit/index
 auto_examples/index
 ```
