@@ -68,17 +68,6 @@ reliance on matrix operations
 
 # Quickstart
 
-
-## Table of Contents
-
-- [Installation](#installation)
-- [Usage](#usage)
-- [Technologies](#technologies)
-- [Features](#features)
-- [Authors](#authors)
-- [Release History](#release-history)
-- [License](#license)
-
 ## Installation
 
 <!-- installation-start -->
