@@ -1,0 +1,29 @@
+name: Post coverage comment (cross-repo PRs)
+
+on:
+  workflow_run:
+    workflows: ["Run Tests"]
+    types:
+      - completed
+
+jobs:
+  coverage-comment:
+    name: Post coverage comment
+    runs-on: ubuntu-24.04
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
+    permissions:
+      # Necessary for publishing new comments in pull requests
+      pull-requests: write
+      # Necessary for editing existing comments
+      contents: write
+      # Necessary for looking up the workflow that launched this one
+      # and downloading the related artifact
+      actions: read
+    steps:
+      # DO NOT checkout here, for security reasons
+      # See: https://securitylab.github.com/research/github-actions-preventing-pwn-requests/
+      - name: Post comment
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PR_RUN_ID: ${{ github.event.workflow_run.id }}

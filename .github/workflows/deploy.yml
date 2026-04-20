@@ -1,0 +1,144 @@
+name: Deployment Smoke Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+
+env:
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  smoke-test:
+    if: github.event.pull_request.draft == false
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container || '' }}
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os: ubuntu
+            badge-label: Ubuntu
+            container: ""
+          - runner: ubuntu-latest
+            os: fedora
+            badge-label: Fedora
+            container: fedora:latest
+          - runner: macos-latest
+            os: macos
+            badge-label: macOS
+            container: ""
+          - runner: windows-latest
+            os: windows
+            badge-label: Windows
+            container: ""
+      fail-fast: false
+    steps:
+    - name: Install system dependencies (Fedora)
+      if: matrix.os == 'fedora'
+      run: |
+        dnf install -y python3 python3-pip python3-devel gcc gcc-c++ gdal gdal-devel git git-lfs
+
+    - uses: actions/checkout@v5
+      with:
+        lfs: 'true'
+        submodules: recursive
+
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      if: matrix.os != 'fedora'
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install GeoRacoon
+      shell: bash
+      run: |
+        git config --global --add safe.directory '*'
+        python3 -m venv .venv
+        # Windows venv uses Scripts/, Unix uses bin/
+        if [[ -f .venv/bin/activate ]]; then
+          source .venv/bin/activate
+        else
+          source .venv/Scripts/activate
+        fi
+        pip install --upgrade pip
+        pip install .
+
+    - name: Debug Python path
+      shell: bash
+      run: |
+        # Windows venv uses Scripts/, Unix uses bin/
+        if [[ -f .venv/bin/activate ]]; then
+          source .venv/bin/activate
+        else
+          source .venv/Scripts/activate
+        fi
+        echo "which python:  $(which python)"
+        echo "which python3: $(which python3 2>/dev/null || echo 'not found')"
+        python -c "import sys; print(f'sys.executable: {sys.executable}'); print(f'sys.prefix: {sys.prefix}')"
+
+    - name: Smoke test
+      shell: bash
+      run: |
+        # Windows venv uses Scripts/, Unix uses bin/
+        if [[ -f .venv/bin/activate ]]; then
+          source .venv/bin/activate
+        else
+          source .venv/Scripts/activate
+        fi
+        python -c "
+        import os, tempfile
+        import numpy as np
+        from riogrande.io import Source, Band, write_band
+        from convster.processing import select_category
+        from coonfit.inference import get_optimal_weights
+
+        # -- riogrande: write a GeoTIFF via Source, then read it back via Band
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'smoke.tif')
+            data = np.array([[42.0]], dtype='float32')
+            profile = dict(
+                driver='GTiff', dtype='float32',
+                width=1, height=1, count=1,
+                crs='EPSG:4326',
+            )
+            src = Source(path, profile=profile)
+            with src.open(mode='w') as dst:
+                write_band(dst, data, bidx=1, name='smoke')
+            band = Band(source=src, bidx=1, tags={'name': 'smoke'})
+            result = band.get_data()
+            assert result[0, 0] == 42.0, f'Expected 42.0, got {result[0, 0]}'
+        print('riogrande: Source write + Band read OK')
+
+        # -- convster: select_category on a tiny categorical array
+        cat = np.array([[2]], dtype='uint8')
+        sel = select_category(cat, category=2)
+        assert sel[0, 0] == np.iinfo(sel.dtype).max, f'select_category failed: {sel[0, 0]}'
+        print('convster: select_category OK')
+
+        # -- coonfit: get_optimal_weights on trivial regression
+        X = np.array([[1.0]])
+        y = np.array([2.0])
+        w = get_optimal_weights(X, y)
+        assert abs(w[0] - 2.0) < 1e-6, f'get_optimal_weights failed: {w}'
+        print('coonfit: get_optimal_weights OK')
+
+        print('All smoke tests passed')
+        "
+
+    # Update OS badge in gist (only on push to main)
+    - name: Update ${{ matrix.badge-label }} status badge
+      if: always() && github.ref == 'refs/heads/main'
+      # pinned to v1.8.0
+      uses: schneegans/dynamic-badges-action@0e50b8bad39e7e1afd3e4e9c2b7dd145fad07501
+      with:
+        auth: ${{ secrets.GIST_SECRET }}
+        gistID: ${{ vars.STATUS_GIST_ID }}
+        filename: deploy-${{ matrix.os }}.json
+        label: ${{ matrix.badge-label }}
+        message: ${{ job.status == 'success' && 'passing' || 'failing' }}
+        color: ${{ job.status == 'success' && 'brightgreen' || 'red' }}
