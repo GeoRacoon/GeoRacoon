@@ -6,7 +6,7 @@
   <a href="https://github.com/GeoRacoon/GeoRacoon/releases/latest">
     <img src="https://img.shields.io/github/v/release/GeoRacoon/GeoRacoon?label=Release" alt="Release">
   </a>
-  <a href="https://georacoon.github.io/GeoRacoon" target="_blank">
+  <a href="https://georacoon.readthedocs.io" target="_blank">
     <img src="https://img.shields.io/badge/Docs-online-blue.svg" alt="Docs">
   </a>
   <a href="https://github.com/GeoRacoon/GeoRacoon/blob/main/LICENSE">
@@ -168,7 +168,7 @@ $ uv pip install -e .
 ## Usage
 
 Head over to the [examples/](examples/) folder for full end-to-end examples.
-Also, refer to the project's [documentation page](https://georacoon.github.io/GeoRacoon) for more details.
+Also, refer to the project's [documentation page](https://georacoon.readthedocs.io) for more details.
 
 <!-- usage-start -->
 GeoRacoon provides high-level functions that allow you to do many things in just a few lines of code:
