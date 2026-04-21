@@ -1,6 +1,7 @@
 import itertools
 import random
 
+import pytest
 import numpy as np
 import rasterio as rio
 import multiprocessing as mproc
@@ -866,6 +867,7 @@ def test_apply_filter(datafiles):
         np.testing.assert_equal(b_twostep.get_data(), b_single.get_data())
 
 
+@pytest.mark.timeout(600)
 @ALL_MAPS
 def test_extract_categories(datafiles):
     """Make sure the extract categories works as expected
