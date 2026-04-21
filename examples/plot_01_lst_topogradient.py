@@ -28,6 +28,7 @@ import shutil
 
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.gridspec import GridSpec
 
 # Modules from GeoRacoon we use here
 from riogrande.io import Source, Band
@@ -85,23 +86,26 @@ data_type  = np.float32
 # :class:`~riogrande.io.models.Source` and :class:`~riogrande.io.models.Band`
 # with :meth:`~riogrande.io.models.Band.get_data` to read the pixel array
 
-def show_map(ax, file, title, limits, cmap="RdBu_r", label="°C", bidx=1):
+def show_map(ax, file, title, limits, cmap="RdBu_r", label="°C", bidx=1,
+             add_colorbar=True):
     src = Source(path=file)
     band = Band(source=src, bidx=bidx)
     data = band.get_data()
     ax.set_axis_off()
     img = ax.imshow(data, cmap=cmap, vmin=limits[0], vmax=limits[1])
     ax.set_title(title, fontsize=10)
-    plt.colorbar(img, ax=ax, label=label, shrink=0.6)
+    if add_colorbar:
+        plt.colorbar(img, ax=ax, label=label, shrink=0.6)
+    return img
 
 # %%
 # The raw inputs look like this:
 
-fig, axes = plt.subplots(1, 2, figsize=(11, 4))
-show_map(axes[0], lst_file_org,  "LST - mean summer 2015 (°C)",   limits=(0, 50))
+fig, axes = plt.subplots(2, 1, figsize=(12, 16))
+show_map(axes[0], lst_file_org,  "LST - mean summer 2015 (°C)", limits=(0, 50))
 show_map(axes[1], topo_file_org, "Elevation (m)", limits=(0, 3500),
          cmap="terrain", label="m a.s.l.")
-fig.suptitle("Input data", fontweight="bold")
+fig.suptitle("Input data", fontweight="bold", fontsize=14)
 fig.tight_layout()
 plt.show()
 
@@ -132,14 +136,15 @@ params_filter = dict(
 # %%
 # Prepare the dataset objects for the filter ...
 
-lst_conv_file   = os.path.join(base_dir, f"../data/example/_tmp_lst_conv_{kernel_m_sigma}m_alps.tif")
+lst_conv_file   = os.path.join(base_dir,
+                               f"../data/example/_tmp_lst_conv_{kernel_m_sigma}m_alps.tif")
 lst_conv_source = Source(path=lst_conv_file, profile=lst_profile)
 lst_conv_source.init_source(overwrite=True)
 lst_conv_band   = Band(lst_conv_source, bidx=1)
 
 # %%
 # ... and perform the filter operation with :func:`~convster.parallel.apply_filter`, using
-# :func:`~convster.filters.bpgaussian` as the filter kernel.
+# :func:`~convster.filters.gaussian.bpgaussian` as the filter kernel.
 
 cvpara.apply_filter(
     source=lst_source,
@@ -164,15 +169,26 @@ cvpara.apply_filter(
 lst_band.subtract(band=lst_conv_band)
 
 # %%
-# The three panels below show original LST, the regional signal captured by
-# the convolution, and the anomaly we will actually model:
+# The thw panels below show original LST and the regional signal captured by
+# the convolution
 
-fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-show_map(axes[0], lst_file_org,  "Original LST (°C)",              limits=(0, 50))
-show_map(axes[1], lst_conv_file, "Regional climate - convolution (°C)", limits=(0, 50))
-show_map(axes[2], lst_file,      "LST anomaly - deviation (°C)",   limits=(-10, 10))
-fig.suptitle("Step 1 - LST decomposition", fontweight="bold")
-fig.tight_layout()
+# Figure 1: Original LST and Regional climate convolution
+fig1, axes1 = plt.subplots(1, 2, figsize=(16, 6), constrained_layout=True)
+img1 = show_map(axes1[0], lst_file_org, "Original LST (°C)", limits=(0, 50),
+                add_colorbar=False)
+img2 = show_map(axes1[1], lst_conv_file, "Regional climate - convolution (°C)",
+                limits=(0, 50), add_colorbar=False)
+cbar1 = fig1.colorbar(img1, ax=axes1.ravel().tolist(), label="°C", shrink=0.8,
+                      pad=0.02)
+plt.show()
+
+# %%
+# What we will actually model is the anomaly, i.e. the difference between those two:
+
+# Figure 2: LST anomaly
+fig2, ax2 = plt.subplots(figsize=(12, 8))
+show_map(ax2, lst_file, "LST anomaly - deviation (°C)", limits=(-10, 10))
+fig2.tight_layout()
 plt.show()
 
 # %%
@@ -185,7 +201,8 @@ plt.show()
 
 # Again we prepare the data ...
 
-elev_conv_file   = os.path.join(base_dir, f"../data/example/_tmp_elev_conv_{kernel_m_sigma}m_alps.tif")
+elev_conv_file   = os.path.join(base_dir,
+                                f"../data/example/_tmp_elev_conv_{kernel_m_sigma}m_alps.tif")
 elev_conv_source = Source(path=elev_conv_file, profile=topo_profile)
 elev_conv_source.init_source(overwrite=True)
 elev_conv_band   = Band(elev_conv_source, bidx=1)
@@ -210,22 +227,30 @@ cvpara.apply_filter(
     **params,
 )
 
-# Subract the band again for the anomalies
-elev_band.subtract(band=elev_conv_band)
+# %%
+# We know have a map that represent the regional mean elevation:
+
+# Figure 1: Original elevation and Regional elevation convolution
+fig1, axes1 = plt.subplots(1, 2, figsize=(16, 6), constrained_layout=True)
+img1 = show_map(axes1[0], topo_file_org, "Original elevation (m)",
+                limits=(0, 3500), cmap="terrain", label="m a.s.l.",
+                add_colorbar=False)
+img2 = show_map(axes1[1], elev_conv_file, "Regional elevation - convolution (m)",
+                limits=(0, 3500), cmap="terrain", label="m a.s.l.",
+                add_colorbar=False)
+cbar1 = fig1.colorbar(img1, ax=axes1.ravel().tolist(), label="m a.s.l.",
+                      shrink=0.8, pad=0.02)
+plt.show()
 
 # %%
-# Elevation anomaly - local height above (positive) or below (negative) the
+# Now we subtract the convolution from the elevation band to obtain the
+# elevation anomaly - local height above (positive) and below (negative) the 
 # regional mean surface:
-
-fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-show_map(axes[0], topo_file_org,  "Original elevation (m)",              limits=(0, 3500),
-         cmap="terrain", label="m a.s.l.")
-show_map(axes[1], elev_conv_file, "Regional elevation - convolution (m)", limits=(0, 3500),
-         cmap="terrain", label="m a.s.l.")
-show_map(axes[2], topo_file,      "Elevation anomaly - deviation (m)",    limits=(-1500, 1500),
-         cmap="RdBu_r", label="Δm")
-fig.suptitle("Step 2 - Elevation decomposition", fontweight="bold")
-fig.tight_layout()
+elev_band.subtract(band=elev_conv_band)
+# Figure 2: Elevation anomaly
+fig2, ax2 = plt.subplots(1, 1, figsize=(12, 8), constrained_layout=True)
+show_map(ax2, topo_file, "Elevation anomaly - deviation (m)",
+         limits=(-1500, 1500), cmap="RdBu_r", label="Δm")
 plt.show()
 
 # %%
@@ -294,13 +319,16 @@ print(f"Estimated lapse rate:    {lapse_rate:.2f} °C km⁻¹")
 print(f"Literature range (Alps): {lit_low} to {lit_high} °C km⁻¹")
 
 fig, ax = plt.subplots(figsize=(4, 2.5))
-ax.plot([-5, -6], [0, 0], color="lightgray", linestyle="dotted", linewidth=1.5, zorder=1)
-ax.plot([lit_low, lit_high],  [0, 0],         color="black", linewidth=2, zorder=2)
-ax.plot([lit_low, lit_low],   [-0.05, 0.05],  color="black", linewidth=2, zorder=2)
-ax.plot([lit_high, lit_high], [-0.05, 0.05],  color="black", linewidth=2, zorder=2,
-        label=f"Literature range ({lit_low} to {lit_high} °C km⁻¹)")
-ax.plot(lapse_rate, 0, "x", color="darkred", markersize=10, markeredgewidth=2.5, zorder=3,
-        label=f"This study: {lapse_rate:.2f} °C km⁻¹")
+ax.plot([-5, -6], [0, 0], color="lightgray", linestyle="dotted", linewidth=1.5,
+        zorder=1)
+ax.plot([lit_low, lit_high],  [0, 0],         color="black", linewidth=2,
+        zorder=2)
+ax.plot([lit_low, lit_low],   [-0.05, 0.05],  color="black", linewidth=2,
+        zorder=2)
+ax.plot([lit_high, lit_high], [-0.05, 0.05],  color="black", linewidth=2,
+        zorder=2, label=f"Literature range ({lit_low} to {lit_high} °C km⁻¹)")
+ax.plot(lapse_rate, 0, "x", color="darkred", markersize=10, markeredgewidth=2.5,
+        zorder=3, label=f"This study: {lapse_rate:.2f} °C km⁻¹")
 ax.set_xlabel("Lapse rate (°C km⁻¹)")
 ax.set_xlim(-6, -5)
 ax.set_yticks([])
@@ -319,7 +347,8 @@ plt.show()
 # the fitted weights.  We then add the regional climate signal back via
 # :meth:`~riogrande.io.models.Band.add`.  The result should approximate the original LST.
 
-model_file     = os.path.join(base_dir, f"../data/example/_tmp_model_conv_{kernel_m_sigma}_m.tif")
+model_file     = os.path.join(base_dir,
+                              f"../data/example/_tmp_model_conv_{kernel_m_sigma}_m.tif")
 model_data_tif = lfpara.compute_model(
     predictors=predictors,
     optimal_weights=band_weight,
@@ -338,11 +367,14 @@ model_band.add(band=lst_conv_band)
 # %%
 # Comparing the original and modelled LST:
 
-fig, axes = plt.subplots(1, 2, figsize=(11, 4))
-show_map(axes[0], lst_file_org, "Original LST (°C)",       limits=(0, 50))
-show_map(axes[1], model_file,   "Modelled LST (°C)",        limits=(0, 50))
-fig.suptitle("Step 4 - Model reconstruction", fontweight="bold")
-fig.tight_layout()
+fig, axes = plt.subplots(1, 2, figsize=(16, 6), constrained_layout=True)
+img1 = show_map(axes[0], lst_file_org, "Original LST (°C)", limits=(0, 50),
+                add_colorbar=False)
+img2 = show_map(axes[1], model_file, "Modelled LST (°C)", limits=(0, 50),
+                add_colorbar=False)
+cbar = fig.colorbar(img1, ax=axes.ravel().tolist(), label="°C", shrink=0.8,
+                    pad=0.02)
+fig.suptitle("Step 4 - Model reconstruction", fontweight="bold", fontsize=14)
 plt.show()
 
 # %%
@@ -370,20 +402,25 @@ rgpara.compute_mask(
     **params,
 )
 lst_org_band.set_mask_reader(use="source")
-_selector_all = rgpara.prepare_selector(lst_org_band, *predictors, block_size=block_size)
+_selector_all = rgpara.prepare_selector(lst_org_band, *predictors,
+                                        block_size=block_size)
 
-rmse     = lfpara.calculate_rmse(response=lst_band,     model=model_data_tif,
-                                  selector=_selector_all, block_size=block_size, **params)
-r2_resid = lfpara.calculate_r2(  response=lst_band,     model=model_data_tif,
-                                  selector=_selector_all, block_size=block_size, **params)
-r2_full  = lfpara.calculate_r2(  response=lst_org_band, model=model_data_tif,
-                                  selector=_selector_all, block_size=block_size, **params)
+rmse = lfpara.calculate_rmse(response=lst_band, model=model_data_tif,
+                             selector=_selector_all, block_size=block_size,
+                             **params)
+r2_resid = lfpara.calculate_r2(response=lst_band, model=model_data_tif,
+                               selector=_selector_all, block_size=block_size,
+                               **params)
+r2_full = lfpara.calculate_r2(response=lst_org_band, model=model_data_tif,
+                               selector=_selector_all, block_size=block_size,
+                               **params)
 
 print(f"Residual model - RMSE: {rmse:.2f} °C  |  R²: {r2_resid:.2f}")
 print(f"Full model     - RMSE: {rmse:.2f} °C  |  R²: {r2_full:.2f}")
 
 # Residual map
-resid_file   = os.path.join(base_dir, f"../data/example/_tmp_resid_model_conv_{kernel_m_sigma}_m.tif")
+resid_file   = os.path.join(base_dir,
+                            f"../data/example/_tmp_resid_model_conv_{kernel_m_sigma}_m.tif")
 resid_source = Source(path=resid_file, profile=lst_profile)
 resid_source.init_source(overwrite=True)
 resid_band   = Band(source=resid_source, bidx=1)
@@ -393,8 +430,17 @@ lst_org_band.subtract(band=model_band, out_band=resid_band)
 # Residuals reveal where the model over- or under-predicts - for example,
 # urban heat islands or cold air pooling around water bodies:
 
-fig, ax = plt.subplots(1, 1, figsize=(7, 5))
-show_map(ax, resid_file, f"Residuals (°C)  -  R² = {r2_full:.2f}", limits=(-10, 10))
-fig.suptitle("Step 5 - Residuals", fontweight="bold")
+fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+src = Source(path=resid_file)
+band = Band(source=src, bidx=1)
+data = band.get_data()
+ax.set_axis_off()
+img = ax.imshow(data, cmap="RdBu_r", vmin=-10, vmax=10)
+ax.set_title(f"Residuals (°C)  -  R² = {r2_full:.2f}", fontsize=12)
+
+# Compact colorbar (narrower width to give more space to plot)
+cbar = plt.colorbar(img, ax=ax, label="°C", shrink=0.6, aspect=25, pad=0.02,
+                    fraction=0.046)
+fig.suptitle("Step 5 - Residuals", fontweight="bold", fontsize=14)
 fig.tight_layout()
 plt.show()
