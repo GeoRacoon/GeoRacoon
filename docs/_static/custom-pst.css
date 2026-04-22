@@ -31,6 +31,11 @@ a.reference.external:not([href*="docs.python.org"])::after {
     font-size: 0.75em;
     opacity: 0.6;
 }
+/* Suppress the external-link ⎋ marker when the link wraps a partner logo */
+a.reference.external:has(> img)::after {
+    content: none;
+}
+ 
 
 /* Hide sphinx-gallery execution time note at the bottom of example pages */
 .sphx-glr-timing {
