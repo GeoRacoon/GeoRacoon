@@ -29,7 +29,7 @@ title: GeoRacoon
 ```
 ```{image} https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/bw/T4D_design_develop.svg
 :class: only-light partner-logo
-:width: 220px
+:width: 210px
 :alt: T4D logo
 :target: https://github.com/t4d-gmbh
 ```
@@ -41,7 +41,7 @@ title: GeoRacoon
 ```
 ```{image} https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/wb/T4D_design_develop.svg
 :class: only-dark partner-logo
-:width: 220px
+:width: 210px
 :alt: T4D logo
 :target: https://github.com/t4d-gmbh
 ```
