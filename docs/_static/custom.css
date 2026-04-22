@@ -1,3 +1,11 @@
+/* Remove PST external-link arrow when an external link wraps a partner logo */
+a.reference.external:has(> img.partner-logo)::after {
+  content: none !important;
+}
+/* Fallback for browsers / cases where :has() isn't matched */
+a.reference.external > img.partner-logo + ::after { content: none !important; }
+
+
 /* GitHub-pre-like surface that adapt to PST dark/light mode */
 .gh-pre {
   background-color: #f6f8fa;   /* GitHub light pre bg */
