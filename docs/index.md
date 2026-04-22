@@ -15,9 +15,11 @@ title: GeoRacoon
 :end-before: <!-- header-end -->
 ```
 
-:::{div} text-center gh-pre p-3 rounded font-monospace
+:::{div} d-flex flex-wrap justify-content-center align-items-center gap-3 gh-pre p-3 rounded font-monospace
 
+:::{div} w-100 text-center
 <small>Born from a collaboration between:</small>
+:::
 
 ```{image} https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg
 :class: only-light partner-logo
