@@ -66,7 +66,7 @@ html_logo = "./GeoRacoon.png"
 html_theme = 'pydata_sphinx_theme'
 # html_theme = 'sphinx_book_theme'
 html_static_path = ['_static']
-html_css_files = ['custom-pst.css']
+html_css_files = ['custom.css', 'custom-pst.css']
 
 html_context = {
     "github_user": "GeoRacoon",

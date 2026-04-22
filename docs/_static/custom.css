@@ -1,0 +1,12 @@
+/* GitHub-pre-like surface that adapt to PST dark/light mode */
+.gh-pre {
+  background-color: #f6f8fa;   /* GitHub light pre bg */
+  color: var(--pst-color-text-base, #1f2328);
+  border: 1px solid rgba(31, 35, 40, 0.15);
+}
+html[data-theme="dark"] .gh-pre {
+  background-color: #161b22;   /* GitHub dark pre bg */
+  color: #e6edf3;
+  border-color: rgba(240, 246, 252, 0.1);
+}
+
