@@ -15,7 +15,7 @@ title: GeoRacoon
 :end-before: <!-- header-end -->
 ```
 
-:::{div} d-flex flex-wrap justify-content-center align-items-center gap-3 gh-pre p-3 rounded font-monospace
+::::{div} d-flex flex-wrap justify-content-center align-items-center gap-3 gh-pre p-3 rounded font-monospace
 
 :::{div} w-100 text-center
 <small>Born from a collaboration between:</small>
@@ -45,7 +45,7 @@ title: GeoRacoon
 :alt: T4D logo
 :target: https://github.com/t4d-gmbh
 ```
-:::
+::::
 
 ```{toctree}
 :caption: Table of Content
