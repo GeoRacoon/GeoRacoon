@@ -1,6 +1,7 @@
 <div align="center">
 <img src="./docs/_static/georacoonPin.svg" alt="GeoRacoon Logo" width="400">
 </div>
+<!-- header-start -->
 <div align="center">
 <p>
   <a href="https://github.com/GeoRacoon/GeoRacoon/releases/latest">
@@ -34,17 +35,17 @@
 </p>
 <h1>GeoRacoon</h1>
 <p>Out and about<br><><br>ready to tackle Geographic Raster</p>
-
+</div>
+<!-- header-end -->
+<div align="center">
   <br>
   <br>
-<pre><small>Born from a collaboration between:</small>
+  <pre><small>Born from a collaboration between:</small>
 <br>
 
 <a href="https://www.ieu.uzh.ch/en/research/ecology/soil.html"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.cd.uzh.ch/dam/jcr:9528e314-fbb5-4ede-b7a5-3446bf8d9337/UZH_Logo_white.svg"><source media="(prefers-color-scheme: light)" srcset="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg"><img alt="UZH logo" src="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg" width="290" style="vertical-align: middle;"></picture></a>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="https://github.com/t4d-gmbh"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/wb/T4D_design_develop.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/bw/T4D_design_develop.svg"><img alt="T4D Logo" src="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/bw/T4D_design_develop.svg" width="220" style="vertical-align: middle;"></picture></a>
 </pre>
 </div>
-
-<!-- header-end -->
 
 # Overview
 
