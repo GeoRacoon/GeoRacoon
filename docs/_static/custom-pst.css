@@ -32,7 +32,7 @@ a.reference.external:not([href*="docs.python.org"])::after {
     opacity: 0.6;
 }
 /* Suppress the external-link ⎋ marker when the link wraps a partner logo */
-a.reference.external:has(> img)::after {
+a.reference.external:not([href*="docs.python.org"]):has(> img)::after {
     content: none;
 }
  
