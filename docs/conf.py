@@ -56,10 +56,10 @@ intersphinx_mapping = {
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-favicons = [
-    "./GeoRacoon.png"
+html_favicons = [
+    "GeoRacoon.png"
 ]
-html_logo = "./GeoRacoon.png"
+html_logo = "GeoRacoon.png"
 
 # html_theme = 'sphinx_rtd_theme'
 # html_theme = 'alabaster'
