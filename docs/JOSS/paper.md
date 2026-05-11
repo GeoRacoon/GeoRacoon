@@ -53,7 +53,7 @@ computationally prohibitive without parallelization and out-of-core processing s
 on local computation infrastructure. 
 
 At the time of development, to the authors' best knowledge, no Python package provided a turnkey, parallelized workflow for
-Gaussian convolution of large categorical rasters with correct handling of nodata boundaries. Existing tools either
+Gaussian convolution of large categorical rasters with correct handling of _nodata_ boundaries. Existing tools either
 required users to implement parallelization themselves or did not support border-preserving convolution for categorical
 data. Similarly, fitting pixel-wise multiple linear regression (MLR) across full rasters — where spatial bands serve as
 predictors and response — lacked an accessible, parallelized Python solution using the analytical normal-equations
@@ -66,7 +66,7 @@ on landscape diversity effects on vegetation productivity [@Landauer_2025_prepri
 derived heterogeneity metrics, and raster-based regression were essential. During development, `riogrande` emerged as a
 extension of `rasterio` [@Gillies_2019] to manage large volumes of imagery in an object-oriented, tag-based
 manner, improving easy usability of remote sensing imagery for broader applications beyond the original research context.
-The other two sub-packages, `convster` and `coonfit` build upon `riogrande` to implement convolution methods an multiple linear regerssion in a fully parallelized approach.
+The other two sub-packages, `convster` and `coonfit` build upon `riogrande` to implement convolution methods an multiple linear regression in a fully parallelized approach.
 
 
 # State of the field
@@ -112,7 +112,7 @@ Additional functionality includes configurable mask strategies per band, compati
 **`convster` — parallelized spatial convolution.**  
 The convolution module follows a filter-agnostic design: any callable matching the expected signature can be used as the spatial filter.
 The default Gaussian filter wraps `skimage.filters.gaussian`, and a custom border-preserving variant (`bpgaussian`)
-correctly handles nodata boundaries through a normalization-correction approach.
+correctly handles _nodata_ boundaries through a normalization-correction approach.
 Kernel dimensions are estimated adaptively from the filter's impulse response,
 and border sizes are computed automatically to ensure artifact-free block-parallel processing.
 Beyond raw convolution, `convster` provides derived spatial metrics including Shannon entropy and an interaction index inspired
@@ -134,8 +134,8 @@ are provided as part of the pipeline.
 The `GeoRacoon` package was central to carrying out a research project on the effects of landscape diversity on vegetation 
 productivity at a global scale [@Landauer_2025_preprint]. The analyses required Gaussian convolution and heterogeneity 
 metric computation of land-cover data, as well as per-pixel MLR with numerous predictors in billion-pixel 
-multi-band remote sensning imagery. Given the non-availability of could based solutions for the datasets as well as the 
-methods, this research would have not been computationally feasable without the provided parallelization in this package.
+multi-band remote sensing imagery. Given the non-availability of could based solutions for the datasets as well as the 
+methods, this research would have not been computationally feasible without the provided parallelization in this package.
 
 Beyond this initial application, the package is highly usable in any research involving large geospatial rasters. 
 While `riogrande` can generally assist with the simplified management of multi-band remote sensing raster objects,
