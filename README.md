@@ -1,12 +1,13 @@
 <div align="center">
 <img src="./docs/_static/georacoonPin.svg" alt="GeoRacoon Logo" width="400">
 </div>
+<!-- header-start -->
 <div align="center">
 <p>
   <a href="https://github.com/GeoRacoon/GeoRacoon/releases/latest">
     <img src="https://img.shields.io/github/v/release/GeoRacoon/GeoRacoon?label=Release" alt="Release">
   </a>
-  <a href="https://georacoon.github.io/GeoRacoon" target="_blank">
+  <a href="https://georacoon.readthedocs.io" target="_blank">
     <img src="https://img.shields.io/badge/Docs-online-blue.svg" alt="Docs">
   </a>
   <a href="https://github.com/GeoRacoon/GeoRacoon/blob/main/LICENSE">
@@ -34,17 +35,17 @@
 </p>
 <h1>GeoRacoon</h1>
 <p>Out and about<br><><br>ready to tackle Geographic Raster</p>
-
+</div>
+<!-- header-end -->
+<div align="center">
   <br>
   <br>
-<pre><small>Born from a collaboration between:</small>
+  <pre><small>Born from a collaboration between:</small>
 <br>
 
 <a href="https://www.ieu.uzh.ch/en/research/ecology/soil.html"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.cd.uzh.ch/dam/jcr:9528e314-fbb5-4ede-b7a5-3446bf8d9337/UZH_Logo_white.svg"><source media="(prefers-color-scheme: light)" srcset="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg"><img alt="UZH logo" src="https://www.cd.uzh.ch/dam/jcr:e2f01a3c-e263-427a-91d7-723fc337af4b/uzh-logo.svg" width="290" style="vertical-align: middle;"></picture></a>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="https://github.com/t4d-gmbh"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/wb/T4D_design_develop.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/bw/T4D_design_develop.svg"><img alt="T4D Logo" src="https://raw.githubusercontent.com/t4d-gmbh/.github/main/static/logo/bw/T4D_design_develop.svg" width="220" style="vertical-align: middle;"></picture></a>
 </pre>
 </div>
-
-<!-- header-end -->
 
 # Overview
 
@@ -57,8 +58,7 @@ It also facilitates GeoTIFF handling with an object oriented abstraction layer t
 
 _GeoRacoon_ provides 3 packages, `riogrande`, `convster` and `coonfit`, which facilitate (in our opinion) working with TIFF files.
 
-- **RioGrande** provides the great heart of the GeoRacoon and adds functionality for parallel processing using Windows, dataset compatibility checks, data type 
-conversion, mask and selector creation as well as simple file compression.  
+- **RioGrande** is the great heart of the GeoRacoon and adds functionality for parallel processing using block-based I/O, dataset compatibility checks, data type conversion, mask and selector creation as well as simple file compression.  
 - **Convster** allows for (Gaussian) convolution of raster files using parallelized processing, _coon-style_. 
 While Gaussian and border-preserving Gaussian filters are default parameters, other filters can be used.
 - **CoonFit** allows to fit linear models the _coon-way_, meaning parallelized and fast, while understandable due to the
@@ -108,7 +108,7 @@ pip install git+https://github.com/GeoRacoon/georacoon.git
 ```
 
 <details>
-<summary><b>Development install</b></summary>
+<summary><b>Development installation</b></summary>
 
 You can also clone the repository and install the package from your
 local copy.
@@ -168,7 +168,7 @@ $ uv pip install -e .
 ## Usage
 
 Head over to the [examples/](examples/) folder for full end-to-end examples.
-Also, refer to the project's [documentation page](https://georacoon.github.io/GeoRacoon) for more details.
+Also, refer to the project's [documentation page](https://georacoon.readthedocs.io) for more details.
 
 <!-- usage-start -->
 GeoRacoon provides high-level functions that allow you to do many things in just a few lines of code:
