@@ -40,14 +40,13 @@ The Python package `GeoRacoon` is aimed at supporting work and analyses with
 large spatial raster data. It consists of 3 sub-packages: `riogrande`, a class based extension of rasterio
 [@Gillies_2019] with extended functionalities for tag based raster object
 management; `convster`, a fully parallelized module for convolution of spatial
-raster data (e.g. satellite imagery); `coonfit`, a multiple linear regression
-module using analytical solutions, yet fully parallelized to allow for large
-data analysis.
+raster data (e.g., satellite imagery); `coonfit`, a multiple linear regression
+module using fully parallelized analytical solutions to enable large data analysis.
 
 
 # Statement of need
 
-Analyses of large geospatial raster datasets such as remote sensing-derived imagery (e.g. land-cover maps, 
+Analyses of large geospatial raster datasets such as remote sensing-derived imagery (e.g., land-cover maps, 
 vegetation indices) and climate variables frequently involve spatial filtering (convolution) and pixel-wise statistical modelling 
 within their analysis pipelines. When applied to imagery with billions of pixels, these operations become 
 computationally prohibitive without parallelization and out-of-core processing strategies, in particular when performed
@@ -61,29 +60,29 @@ predictors and response — lacked an accessible, parallelized Python solution u
 approach. Finally, working with multi-band rasters carrying rich metadata (e.g., land-cover category labels, temporal
 identifiers) required manual bookkeeping of band indices; no library offered tag-based band selection out of the box.
 
-`GeoRacoon` addresses these gaps. Its three sub-packages evolved from the practical needs of a research project on
-landscape diversity effects on vegetation productivity [@Landauer_2025_preprint], where large-scale spatial convolution,
+`GeoRacoon` addresses these gaps jointly in a common framework.
+Its three sub-packages evolved from the practical needs of a research project
+on landscape diversity effects on vegetation productivity [@Landauer_2025_preprint], where large-scale spatial convolution,
 derived heterogeneity metrics, and raster-based regression were essential. During development, `riogrande` emerged as a
-foundational extension of `rasterio` [@Gillies_2019] to manage large volumes of imagery in an object-oriented, tag-based
+extension of `rasterio` [@Gillies_2019] to manage large volumes of imagery in an object-oriented, tag-based
 manner, improving easy usability of remote sensing imagery for broader applications beyond the original research context.
+The other two sub-packages, `convster` and `coonfit` build upon `riogrande` to implement convolution methods an multiple linear regerssion in a fully parallelized approach.
 
 
 # State of the field
 
-Several well-established tools address different parts of the geospatial raster processing pipeline. First, 
-`rasterio` [@Gillies_2019] provides the baseline Python interface for geospatial raster input/output (I/O), built on top of GDAL [@GDAL_2025], but offers no
-high-level analytical operations such as convolution or regression. Next, `xarray` [@Hoyer_2017] and its geospatial extension
-`rioxarray` enable lazy, chunked computation via Dask, facilitating the basic handling of large multidimensional arrays. 
-However, they lack analytical capabilityies for spatial filtering or pixel-wise MLR. While `scipy.ndimage` [@Virtanen_2020] 
-and `scikit-image` [@van_der_Walt_2014] provide spatial filters, including Gaussian, both operate in-memory and do not 
-handle geospatial metadata or nodata boundaries, also lacking block-parallel decomposition. While cloud-based platforms 
-such as Google Earth Engine [@Gorelick_2017] - also accessible via Python API - excel at large-scale analysism, 
-these plattforms are tied to proprietary infrastructure and do not support full custom filter implementations and often 
-limit incorporation of personal datasets, not part of the provided catalogue.
+Several well-established tools address different parts of the geospatial raster processing pipeline.
+First, `rasterio` [@Gillies_2019] provides the baseline Python interface for geospatial raster input/output (I/O),
+built on top of GDAL [@GDAL_2025], but offers no high-level analytical operations such as convolution or regression.
+Next, `xarray` [@Hoyer_2017] and its geospatial extension `rioxarray` enable lazy, chunked computation via Dask, facilitating the basic handling of large multidimensional arrays. 
+However, they lack analytical capabilityies for spatial filtering or pixel-wise MLR.
+While `scipy.ndimage` [@Virtanen_2020] and `scikit-image` [@van_der_Walt_2014] provide spatial filters,
+including Gaussian, both operate in-memory and do not handle geospatial metadata or nodata boundaries,
+also lacking block-parallel decomposition.
+Cloud-based platforms, such as Google Earth Engine [@Gorelick_2017] can also be accessible via Python API but are tied to proprietary infrastructure and do not support full custom filter implementations and often even 
+limit the incorporation of personal datasets, not part of the provided catalogue.
 
-`GeoRacoon` stands out by combining block-parallel processing with correct nodata handling, tag-based
-metadata management, and analytical MLR for large geospatial raster data. It is all contained within a single Python 
-package that can be installed using Pip and requires no external cloud infrastructure, yet it can be used with clusters.
+`GeoRacoon` stands out by combining block-parallel processing with correct nodata handling, tag-based metadata management and an object oriented approach to raster data.
 
 # Software design
 
@@ -99,8 +98,9 @@ Rasters are decomposed into spatial blocks via a view system, with configurable 
 artifacts in filter operations.
 Workers are dispatched via Python's `multiprocessing.Pool`, each processing a block
 independently, while a dedicated aggregator process collects results from a shared queue and writes them to disk.
-This producer-consumer pattern enables processing of rasters that exceed available memory without requiring external
-distributed computing frameworks.
+This producer-consumer pattern implements a flexible parallelization mechanism:
+By decreasing the block size (lowering the memory requirement of a single concurrent job) and reducing the pool size (reducing the multiplicity of concurrent jobs) the total memory requirement can be reduced drastically, pushing towards a more sequential processing of rasters.
+In combination with an aggregation mechanism that processes block-by-block `GeoRacoon` allows a trade-off between RAM for execution time, enabling large-scale raster analysis even on modest hardware.
 
 **`riogrande` — tag-based raster management.**  
 The `Source` and `Band` classes extend `rasterio` with a structured metadata layer.
