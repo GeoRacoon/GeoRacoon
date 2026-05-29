@@ -37,7 +37,7 @@ bibliography: paper.bib
 
 # Summary
 The Python package `GeoRacoon` is aimed at supporting work and analyses with
-large spatial raster data. It consists of 3 sub-packages: `riogrande`, a class based extension of rasterio
+large spatial raster data. It consists of 3 sub-packages: `riogrande`, a class based extension of Rasterio
 [@Gillies_2019] with extended functionalities for tag based raster object
 management; `convster`, a fully parallelized module for convolution of spatial
 raster data (e.g., satellite imagery); `coonfit`, a multiple linear regression
@@ -64,7 +64,7 @@ identifiers) required manual bookkeeping of band indices; no library offered tag
 Its three sub-packages evolved from the practical needs of a research project
 on landscape diversity effects on vegetation productivity [@Landauer_2025_preprint], where large-scale spatial convolution,
 derived heterogeneity metrics, and raster-based regression were essential. During development, `riogrande` emerged as an
-extension of `rasterio` [@Gillies_2019] to manage large volumes of imagery in an object-oriented, tag-based
+extension of Rasterio [@Gillies_2019] to manage large volumes of imagery in an object-oriented, tag-based
 manner, improving easy usability of remote sensing imagery for broader applications beyond the original research context.
 The other two sub-packages, `convster` and `coonfit` build upon `riogrande` to implement convolution methods a multiple linear regression in a fully parallelized approach.
 
@@ -74,7 +74,7 @@ comprehensive documentation including examples of usage available at https://geo
 # State of the field
 
 Several well-established tools address different parts of the geospatial raster processing pipeline.
-First, `rasterio` [@Gillies_2019] provides the baseline Python interface for geospatial raster input/output (I/O),
+First, Rasterio [@Gillies_2019] provides the baseline Python interface for geospatial raster input/output (I/O),
 built on top of GDAL [@GDAL_2025], but offers no high-level analytical operations such as convolution or regression.
 Next, `xarray` [@Hoyer_2017] and its geospatial extension `rioxarray` enable lazy, chunked computation via Dask, facilitating the basic handling of large multidimensional arrays. 
 However, they lack analytical capabilityies for spatial filtering or pixel-wise MLR.
@@ -92,7 +92,7 @@ limit the incorporation of personal datasets, not part of the provided catalogue
 `riogrande` provides the foundation and parallelization infrastructure,
 `convster` implements spatial convolution and derived metrics,
 and `coonfit` provides parallelized multiple linear regression.
-The packages build on `rasterio` [@Gillies_2019], NumPy [@Harris_2020], `scikit-image` [@van_der_Walt_2014], and SciPy [@Virtanen_2020].
+The packages build on Rasterio [@Gillies_2019], NumPy [@Harris_2020], `scikit-image` [@van_der_Walt_2014], and SciPy [@Virtanen_2020].
 
 **Parallelization model.**  
 All computationally intensive operations follow a common block-parallel architecture.
@@ -105,7 +105,7 @@ By decreasing the block size (lowering the memory requirement of a single concur
 In combination with an aggregation mechanism that processes block-by-block `GeoRacoon` allows a trade-off between RAM for execution time, enabling large-scale raster analysis even on modest hardware.
 
 **`riogrande` — tag-based raster management.**  
-The `Source` and `Band` classes extend `rasterio` with a structured metadata layer.
+The `Source` and `Band` classes extend Rasterio with a structured metadata layer.
 Band-level metadata is stored as JSON-serialized key-value pairs in a dedicated GeoTIFF tag namespace,
 enabling tag-based band selection (e.g., querying by land-cover category or date) instead of manual index tracking.
 Additional functionality includes configurable mask strategies per band, compatibility checks across rasters
