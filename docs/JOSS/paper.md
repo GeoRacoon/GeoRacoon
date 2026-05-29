@@ -136,7 +136,7 @@ are provided as part of the pipeline.
 The `GeoRacoon` package was central to carrying out a research project on the effects of landscape diversity on vegetation 
 productivity at a global scale [@Landauer_2025_preprint]. The analyses required Gaussian convolution and heterogeneity 
 metric computation of land-cover data, as well as per-pixel MLR with numerous predictors in billion-pixel 
-multi-band remote sensing imagery. Given the non-availability of could based solutions for the datasets as well as the 
+multi-band remote sensing imagery. Given the non-availability of cloud based solutions for the datasets as well as the 
 methods, this research would have not been computationally feasible without the provided parallelization in this package.
 
 Beyond this initial application, the package is highly usable in any research involving large geospatial rasters. 
