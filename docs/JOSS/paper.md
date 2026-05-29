@@ -96,7 +96,7 @@ The packages build on `rasterio` [@Gillies_2019], NumPy [@Harris_2020], `scikit-
 All computationally intensive operations follow a common block-parallel architecture.
 Rasters are decomposed into spatial blocks via a view system, with configurable overlap (borders) to prevent edge
 artifacts in filter operations.
-Workers are dispatched via Python's `multiprocessing.Pool`, each processing a block
+Workers are dispatched via Python's `multiprocessing.Pool`, each processing an array block
 independently, while a dedicated aggregator process collects results from a shared queue and writes them to disk.
 This producer-consumer pattern implements a flexible parallelization mechanism:
 By decreasing the block size (lowering the memory requirement of a single concurrent job) and reducing the pool size (reducing the multiplicity of concurrent jobs) the total memory requirement can be reduced drastically, pushing towards a more sequential processing of rasters.
@@ -121,7 +121,7 @@ by the Simpson index, computed from filtered categorical layers.
 **`coonfit` — parallelized multiple linear regression.**  
 The regression module exploits the decomposability of the normal equations:
 since $X^TX = \sum_b X_b^TX_b$ and $X^Ty = \sum_b X_b^Ty_b$ over spatial blocks $b$, both terms can be computed in parallel.
-The workflow proceeds in three stages:
+The workflow thereby proceeds in three stages:
 (1) parallel accumulation of the block-wise $X^TX$ matrices,
 (2) serial inversion of the resulting (small) matrix, and
 (3) parallel computation of the regression coefficients.
