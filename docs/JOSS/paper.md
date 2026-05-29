@@ -63,11 +63,13 @@ identifiers) required manual bookkeeping of band indices; no library offered tag
 `GeoRacoon` addresses these gaps jointly in a common framework.
 Its three sub-packages evolved from the practical needs of a research project
 on landscape diversity effects on vegetation productivity [@Landauer_2025_preprint], where large-scale spatial convolution,
-derived heterogeneity metrics, and raster-based regression were essential. During development, `riogrande` emerged as a
+derived heterogeneity metrics, and raster-based regression were essential. During development, `riogrande` emerged as an
 extension of `rasterio` [@Gillies_2019] to manage large volumes of imagery in an object-oriented, tag-based
 manner, improving easy usability of remote sensing imagery for broader applications beyond the original research context.
-The other two sub-packages, `convster` and `coonfit` build upon `riogrande` to implement convolution methods an multiple linear regression in a fully parallelized approach.
+The other two sub-packages, `convster` and `coonfit` build upon `riogrande` to implement convolution methods a multiple linear regression in a fully parallelized approach.
 
+The package can be directly installed via `pip install git+https://github.com/GeoRacoon/georacoon.git`, with a 
+comprehensive documentation including examples of usage available at https://georacoon.readthedocs.io/en/latest/.
 
 # State of the field
 
@@ -82,7 +84,7 @@ also lacking block-parallel decomposition.
 Cloud-based platforms, such as Google Earth Engine [@Gorelick_2017] can also be accessible via Python API but are tied to proprietary infrastructure and do not support full custom filter implementations and often even 
 limit the incorporation of personal datasets, not part of the provided catalogue.
 
-`GeoRacoon` stands out by combining block-parallel processing with correct nodata handling, tag-based metadata management and an object oriented approach to raster data.
+`GeoRacoon` stands out by combining block-parallel processing with correct nodata handling, tag-based metadata management and an object-oriented approach to raster data.
 
 # Software design
 
