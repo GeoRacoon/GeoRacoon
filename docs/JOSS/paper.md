@@ -1,5 +1,5 @@
 ---
-title: 'GeoRacoon: A Python package for Geographic Raster operations'
+title: 'GeoRacoon: Tag-based management and parallelized analysis of large geospatial rasters'
 tags:
   - Python
   - GIS
