@@ -1,0 +1,62 @@
+# Manual TestPyPI dry-run. Trigger via the Actions tab; the branch picker
+# in the workflow_dispatch UI selects which ref to build from. Useful for
+# validating the build and publish pipeline before cutting a real release tag.
+#
+# Prerequisites (configured outside this workflow):
+#   * TestPyPI trusted publisher: workflow=test_release.yml, environment=testpypi
+#   * GitHub environment ``testpypi`` (no reviewers required)
+
+name: Test release (TestPyPI)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build wheel and sdist
+        # TestPyPI rejects PEP 440 local version segments (the ``+gSHA``
+        # suffix hatch-vcs appends on non-tag commits). Strip it here --
+        # and only here -- so PyPI releases and local dev installs are
+        # unaffected.
+        env:
+          SETUPTOOLS_SCM_LOCAL_SCHEME: no-local-version
+        run: pipx run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-testrelease
+          path: dist/*
+
+  publish_testpypi:
+    name: Publish to TestPyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/tempnet
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          # TestPyPI rejects re-uploads of an existing version; allow the
+          # workflow to succeed when the version already exists so repeated
+          # dry-runs from the same commit don't fail noisily.
+          skip-existing: true
