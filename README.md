@@ -1,5 +1,5 @@
 <div align="center">
-<img src="./docs/_static/georacoonPin.svg" alt="GeoRacoon Logo" width="400">
+<img src="https://raw.githubusercontent.com/GeoRacoon/GeoRacoon/main/docs/_static/georacoonPin.svg" alt="GeoRacoon Logo" width="400">
 </div>
 <!-- header-start -->
 <div align="center">
