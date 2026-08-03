@@ -296,6 +296,11 @@ def main():
     model_band = model_source.get_band(bidx=1)
     model_band.add(band=lst_conv_band)
 
+    rmse = lfpara.calculate_rmse(response=lst_org_band,
+                                 model=model_data_tif,
+                                 selector=_selector_all,
+                                 block_size=block_size,
+                                 **params)
 
     r2 = lfpara.calculate_r2(response=lst_org_band,
                              model=model_data_tif,
