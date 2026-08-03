@@ -64,7 +64,7 @@ identifiers) required manual bookkeeping of band indices; no library offered tag
 Its three sub-packages evolved from the practical needs of a research project
 on landscape diversity effects on vegetation productivity [@Landauer_2025_preprint], where large-scale spatial convolution,
 derived heterogeneity metrics, and raster-based regression were essential. During development, `riogrande` emerged as an
-extension of Rasterio [@Gillies_2019] to manage large volumes of imagery in an object-oriented, tag-based
+extension of Rasterio [@Gillies_2013] to manage large volumes of imagery in an object-oriented, tag-based
 manner, improving easy usability of remote sensing imagery for broader applications beyond the original research context.
 The other two sub-packages, `convster` and `coonfit` build upon `riogrande` to implement convolution methods a multiple linear regression in a fully parallelized approach.
 
@@ -74,7 +74,7 @@ comprehensive documentation including examples of usage available at https://geo
 # State of the field
 
 Several well-established tools address different parts of the geospatial raster processing pipeline.
-First, Rasterio [@Gillies_2019] provides the baseline Python interface for geospatial raster input/output (I/O),
+First, Rasterio [@Gillies_2013] provides the baseline Python interface for geospatial raster input/output (I/O),
 built on top of GDAL [@GDAL_2025], but offers no high-level analytical operations such as convolution or regression.
 Next, `xarray` [@Hoyer_2017] and its geospatial extension `rioxarray` enable lazy, chunked computation via Dask, facilitating the basic handling of large multidimensional arrays. 
 However, they lack analytical capabilityies for spatial filtering or pixel-wise MLR.
@@ -92,7 +92,7 @@ limit the incorporation of personal datasets, not part of the provided catalogue
 `riogrande` provides the foundation and parallelization infrastructure,
 `convster` implements spatial convolution and derived metrics,
 and `coonfit` provides parallelized multiple linear regression.
-The packages build on Rasterio [@Gillies_2019], NumPy [@Harris_2020], `scikit-image` [@van_der_Walt_2014], and SciPy [@Virtanen_2020].
+The packages build on Rasterio [@Gillies_2013], NumPy [@Harris_2020], `scikit-image` [@van_der_Walt_2014], and SciPy [@Virtanen_2020].
 
 **Parallelization model.**  
 All computationally intensive operations follow a common block-parallel architecture.
