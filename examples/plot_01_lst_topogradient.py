@@ -417,8 +417,9 @@ r2_full = lfpara.calculate_r2(response=lst_org_band, model=model_data_tif,
                                selector=_selector_all, block_size=block_size,
                                **params)
 
+print("\n -- Accuracy Assessment --")
 print(f"Residual model - RMSE: {rmse_resid:.2f} °C  |  R²: {r2_resid:.2f}")
-print(f"Full model     - RMSE: {rmse_full:.2f} °C  |  R²: {r2_full:.2f}")
+print(f"Full model     - RMSE: {rmse_full:.2f}  °C  |  R²: {r2_full:.2f}", end="\n\n")
 
 # Residual map
 resid_file   = os.path.join(base_dir,
