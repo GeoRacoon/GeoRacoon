@@ -385,10 +385,11 @@ plt.show()
 # :func:`~riogrande.parallel.prepare_selector` builds a shared valid-pixel mask across
 # response and predictors.  Two variants are reported:
 #
-# * **Residual** - how well the lapse-rate component alone explains the
-#   LST anomaly (what was directly fit).
-# * **Overall** - how well the complete model (convolution + lapse rate)
-#   explains the original LST.
+# * **Residual model** - how well the lapse-rate fit alone explains the LST anomaly
+#   (i.e. the quantity that was directly modelled: original LST minus the regional
+#   climate convolution).
+# * **Full model** - how well the complete reconstruction (lapse-rate fit plus the
+#   regional climate convolution added back) explains the original LST.
 
 lst_org_source = Source(path=lst_file_org)
 lst_org_band   = Band(lst_org_source, bidx=1)
@@ -404,15 +405,20 @@ lst_org_band.set_mask_reader(use="source")
 _selector_all = rgpara.prepare_selector(lst_org_band, *predictors,
                                         block_size=block_size)
 
+# Temporarily remove convolution - lapse-rate component only
+model_band.subtract(band=lst_conv_band)
 rmse_resid = lfpara.calculate_rmse(response=lst_band, model=model_data_tif,
                                    selector=_selector_all, block_size=block_size,
                                    **params)
-rmse_full = lfpara.calculate_rmse(response=lst_org_band, model=model_data_tif,
-                                  selector=_selector_all, block_size=block_size,
-                                  **params)
 r2_resid = lfpara.calculate_r2(response=lst_band, model=model_data_tif,
                                selector=_selector_all, block_size=block_size,
                                **params)
+
+# Restore full model (lapse-rate + convolution)
+model_band.add(band=lst_conv_band)
+rmse_full = lfpara.calculate_rmse(response=lst_org_band, model=model_data_tif,
+                                  selector=_selector_all, block_size=block_size,
+                                  **params)
 r2_full = lfpara.calculate_r2(response=lst_org_band, model=model_data_tif,
                                selector=_selector_all, block_size=block_size,
                                **params)
