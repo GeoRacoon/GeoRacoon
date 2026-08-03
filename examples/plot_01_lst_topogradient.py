@@ -404,9 +404,12 @@ lst_org_band.set_mask_reader(use="source")
 _selector_all = rgpara.prepare_selector(lst_org_band, *predictors,
                                         block_size=block_size)
 
-rmse = lfpara.calculate_rmse(response=lst_band, model=model_data_tif,
-                             selector=_selector_all, block_size=block_size,
-                             **params)
+rmse_resid = lfpara.calculate_rmse(response=lst_band, model=model_data_tif,
+                                   selector=_selector_all, block_size=block_size,
+                                   **params)
+rmse_full = lfpara.calculate_rmse(response=lst_org_band, model=model_data_tif,
+                                  selector=_selector_all, block_size=block_size,
+                                  **params)
 r2_resid = lfpara.calculate_r2(response=lst_band, model=model_data_tif,
                                selector=_selector_all, block_size=block_size,
                                **params)
@@ -414,8 +417,8 @@ r2_full = lfpara.calculate_r2(response=lst_org_band, model=model_data_tif,
                                selector=_selector_all, block_size=block_size,
                                **params)
 
-print(f"Residual model - RMSE: {rmse:.2f} °C  |  R²: {r2_resid:.2f}")
-print(f"Full model     - RMSE: {rmse:.2f} °C  |  R²: {r2_full:.2f}")
+print(f"Residual model - RMSE: {rmse_resid:.2f} °C  |  R²: {r2_resid:.2f}")
+print(f"Full model     - RMSE: {rmse_full:.2f} °C  |  R²: {r2_full:.2f}")
 
 # Residual map
 resid_file   = os.path.join(base_dir,
