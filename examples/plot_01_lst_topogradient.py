@@ -405,7 +405,10 @@ lst_org_band.set_mask_reader(use="source")
 _selector_all = rgpara.prepare_selector(lst_org_band, *predictors,
                                         block_size=block_size)
 
-# Temporarily remove convolution - lapse-rate component only
+# %%
+# Residual model: Both metrics use the same file (``model_data_tif``) but at different states.
+# Here we temporarily subtract the convolution so it holds the lapse-rate component only.
+
 model_band.subtract(band=lst_conv_band)
 rmse_resid = lfpara.calculate_rmse(response=lst_band, model=model_data_tif,
                                    selector=_selector_all, block_size=block_size,
@@ -413,8 +416,11 @@ rmse_resid = lfpara.calculate_rmse(response=lst_band, model=model_data_tif,
 r2_resid = lfpara.calculate_r2(response=lst_band, model=model_data_tif,
                                selector=_selector_all, block_size=block_size,
                                **params)
+print(f"Residual model - RMSE: {rmse_resid:.2f} °C  |  R²: {r2_resid:.2f}")
 
-# Restore full model (lapse-rate + convolution)
+# %%
+# Full model: We restore the convolution to ``model_data_tif`` before computing the full model metrics.
+
 model_band.add(band=lst_conv_band)
 rmse_full = lfpara.calculate_rmse(response=lst_org_band, model=model_data_tif,
                                   selector=_selector_all, block_size=block_size,
@@ -422,22 +428,19 @@ rmse_full = lfpara.calculate_rmse(response=lst_org_band, model=model_data_tif,
 r2_full = lfpara.calculate_r2(response=lst_org_band, model=model_data_tif,
                                selector=_selector_all, block_size=block_size,
                                **params)
+print(f"Full model     - RMSE: {rmse_full:.2f}  °C  |  R²: {r2_full:.2f}")
 
-print("\n -- Accuracy Assessment --")
-print(f"Residual model - RMSE: {rmse_resid:.2f} °C  |  R²: {r2_resid:.2f}")
-print(f"Full model     - RMSE: {rmse_full:.2f}  °C  |  R²: {r2_full:.2f}", end="\n\n")
+# %%
+# Finally we compute the residual map (original LST minus full model) to see
+# spatially where the model over- or under-predicts.
+# For example, urban heat islands or cold air pooling around water bodies.
 
-# Residual map
 resid_file   = os.path.join(base_dir,
                             f"../data/example/_tmp_resid_model_conv_{kernel_m_sigma}_m.tif")
 resid_source = Source(path=resid_file, profile=lst_profile)
 resid_source.init_source(overwrite=True)
 resid_band   = Band(source=resid_source, bidx=1)
 lst_org_band.subtract(band=model_band, out_band=resid_band)
-
-# %%
-# Residuals reveal where the model over- or under-predicts - for example,
-# urban heat islands or cold air pooling around water bodies:
 
 fig, ax = plt.subplots(1, 1, figsize=(10, 8))
 src = Source(path=resid_file)
