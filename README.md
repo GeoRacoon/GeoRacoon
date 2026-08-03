@@ -1,5 +1,5 @@
 <div align="center">
-<img src="./docs/_static/georacoonPin.svg" alt="GeoRacoon Logo" width="400">
+<img src="https://raw.githubusercontent.com/GeoRacoon/GeoRacoon/main/docs/_static/georacoonPin.svg" alt="GeoRacoon Logo" width="400">
 </div>
 <!-- header-start -->
 <div align="center">
@@ -100,8 +100,13 @@ PS> .venv\Scripts\activate
 
 ### Installing GeoRacoon
 
-GeoRacoon can be installed directly from GitHub into your virtual environment.
-Simply run:
+GeoRacoon is available on [PyPI](https://pypi.org/project/GeoRacoon/) and can be installed with:
+
+```sh
+pip install GeoRacoon
+```
+
+To install the latest version directly from GitHub into your virtual environment, run:
 
 ```
 pip install git+https://github.com/GeoRacoon/georacoon.git
@@ -148,10 +153,10 @@ _you have installed and then install the corresponding python package with `pip 
 <details>
 <summary><b>Installation with `uv`</b></summary>
 
-If you prefer using [uv](https://docs.astral.sh/uv/) for faster package management, you can install GeoRacoon as follows:
+If you prefer using [uv](https://docs.astral.sh/uv/), you can install GeoRacoon as follows:
 
 ```sh
-$ uv pip install git+https://github.com/GeoRacoon/georacoon.git
+$ uv pip install GeoRacoon
 ```
 
 For development installation with uv:
