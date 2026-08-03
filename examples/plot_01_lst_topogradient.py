@@ -431,6 +431,19 @@ r2_full = lfpara.calculate_r2(response=lst_org_band, model=model_data_tif,
 print(f"Full model     - RMSE: {rmse_full:.2f}  °C  |  R²: {r2_full:.2f}")
 
 # %%
+# .. note::
+#
+#    The RMSE values for the residual and full model will always be identical.
+#    The convolution is an additive term that cancels out pixel-by-pixel when
+#    computing the error, subtracting it from both the model and the response
+#    leaves the difference unchanged:
+#    ``(lapse_rate + conv) - lst_org  =  lapse_rate - (lst_org - conv)``.
+#    The R² values do differ, because R² normalises by the total variance of the
+#    response: ``lst_org`` includes the large regional climate gradient and
+#    therefore has much higher total variance than the local anomaly, pushing
+#    R² up for the full model.
+
+# %%
 # Finally we compute the residual map (original LST minus full model) to see
 # spatially where the model over- or under-predicts.
 # For example, urban heat islands or cold air pooling around water bodies.
