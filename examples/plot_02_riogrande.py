@@ -4,8 +4,10 @@ RioGrande: Loading and Exploring a Multi-Band Raster
 
 :mod:`riogrande` is the raster I/O backbone of GeoRacoon.
 It provides two core objects:
-- :class:`~riogrande.io.models.Source` and
+
+- :class:`~riogrande.io.models.Source`
 - :class:`~riogrande.io.models.Band`
+
 that wrap ``rasterio`` and keep track of file-level metadata (profile, tags, masks) separately from band-level
 pixel data.
 
@@ -97,14 +99,18 @@ for key in [1, 5, 8]:
 # overview of all bands.  :meth:`~riogrande.io.models.Band.get_data` reads
 # each band's pixel array on demand.
 
-fig, axes = plt.subplots(2, 5, figsize=(16, 7), constrained_layout=True)
+fig, axes = plt.subplots(3, 4, figsize=(16, 10), constrained_layout=True)
 
 for ax, label in zip(axes.flat, lc_labels.values()):
     band = lct_source.get_band(category=label)
     data = band.get_data()
-    img  = ax.imshow(data, cmap="YlGn", vmin=0, vmax=1)
+    img  = ax.imshow(data, cmap="plasma", vmin=0, vmax=1)
     ax.set_axis_off()
-    ax.set_title(label, fontsize=9)
+    ax.set_title(label, fontsize=12)
+
+# Hide extra empty subplots
+for ax in axes.flat[len(lc_labels):]:
+    ax.set_visible(False)
 
 fig.colorbar(img, ax=axes.ravel().tolist(), label="Fraction (0–1)",
              shrink=0.6, pad=0.02)
