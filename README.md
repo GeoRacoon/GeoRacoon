@@ -298,7 +298,7 @@ As we know, racoons come in a gaze (that's right - we also had to look this up)
 and therefore they are never alone. So instead of merely 'gazing' at the repository, 
 feel free to jump right in.
 
-And when doing so, please consider some guidelines to help you get started [here](./CONTRIBUTING.md). 
+And when doing so, please consider some guidelines to help you get started [here](https://github.com/GeoRacoon/GeoRacoon/blob/main/CONTRIBUTING.md). 
 <!-- contributing-end -->
 
 
