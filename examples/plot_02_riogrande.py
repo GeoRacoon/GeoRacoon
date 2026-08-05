@@ -12,7 +12,7 @@ that wrap ``rasterio`` and keep track of file-level metadata (profile, tags, mas
 pixel data.
 
 This example uses a 10-band land-cover fraction grid of Switzerland at 1 km resolution
-(aggregated Copernicus Global Land Service) to show how to open a multi-band file,
+(aggregated Copernicus Global Land Service 2015) to show how to open a multi-band file,
 tag each band with a meaningful label, retrieve bands by tag, and visualise
 the full stack at a glance.
 """
