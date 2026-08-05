@@ -289,6 +289,7 @@ lfpara.compute_model(
 
 
 ## Contributing
+<!-- contributing-start -->
 We are so happy you landed here, and hopefully came with a bag full of 
 fresh ideas or just discovered some things which need improvement. 
 In any case we highly encourage you to help making `GeoRacoon` a better package.
@@ -298,6 +299,7 @@ and therefore they are never alone. So instead of merely 'gazing' at the reposit
 feel free to jump right in.
 
 And when doing so, please consider some guidelines to help you get started [here](./CONTRIBUTING.md). 
+<!-- contributing-end -->
 
 
 ## Authors

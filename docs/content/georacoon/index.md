@@ -5,4 +5,5 @@
 overview
 installation
 usage
+contributing
 ```
