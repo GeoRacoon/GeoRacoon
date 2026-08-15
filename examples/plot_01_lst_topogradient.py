@@ -75,7 +75,7 @@ elev_band = topo_source.get_band(category=elev_cat)
 
 # %%
 # Set some general paremeters (for parallelization etc. for later use)
-params     = dict(nbrcpu=6)
+params     = dict(n_jobs=6)
 block_size = (200, 200)
 data_type  = np.float32
 
