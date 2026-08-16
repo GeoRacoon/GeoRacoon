@@ -680,9 +680,10 @@ def compute_entropy(source: str | Source,
     **params
         Additional optional parameters controlling multiprocessing and output:
 
-        - **nbrcpu** : int
-          Number of CPU cores to use. Defaults to the number of available
-          cores minus one.
+        - ``n_jobs`` : int
+          Number of jobs to run in parallel, passed to
+          :func:`~riogrande.helper.get_nbr_workers`.
+          Defaults to the number of available cores minus one.
         - **start_method** : str
           Multiprocessing start method (e.g., ``"spawn"`` or ``"fork"``).
         - **entropy_as_ubyte** : bool, optional
@@ -793,8 +794,19 @@ def compute_entropy(source: str | Source,
     manager = Manager()
     entropy_q = manager.Queue()
     start_method = params.get('start_method', None)
+
+    # TODO: remove support for nbrcpu for version 2.0.0
+    if 'nbrcpu' in params:
+        warnings.warn(
+            "The attribute `nbrcpu` is deprecated and should be replaced with "
+            "`n_jobs`."
+        )
+        _nworkers = params.pop('nbrcpu')
+    else:
+        _nworkers = None
+
     # get number of cpu's
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
+    nbr_workers = get_nbr_workers(number=params.pop('n_jobs', _nworkers))
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
@@ -894,9 +906,10 @@ def compute_interaction(source: str | Source,
     **params
         Additional optional parameters controlling multiprocessing and output:
 
-        - **nbrcpu** : int
-          Number of CPU cores to use. Defaults to the number of available
-          cores minus one.
+        - ``n_jobs`` : int
+          Number of jobs to run in parallel, passed to
+          :func:`~riogrande.helper.get_nbr_workers`.
+          Defaults to the number of available cores minus one.
         - **start_method** : str
           Multiprocessing start method (e.g., ``"spawn"`` or ``"fork"``).
         - **interaction_as_ubyte** : bool, optional
@@ -1009,8 +1022,20 @@ def compute_interaction(source: str | Source,
     manager = Manager()
     interaction_q = manager.Queue()
     start_method = params.get('start_method', None)
+
+    # TODO: remove support for nbrcpu for version 2.0.0
+    if 'nbrcpu' in params:
+        warnings.warn(
+            "The attribute `nbrcpu` is deprecated and should be replaced with "
+            "`n_jobs`."
+        )
+        _nworkers = params.pop('nbrcpu')
+    else:
+        _nworkers = None
+
+
     # get number of workers
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
+    nbr_workers = get_nbr_workers(number=params.pop('n_jobs', _nworkers))
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
@@ -1101,7 +1126,10 @@ def extract_categories(source: str | Source,
     **params
         Additional optional arguments:
 
-        - **nbrcpu** : int, number of CPU cores to use (default: available cores minus one)
+        - ``n_jobs`` : int
+          Number of jobs to run in parallel, passed to
+          :func:`~riogrande.helper.get_nbr_workers`.
+          Defaults to the number of available cores minus one.
         - **start_method** : str, multiprocessing start method (e.g., 'spawn' or 'fork')
         - **compress** : bool, if True, compress the final output with LZW
 
@@ -1210,8 +1238,19 @@ def extract_categories(source: str | Source,
     manager = Manager()
     blur_q = manager.Queue()
     start_method = params.get('start_method', None)
+    
+    # TODO: remove support for nbrcpu for version 2.0.0
+    if 'nbrcpu' in params:
+        warnings.warn(
+            "The attribute `nbrcpu` is deprecated and should be replaced with "
+            "`n_jobs`."
+        )
+        _nworkers = params.pop('nbrcpu')
+    else:
+        _nworkers = None
+
     # get number of workers
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
+    nbr_workers = get_nbr_workers(number=params.pop('n_jobs', _nworkers))
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
@@ -1322,7 +1361,7 @@ def apply_filter(source: str | Source,
     **params
         Additional optional arguments:
 
-        - **nbrcpu** : int, number of CPU cores for multiprocessing.
+        - **n_jobs** : int, number of jobs to run in parallel.
         - **start_method** : str, multiprocessing start method.
         - **compress** : bool, whether to compress the final output with LZW.
 
@@ -1425,8 +1464,19 @@ def apply_filter(source: str | Source,
     # ###
     manager = Manager()
     blur_q = manager.Queue()
+
+    # TODO: remove support for nbrcpu for version 2.0.0
+    if 'nbrcpu' in params:
+        warnings.warn(
+            "The attribute `nbrcpu` is deprecated and should be replaced with "
+            "`n_jobs`."
+        )
+        _nworkers = params.pop('nbrcpu')
+    else:
+        _nworkers = None
+
     # get number of cpu's
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
+    nbr_workers = get_nbr_workers(number=params.pop('n_jobs', None))
     if verbose:
         print(f"using {nbr_workers=}")
 

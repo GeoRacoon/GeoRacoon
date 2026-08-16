@@ -325,8 +325,8 @@ def compute_mask(source: str | Source, block_size: tuple[int, int], nodata=0, lo
     **params : dict
         Optional arguments for the multiprocessing:
 
-        - ``nbrcpu`` : int
-          Number of CPUs to use, passed to :func:`~riogrande.helper.get_nbr_workers`.
+        - ``n_jobs`` : int
+          Number of jobs to run in parallel, passed to :func:`~riogrande.helper.get_nbr_workers`.
         - ``start_method`` : str
           Starting method for multiprocessing jobs, passed to
           :func:`~riogrande.helper.get_or_set_context`.
@@ -381,7 +381,18 @@ def compute_mask(source: str | Source, block_size: tuple[int, int], nodata=0, lo
     manager = Manager()
     aggr_q = manager.Queue()
     start_method = params.get('start_method', None)
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
+
+    # TODO: remove support for nbrcpu for version 2.0.0
+    if 'nbrcpu' in params:
+        warnings.warn(
+            "The attribute `nbrcpu` is deprecated and should be replaced with "
+            "`n_jobs`."
+        )
+        _nworkers = params.pop('nbrcpu')
+    else:
+        _nworkers = None
+
+    nbr_workers = get_nbr_workers(number=params.pop('n_jobs', _nworkers))
     if verbose:
         print(f"using {nbr_workers=}")
 
@@ -484,8 +495,8 @@ def prepare_selector(*bands: Band, block_size: tuple[int, int], extra_masking_ba
     **params : dict
         Optional arguments for the multiprocessing:
 
-        - ``nbrcpu`` : int
-          The number of CPUs to use, passed to :func:`~riogrande.helper.get_nbr_workers`.
+        - ``n_jobs`` : int
+          Number of jobs to run in parallel, passed to :func:`~riogrande.helper.get_nbr_workers`.
         - ``start_method`` : str
           Starting method for multiprocessing jobs, passed to
           :func:`~riogrande.helper.get_or_set_context`.
@@ -534,7 +545,18 @@ def prepare_selector(*bands: Band, block_size: tuple[int, int], extra_masking_ba
     manager = Manager()
     aggr_q = manager.Queue()
     start_method = params.get('start_method', None)
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
+
+    # TODO: remove support for nbrcpu for version 2.0.0
+    if 'nbrcpu' in params:
+        warnings.warn(
+            "The attribute `nbrcpu` is deprecated and should be replaced with "
+            "`n_jobs`."
+        )
+        _nworkers = params.pop('nbrcpu')
+    else:
+        _nworkers = None
+
+    nbr_workers = get_nbr_workers(number=params.pop('n_jobs', _nworkers))
     if verbose:
         print(f"using {nbr_workers=}")
 

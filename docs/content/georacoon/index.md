@@ -1,8 +1,11 @@
 # Introduction 
 
-```{toctree}
+```{include} ../../../README.md
+:start-after: <!-- overview-start -->
+:end-before: <!-- overview-end -->
+```
 
-overview
+```{toctree}
 installation
 usage
 contributing
