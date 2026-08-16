@@ -2,7 +2,8 @@
 
 First off, thanks so much for considering a contribution - we really appreciate it.
 GeoRacoon is a community effort and every bit of help counts, 
-whether it's fixing a typo, reporting a bug, or adding a new feature.
+whether it's fixing a typo, reporting a bug, or adding a new feature. 
+(This also includes the enhancement of this contribution file.)
 
 
 ## Table of Contents
@@ -19,7 +20,9 @@ whether it's fixing a typo, reporting a bug, or adding a new feature.
 
 ## Where to start
 
-Not sure where to begin? Look for issues tagged [`good first issue`](https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22), these are smaller, self-contained tasks well-suited for newcomers. Issues tagged [`help wanted`](https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) are a good next step once you're more familiar with the codebase.
+Not sure where to begin? Look for issues tagged https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22, 
+these are smaller, self-contained tasks well-suited for newcomers. Issues tagged https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22 
+are a good next step once you're more familiar with the codebase.
 
 **Useful resources:**
 - [Documentation](https://georacoon.readthedocs.io)
@@ -58,29 +61,36 @@ This lets us all discuss the best approach before any code is written.
 
 ## Your first code contribution
 
-1. **Open an issue first**: describe the contribution you plan to make so we can align on the approach before you invest time coding.
-2. **Fork** the repository: <https://github.com/GeoRacoon/GeoRacoon/fork>
-3. **Set up your dev environment:**
+Start by opening an issue describing what you plan to do so we can align before you invest time coding.
+
+**For small changes** (typos, docs, minor fixes) you can do everything in the browser:
+
+1. Open or find the relevant issue on the [issue tracker](https://github.com/GeoRacoon/GeoRacoon/issues).
+2. Fork the repository using the "Fork" button on GitHub.
+3. Edit the file(s) directly in the GitHub web editor.
+4. Open a pull request from your fork against `main` and link the issue.
+
+**For larger contributions** that need local testing:
+
+1. Fork and clone the repository:
    ```bash
    git clone https://github.com/<your-username>/GeoRacoon.git
    cd GeoRacoon
    pip install -e ".[testing]"
    ```
-4. **Create a feature branch:**
+2. Create a feature branch:
    ```bash
    git checkout -b feature/my-contribution
    ```
-5. **Make your changes** and add tests where appropriate.
-6. **Run the tests** locally to make sure everything still works:
+3. Make your changes and add tests where appropriate.
+4. Run the tests locally:
    ```bash
    pytest
    ```
-7. **Commit and push:**
+5. Push and open a pull request against `main`:
    ```bash
-   git commit -m "Short description of what and why"
    git push origin feature/my-contribution
    ```
-8. **Open a pull request** against `main` and link the relevant issue.
 
 We aim to review and respond to pull requests promptly.
 
