@@ -40,7 +40,7 @@ topo_file_org = os.path.join(base_dir, "../data/example/elevation_mean_COP90_alp
 # lct_file = os.path.join(base_dir, "../data/example/lc_frac_plots_cgls2015_alps.tif")
 # count_file = os.path.join(base_dir, "../data/example/countries_alps.tif")
 
-params = dict(nbrcpu=6)
+params = dict(n_jobs=6)
 block_size = (200, 200)
 data_type = np.float32
 

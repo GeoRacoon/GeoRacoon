@@ -24,6 +24,7 @@ Worker functions cover:
 
 from __future__ import annotations
 
+import warnings
 import math
 from collections.abc import Collection
 
@@ -258,8 +259,8 @@ def _check_predictor_consistency(predictors: Collection[Band],
     **params : dict
         Optional arguments for multiprocessing:
 
-        - nbrcpu : int, optional
-            Number of CPUs to use. If not set, uses (available threads - 1).
+        - ``n_jobs`` : int
+          Number of jobs to run in parallel, passed to :func:`~riogrande.helper.get_nbr_workers`.
         - start_method : str, optional
             Starting method for multiprocessing jobs ('fork', 'spawn', or
             'forkserver').
@@ -314,7 +315,18 @@ def _check_predictor_consistency(predictors: Collection[Band],
         )
         job_params.append(jparams)
     start_method = params.get('start_method', None)
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
+
+    # TODO: remove support for nbrcpu for version 2.0.0
+    if 'nbrcpu' in params:
+        warnings.warn(
+            "The attribute `nbrcpu` is deprecated and should be replaced with "
+            "`n_jobs`."
+        )
+        _nworkers = params.pop('nbrcpu')
+    else:
+        _nworkers = None
+
+    nbr_workers = get_nbr_workers(number=params.pop('n_jobs', _nworkers))
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
         all_jobs = []
         for jparams in job_params:

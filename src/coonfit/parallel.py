@@ -115,8 +115,9 @@ def compute_model(predictors: Collection[Band],
     **params : dict
         Optional arguments for the multiprocessing:
 
-        - nbrcpu : int, optional
-            Number of CPUs to use for parallel processing.
+        - ``n_jobs`` : int
+          Number of jobs to run in parallel, passed to
+          :func:`~riogrande.helper.get_nbr_workers`.
         - start_method : str, optional
             Multiprocessing start method ('fork', 'spawn', or 'forkserver').
         - compress : bool, optional
@@ -195,8 +196,19 @@ def compute_model(predictors: Collection[Band],
     manager = Manager()
     job_out_q = manager.Queue()
     start_method = params.get('start_method', None)
+
+    # TODO: remove support for nbrcpu for version 2.0.0
+    if 'nbrcpu' in params:
+        warnings.warn(
+            "The attribute `nbrcpu` is deprecated and should be replaced with "
+            "`n_jobs`."
+        )
+        _nworkers = params.pop('nbrcpu')
+    else:
+        _nworkers = None
+
     # get number of workers
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
+    nbr_workers = get_nbr_workers(number=params.pop('n_jobs', _nworkers))
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
@@ -283,8 +295,9 @@ def get_XT_X(response: str | Band,
 
         Optional:
 
-        - nbrcpu : int, optional
-            Number of CPUs to use. If not set, uses (available threads - 1).
+        - ``n_jobs`` : int
+          Number of jobs to run in parallel, passed to
+          :func:`~riogrande.helper.get_nbr_workers`.
         - start_method : str, optional
             Starting method for multiprocessing ('fork', 'spawn', or
             'forkserver').
@@ -324,7 +337,18 @@ def get_XT_X(response: str | Band,
                         bidx=1)
     start_method = mpc_params.get('start_method', None)
     view_size = mpc_params.get('view_size')
-    nbr_workers = get_nbr_workers(number=mpc_params.get('nbrcpu', None))
+
+    # TODO: remove support for nbrcpu for version 2.0.0
+    if 'nbrcpu' in mpc_params:
+        warnings.warn(
+            "The attribute `nbrcpu` is deprecated and should be replaced with "
+            "`n_jobs`."
+        )
+        _nworkers = mpc_params.pop('nbrcpu')
+    else:
+        _nworkers = None
+
+    nbr_workers = get_nbr_workers(number=mpc_params.get('n_jobs', _nworkers))
     src_profile = response.source.import_profile()
     src_width = int(src_profile.get('width'))
     src_height = int(src_profile.get('height'))
@@ -435,8 +459,9 @@ def get_optimal_betas(*predictors: Band | str,
 
         Optional:
 
-        - nbrcpu : int, optional
-            Number of CPUs to use. If not set, uses (available threads - 1).
+        - ``n_jobs`` : int
+          Number of jobs to run in parallel, passed to
+          :func:`~riogrande.helper.get_nbr_workers`.
         - start_method : str, optional
             Starting method for multiprocessing ('fork', 'spawn', or
             'forkserver').
@@ -483,7 +508,7 @@ def get_optimal_betas(*predictors: Band | str,
     ...     selector=selector,
     ...     include_intercept=True,
     ...     view_size=(512, 512),
-    ...     nbrcpu=4
+    ...     n_jobs=4
     ... )
     >>> weights
     {<Band: band1>: 0.523, <Band: band2>: 1.245, <Band: band3>: -0.334, 'intercept': 5.12}
@@ -507,7 +532,18 @@ def get_optimal_betas(*predictors: Band | str,
                         bidx=1)
     start_method = mpc_params.get('start_method', None)
     view_size = mpc_params.get('view_size')
-    nbr_workers = get_nbr_workers(number=mpc_params.get('nbrcpu', None))
+
+    # TODO: remove support for nbrcpu for version 2.0.0
+    if 'nbrcpu' in mpc_params:
+        warnings.warn(
+            "The attribute `nbrcpu` is deprecated and should be replaced with "
+            "`n_jobs`."
+        )
+        _nworkers = mpc_params.pop('nbrcpu')
+    else:
+        _nworkers = None
+
+    nbr_workers = get_nbr_workers(number=mpc_params.get('n_jobs', _nworkers))
     src_profile = response.source.import_profile()
     src_width = int(src_profile.get('width'))
     src_height = int(src_profile.get('height'))
@@ -626,8 +662,9 @@ def get_XT_X_dependency(response: str | Band,
     **params : dict
         Optional multiprocessing arguments:
 
-        - nbrcpu : int, optional
-            Number of CPUs to use. If not set, uses (available CPUs - 1).
+        - ``n_jobs`` : int
+          Number of jobs to run in parallel, passed to
+          :func:`~riogrande.helper.get_nbr_workers`.
         - start_method : str, optional
             Process start method: 'spawn', 'fork', or 'forkserver'.
 
@@ -778,8 +815,9 @@ def compute_weights(response: str | Band,
         - extra_masking_band : Band or None, optional
             Additional Band object to use directly as a mask. All cells with
             value 0 are masked.
-        - nbrcpu : int, optional
-            Number of CPUs to use. If not set, uses (available CPUs - 1).
+        - ``n_jobs`` : int
+          Number of jobs to run in parallel, passed to
+          :func:`~riogrande.helper.get_nbr_workers`.
         - start_method : str, optional
             Process start method: 'spawn', 'fork', or 'forkserver'.
 
@@ -877,7 +915,7 @@ def compute_weights(response: str | Band,
     ...     block_size=block_sizes,
     ...     limit_contribution=0.05,
     ...     sanitize_predictors=True,
-    ...     nbrcpu=4
+    ...     n_jobs=4
     ... )
 
     >>> # Detect and return linear dependencies
@@ -1083,8 +1121,18 @@ def calculate_rmse(response: str | Band,
     ssr_parts = manager.list()
     start_method = params.get('start_method', None)
 
+    # TODO: remove support for nbrcpu for version 2.0.0
+    if 'nbrcpu' in params:
+        warnings.warn(
+            "The attribute `nbrcpu` is deprecated and should be replaced with "
+            "`n_jobs`."
+        )
+        _nworkers = params.pop('nbrcpu')
+    else:
+        _nworkers = None
+
     # get number of workers
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
+    nbr_workers = get_nbr_workers(number=params.pop('n_jobs', _nworkers))
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
@@ -1219,8 +1267,18 @@ def calculate_r2(response: str | Band,
     sst_parts = manager.list()
     start_method = params.get('start_method', None)
 
+    # TODO: remove support for nbrcpu for version 2.0.0
+    if 'nbrcpu' in params:
+        warnings.warn(
+            "The attribute `nbrcpu` is deprecated and should be replaced with "
+            "`n_jobs`."
+        )
+        _nworkers = params.pop('nbrcpu')
+    else:
+        _nworkers = None
+
     # get number of workers
-    nbr_workers = get_nbr_workers(number=params.pop('nbrcpu', None))
+    nbr_workers = get_nbr_workers(number=params.pop('n_jobs', _nworkers))
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:

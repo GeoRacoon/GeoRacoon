@@ -195,7 +195,7 @@ cvpara.apply_filter(
     img_filter=bpgaussian,
     filter_params=params_filter,
     data_as_dtype="float32",
-    nbrcpu=4,
+    n_jobs=4,
 )
 ```
 
@@ -243,7 +243,7 @@ cvpara.apply_filter(
     img_filter=bpgaussian,
     filter_params=params_filter,
     data_as_dtype="float32",
-    nbrcpu=4,
+    n_jobs=4,
 )
 ```
 </details>
@@ -270,7 +270,7 @@ weights = lfpara.compute_weights(
     block_size=(200, 200),
     include_intercept=True,
     no_data=np.nan,
-    nbrcpu=4,
+    n_jobs=4,
 )
 print(weights)
 
@@ -280,7 +280,7 @@ lfpara.compute_model(
     optimal_weights=weights,
     output_file="lst_predicted.tif",
     block_size=(200, 200),
-    nbrcpu=4,
+    n_jobs=4,
 )
 ```
 </details>
