@@ -81,7 +81,8 @@ filter_params = dict(
 #
 # - **block_size** ``(rows, cols)``: the raster is tiled into overlapping
 #   100 × 100 pixel blocks so the kernel has enough context at boundaries and
-#   no edge artefacts appear. Each block is dispatched to a separate worker (``nbrcpu=6``).
+#   no edge artefacts appear. Each block is dispatched to a separate worker (``n_jobs=6``,
+#   following the `scikit-learn convention <https://scikit-learn.org/stable/glossary.html#term-n_jobs>`_).
 # - **data_as_dtype** / **output_dtype**: pixels are cast to
 #   ``float32`` for filtering and written back as ``float32`` — half the memory
 #   of ``float64`` with negligible precision loss for [0, 1] fraction data.
@@ -108,7 +109,7 @@ cvpara.apply_filter(
     output_dtype=np.float32,
     output_range=None,
     selector_band=None,
-    nbrcpu=6,
+    n_jobs=6,
 )
 
 print(f"Output written to: {output_file}")

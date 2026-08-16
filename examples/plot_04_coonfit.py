@@ -96,7 +96,7 @@ ndvi_band   = Band(source=ndvi_source, bidx=1)
 # skips nodata pixels (border artefacts) automatically.
 
 block_size = (200, 200)
-params     = dict(nbrcpu=6)
+params     = dict(n_jobs=6)  # follows the scikit-learn n_jobs convention
 
 rgpara.compute_mask(lct_source, bands=predictors, logic="all",
                     nodata=np.nan, block_size=block_size, **params)
