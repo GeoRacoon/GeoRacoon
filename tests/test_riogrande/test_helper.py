@@ -174,7 +174,9 @@ def test_get_nbr_workers_sequence(monkeypatch):
     - number is None: uses patched cpu_count and respects min_count.
     - number <= min_count: emits RuntimeWarning and returns min_count.
     - number > min_count: returns the provided number as int.
-    - negative min_count: cpu_count still respected when number is None.
+    - insufficient number: cpu_count is set to 2 if number in [0,1].
+    - negative number: Follow the pattern nbr_cpu + 1 + number
+    - contain negative overshooting (never below 2)
     """
     # 1) number is None -> uses cpu_count
     monkeypatch.setattr(mpc, "cpu_count", lambda: 4)
@@ -196,6 +198,16 @@ def test_get_nbr_workers_sequence(monkeypatch):
     assert get_nbr_workers(5) == 5
     assert get_nbr_workers(int(3.0)) == 3
 
+
+    # proper handling of negative numbers
+    monkeypatch.setattr(mpc, "cpu_count", lambda: 5)
+
+    assert get_nbr_workers(-1) == 5
+    assert get_nbr_workers(-2) == 4
+
+    # control for negative overshooting
+    assert get_nbr_workers(-5) == 2
+    assert get_nbr_workers(-8) == 2
 
 def run_in_subprocess(pycode):
     cmd = [sys.executable, "-c", pycode]
