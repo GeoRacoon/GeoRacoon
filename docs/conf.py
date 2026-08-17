@@ -132,8 +132,8 @@ autoapi_ignore = [
 
 # -- Sphinx-Gallery configuration ---------------------------------------------
 sphinx_gallery_conf = {
-    "examples_dirs": "../examples",     # path to your example scripts
-    "gallery_dirs": "auto_examples",    # path to where to save gallery generated output
+    "examples_dirs": ["../examples", "benchmarks"],     # path to your example scripts
+    "gallery_dirs": ["auto_examples", "auto_benchmarks"],    # path to where to save gallery generated output
     "filename_pattern": "plot_",       # only execute files prefixed with plot_
     "ignore_pattern": "exmpl_",
     "plot_gallery": True,
