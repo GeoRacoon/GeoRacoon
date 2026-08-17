@@ -105,6 +105,20 @@ The landcover raster is coregistered to the NDVI grid with
 `riogrande.io.coregister_raster` in `setup` (cached under the system temp dir),
 so the reprojection is excluded from the timing and peak-memory measurements.
 
+### Native baselines
+
+Every routine also has a *native* (single-process, no multiprocessing)
+counterpart, reported at `n_jobs = 1`:
+
+- `*FilterNative*`: reads the full band, applies `bpgaussian` directly, and
+  writes the output — no block division or worker pool.
+- `*ComputeWeightsNative*`: builds the selector from the band masks and solves
+  the exact normal equations `(X.T @ X)^-1 X.T @ y` on the full data.
+
+The docs figures normalize every heatmap cell by the corresponding native value,
+so `< 1` means faster / more memory efficient than the native approach and
+`> 1` means slower / less memory efficient.
+
 ## Memory measurement
 
 ASV's built-in `peakmem_` samples only the main process, but the parallel work

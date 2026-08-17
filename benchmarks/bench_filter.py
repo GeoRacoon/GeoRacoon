@@ -16,6 +16,7 @@ skipped in ``setup``.
 import os
 
 import numpy as np
+import rasterio as rio
 
 from convster.parallel import apply_filter
 from convster.filters import bpgaussian
@@ -151,3 +152,91 @@ class PeakMemFilterScaling(_SyntheticFilterBase):
         self, size, n_jobs, block_fraction
     ):
         return peak_rss_while(self._run)
+
+
+class _NativeFilterBase:
+    """Native (single-process) Gaussian filter: read full band, blur, write."""
+
+    timeout = 1200
+
+    def _run_native(self):
+        with rio.open(self.source_path) as src:
+            profile = src.profile.copy()
+            data = src.read(1)
+
+        data = np.squeeze(data)
+        filtered = bpgaussian(data.astype(np.float32), **FILTER_PARAMS)
+        filtered = filtered.astype(np.float32)
+
+        profile.update(dtype="float32", count=1)
+        with rio.open(self.output_file, "w", **profile) as dst:
+            dst.write(filtered, 1)
+        return self.output_file
+
+    def teardown(self, *args):
+        output_file = getattr(self, "output_file", None)
+        if output_file is not None:
+            try:
+                os.remove(output_file)
+            except OSError:
+                pass
+
+
+class _NativeRasterFilterBase(_NativeFilterBase):
+    """Native setup on the fixed Swiss NDVI raster (reported as ``n_jobs=1``)."""
+
+    params = ([1],)
+    param_names = ["n_jobs"]
+
+    def setup(self, n_jobs):
+        self.source_path = data_path(machine.get_ndvi())
+        self.output_file = make_temp_output(prefix="georacoon_filter_native_")
+
+
+class _NativeSyntheticFilterBase(_NativeFilterBase):
+    """Native setup on deterministic synthetic rasters (reported as ``n_jobs=1``)."""
+
+    params = (SIZES, [1])
+    param_names = ["size", "n_jobs"]
+
+    def setup(self, size, n_jobs):
+        self.source_path = synthetic_tif(size, seed=0)
+        self.output_file = make_temp_output(
+            prefix="georacoon_filter_native_synth_"
+        )
+
+
+class TimeFilterNative(_NativeRasterFilterBase):
+    """Wall time of the native (no-mpc) Gaussian filter on the Swiss NDVI."""
+
+    @pretty_name("Wall time: native apply_filter (bpgaussian)")
+    def time_apply_filter_bpgaussian(self, n_jobs):
+        self._run_native()
+
+
+class PeakMemFilterNative(_NativeRasterFilterBase):
+    """Peak memory of the native (no-mpc) Gaussian filter on the Swiss NDVI."""
+
+    unit = "bytes"
+
+    @pretty_name("Peak memory: native apply_filter (bpgaussian)")
+    def track_apply_filter_bpgaussian_peakmem(self, n_jobs):
+        return peak_rss_while(self._run_native)
+
+
+class TimeFilterNativeScaling(_NativeSyntheticFilterBase):
+    """Wall time of the native Gaussian filter on synthetic rasters."""
+
+    @pretty_name("Wall time: native apply_filter on synthetic raster")
+    def time_apply_filter_bpgaussian(self, size, n_jobs):
+        self._run_native()
+
+
+class PeakMemFilterNativeScaling(_NativeSyntheticFilterBase):
+    """Peak memory of the native Gaussian filter on synthetic rasters."""
+
+    unit = "bytes"
+
+    @pretty_name("Peak memory: native apply_filter on synthetic raster")
+    def track_apply_filter_bpgaussian_peakmem(self, size, n_jobs):
+        return peak_rss_while(self._run_native)

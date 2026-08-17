@@ -6,15 +6,19 @@ Parallelization benchmarks
 ==========================
 
 This example reads the latest ASV benchmark results (``.asv/results/``) for the
-parallel Gaussian filter and the parallel multiple linear regression and shows
-them as heatmaps: the x-axis is the number of jobs (``n_jobs``), the y-axis is
-the block size expressed as a fraction of the raster's total size.
+Gaussian filter and the multiple linear regression and shows them as heatmaps:
+the x-axis is the number of jobs (``n_jobs``), the y-axis is the block size
+expressed as a fraction of the raster's total size.
 
 Two figures are produced, one per routine. Each figure has two panels:
 
-- **Wall time** (seconds), and
-- **Peak memory** (MiB), measured as the summed RSS of the whole process tree
-  (main process plus all multiprocessing workers).
+- **Wall time**, and
+- **Peak memory** (summed RSS of the whole process tree).
+
+Every cell is normalized by the *native* (single-process, no multiprocessing)
+baseline, which is reported at ``n_jobs = 1``. Values below 1 are faster / more
+memory efficient than the native approach; values above 1 are slower / less
+memory efficient.
 
 The plots use the results from the most recent benchmark run committed to the
 repository. If no results are present, run the benchmarks first (``asv run``)
@@ -27,6 +31,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import TwoSlopeNorm
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RESULTS_DIR = REPO_ROOT / ".asv" / "results"
@@ -36,6 +41,11 @@ FILTER_TIME = "bench_filter.TimeFilter.time_apply_filter_bpgaussian"
 FILTER_MEM = "bench_filter.PeakMemFilter.track_apply_filter_bpgaussian_peakmem"
 LINREG_TIME = "bench_linreg.TimeComputeWeights.time_compute_weights"
 LINREG_MEM = "bench_linreg.PeakMemComputeWeights.track_compute_weights_peakmem"
+
+FILTER_TIME_NATIVE = "bench_filter.TimeFilterNative.time_apply_filter_bpgaussian"
+FILTER_MEM_NATIVE = "bench_filter.PeakMemFilterNative.track_apply_filter_bpgaussian_peakmem"
+LINREG_TIME_NATIVE = "bench_linreg.TimeComputeWeightsNative.time_compute_weights"
+LINREG_MEM_NATIVE = "bench_linreg.PeakMemComputeWeightsNative.track_compute_weights_peakmem"
 
 
 def _machine_dirs():
@@ -112,6 +122,28 @@ def _load_grid(benchmark_name):
     return n_jobs, fractions, grid
 
 
+def _load_native(benchmark_name):
+    """Return the single scalar value of a native (single-combo) benchmark."""
+    index = _result_json(INDEX_PATH)
+    if index is None or benchmark_name not in index:
+        raise RuntimeError(f"Benchmark {benchmark_name!r} not found in index.")
+
+    data = _result_json(_latest_result_file())
+    if data is None or benchmark_name not in data.get("results", {}):
+        raise RuntimeError(f"No results for {benchmark_name!r}.")
+
+    columns = data["result_columns"]
+    record = data["results"][benchmark_name]
+    values = record[columns.index("result")]
+
+    if not values:
+        raise RuntimeError(f"No values recorded for {benchmark_name!r}.")
+    value = values[0]
+    if value is None or (isinstance(value, float) and np.isnan(value)):
+        raise RuntimeError(f"Native benchmark {benchmark_name!r} is missing.")
+    return value
+
+
 def _fraction_label(fraction):
     frac = Fraction(fraction).limit_denominator(1000)
     if frac.denominator == 1:
@@ -119,8 +151,24 @@ def _fraction_label(fraction):
     return f"{frac.numerator}/{frac.denominator}"
 
 
+def _ratio_norm(values):
+    """Diverging color norm centered at 1 (native == neutral)."""
+    vmin = float(np.nanmin(values))
+    vmax = float(np.nanmax(values))
+    vmin = min(vmin, 1.0)
+    vmax = max(vmax, 1.0)
+    if vmin == 1.0:
+        vmin = 0.0
+    if vmax == 1.0:
+        vmax = 2.0
+    return TwoSlopeNorm(vmin=vmin, vcenter=1.0, vmax=vmax)
+
+
 def _heatmap(ax, n_jobs, fractions, values, title, cbar_label):
-    image = ax.imshow(values, aspect="auto", origin="upper", cmap="viridis")
+    norm = _ratio_norm(values)
+    image = ax.imshow(
+        values, aspect="auto", origin="upper", cmap="coolwarm", norm=norm
+    )
     ax.set_xticks(range(len(n_jobs)))
     ax.set_xticklabels([str(n) for n in n_jobs])
     ax.set_yticks(range(len(fractions)))
@@ -132,15 +180,31 @@ def _heatmap(ax, n_jobs, fractions, values, title, cbar_label):
     fig.colorbar(image, ax=ax, label=cbar_label, shrink=0.8)
 
 
-def _plot_routine(time_name, mem_name, routine_title):
+def _plot_routine(time_name, mem_name, time_native, mem_native, routine_title):
     n_jobs, fractions, times = _load_grid(time_name)
     _, _, mem_bytes = _load_grid(mem_name)
-    mem_mib = mem_bytes / (2 ** 20)
+
+    time_native_val = _load_native(time_native)
+    mem_native_val = _load_native(mem_native)
+
+    times_ratio = times / time_native_val
+    mem_ratio = mem_bytes / mem_native_val
+
+    x_njobs = [1] + n_jobs
+    native_col = np.ones((len(fractions), 1))
+    times_full = np.concatenate([native_col, times_ratio], axis=1)
+    mem_full = np.concatenate([native_col, mem_ratio], axis=1)
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
     fig.suptitle(routine_title)
-    _heatmap(axes[0], n_jobs, fractions, times, "Wall time", "duration (s)")
-    _heatmap(axes[1], n_jobs, fractions, mem_mib, "Peak memory", "memory (MiB)")
+    _heatmap(
+        axes[0], x_njobs, fractions, times_full, "Wall time",
+        "ratio to native (< 1 faster)",
+    )
+    _heatmap(
+        axes[1], x_njobs, fractions, mem_full, "Peak memory",
+        "ratio to native (< 1 more efficient)",
+    )
     fig.tight_layout()
     return fig
 
@@ -149,12 +213,16 @@ def _plot_routine(time_name, mem_name, routine_title):
 _plot_routine(
     FILTER_TIME,
     FILTER_MEM,
-    "Parallel Gaussian filtering (apply_filter + bpgaussian)",
+    FILTER_TIME_NATIVE,
+    FILTER_MEM_NATIVE,
+    "Gaussian filtering (apply_filter + bpgaussian)",
 )
 
 # Multiple linear regression
 _plot_routine(
     LINREG_TIME,
     LINREG_MEM,
-    "Parallel multiple linear regression (compute_weights)",
+    LINREG_TIME_NATIVE,
+    LINREG_MEM_NATIVE,
+    "Multiple linear regression (compute_weights)",
 )
