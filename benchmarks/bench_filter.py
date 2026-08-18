@@ -31,6 +31,7 @@ from .common import (
     block_size_from_fraction,
     make_temp_output,
     synthetic_tif,
+    synthetic_filter_tif,
 )
 
 machine = Machine()
@@ -59,6 +60,8 @@ class _FilterBase:
     """Shared work function and teardown for the filter benchmarks."""
 
     timeout = 1200
+    filter_output_range = None
+    output_range = None
 
     def _run(self):
         return apply_filter(
@@ -69,9 +72,9 @@ class _FilterBase:
             data_output_range=None,
             img_filter=bpgaussian,
             filter_params=FILTER_PARAMS,
-            filter_output_range=None,
+            filter_output_range=self.filter_output_range,
             output_dtype=np.float32,
-            output_range=None,
+            output_range=self.output_range,
             selector_band=None,
             n_jobs=self.n_jobs,
         )
@@ -86,14 +89,14 @@ class _FilterBase:
 
 
 class _RasterFilterBase(_FilterBase):
-    """Setup on the fixed Swiss NDVI raster (the docs-figure data)."""
+    """Setup on the fixed Swiss landcover type raster."""
 
     params = (N_JOBS, BLOCK_FRACTIONS)
     param_names = ["n_jobs", "block_fraction"]
 
     def setup(self, n_jobs, block_fraction):
         self.n_jobs = n_jobs
-        self.source_path = data_path(machine.get_ndvi())
+        self.source_path = data_path(machine.get_landcover())
         width, height = raster_size(self.source_path)
         self.block_size = block_size_from_fraction(
             block_fraction, width, height
@@ -107,17 +110,21 @@ class _SyntheticFilterBase(_FilterBase):
 
     params = (SIZES, N_JOBS, BLOCK_FRACTIONS)
     param_names = ["size", "n_jobs", "block_fraction"]
+    filter_output_range = (0.0, 1.0)
+    output_range = (0.0, 1.0)
 
     def setup(self, size, n_jobs, block_fraction):
         self.n_jobs = n_jobs
-        self.source_path = synthetic_tif(size, seed=0)
+        self.source_path = synthetic_filter_tif(size, seed=0)
         self.block_size = block_size_from_fraction(block_fraction, size, size)
         _skip_if_block_too_small(self.block_size)
         self.output_file = make_temp_output(prefix="georacoon_filter_synth_")
 
 
 class TimeFilter(_RasterFilterBase):
-    """Wall time of the parallel Gaussian filter on the Swiss NDVI raster."""
+    """
+    Wall time of the parallel Gaussian filter on the Swiss landcover raster.
+    """
 
     @pretty_name("Wall time: apply_filter (bpgaussian)")
     def time_apply_filter_bpgaussian(self, n_jobs, block_fraction):
@@ -125,7 +132,7 @@ class TimeFilter(_RasterFilterBase):
 
 
 class PeakMemFilter(_RasterFilterBase):
-    """Peak process-tree memory of the parallel Gaussian filter (Swiss NDVI)."""
+    """Peak process-tree memory of the parallel Gaussian filter."""
 
     unit = "bytes"
 
@@ -165,7 +172,7 @@ class _NativeFilterBase:
             data = src.read(1)
 
         data = np.squeeze(data)
-        filtered = bpgaussian(data.astype(np.float32), **FILTER_PARAMS)
+        filtered = bpgaussian(data, **FILTER_PARAMS)
         filtered = filtered.astype(np.float32)
 
         profile.update(dtype="float32", count=1)
@@ -183,31 +190,35 @@ class _NativeFilterBase:
 
 
 class _NativeRasterFilterBase(_NativeFilterBase):
-    """Native setup on the fixed Swiss NDVI raster (reported as ``n_jobs=1``)."""
+    """
+    Native setup on the fixed Swiss Landcover raster (reported as ``n_jobs=1``)
+    """
 
     params = ([1],)
     param_names = ["n_jobs"]
 
     def setup(self, n_jobs):
-        self.source_path = data_path(machine.get_ndvi())
+        self.source_path = data_path(machine.get_landcover())
         self.output_file = make_temp_output(prefix="georacoon_filter_native_")
 
 
 class _NativeSyntheticFilterBase(_NativeFilterBase):
-    """Native setup on deterministic synthetic rasters (reported as ``n_jobs=1``)."""
+    """
+    Native setup on deterministic synthetic rasters (reported as ``n_jobs=1``)
+    """
 
     params = (SIZES, [1])
     param_names = ["size", "n_jobs"]
 
     def setup(self, size, n_jobs):
-        self.source_path = synthetic_tif(size, seed=0)
+        self.source_path = synthetic_filter_tif(size, seed=0)
         self.output_file = make_temp_output(
             prefix="georacoon_filter_native_synth_"
         )
 
 
 class TimeFilterNative(_NativeRasterFilterBase):
-    """Wall time of the native (no-mpc) Gaussian filter on the Swiss NDVI."""
+    """Wall time of the native (no-mpc) Gaussian filter."""
 
     @pretty_name("Wall time: native apply_filter (bpgaussian)")
     def time_apply_filter_bpgaussian(self, n_jobs):
@@ -215,7 +226,7 @@ class TimeFilterNative(_NativeRasterFilterBase):
 
 
 class PeakMemFilterNative(_NativeRasterFilterBase):
-    """Peak memory of the native (no-mpc) Gaussian filter on the Swiss NDVI."""
+    """Peak memory of the native (no-mpc) Gaussian filter."""
 
     unit = "bytes"
 

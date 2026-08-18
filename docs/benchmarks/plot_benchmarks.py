@@ -6,7 +6,8 @@ Parallelization benchmarks
 ==========================
 
 This example reads the latest ASV benchmark results (``.asv/results/``) for the
-Gaussian filter and the multiple linear regression and shows them as heatmaps:
+synthetic Gaussian filter and multiple linear regression benchmarks and shows
+them as heatmaps:
 the x-axis is the number of jobs (``n_jobs``), the y-axis is the block size
 expressed as a fraction of the raster's total size.
 
@@ -20,9 +21,10 @@ baseline, which is reported at ``n_jobs = 1``. Values below 1 are faster / more
 memory efficient than the native approach; values above 1 are slower / less
 memory efficient.
 
-The plots use the results from the most recent benchmark run committed to the
-repository. If no results are present, run the benchmarks first (``asv run``)
-and commit ``.asv/results/``.
+The plots use the ``10000 x 10000`` synthetic-raster results from the most
+recent benchmark run committed to the repository. Raw ASV results for the
+other configured sizes remain available for analysis. If no results are
+present, run the benchmarks first (``asv run``) and commit ``.asv/results/``.
 """
 
 import json
@@ -37,15 +39,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 RESULTS_DIR = REPO_ROOT / ".asv" / "results"
 INDEX_PATH = RESULTS_DIR / "benchmarks.json"
 
-FILTER_TIME = "bench_filter.TimeFilter.time_apply_filter_bpgaussian"
-FILTER_MEM = "bench_filter.PeakMemFilter.track_apply_filter_bpgaussian_peakmem"
-LINREG_TIME = "bench_linreg.TimeComputeWeights.time_compute_weights"
-LINREG_MEM = "bench_linreg.PeakMemComputeWeights.track_compute_weights_peakmem"
+DOC_SIZE = 10000
 
-FILTER_TIME_NATIVE = "bench_filter.TimeFilterNative.time_apply_filter_bpgaussian"
-FILTER_MEM_NATIVE = "bench_filter.PeakMemFilterNative.track_apply_filter_bpgaussian_peakmem"
-LINREG_TIME_NATIVE = "bench_linreg.TimeComputeWeightsNative.time_compute_weights"
-LINREG_MEM_NATIVE = "bench_linreg.PeakMemComputeWeightsNative.track_compute_weights_peakmem"
+FILTER_TIME = "bench_filter.TimeFilterScaling.time_apply_filter_bpgaussian"
+FILTER_MEM = "bench_filter.PeakMemFilterScaling.track_apply_filter_bpgaussian_peakmem"
+LINREG_TIME = "bench_linreg.TimeComputeWeightsScaling.time_compute_weights"
+LINREG_MEM = "bench_linreg.PeakMemComputeWeightsScaling.track_compute_weights_peakmem"
+
+FILTER_TIME_NATIVE = "bench_filter.TimeFilterNativeScaling.time_apply_filter_bpgaussian"
+FILTER_MEM_NATIVE = "bench_filter.PeakMemFilterNativeScaling.track_apply_filter_bpgaussian_peakmem"
+LINREG_TIME_NATIVE = "bench_linreg.TimeComputeWeightsNativeScaling.time_compute_weights"
+LINREG_MEM_NATIVE = "bench_linreg.PeakMemComputeWeightsNativeScaling.track_compute_weights_peakmem"
 
 
 def _machine_dirs():
@@ -82,7 +86,7 @@ def _latest_result_file():
     )
 
 
-def _load_grid(benchmark_name):
+def _load_grid(benchmark_name, size=None):
     """Return ``(n_jobs, block_fractions, values)`` for a benchmark.
 
     ``values`` is a 2D array of shape ``(len(block_fractions), len(n_jobs))``
@@ -108,22 +112,30 @@ def _load_grid(benchmark_name):
     n_jobs = [int(v) for v in axes[param_names.index("n_jobs")]]
     fractions = [float(v) for v in axes[param_names.index("block_fraction")]]
 
-    n_j = len(n_jobs)
-    n_f = len(fractions)
-    grid = np.full((n_f, n_j), np.nan)
+    shape = tuple(len(axis) for axis in axes)
+    result_array = np.asarray(values, dtype=float).reshape(shape)
+    if "size" in param_names:
+        if size is None:
+            raise ValueError("A size is required for a scaling benchmark.")
+        size_axis = param_names.index("size")
+        sizes = [int(v) for v in axes[size_axis]]
+        if size not in sizes:
+            raise RuntimeError(f"Size {size} not found for {benchmark_name!r}.")
+        result_array = np.take(result_array, sizes.index(size), axis=size_axis)
 
-    for idx, value in enumerate(values):
-        if value is None or (isinstance(value, float) and np.isnan(value)):
-            continue
-        i = idx // n_f  # n_jobs axis is the outermost loop
-        j = idx % n_f  # block_fraction axis is the innermost loop
-        grid[j, i] = value
-
+    # ASV stores the first parameter as the outermost axis. Transpose the
+    # remaining n_jobs/block_fraction axes into heatmap row/column order.
+    n_axis = param_names.index("n_jobs")
+    f_axis = param_names.index("block_fraction")
+    if "size" in param_names:
+        n_axis -= int(n_axis > param_names.index("size"))
+        f_axis -= int(f_axis > param_names.index("size"))
+    grid = np.asarray(result_array).transpose(f_axis, n_axis)
     return n_jobs, fractions, grid
 
 
-def _load_native(benchmark_name):
-    """Return the single scalar value of a native (single-combo) benchmark."""
+def _load_native(benchmark_name, size=None):
+    """Return a native result, optionally selecting a synthetic size."""
     index = _result_json(INDEX_PATH)
     if index is None or benchmark_name not in index:
         raise RuntimeError(f"Benchmark {benchmark_name!r} not found in index.")
@@ -138,7 +150,20 @@ def _load_native(benchmark_name):
 
     if not values:
         raise RuntimeError(f"No values recorded for {benchmark_name!r}.")
-    value = values[0]
+    meta = index[benchmark_name]
+    param_names = meta["param_names"]
+    axes = record[columns.index("params")]
+    shape = tuple(len(axis) for axis in axes)
+    result_array = np.asarray(values, dtype=float).reshape(shape)
+    if "size" in param_names:
+        if size is None:
+            raise ValueError("A size is required for a scaling benchmark.")
+        size_axis = param_names.index("size")
+        sizes = [int(v) for v in axes[size_axis]]
+        if size not in sizes:
+            raise RuntimeError(f"Size {size} not found for {benchmark_name!r}.")
+        result_array = np.take(result_array, sizes.index(size), axis=size_axis)
+    value = np.asarray(result_array).reshape(-1)[0]
     if value is None or (isinstance(value, float) and np.isnan(value)):
         raise RuntimeError(f"Native benchmark {benchmark_name!r} is missing.")
     return value
@@ -181,11 +206,11 @@ def _heatmap(ax, n_jobs, fractions, values, title, cbar_label):
 
 
 def _plot_routine(time_name, mem_name, time_native, mem_native, routine_title):
-    n_jobs, fractions, times = _load_grid(time_name)
-    _, _, mem_bytes = _load_grid(mem_name)
+    n_jobs, fractions, times = _load_grid(time_name, size=DOC_SIZE)
+    _, _, mem_bytes = _load_grid(mem_name, size=DOC_SIZE)
 
-    time_native_val = _load_native(time_native)
-    mem_native_val = _load_native(mem_native)
+    time_native_val = _load_native(time_native, size=DOC_SIZE)
+    mem_native_val = _load_native(mem_native, size=DOC_SIZE)
 
     times_ratio = times / time_native_val
     mem_ratio = mem_bytes / mem_native_val
@@ -196,7 +221,7 @@ def _plot_routine(time_name, mem_name, time_native, mem_native, routine_title):
     mem_full = np.concatenate([native_col, mem_ratio], axis=1)
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-    fig.suptitle(routine_title)
+    fig.suptitle(f"{routine_title} (synthetic {DOC_SIZE} x {DOC_SIZE} raster)")
     _heatmap(
         axes[0], x_njobs, fractions, times_full, "Wall time",
         "ratio to native (< 1 faster)",

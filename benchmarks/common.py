@@ -230,6 +230,58 @@ def synthetic_tif(size, seed=0, dtype="float32"):
     return path
 
 
+def synthetic_filter_tif(size, seed=0, frame_width=31):
+    """Return a binary float32 raster with a NaN frame for filter benchmarks.
+
+    The interior contains deterministic zero/one values. The outer frame is
+    filled with NaNs so ``bpgaussian`` exercises its border-preserving behavior.
+
+    Parameters
+    ----------
+    size : int
+        Side length in pixels.
+    seed : int
+        RNG seed for the binary interior.
+    frame_width : int
+        Width of the NaN frame in pixels.
+
+    Returns
+    -------
+    str
+        Path to the generated (or cached) GeoTIFF.
+    """
+    ensure_bench_dir()
+    path = os.path.join(
+        _BENCH_TMP, f"filter_synth_{size}_{seed}_{frame_width}.tif"
+    )
+    if os.path.exists(path):
+        return path
+
+    rng = np.random.default_rng(seed)
+    data = rng.integers(0, 2, size=(size, size), dtype=np.uint8)
+    data = data.astype(np.float32)
+    data[:frame_width, :] = np.nan
+    data[-frame_width:, :] = np.nan
+    data[:, :frame_width] = np.nan
+    data[:, -frame_width:] = np.nan
+
+    transform = from_origin(0.0, float(size), 1.0, 1.0)
+    with rio.open(
+        path,
+        "w",
+        driver="GTiff",
+        height=size,
+        width=size,
+        count=1,
+        dtype="float32",
+        transform=transform,
+        crs="EPSG:32632",
+        nodata=np.nan,
+    ) as dst:
+        dst.write(data, 1)
+    return path
+
+
 def coregistered_tif(source_path, reference_path):
     """Return ``source_path`` coregistered onto ``reference_path``'s grid.
 

@@ -2,7 +2,7 @@
 
 This directory contains the ASV (airspeed velocity) benchmark suite for
 `GeoRacoon`. Benchmarks are intended for local or dedicated-machine runs, not
-for shared CI runners where load and CPU throttling make timings noisy.
+for shared CI runners.
 
 ## Running benchmarks
 
@@ -67,8 +67,8 @@ keys fall back to `default`.
 
 The `n_jobs` sweep is derived from the CPU count (`2 .. ncpu - 1`), not from
 the JSON config. Block sizes are expressed as a fraction of the raster's total
-size: `block_fraction = 1/d` for each configured denominator `d`, and the block
-is `(round(f*width), round(f*height))`.
+size: `f = 1/d` for each configured denominator `d`, and the block is
+`(round(f*width), round(f*height))`.
 
 To add a machine:
 
@@ -82,10 +82,15 @@ To add a machine:
 
 Benchmarks the parallel border-preserving Gaussian filter
 (`convster.parallel.apply_filter` with `convster.filters.bpgaussian`) on the
-fixed Swiss NDVI raster (`TimeFilter`/`PeakMemFilter`, sweeping `n_jobs` x
+fixed Swiss CLC raster (`TimeFilter`/`PeakMemFilter`, sweeping `n_jobs` x
 `block_fraction`) and on synthetic rasters of increasing size
 (`TimeFilterScaling`/`PeakMemFilterScaling`, full `size` x `n_jobs` x
 `block_fraction` grid).
+
+The synthetic filter rasters are float32 binary rasters whose interior contains
+only `0.0` and `1.0`, with an outer frame of `NaN` values. This directly
+exercises the current NaN-aware `bpgaussian` behavior without requiring a new
+input-nodata API. The documentation gallery currently plots only the
 
 The border-preserving filter adds a halo whose size is fixed by the Gaussian
 kernel (`sigma`/`truncate`). Block/fraction combinations where the block is not
