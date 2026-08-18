@@ -1,9 +1,24 @@
 # Contributing to GeoRacoon
 
 First off, thanks so much for considering a contribution - we really appreciate it.
+
 GeoRacoon is a community effort and every bit of help counts, 
 whether it's fixing a typo, reporting a bug, or adding a new feature. 
-(This also includes the enhancement of this contribution file.)
+(By the way, this ofc also includes the enhancement of this contribution file.)
+
+
+> [!IMPROTANT]
+> Just like on a boat in Ancient Greece, we pull an ore to propell ourselves forward. 
+> Generally, any time you want to make edits to GeoRacoon, open a [Pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request).
+> 
+> In addition, never open a pull request without an existing issue that it relates to!
+> 
+>   "Why do we fall Bruce? :bat:"
+>   "So we can raise issues, to pull ourselves up again"
+> 
+> If you want to link a pull request to an issue simply copy the link to the
+> issue into the description of the pull request.
+> If you are unsure how to move forward check the [how to link a pull request](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue).
 
 
 ## Table of Contents
@@ -19,14 +34,19 @@ whether it's fixing a typo, reporting a bug, or adding a new feature.
 ---
 
 ## Where to start
+So you decided to contribute, but you are not sure where to begin? 
 
-Not sure where to begin? Look for issues tagged https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22, 
-these are smaller, self-contained tasks well-suited for newcomers. Issues tagged https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22 
+1) Look for issues tagged https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22, 
+these are smaller, self-contained tasks well-suited for newcomers. 
+2) Issues tagged https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22 
 are a good next step once you're more familiar with the codebase.
 
-**Useful resources:**
+To get an overview of the GeoRacoon codebase and more, head to these **useful resources:**
 - [Documentation](https://georacoon.readthedocs.io)
 - [Issue tracker](https://github.com/GeoRacoon/GeoRacoon/issues)
+
+For general assistance on 
+
 
 ---
 
