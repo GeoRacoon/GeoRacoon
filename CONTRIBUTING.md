@@ -1,6 +1,6 @@
 # Contributing to GeoRacoon
 
-First off, thanks so much for considering a contribution, we really appreciate it!
+First off, thanks so much for considering a contribution, we really appreciate it! :raccoon:
 
 GeoRacoon is a community effort and every bit of help counts,
 whether it's fixing a typo, reporting a bug, or adding a new feature.
@@ -32,8 +32,11 @@ whether it's fixing a typo, reporting a bug, or adding a new feature.
 
 So you've decided to contribute, but you're not sure where to begin?
 
+First, head over to the [issue tracker](https://github.com/GeoRacoon/GeoRacoon/issues) to see what's already there, someone might already be on the same trail as you :dog:.
+
 1. Look for issues tagged [`good first issue`](https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22), these are smaller, self-contained tasks well-suited for newcomers.
-2. Issues tagged [`help wanted`](https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) are a good next step once you're more familiar with the codebase.
+2. Check issues tagged [`help wanted`](https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22), a good next step once you're more familiar with the codebase.
+3. Have a very specific idea in mind? Jump down to [Suggesting enhancements](#suggesting-enhancements).
 
 To get an overview of the GeoRacoon codebase and more, head to these **useful resources:**
 - [Documentation](https://georacoon.readthedocs.io)
@@ -43,30 +46,32 @@ To get an overview of the GeoRacoon codebase and more, head to these **useful re
 
 ## Reporting bugs
 
-Before opening a new issue, please search [existing issues](https://github.com/GeoRacoon/GeoRacoon/issues) (including closed ones), 
+Before opening a new issue :bug:, please search [existing issues](https://github.com/GeoRacoon/GeoRacoon/issues) (including closed ones),
 someone may have already reported the same problem.
 
 When you do open an issue, please include:
 
 - A clear and descriptive title
-- In the description then please feature:
+- In the description, be sure to cover:
   - Steps to reproduce the problem (minimal example if possible)
   - What you expected to happen vs. what actually happened
   - Your operating system, Python version, and GeoRacoon version
-  - Copy any relevant error messages or tracebacks
+  - Any relevant error messages or tracebacks
 
 ---
 
 ## Suggesting enhancements
 
-This is an ever evolving project, so suggestions for new features are super welcome.
-For that, open an issue and describe:
+This is an ever-evolving project, so suggestions for new features are always welcome :bulb:.
+Before laying out your idea, check whether it's already been raised in [existing issues](https://github.com/GeoRacoon/GeoRacoon/issues),
+you can add your voice to the discussion there instead.
+If nothing matches your idea yet, open a new issue and describe:
 
 - What you'd like to be able to do that isn't currently possible
 - Why this would be useful (your use case)
 - If you have ideas on how it could work, sketch them out
 
-This lets us all discuss the best approach before any code is written.
+This lets us all discuss the best approach before any code gets written.
 
 ---
 
