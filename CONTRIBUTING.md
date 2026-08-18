@@ -121,11 +121,13 @@ We aim to review and respond to pull requests promptly.
 
 When you fork the repo, the GitHub Actions workflows come with it. Once you open a PR targeting `main`, two pipelines run automatically:
 
-**Unit tests** (`develop.yml`): runs the full test suite across Python 3.10, 3.11, 3.12, 3.13 and 3.14 on Ubuntu. After the tests pass, a coverage report is posted as a comment on your PR so you can see how your changes affect test coverage.
+- **Unit tests** (`develop.yml`): runs the full test suite across Python 3.10, 3.11, 3.12, 3.13 and 3.14 on Ubuntu.
+  Once tests pass, a coverage report is posted as a comment on your PR so you can see how your changes affect test coverage.
+- **Smoke tests** (`deploy.yml`): installs GeoRacoon and runs a quick end-to-end check across Ubuntu, Fedora, macOS and Windows to catch any platform-specific installation issues.
 
-**Smoke tests** (`deploy.yml`): installs GeoRacoon and runs a quick end-to-end check across Ubuntu, Fedora, macOS and Windows to catch any platform-specific installation issues.
-
-Both pipelines skip draft PRs, so you can open a draft to share early work without triggering the full test run. Mark the PR as "Ready for review" when you want the checks to run.
+> [!NOTE]
+> Both pipelines skip draft PRs, so you can open a draft to share early work without triggering the full test run.
+> Mark the PR as "Ready for review" when you want the checks to run.
 
 To run the tests locally before pushing:
 ```bash
