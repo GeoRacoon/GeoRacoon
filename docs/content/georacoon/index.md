@@ -8,4 +8,5 @@
 ```{toctree}
 installation
 usage
+contributing
 ```
