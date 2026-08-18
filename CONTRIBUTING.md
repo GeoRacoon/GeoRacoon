@@ -3,18 +3,16 @@
 First off, thanks so much for considering a contribution, we really appreciate it! :raccoon:
 
 GeoRacoon is a community effort and every bit of help counts,
-whether it's fixing a typo, reporting a bug, or adding a new feature.
+whether it's fixing a typo, reporting a bug, or adding a new feature.<br>
 (This of course also includes enhancing this very file.)
 
 > [!IMPORTANT]
-> :sailboat: Just like on a boat in Ancient Greece, we all pull an oar to propel ourselves forward.
->
-> Any time you want to make edits to GeoRacoon, open a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request) and never one without an existing issue it relates to!
->
-> *"Why do we fall, Bruce?"* :bat:
-> *"So we can raise issues, to pull ourselves up again."*
->
+> :sailboat: Just like on a boat in Ancient Greece, we all pull an oar to propel ourselves forward. <br>
+> Any time you want to make edits to GeoRacoon, open a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request) and never one without an existing issue it relates to! <br>
 > To link a pull request to an issue, simply copy the issue's link into the pull request's description.
+> 
+> *"Why do we fall, Bruce?"* :bat: <br>
+> *"So we can raise issues, to pull ourselves up again."*
 >
 > Still unsure how to move forward? Check out [how to link a pull request to an issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue).
 
@@ -50,7 +48,7 @@ To get an overview of the GeoRacoon codebase and more, head to these **useful re
 
 ## Reporting bugs
 
-Before opening a new issue, please search [existing issues](https://github.com/GeoRacoon/GeoRacoon/issues) (including [closed ones](https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aclosed)). 
+Before opening a new issue, please search [existing issues](https://github.com/GeoRacoon/GeoRacoon/issues) (including [closed ones](https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aclosed)). <br>
 Someone may have already reported the same problem :bug:.
 
 When you do open an issue, please include:
@@ -66,8 +64,7 @@ When you do open an issue, please include:
 
 ## Suggesting enhancements
 
-This is an ever-evolving project, so suggestions for new features are always welcome :bulb:.
-
+This is an ever-evolving project, so suggestions for new features are always welcome :bulb:. <br>
 Before laying out your idea, check whether it's already been raised in [existing issues](https://github.com/GeoRacoon/GeoRacoon/issues), you can add your voice to the discussion there instead.
 
 If nothing matches your idea yet, open a new issue and describe:
