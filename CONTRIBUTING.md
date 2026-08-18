@@ -4,7 +4,6 @@ First off, thanks so much for considering a contribution, we really appreciate i
 
 GeoRacoon is a community effort and every bit of help counts,
 whether it's fixing a typo, reporting a bug, or adding a new feature.
-
 (This of course also includes enhancing this very file.)
 
 > [!IMPORTANT]
@@ -35,8 +34,7 @@ whether it's fixing a typo, reporting a bug, or adding a new feature.
 
 So you've decided to contribute, but you're not sure where to begin?
 
-First, head over to the [issue tracker](https://github.com/GeoRacoon/GeoRacoon/issues) to see what's already there.
-
+First, head over to the [issue tracker](https://github.com/GeoRacoon/GeoRacoon/issues) to see what's already there. 
 Someone might already be on the same trail as you :dog:.
 
 1. Look for issues tagged [`good first issue`](https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22), these are smaller, self-contained tasks well-suited for newcomers.
@@ -46,14 +44,14 @@ Someone might already be on the same trail as you :dog:.
 To get an overview of the GeoRacoon codebase and more, head to these **useful resources:**
 - [Documentation](https://georacoon.readthedocs.io)
 - [Issue tracker](https://github.com/GeoRacoon/GeoRacoon/issues)
+- New to GitHub? [Quickstart for contributing to projects](https://docs.github.com/en/get-started/quickstart/contributing-to-projects)
 
 ---
 
 ## Reporting bugs
 
-Before opening a new issue :bug:, please search [existing issues](https://github.com/GeoRacoon/GeoRacoon/issues) (including closed ones).
-
-Someone may have already reported the same problem.
+Before opening a new issue, please search [existing issues](https://github.com/GeoRacoon/GeoRacoon/issues) (including [closed ones](https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aclosed)). 
+Someone may have already reported the same problem :bug:.
 
 When you do open an issue, please include:
 
