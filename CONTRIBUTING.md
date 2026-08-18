@@ -1,25 +1,20 @@
 # Contributing to GeoRacoon
 
-First off, thanks so much for considering a contribution - we really appreciate it.
+First off, thanks so much for considering a contribution, we really appreciate it!
 
-GeoRacoon is a community effort and every bit of help counts, 
-whether it's fixing a typo, reporting a bug, or adding a new feature. 
-(By the way, this ofc also includes the enhancement of this contribution file.)
+GeoRacoon is a community effort and every bit of help counts,
+whether it's fixing a typo, reporting a bug, or adding a new feature.
+(This of course also includes enhancing this very file.)
 
-
-> [!IMPROTANT]
-> Just like on a boat in Ancient Greece, we pull an ore to propell ourselves forward. 
-> Generally, any time you want to make edits to GeoRacoon, open a [Pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request).
-> 
-> In addition, never open a pull request without an existing issue that it relates to!
-> 
->   "Why do we fall Bruce? :bat:"
->   "So we can raise issues, to pull ourselves up again"
-> 
-> If you want to link a pull request to an issue simply copy the link to the
-> issue into the description of the pull request.
-> If you are unsure how to move forward check the [how to link a pull request](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue).
-
+> [!IMPORTANT]
+> :sailboat: Just like on a boat in Ancient Greece, we all pull an oar to propel ourselves forward.
+> Any time you want to make edits to GeoRacoon, open a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request) and never one without an existing issue it relates to!
+>
+> *"Why do we fall, Bruce?"* :bat:
+> *"So we can raise issues, to pull ourselves up again."*
+>
+> To link a pull request to an issue, simply copy the issue's link into the pull request's description.
+> Still unsure how to move forward? Check out [how to link a pull request to an issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue).
 
 ## Table of Contents
 
@@ -34,19 +29,15 @@ whether it's fixing a typo, reporting a bug, or adding a new feature.
 ---
 
 ## Where to start
-So you decided to contribute, but you are not sure where to begin? 
 
-1) Look for issues tagged https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22, 
-these are smaller, self-contained tasks well-suited for newcomers. 
-2) Issues tagged https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22 
-are a good next step once you're more familiar with the codebase.
+So you've decided to contribute, but you're not sure where to begin?
+
+1. Look for issues tagged [`good first issue`](https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22), these are smaller, self-contained tasks well-suited for newcomers.
+2. Issues tagged [`help wanted`](https://github.com/GeoRacoon/GeoRacoon/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) are a good next step once you're more familiar with the codebase.
 
 To get an overview of the GeoRacoon codebase and more, head to these **useful resources:**
 - [Documentation](https://georacoon.readthedocs.io)
 - [Issue tracker](https://github.com/GeoRacoon/GeoRacoon/issues)
-
-For general assistance on 
-
 
 ---
 
