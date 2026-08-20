@@ -27,8 +27,8 @@ def test_resampling(datafiles):
     #  it is cryptic the way it is now, (resampling method etc not specifyable).
     """Make sure our re-sampling method works as expected.
     """
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    landcover_map = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     # make sure the compatibility check fails
     with pytest.raises(TypeError):
         check_compatibility(ndvi_map, landcover_map)
@@ -194,8 +194,8 @@ def test_tif_compression(datafiles):
     """Test whether compression produces correct ouput and transfers tags
     """
     test_data = (
-        get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles),
-        get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+        get_file(pattern="*_CLC_*.tif", datafiles=datafiles),
+        get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     )
     for file in test_data:
         # decompress it
@@ -220,8 +220,8 @@ def test_compression_tagging(datafiles):
     """Test whether compression transfers all tags corerctly
     """
     test_data = (
-        get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles),
-        get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+        get_file(pattern="*_CLC_*.tif", datafiles=datafiles),
+        get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     )
     dataset_tags = dict(
         ds_tag='test'
@@ -260,8 +260,8 @@ def test_band_count_contrib(datafiles):
     """Check the count of valid pixels for a band
     """
     test_data = (
-        get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles),
-        get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+        get_file(pattern="*_CLC_*.tif", datafiles=datafiles),
+        get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     )
     for test_file in test_data:
         band = rgio.Band(source=rgio.Source(path=test_file), bidx=1)

@@ -33,9 +33,9 @@ def test_parallel_transposed_prod(datafiles, set_mpc_strategy):
     """Calculate the transposed product of a predictor matrix
     """
     verbose = True
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    landcover_map = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     lct_source = Source(path=landcover_map)
-    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     # scale it down to 100x100m (from 30x30)
     coregister_raster(ndvi_map, landcover_map, output=str(ndvi_map))
     # create a mask for ndvi_map masking the nan's
@@ -158,7 +158,7 @@ def test_model_output(datafiles, create_blurred_tif):
     as_dtype = 'float32'
     blurred_source = Source(path=create_blurred_tif)
     predictors = blurred_source.get_bands()
-    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
     resp_source = Source(path=ndvi_map)
     resp_profile = resp_source.import_profile()
@@ -209,8 +209,8 @@ def test_parallel_optimal_weights(datafiles, create_blurred_tif):
     as_dtype = np.float64
     include_intercept = True
     verbose = True
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    landcover_map = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
     coregister_raster(_ndvi_map, landcover_map, output=ndvi_map)
@@ -278,7 +278,7 @@ def test_get_XT_X_dependency(datafiles, create_blurred_tif):
     blur_source = Source(path=create_blurred_tif)
     predictors = blur_source.get_bands()
 
-    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map))  # rescale to 100m
 
     # Generally it should be empty (as there is no linear dependency by nature)
@@ -311,7 +311,7 @@ def test_compute_weights(datafiles, create_blurred_tif):
     blur_source = Source(path=create_blurred_tif)
     predictors = blur_source.get_bands()
 
-    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     coregister_raster(ndvi_map, blur_source.path, output=str(ndvi_map))  # rescale to 100m
 
     rgpara.compute_mask(blur_source, block_size=(500, 500))
@@ -363,7 +363,7 @@ def test_calculate_rmse(datafiles, create_blurred_tif):
     block_size = (500, 500)
     blurred_source = Source(path=create_blurred_tif)
     predictors = blurred_source.get_bands()
-    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     coregister_raster(ndvi_map, blurred_source.path, output=str(ndvi_map))
     resp_source = Source(path=ndvi_map)
     resp_profile = resp_source.import_profile()
@@ -466,8 +466,8 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
     """`parallel.prepare_selector` is equivalent to `inference.prepare_selector`
     """
     block_size = (500, 500)
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    landcover_map = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
 
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
@@ -541,8 +541,8 @@ def test_prepare_selector_parallel(datafiles, create_blurred_tif):
 def test_selector_computation(datafiles, create_blurred_tif):
     """Compare the selector generation in parallel to the full one
     """
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    landcover_map = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
 
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
