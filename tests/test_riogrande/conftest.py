@@ -12,12 +12,12 @@ FIXTURE_DIR = os.path.abspath(os.path.join(
     '../../',
     'data'
 ))
-lct_map = os.path.join(FIXTURE_DIR, 'testing', 'landcover',
-                 'Switzerland_CLC_2012_reclass8.tif')
-lct_float_map = os.path.join(FIXTURE_DIR, 'testing', 'landcover',
-                 'Switzerland_area_frac_grid_1km_CGLS_2015.tif')
-ndvi_map = os.path.join(FIXTURE_DIR, 'testing', 'ndvi',
-                 'Switzerland_NDVI_binning_2015.tif')
+lct_map = os.path.join(FIXTURE_DIR, 'test',
+                 'switzerland_lc-8-reclass_2012_CLC_epsg3035.tif')
+lct_float_map = os.path.join(FIXTURE_DIR, 'test',
+                 'switzerland_lc-area-fraction_2015_CGLS-LC100_epsg2056.tif')
+ndvi_map = os.path.join(FIXTURE_DIR, 'test',
+                 'switzerland_ndvi-binned-mean_2015_LANDSAT-8_epsg3035.tif')
 
 ALL_MAPS = pytest.mark.datafiles(lct_map, lct_float_map, ndvi_map)
 
