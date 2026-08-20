@@ -35,7 +35,7 @@ from coonfit import parallel as lfpara
 
 # Parameters
 base_dir = os.path.dirname(__file__)
-lst_file_org = os.path.join(base_dir, "../data/examples/alps_lst-day-mean_summer_2015_MOD11AS_sinusoidal.tif")
+lst_file_org = os.path.join(base_dir, "../data/examples/alps_lst-day-mean_summer_2015_MOD11A2_sinusoidal.tif")
 topo_file_org = os.path.join(base_dir, "../data/examples/alps_elevation_mean_GLO90DEM_sinusoidal.tif")
 # lct_file = os.path.join(base_dir, "../data/examples/lc_frac_plots_cgls2015_alps.tif")
 # count_file = os.path.join(base_dir, "../data/examples/countries_alps.tif")
