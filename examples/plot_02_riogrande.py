@@ -37,8 +37,8 @@ from riogrande.io import Source, Band
 
 base_dir     = os.getcwd()
 lct_file_org = os.path.join(base_dir,
-                            "../data/testing/landcover/"
-                            "Switzerland_area_frac_grid_1km_CGLS_2015.tif")
+                            "../data/examples/"
+                            "switzerland_lc-area-fraction_2015_CGLS-LC100_sinusoidal.tif")
 
 lct_source_org = Source(path=lct_file_org)
 lct_profile    = lct_source_org.import_profile()
@@ -60,7 +60,7 @@ print(f"Nodata: {lct_profile['nodata']}")
 
 # Work on a copy so the original file is never altered
 lct_file = os.path.join(base_dir,
-                        "../data/example/"
+                        "../data/examples/"
                         "_tmp_lct_frac_tagged.tif")
 shutil.copy(src=lct_file_org, dst=lct_file)
 lct_source = Source(path=lct_file)

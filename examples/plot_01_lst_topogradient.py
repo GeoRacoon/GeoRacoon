@@ -46,12 +46,12 @@ from coonfit import parallel as lfpara
 
 base_dir =  os.getcwd()
 
-lst_file_org  = os.path.join(base_dir, "../data/example/lst_day_mean_summer_2015_MODISLST8D_alps.tif")
-topo_file_org = os.path.join(base_dir, "../data/example/elevation_mean_COP90_alps.tif")
+lst_file_org  = os.path.join(base_dir, "../data/examples/alps_lst-day-mean_summer_2015_MOD11AS_sinusoidal.tif")
+topo_file_org = os.path.join(base_dir, "../data/examples/alps_elevation_mean_GLO90DEM_sinusoidal.tif")
 
 # Work on copies so the originals are never altered
-lst_file  = os.path.join(base_dir, "../data/example/_tmp_lst_diff_alps.tif")
-topo_file = os.path.join(base_dir, "../data/example/_tmp_elevation_diff_alps.tif")
+lst_file  = os.path.join(base_dir, "../data/examples/_tmp_lst_diff_alps.tif")
+topo_file = os.path.join(base_dir, "../data/examples/_tmp_elevation_diff_alps.tif")
 shutil.copy(src=lst_file_org,  dst=lst_file)
 shutil.copy(src=topo_file_org, dst=topo_file)
 
@@ -136,7 +136,7 @@ params_filter = dict(
 # Prepare the dataset objects for the filter ...
 
 lst_conv_file   = os.path.join(base_dir,
-                               f"../data/example/_tmp_lst_conv_{kernel_m_sigma}m_alps.tif")
+                               f"../data/examples/_tmp_lst_conv_{kernel_m_sigma}m_alps.tif")
 lst_conv_source = Source(path=lst_conv_file, profile=lst_profile)
 lst_conv_source.init_source(overwrite=True)
 lst_conv_band   = Band(lst_conv_source, bidx=1)
@@ -201,7 +201,7 @@ plt.show()
 # Again we prepare the data ...
 
 elev_conv_file   = os.path.join(base_dir,
-                                f"../data/example/_tmp_elev_conv_{kernel_m_sigma}m_alps.tif")
+                                f"../data/examples/_tmp_elev_conv_{kernel_m_sigma}m_alps.tif")
 elev_conv_source = Source(path=elev_conv_file, profile=topo_profile)
 elev_conv_source.init_source(overwrite=True)
 elev_conv_band   = Band(elev_conv_source, bidx=1)
@@ -347,7 +347,7 @@ plt.show()
 # :meth:`~riogrande.io.models.Band.add`.  The result should approximate the original LST.
 
 model_file     = os.path.join(base_dir,
-                              f"../data/example/_tmp_model_conv_{kernel_m_sigma}_m.tif")
+                              f"../data/examples/_tmp_model_conv_{kernel_m_sigma}_m.tif")
 model_data_tif = lfpara.compute_model(
     predictors=predictors,
     optimal_weights=band_weight,
@@ -449,7 +449,7 @@ print(f"Full model     - RMSE: {rmse_full:.2f}  °C  |  R²: {r2_full:.2f}")
 # For example, urban heat islands or cold air pooling around water bodies.
 
 resid_file   = os.path.join(base_dir,
-                            f"../data/example/_tmp_resid_model_conv_{kernel_m_sigma}_m.tif")
+                            f"../data/examples/_tmp_resid_model_conv_{kernel_m_sigma}_m.tif")
 resid_source = Source(path=resid_file, profile=lst_profile)
 resid_source.init_source(overwrite=True)
 resid_band   = Band(source=resid_source, bidx=1)

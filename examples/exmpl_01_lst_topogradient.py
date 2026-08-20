@@ -35,10 +35,10 @@ from coonfit import parallel as lfpara
 
 # Parameters
 base_dir = os.path.dirname(__file__)
-lst_file_org = os.path.join(base_dir, "../data/example/lst_day_mean_summer_2015_MODISLST8D_alps.tif")
-topo_file_org = os.path.join(base_dir, "../data/example/elevation_mean_COP90_alps.tif")
-# lct_file = os.path.join(base_dir, "../data/example/lc_frac_plots_cgls2015_alps.tif")
-# count_file = os.path.join(base_dir, "../data/example/countries_alps.tif")
+lst_file_org = os.path.join(base_dir, "../data/examples/alps_lst-day-mean_summer_2015_MOD11AS_sinusoidal.tif")
+topo_file_org = os.path.join(base_dir, "../data/examples/alps_elevation_mean_GLO90DEM_sinusoidal.tif")
+# lct_file = os.path.join(base_dir, "../data/examples/lc_frac_plots_cgls2015_alps.tif")
+# count_file = os.path.join(base_dir, "../data/examples/countries_alps.tif")
 
 params = dict(n_jobs=6)
 block_size = (200, 200)
@@ -56,11 +56,11 @@ def main():
     # 1.1) Make copies of data (to no alter original datasets)
 
     # Land Surface Temperature data
-    lst_file = os.path.join(base_dir, "../data/example/_tmp_lst_diff_alps.tif")
+    lst_file = os.path.join(base_dir, "../data/examples/_tmp_lst_diff_alps.tif")
     shutil.copy(src=lst_file_org, dst=lst_file)
 
     # Elevation data
-    topo_file = os.path.join(base_dir, "../data/example/_tmp_elevation_diff_alps.tif")
+    topo_file = os.path.join(base_dir, "../data/examples/_tmp_elevation_diff_alps.tif")
     shutil.copy(src=topo_file_org, dst=topo_file)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -110,7 +110,7 @@ def main():
     # (Such provides an example with arbitrary sigma in meters, as a user you may want to optimize this programmatically)
 
     # Initate empty file for later
-    lst_conv_file = os.path.join(base_dir, f"../data/example/_tmp_lst_conv_{kernel_m_sigma}m_alps.tif")
+    lst_conv_file = os.path.join(base_dir, f"../data/examples/_tmp_lst_conv_{kernel_m_sigma}m_alps.tif")
     lst_conv_source = Source(path=lst_conv_file, profile=lst_profile)
     lst_conv_source.init_source(overwrite=True)
     lst_conv_band = Band(lst_conv_source, bidx=1)
@@ -146,7 +146,7 @@ def main():
     # Again we are interested in the deviation of elevation from the regional determining elevation
 
     # Initate empty file again
-    elev_conv_file = os.path.join(base_dir, f"../data/example/_tmp_elev_conv_{kernel_m_sigma}m_alps.tif")
+    elev_conv_file = os.path.join(base_dir, f"../data/examples/_tmp_elev_conv_{kernel_m_sigma}m_alps.tif")
     elev_conv_source = Source(path=elev_conv_file, profile=topo_profile)
     elev_conv_source.init_source(overwrite=True)
     elev_conv_band = Band(elev_conv_source, bidx=1)
@@ -244,7 +244,7 @@ def main():
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # 4.1 Compute the model
-    model_file = os.path.join(base_dir, f"../data/example/_tmp_model_conv_{kernel_m_sigma}_m.tif")
+    model_file = os.path.join(base_dir, f"../data/examples/_tmp_model_conv_{kernel_m_sigma}_m.tif")
     model_data_tif = lfpara.compute_model(
         predictors=predictors,
         optimal_weights=band_weight,
@@ -316,7 +316,7 @@ def main():
     # TODO: it would be nice to add the residuals as an extra band directly to the model tiff.
     # This is not implementable yet, as there will be now second band created when out_band is used,
     # We can think about doing this --> for now I just create a new file
-    resid_file = os.path.join(base_dir, f"../data/example/_tmp_resid_model_conv_{kernel_m_sigma}_m.tif")
+    resid_file = os.path.join(base_dir, f"../data/examples/_tmp_resid_model_conv_{kernel_m_sigma}_m.tif")
     resid_source = Source(path=resid_file, profile=lst_profile)
     resid_source.init_source(overwrite=True)
     resid_band = Band(source=resid_source, bidx=1)

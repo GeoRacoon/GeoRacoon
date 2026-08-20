@@ -44,10 +44,10 @@ from coonfit import parallel as lfpara
 base_dir = os.getcwd()
 
 lct_file_org = os.path.join(base_dir,
-                             "../data/testing/landcover/"
-                             "Switzerland_area_frac_grid_1km_CGLS_2015.tif")
+                             "../data/examples/"
+                             "switzerland_lc-area-fraction_2015_CGLS-LC100_sinusoidal.tif")
 lct_file     = os.path.join(base_dir,
-                             "../data/example/_tmp_lct_frac_tagged_coonfit.tif")
+                             "../data/examples/_tmp_lct_frac_tagged_coonfit.tif")
 shutil.copy(src=lct_file_org, dst=lct_file)
 lct_source = Source(path=lct_file)
 
@@ -74,10 +74,10 @@ predictors = [forest, grassland, agriculture, urban]
 # Again we write to a temporary file for the coregistration so the original is never modified.
 
 ndvi_file_org = os.path.join(base_dir,
-                             "../data/example/"
-                             "Switzerland_NDVI_binning_2015_sinusoidal.tif")
+                             "../data/examples/"
+                             "switzerland_ndvi-binned-mean_2015_LANDSAT-8_sinusoidal.tif")
 ndvi_file = os.path.join(base_dir,
-                         "../data/example/_tmp_ndvi_coreged_1km.tif")
+                         "../data/examples/_tmp_ndvi_coreged_1km.tif")
 shutil.copy(src=ndvi_file_org, dst=ndvi_file)
 coregister_raster(source=ndvi_file, reference=lct_file, output=ndvi_file)
 
@@ -142,7 +142,7 @@ for band, beta in band_weight.items():
 # observed NDVI using a shared valid-pixel selector.
 
 model_file = os.path.join(base_dir,
-                          "../data/example/_tmp_coonfit_ndvi_lct_model.tif")
+                          "../data/examples/_tmp_coonfit_ndvi_lct_model.tif")
 lfpara.compute_model(
     predictors=predictors,
     optimal_weights=band_weight,
