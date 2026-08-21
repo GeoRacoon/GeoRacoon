@@ -23,8 +23,8 @@ from .conftest import (
 @ALL_MAPS
 def test_enrich_selector(datafiles, create_blurred_tif):
     """Test selector enrichment produces expected mask pattern"""
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    landcover_map = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     ndvi_coregistered = str(datafiles / 'ndvi_coreged.tif')
     coregister_raster(ndvi_map, landcover_map, output=ndvi_coregistered)
 
@@ -60,8 +60,8 @@ def test_enrich_selector(datafiles, create_blurred_tif):
 def test_preparation(datafiles, create_blurred_tif, set_mpc_strategy):
     """Test the preparation of predictors based on a response matrix
     """
-    _landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    _landcover_map = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     print(f"{ndvi_map=}")
 
     landcover_map = str(datafiles / 'lct_coreged.tif')
@@ -130,8 +130,8 @@ def test_weights_computations_test_data():
 def test_optimal_weights_example_data(datafiles, create_blurred_tif):
     """Test the preparation of predictors based on a response matrix
     """
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    landcover_map = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
 
     # scale it down to 100x100m (from 30x30)
 
@@ -182,8 +182,8 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif,
                                       set_mpc_strategy):
     """Calculate transposed product from the predictor matrix
     """
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    landcover_map = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
 
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
@@ -234,8 +234,8 @@ def test_transposed_prod_example_data(datafiles, create_blurred_tif,
 def test_extra_masking_band(datafiles, create_blurred_tif, set_mpc_strategy):
     """Assert that the extra masking band is included correctly
     """
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    landcover_map = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
 
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
@@ -289,7 +289,7 @@ def test_transposed_prod_blurred_example_data(datafiles, create_blurred_tif):
     """Calculate transposed product form a predictor matrix with blurred input
     """
     # get the response data
-    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     # get (compute) the blurred bands
     blurred_source = Source(path=create_blurred_tif)
     # parameter setting
@@ -344,7 +344,7 @@ def test_transposed_prod_blurred_example_data(datafiles, create_blurred_tif):
 @ALL_MAPS
 def test_partial_response(datafiles):
     """Test `partial_response` with synthetic raster data and selector"""
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    landcover_map = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     band = Band(source=Source(path=str(landcover_map)), bidx=1)
     data = band.get_data()
 
@@ -366,8 +366,8 @@ def test_partial_response(datafiles):
 @ALL_MAPS
 def test_partial_X_synthetic(datafiles):
     """Test `partial_X` builds the predictor matrix correctly"""
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    landcover_map = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
 
     # scale it down to 100x100m (from 30x30)
     ndvi_map = str(datafiles / 'lct_coreged.tif')
@@ -412,8 +412,8 @@ def test_optimal_beta(datafiles, create_blurred_tif):
     """Calculate the optimal beta values analytically
     """
     as_dtype = 'float32'  # we use this since the ndvi map uses it
-    landcover_map = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    _ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+    landcover_map = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
+    _ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     # scale it down to 100x100m (from 30x30)
 
     ndvi_map = str(datafiles / 'ndvi_coreged.tif')

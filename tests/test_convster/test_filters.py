@@ -38,7 +38,7 @@ def test_kernel_scaling():
 def test_filter_signal_preservation(datafiles):
     """Filtering shouldn't lose more than 0.1% of the initial signal in the map
     """
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     ch_data = rgio.load_block(ch_map_tif)['data']
     lctypes = convproc.get_categories(ch_data)
     sigma = 10

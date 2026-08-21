@@ -37,8 +37,8 @@ from convster.filters import bpgaussian
 
 base_dir = os.getcwd()
 lct_file = os.path.join(base_dir,
-                        "../data/testing/landcover/"
-                        "Switzerland_area_frac_grid_1km_CGLS_2015.tif")
+                        "../data/examples/"
+                        "switzerland_lc-area-fraction_2015_CGLS-LC100_sinusoidal.tif")
 
 lct_source  = Source(path=lct_file)
 lct_profile = lct_source.import_profile()
@@ -91,7 +91,7 @@ filter_params = dict(
 #   pulled towards zero as they would be with a standard Gaussian.
 
 output_file   = os.path.join(base_dir,
-                             "../data/testing/landcover/"
+                             "../data/examples/"
                              "_tmp_lct_conv_sigma5.tif")
 output_source = Source(path=output_file, profile=lct_profile)
 output_source.init_source(overwrite=True)
