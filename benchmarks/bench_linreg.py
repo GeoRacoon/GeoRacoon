@@ -150,8 +150,9 @@ class _NativeLinregBase:
     def _run_native(self):
         masks = []
         for band in [self.response, *self.predictors]:
-            with band.get_mask_reader() as read:
-                masks.append(np.squeeze(read()))
+            mask_reader = band.get_mask_reader()
+            with mask_reader() as read_mask:
+                masks.append(np.squeeze(read_mask()))
         selector = aggregated_selector(masks, logic="all")
 
         X = partial_X(
