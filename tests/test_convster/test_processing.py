@@ -97,7 +97,7 @@ def test_compute_entropy():
 def test_get_categories_lct(datafiles):
     """Make sure the detection of land-cover types works as expected
     """
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     ch_data = rgio.load_block(ch_map_tif)['data']
     categories = csproc.get_categories(ch_data)
     unique_values = np.unique(categories)
@@ -109,7 +109,7 @@ def test_get_categories_lct(datafiles):
 def test_single_category_filter(datafiles):
     """Make sure the detection of categories works as expected
     """
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     ch_data = rgio.load_block(ch_map_tif)['data']
     categories = csproc.get_categories(ch_data)
     categories = np.unique(categories)
@@ -136,7 +136,7 @@ def test_single_category_filter(datafiles):
 def test_filter_data(datafiles):
     """Make sure the detection of categories works as expected
     """
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     ch_data = rgio.load_block(ch_map_tif)['data']
     categories = csproc.get_categories(ch_data)
     categories = np.unique(categories)
@@ -173,7 +173,7 @@ def test_filter_data_float(datafiles):
     """Make sure that filter works with floats (continous) data as well
     """
     ch_f_map_tif = get_file(
-        pattern="Switzerland_area_frac_*.tif", datafiles=datafiles)
+        pattern="*CGLS*.tif", datafiles=datafiles)
     diameter = 10000  # 10km
     scale = 1000  # meter per pixel
     truncate = 3  # after 3 sigma
@@ -217,7 +217,7 @@ def test_entropy_normalization_conversion(datafiles):
     """Test the normalization of the entropy along with casting to unsigned int
     """
     # TODO: these tests become a bit unnecessary as get_entropy should be removed
-    map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     map_data = rgio.load_block(map_tif)
     data = map_data['data']
     blur_output_dtype = "uint8"  # convert the blurred data to uint8 before
@@ -316,7 +316,7 @@ def test_entropy_normalization_conversion(datafiles):
     """Test the normalization of the entropy along with casting to unsigned int
     """
     # TODO: these tests become a bit unnecessary as get_entropy should be removed
-    map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     map_data = rgio.load_block(map_tif)
     data = map_data['data']
     blur_output_dtype = "uint8"  # convert the blurred data to uint8 before
@@ -423,7 +423,7 @@ def test_interaction_computation(datafiles):
     """
     for test_dtype in [np.uint8, np.float64]:
         ch_map_tif = get_file(
-            pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+            pattern="*_CLC_*.tif", datafiles=datafiles)
         ch_data = rgio.load_block(ch_map_tif)['data']
         categories = csproc.get_categories(ch_data)
         diameter = 1000  # 1km
@@ -582,7 +582,7 @@ def test_lct_coverage(datafiles):
     """
     from skimage.filters import gaussian
     # test_tif = 'data/reclass_GLC_FCS30_2015_utm32U.tif'
-    test_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    test_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     sigma = 0.5
     truncate = 3
     with rio.open(test_tif) as src:
@@ -692,7 +692,7 @@ def test_import_export(datafiles):
     start = (1020, 1020)
     size = (700, 700)
     view1 = (*start, *size)
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     block = rgio.load_block(ch_map_tif, view=view1, indexes=1)
 
     entropy_array = csproc._get_entropy(block['data'], categories=range(8),
@@ -718,7 +718,7 @@ def test_import_export(datafiles):
 def test_convert_to_dtype_real_range_handling(datafiles):
     """Make sure datatypes are properly converted
     """
-    ch_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     ch_data = rgio.load_block(ch_tif)['data']
     ch_range = np.nanmin(ch_data), np.nanmax(ch_data)
     print(ch_range)

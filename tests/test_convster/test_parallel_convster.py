@@ -43,7 +43,7 @@ def test_blur_recombination(datafiles, set_mpc_strategy):
                                                   truncate=truncate)
     border = (100, 100)
     # load the data
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     ch_map = rgio.load_block(ch_map_tif, indexes=1)
     ch_data = ch_map['data']
     profile = ch_map['orig_profile']
@@ -182,7 +182,7 @@ def test_entropy_recombination(datafiles, set_mpc_strategy):
         border = (50, 50)
         print(f"{min_border=}, {border=}")
         # load the data
-        ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+        ch_map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
         ch_map = rgio.load_block(ch_map_tif, indexes=1)
         ch_data = ch_map['data']
         profile = ch_map['orig_profile']
@@ -336,7 +336,7 @@ def test_entropy_recombination(datafiles, set_mpc_strategy):
         print(f"{min_border=}, {border=}")
         # load the data
         ch_map_tif = get_file(
-            pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+            pattern="*_CLC_*.tif", datafiles=datafiles)
         ch_map = rgio.load_block(ch_map_tif, indexes=1)
         ch_data = ch_map['data']
         profile = ch_map['orig_profile']
@@ -484,7 +484,7 @@ def test_entropy_2_step(datafiles):
         border = (50, 50)
         # load the data
         ch_map_tif = get_file(
-            pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+            pattern="*_CLC_*.tif", datafiles=datafiles)
         ch_map = rgio.load_block(ch_map_tif, indexes=1)
         ch_data = ch_map['data']
         profile = ch_map['orig_profile']
@@ -664,7 +664,7 @@ def test_entropy_parallel(datafiles):
         border = (50, 50)
         # load the data
         ch_map_tif = get_file(
-            pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+            pattern="*_CLC_*.tif", datafiles=datafiles)
         ch_map = rgio.load_block(ch_map_tif, indexes=1)
         ch_data = ch_map['data']
         profile = ch_map['orig_profile']
@@ -813,7 +813,7 @@ def test_apply_filter(datafiles):
     img_filter = csf_gauss.gaussian
     filter_params = blur_params.copy()
     _ = filter_params.pop('diameter')
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     categories = [1, 2, 3]
     # compute in one go
     blurred_tif = cspara.extract_categories(
@@ -874,7 +874,7 @@ def test_extract_categories(datafiles):
     """
     verbose = True
     landcover_map = get_file(
-        pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+        pattern="*_CLC_*.tif", datafiles=datafiles)
     lct_source = rgio.Source(path=landcover_map)
     source_profile = lct_source.import_profile()
     source_band = lct_source.get_band(bidx=1)
@@ -957,7 +957,7 @@ def test_extract_categories(datafiles):
 def test_reduced_mask(datafiles):
     """Compute a mask from multiple bands in one go and then in parallel
     """
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     source = rgio.Source(path=ch_map_tif)
     blur_out = str(datafiles / 'blur_out.tif')
     # create the blurred bands
@@ -1007,7 +1007,7 @@ def test_import_export(datafiles):
     start = (1020, 1020)
     size = (700, 700)
     view1 = (*start, *size)
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     block = rgio.load_block(ch_map_tif, view=view1, indexes=1)
     entropy_array = csproc._get_entropy(block['data'], categories=range(8),
                                         normed=True,
