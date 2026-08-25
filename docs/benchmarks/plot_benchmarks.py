@@ -28,6 +28,7 @@ present, run the benchmarks first (``asv run``) and commit ``.asv/results/``.
 """
 
 import json
+import os
 from fractions import Fraction
 from pathlib import Path
 
@@ -35,8 +36,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import TwoSlopeNorm
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-RESULTS_DIR = REPO_ROOT / ".asv" / "results"
+RESULTS_DIR = Path(os.environ["GEORACOON_ASV_RESULTS_DIR"])
 INDEX_PATH = RESULTS_DIR / "benchmarks.json"
 
 DOC_SIZE = 10000

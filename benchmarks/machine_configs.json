@@ -12,5 +12,11 @@
     "sizes": [1000, 20000],
     "gaussian_sigma": 10.0,
     "gaussian_truncate": 3.0
+  },
+  "jil_iMac_fedora": {
+    "block_fraction_denominators": [1, 2, 4, 8, 16, 20],
+    "sizes": [1000, 20000],
+    "gaussian_sigma": 10.0,
+    "gaussian_truncate": 3.0
   }
 }
