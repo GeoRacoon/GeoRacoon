@@ -20,8 +20,8 @@
     "gaussian_truncate": 3.0
   },
   "jil-nano": {
-    "block_fraction_denominators": [1, 2, 4],
-    "sizes": [10000],
+    "block_fraction_denominators": [1, 2, 4, 8, 16, 20],
+    "sizes": [20000],
     "gaussian_sigma": 10.0,
     "gaussian_truncate": 3.0
   }
