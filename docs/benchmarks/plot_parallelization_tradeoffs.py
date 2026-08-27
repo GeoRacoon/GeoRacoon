@@ -26,20 +26,44 @@ The benchmark results are machine-dependent.  They should therefore be read
 as an illustration of the available trade-offs, rather than as universal
 performance constants.
 
-.. note::
-
-   The filter decomposition discussion is reserved for a later version of
-   this example.
 """
 
 import json
 import os
+import subprocess
 from fractions import Fraction
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import TwoSlopeNorm
+
+
+# %%
+# General approach: trading time for memory
+# ------------------------------------------
+#
+# Resource-heavy raster operations can often be split into a set of smaller,
+# independent tasks.  Applying a Gaussian filter to a TIFF and fitting a
+# multiple linear regression (MLR) model are two examples.  Instead of handling
+# the complete raster in one operation, the work is divided into spatial
+# blocks.  The blocks can then be processed sequentially or in parallel,
+# depending on the available hardware.
+#
+# This makes it possible to adapt the computation to hardware restrictions by
+# trading time for RAM, and vice versa.  Smaller blocks and fewer workers reduce
+# the amount of memory required at any one time, but generally increase the
+# number of tasks and their scheduling overhead.  Larger blocks and more
+# workers can reduce runtime, at the cost of a larger peak memory footprint.
+
+
+# %%
+# Applying a Gaussian filter block-wise
+# -------------------------------------
+#
+# A Gaussian filter requires neighboring pixels, so processing independent
+# blocks requires overlap or halo regions at their boundaries.  The details of
+# this decomposition and the resulting trade-offs will be added here.
 
 
 # %%
@@ -128,6 +152,7 @@ from matplotlib.colors import TwoSlopeNorm
 # native full-raster workflow.  The latter has no meaningful block-size axis,
 # so its result is repeated down the ``n_jobs = 1`` reference column.
 
+# sphinx_gallery_start_ignore
 RESULTS_DIR = Path(os.environ["GEORACOON_ASV_RESULTS_DIR"])
 INDEX_PATH = RESULTS_DIR / "benchmarks.json"
 
@@ -149,32 +174,113 @@ def _read_json(path):
         return None
 
 
-def _latest_result():
-    """Return the newest ASV result record."""
+def _git_output(*args):
+    """Run Git without requiring repository ownership to match the user."""
+    try:
+        return subprocess.check_output(
+            ["git", "-c", "safe.directory=*", *args],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def _configured_machine():
+    """Return the machine selected by ASV's local machine configuration."""
+    path = Path.home() / ".asv-machine.json"
+    data = _read_json(path)
+    if not isinstance(data, dict):
+        return None
+    machines = [
+        name for name, value in data.items()
+        if name != "version" and isinstance(value, dict)
+    ]
+    return machines[0] if len(machines) == 1 else None
+
+
+def _result_files():
+    """Return readable ASV result files, excluding machine metadata."""
     if not RESULTS_DIR.is_dir():
         raise RuntimeError(
             "No ASV results found. Run `asv run` before building this example."
         )
 
-    candidates = []
+    candidates = {}
     for machine_dir in RESULTS_DIR.iterdir():
         if machine_dir.is_dir():
-            candidates.extend(
-                path for path in machine_dir.glob("*.json")
-                if path.name != "machine.json"
-            )
+            for path in machine_dir.glob("*.json"):
+                if path.name != "machine.json":
+                    data = _read_json(path)
+                    if isinstance(data, dict) and data.get("commit_hash"):
+                        candidates[path] = data
     if not candidates:
         raise RuntimeError(
             "No ASV results found. Run `asv run` before building this example."
         )
-    return max(candidates, key=lambda path: (_read_json(path) or {}).get("date", 0))
+
+    return candidates
+
+
+def _select_result():
+    """Select one machine result for the current checkout or ``main``."""
+    candidates = _result_files()
+    commits = []
+    current = _git_output("rev-parse", "HEAD")
+    if current:
+        commits.append(current)
+    main_log = _git_output("log", "main", "--format=%H")
+    if main_log:
+        commits.extend(main_log.splitlines())
+
+    available_commits = {data["commit_hash"] for data in candidates.values()}
+    commit = next(
+        (candidate for candidate in commits if candidate in available_commits),
+        None,
+    )
+    if commit is None:
+        # This also supports documentation builds outside a Git checkout.
+        commit = max(
+            available_commits,
+            key=lambda value: max(
+                data.get("date", 0)
+                for data in candidates.values()
+                if data["commit_hash"] == value
+            ),
+        )
+
+    matches = [
+        (path, data) for path, data in candidates.items()
+        if data["commit_hash"] == commit
+    ]
+    requested_machine = os.environ.get("GEORACOON_ASV_MACHINE")
+    machine = requested_machine or _configured_machine()
+    if machine:
+        matches = [item for item in matches if item[0].parent.name == machine]
+    if len(matches) != 1:
+        available = ", ".join(sorted(path.parent.name for path, _ in matches))
+        if not matches:
+            raise RuntimeError(
+                f"No ASV result for commit {commit[:12]} and machine "
+                f"{machine!r}. Available machines: {available or 'none'}."
+            )
+        raise RuntimeError(
+            f"Multiple ASV machines contain commit {commit[:12]} "
+            f"({available}). Set GEORACOON_ASV_MACHINE."
+        )
+    return matches[0]
+
+
+RESULT_PATH, RESULT_DATA = _select_result()
+RESULT_MACHINE = RESULT_PATH.parent.name
+RESULT_COMMIT = RESULT_DATA["commit_hash"]
 
 
 def _result_array(name, size=None):
     """Return one ASV result as its parameter-shaped array."""
     index = _read_json(INDEX_PATH)
-    data = _read_json(_latest_result())
-    if index is None or data is None or name not in index:
+    data = RESULT_DATA
+    if index is None or name not in index:
         raise RuntimeError(f"ASV result {name!r} is unavailable.")
 
     metadata = index[name]
@@ -225,8 +331,10 @@ def _plot_relative_heatmap(ax, jobs, fractions, values, title, colorbar_label):
     """Plot a relative benchmark grid."""
     lower = min(1.0, float(np.nanmin(values)))
     upper = max(1.0, float(np.nanmax(values)))
-    if lower == upper:
-        lower, upper = 0.0, 2.0
+    if lower == 1.0:
+        lower = 0.0
+    if upper == 1.0:
+        upper = 2.0
     image = ax.imshow(
         values,
         aspect="auto",
@@ -242,17 +350,17 @@ def _plot_relative_heatmap(ax, jobs, fractions, values, title, colorbar_label):
     ax.set_ylabel("block size (fraction of raster side)")
     ax.set_title(title)
     ax.figure.colorbar(image, ax=ax, label=colorbar_label, shrink=0.8)
+# sphinx_gallery_end_ignore
 
 
 # %%
 # Relative runtime and memory
 # ---------------------------
 #
-# Prefer the 20,000 x 20,000 benchmark because it makes the scaling effects
-# easier to see.  The smaller configured size is a useful fallback for local
-# result sets.
+# Prefer larger rasters when they are available.  The committed smoke-test
+# results currently contain only the 1,000 x 1,000 case.
 
-for benchmark_size in (20000, 10000):
+for benchmark_size in (10000,):
     try:
         jobs, fractions, times = _parallel_grid(PARALLEL_TIME, benchmark_size)
         _, _, memory = _parallel_grid(PARALLEL_MEMORY, benchmark_size)
@@ -263,8 +371,8 @@ for benchmark_size in (20000, 10000):
         continue
 else:
     raise RuntimeError(
-        "Synthetic ASV results for 20,000 x 20,000 or 10,000 x 10,000 "
-        "are required. Run `asv run` before building this example."
+        "Synthetic ASV results for a supported raster size are required. "
+        "Run `asv run` before building this example."
     )
 
 relative_times = times / native_time
@@ -304,12 +412,3 @@ plt.show()
 # memory limit is preferable to a faster cell that cannot run.  Conversely,
 # when sufficient RAM and CPU capacity are available, larger blocks and more
 # workers may reduce runtime at the cost of a larger peak working set.
-
-
-# %%
-# Filter decomposition (to be added)
-# ----------------------------------
-#
-# The corresponding explanation for convolution and other filters will be
-# added here.  It will describe which parts of a filter can be evaluated per
-# block and which parts require overlap or border handling.
