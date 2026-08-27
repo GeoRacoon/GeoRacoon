@@ -121,24 +121,24 @@ class _SyntheticFilterBase(_FilterBase):
         self.output_file = make_temp_output(prefix="georacoon_filter_synth_")
 
 
-class TimeFilter(_RasterFilterBase):
-    """
-    Wall time of the parallel Gaussian filter on the Swiss landcover raster.
-    """
-
-    @pretty_name("Wall time: apply_filter (bpgaussian)")
-    def time_apply_filter_bpgaussian(self, n_jobs, block_fraction):
-        self._run()
-
-
-class PeakMemFilter(_RasterFilterBase):
-    """Peak process-tree memory of the parallel Gaussian filter."""
-
-    unit = "bytes"
-
-    @pretty_name("Peak memory: apply_filter (bpgaussian)")
-    def track_apply_filter_bpgaussian_peakmem(self, n_jobs, block_fraction):
-        return peak_rss_while(self._run)
+# class TimeFilter(_RasterFilterBase):
+#     """
+#     Wall time of the parallel Gaussian filter on the Swiss landcover raster.
+#     """
+# 
+#     @pretty_name("Wall time: apply_filter (bpgaussian)")
+#     def time_apply_filter_bpgaussian(self, n_jobs, block_fraction):
+#         self._run()
+# 
+# 
+# class PeakMemFilter(_RasterFilterBase):
+#     """Peak process-tree memory of the parallel Gaussian filter."""
+# 
+#     unit = "bytes"
+# 
+#     @pretty_name("Peak memory: apply_filter (bpgaussian)")
+#     def track_apply_filter_bpgaussian_peakmem(self, n_jobs, block_fraction):
+#         return peak_rss_while(self._run)
 
 
 class TimeFilterScaling(_SyntheticFilterBase):
@@ -217,22 +217,22 @@ class _NativeSyntheticFilterBase(_NativeFilterBase):
         )
 
 
-class TimeFilterNative(_NativeRasterFilterBase):
-    """Wall time of the native (no-mpc) Gaussian filter."""
-
-    @pretty_name("Wall time: native apply_filter (bpgaussian)")
-    def time_apply_filter_bpgaussian(self, n_jobs):
-        self._run_native()
-
-
-class PeakMemFilterNative(_NativeRasterFilterBase):
-    """Peak memory of the native (no-mpc) Gaussian filter."""
-
-    unit = "bytes"
-
-    @pretty_name("Peak memory: native apply_filter (bpgaussian)")
-    def track_apply_filter_bpgaussian_peakmem(self, n_jobs):
-        return peak_rss_while(self._run_native)
+# class TimeFilterNative(_NativeRasterFilterBase):
+#     """Wall time of the native (no-mpc) Gaussian filter."""
+# 
+#     @pretty_name("Wall time: native apply_filter (bpgaussian)")
+#     def time_apply_filter_bpgaussian(self, n_jobs):
+#         self._run_native()
+# 
+# 
+# class PeakMemFilterNative(_NativeRasterFilterBase):
+#     """Peak memory of the native (no-mpc) Gaussian filter."""
+# 
+#     unit = "bytes"
+# 
+#     @pretty_name("Peak memory: native apply_filter (bpgaussian)")
+#     def track_apply_filter_bpgaussian_peakmem(self, n_jobs):
+#         return peak_rss_while(self._run_native)
 
 
 class TimeFilterNativeScaling(_NativeSyntheticFilterBase):

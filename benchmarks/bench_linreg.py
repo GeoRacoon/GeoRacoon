@@ -106,22 +106,22 @@ class _SyntheticLinregBase(_LinregBase):
         ]
 
 
-class TimeComputeWeights(_RasterLinregBase):
-    """Wall time of the full parallel regression workflow on the Swiss data."""
-
-    @pretty_name("Wall time: compute_weights")
-    def time_compute_weights(self, n_jobs, block_fraction):
-        self._run()
-
-
-class PeakMemComputeWeights(_RasterLinregBase):
-    """Peak process-tree memory of the parallel regression (Swiss data)."""
-
-    unit = "bytes"
-
-    @pretty_name("Peak memory: compute_weights")
-    def track_compute_weights_peakmem(self, n_jobs, block_fraction):
-        return peak_rss_while(self._run)
+# class TimeComputeWeights(_RasterLinregBase):
+#     """Wall time of the full parallel regression workflow on the Swiss data."""
+# 
+#     @pretty_name("Wall time: compute_weights")
+#     def time_compute_weights(self, n_jobs, block_fraction):
+#         self._run()
+# 
+# 
+# class PeakMemComputeWeights(_RasterLinregBase):
+#     """Peak process-tree memory of the parallel regression (Swiss data)."""
+# 
+#     unit = "bytes"
+# 
+#     @pretty_name("Peak memory: compute_weights")
+#     def track_compute_weights_peakmem(self, n_jobs, block_fraction):
+#         return peak_rss_while(self._run)
 
 
 class TimeComputeWeightsScaling(_SyntheticLinregBase):
@@ -196,22 +196,22 @@ class _NativeSyntheticLinregBase(_NativeLinregBase):
         ]
 
 
-class TimeComputeWeightsNative(_NativeRasterLinregBase):
-    """Wall time of the native (no-mpc) regression on the Swiss data."""
+# class TimeComputeWeightsNative(_NativeRasterLinregBase):
+#     """Wall time of the native (no-mpc) regression on the Swiss data."""
+# 
+#     @pretty_name("Wall time: native compute_weights")
+#     def time_compute_weights(self, n_jobs):
+#         self._run_native()
 
-    @pretty_name("Wall time: native compute_weights")
-    def time_compute_weights(self, n_jobs):
-        self._run_native()
 
-
-class PeakMemComputeWeightsNative(_NativeRasterLinregBase):
-    """Peak memory of the native (no-mpc) regression on the Swiss data."""
-
-    unit = "bytes"
-
-    @pretty_name("Peak memory: native compute_weights")
-    def track_compute_weights_peakmem(self, n_jobs):
-        return peak_rss_while(self._run_native)
+# class PeakMemComputeWeightsNative(_NativeRasterLinregBase):
+#     """Peak memory of the native (no-mpc) regression on the Swiss data."""
+# 
+#     unit = "bytes"
+# 
+#     @pretty_name("Peak memory: native compute_weights")
+#     def track_compute_weights_peakmem(self, n_jobs):
+#         return peak_rss_while(self._run_native)
 
 
 class TimeComputeWeightsNativeScaling(_NativeSyntheticLinregBase):
