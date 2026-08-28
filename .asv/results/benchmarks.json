@@ -1,0 +1,251 @@
+{
+    "bench_filter.PeakMemFilterNativeScaling.track_apply_filter_bpgaussian_peakmem": {
+        "code": "class PeakMemFilterNativeScaling:\n    @pretty_name(\"Peak memory: native apply_filter on synthetic raster\")\n    def track_apply_filter_bpgaussian_peakmem(self, size, n_jobs):\n        return peak_rss_while(self._run_native)\n\nclass _NativeSyntheticFilterBase:\n    def setup(self, size, n_jobs):\n        self.source_path = synthetic_filter_tif(size, seed=0)\n        self.output_file = make_temp_output(\n            prefix=\"georacoon_filter_native_synth_\"\n        )",
+        "name": "bench_filter.PeakMemFilterNativeScaling.track_apply_filter_bpgaussian_peakmem",
+        "param_names": [
+            "size",
+            "n_jobs"
+        ],
+        "params": [
+            [
+                "20000"
+            ],
+            [
+                "1"
+            ]
+        ],
+        "pretty_name": "Peak memory: native apply_filter on synthetic raster",
+        "timeout": 1200,
+        "type": "track",
+        "unit": "bytes",
+        "version": "798459ece959a48cb6e7f39d400d37a62614372542c266ffdfc5fb2a9305268c"
+    },
+    "bench_filter.PeakMemFilterScaling.track_apply_filter_bpgaussian_peakmem": {
+        "code": "class PeakMemFilterScaling:\n    @pretty_name(\"Peak memory: apply_filter on synthetic raster\")\n    def track_apply_filter_bpgaussian_peakmem(\n        self, size, n_jobs, block_fraction\n    ):\n        return peak_rss_while(self._run)\n\nclass _SyntheticFilterBase:\n    def setup(self, size, n_jobs, block_fraction):\n        self.n_jobs = n_jobs\n        self.source_path = synthetic_filter_tif(size, seed=0)\n        self.block_size = block_size_from_fraction(block_fraction, size, size)\n        _skip_if_block_too_small(self.block_size)\n        self.output_file = make_temp_output(prefix=\"georacoon_filter_synth_\")",
+        "name": "bench_filter.PeakMemFilterScaling.track_apply_filter_bpgaussian_peakmem",
+        "param_names": [
+            "size",
+            "n_jobs",
+            "block_fraction"
+        ],
+        "params": [
+            [
+                "20000"
+            ],
+            [
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7"
+            ],
+            [
+                "1.0",
+                "0.5",
+                "0.25",
+                "0.125",
+                "0.0625",
+                "0.05"
+            ]
+        ],
+        "pretty_name": "Peak memory: apply_filter on synthetic raster",
+        "timeout": 1200,
+        "type": "track",
+        "unit": "bytes",
+        "version": "e47f0b24a41bd679d645016b9553d62f1f247bb1df4c36d0198405faaaf09b80"
+    },
+    "bench_filter.TimeFilterNativeScaling.time_apply_filter_bpgaussian": {
+        "code": "class TimeFilterNativeScaling:\n    @pretty_name(\"Wall time: native apply_filter on synthetic raster\")\n    def time_apply_filter_bpgaussian(self, size, n_jobs):\n        self._run_native()\n\nclass _NativeSyntheticFilterBase:\n    def setup(self, size, n_jobs):\n        self.source_path = synthetic_filter_tif(size, seed=0)\n        self.output_file = make_temp_output(\n            prefix=\"georacoon_filter_native_synth_\"\n        )",
+        "min_run_count": 2,
+        "name": "bench_filter.TimeFilterNativeScaling.time_apply_filter_bpgaussian",
+        "number": 0,
+        "param_names": [
+            "size",
+            "n_jobs"
+        ],
+        "params": [
+            [
+                "20000"
+            ],
+            [
+                "1"
+            ]
+        ],
+        "pretty_name": "Wall time: native apply_filter on synthetic raster",
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 1200,
+        "type": "time",
+        "unit": "seconds",
+        "version": "60539db73583f3270d268a5a1dcf1e73cbec3996dcdcd1ceab9e56bd4b60857f",
+        "warmup_time": -1
+    },
+    "bench_filter.TimeFilterScaling.time_apply_filter_bpgaussian": {
+        "code": "class TimeFilterScaling:\n    @pretty_name(\"Wall time: apply_filter on synthetic raster\")\n    def time_apply_filter_bpgaussian(self, size, n_jobs, block_fraction):\n        self._run()\n\nclass _SyntheticFilterBase:\n    def setup(self, size, n_jobs, block_fraction):\n        self.n_jobs = n_jobs\n        self.source_path = synthetic_filter_tif(size, seed=0)\n        self.block_size = block_size_from_fraction(block_fraction, size, size)\n        _skip_if_block_too_small(self.block_size)\n        self.output_file = make_temp_output(prefix=\"georacoon_filter_synth_\")",
+        "min_run_count": 2,
+        "name": "bench_filter.TimeFilterScaling.time_apply_filter_bpgaussian",
+        "number": 0,
+        "param_names": [
+            "size",
+            "n_jobs",
+            "block_fraction"
+        ],
+        "params": [
+            [
+                "20000"
+            ],
+            [
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7"
+            ],
+            [
+                "1.0",
+                "0.5",
+                "0.25",
+                "0.125",
+                "0.0625",
+                "0.05"
+            ]
+        ],
+        "pretty_name": "Wall time: apply_filter on synthetic raster",
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 1200,
+        "type": "time",
+        "unit": "seconds",
+        "version": "16c39a755ca966d273200b3dee7997e4802cf5848e957d843e59c8106a77e823",
+        "warmup_time": -1
+    },
+    "bench_linreg.PeakMemComputeWeightsNativeScaling.track_compute_weights_peakmem": {
+        "code": "class PeakMemComputeWeightsNativeScaling:\n    @pretty_name(\"Peak memory: native compute_weights on synthetic rasters\")\n    def track_compute_weights_peakmem(self, size, n_jobs):\n        return peak_rss_while(self._run_native)\n\nclass _NativeSyntheticLinregBase:\n    def setup(self, size, n_jobs):\n        self.response = _make_band(synthetic_tif(size, seed=1))\n        self.predictors = [\n            _make_band(synthetic_tif(size, seed=2), category=\"predictor\")\n        ]",
+        "name": "bench_linreg.PeakMemComputeWeightsNativeScaling.track_compute_weights_peakmem",
+        "param_names": [
+            "size",
+            "n_jobs"
+        ],
+        "params": [
+            [
+                "20000"
+            ],
+            [
+                "1"
+            ]
+        ],
+        "pretty_name": "Peak memory: native compute_weights on synthetic rasters",
+        "timeout": 1800,
+        "type": "track",
+        "unit": "bytes",
+        "version": "6fa8e57c8437349593737056201933a1de6ad01d05ae1c6017641ce413ca4f65"
+    },
+    "bench_linreg.PeakMemComputeWeightsScaling.track_compute_weights_peakmem": {
+        "code": "class PeakMemComputeWeightsScaling:\n    @pretty_name(\"Peak memory: compute_weights on synthetic rasters\")\n    def track_compute_weights_peakmem(self, size, n_jobs, block_fraction):\n        return peak_rss_while(self._run)\n\nclass _SyntheticLinregBase:\n    def setup(self, size, n_jobs, block_fraction):\n        self.n_jobs = n_jobs\n        self.block_size = block_size_from_fraction(block_fraction, size, size)\n        self.response = _make_band(synthetic_tif(size, seed=1))\n        self.predictors = [\n            _make_band(synthetic_tif(size, seed=2), category=\"predictor\")\n        ]",
+        "name": "bench_linreg.PeakMemComputeWeightsScaling.track_compute_weights_peakmem",
+        "param_names": [
+            "size",
+            "n_jobs",
+            "block_fraction"
+        ],
+        "params": [
+            [
+                "20000"
+            ],
+            [
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7"
+            ],
+            [
+                "1.0",
+                "0.5",
+                "0.25",
+                "0.125",
+                "0.0625",
+                "0.05"
+            ]
+        ],
+        "pretty_name": "Peak memory: compute_weights on synthetic rasters",
+        "timeout": 1800,
+        "type": "track",
+        "unit": "bytes",
+        "version": "604f3b5864315eac1260acaa7d37e9772e2506c4249d56c1ee75fd4d10316719"
+    },
+    "bench_linreg.TimeComputeWeightsNativeScaling.time_compute_weights": {
+        "code": "class TimeComputeWeightsNativeScaling:\n    @pretty_name(\"Wall time: native compute_weights on synthetic rasters\")\n    def time_compute_weights(self, size, n_jobs):\n        self._run_native()\n\nclass _NativeSyntheticLinregBase:\n    def setup(self, size, n_jobs):\n        self.response = _make_band(synthetic_tif(size, seed=1))\n        self.predictors = [\n            _make_band(synthetic_tif(size, seed=2), category=\"predictor\")\n        ]",
+        "min_run_count": 2,
+        "name": "bench_linreg.TimeComputeWeightsNativeScaling.time_compute_weights",
+        "number": 0,
+        "param_names": [
+            "size",
+            "n_jobs"
+        ],
+        "params": [
+            [
+                "20000"
+            ],
+            [
+                "1"
+            ]
+        ],
+        "pretty_name": "Wall time: native compute_weights on synthetic rasters",
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 1800,
+        "type": "time",
+        "unit": "seconds",
+        "version": "bea15b67df5b200669d8195bd8c61f3a7e3c6f3e9ab0a4fd1d1767100089a597",
+        "warmup_time": -1
+    },
+    "bench_linreg.TimeComputeWeightsScaling.time_compute_weights": {
+        "code": "class TimeComputeWeightsScaling:\n    @pretty_name(\"Wall time: compute_weights on synthetic rasters\")\n    def time_compute_weights(self, size, n_jobs, block_fraction):\n        self._run()\n\nclass _SyntheticLinregBase:\n    def setup(self, size, n_jobs, block_fraction):\n        self.n_jobs = n_jobs\n        self.block_size = block_size_from_fraction(block_fraction, size, size)\n        self.response = _make_band(synthetic_tif(size, seed=1))\n        self.predictors = [\n            _make_band(synthetic_tif(size, seed=2), category=\"predictor\")\n        ]",
+        "min_run_count": 2,
+        "name": "bench_linreg.TimeComputeWeightsScaling.time_compute_weights",
+        "number": 0,
+        "param_names": [
+            "size",
+            "n_jobs",
+            "block_fraction"
+        ],
+        "params": [
+            [
+                "20000"
+            ],
+            [
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7"
+            ],
+            [
+                "1.0",
+                "0.5",
+                "0.25",
+                "0.125",
+                "0.0625",
+                "0.05"
+            ]
+        ],
+        "pretty_name": "Wall time: compute_weights on synthetic rasters",
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 1800,
+        "type": "time",
+        "unit": "seconds",
+        "version": "ab9662129667b20376bff45ee043df6d5fa7c770fcd937352ab15e1e70c0ac2e",
+        "warmup_time": -1
+    },
+    "version": 2
+}
