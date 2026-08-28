@@ -1,33 +1,72 @@
 # -*- coding: utf-8 -*-
 """
-Parallel raster computation: trading memory for runtime
-========================================================
+The *coon-way*:
+===============
 
-This example explains two related ideas behind GeoRacoon's block-wise
-parallel computations:
+Fragmented raster computations
+------------------------------
 
-* a raster operation can be decomposed into contributions from independent
-  spatial blocks; and
-* the block size and the number of worker processes are two separate tuning
-  dimensions.
+This document showcases and explains how raster computaion are done
+the *coon-way*, provinding all the necessary informaiton to use GeoRacoon's
+parallelization tools in an efficient manner.
 
-The multiple linear regression example below uses the normal equations.  It
-does not construct one design matrix for the complete raster.  Instead, it
-accumulates the two sufficient statistics needed by ordinary least squares in
-two passes over the blocks.
+Loosely put, the *coon-way* consists in decomposing raster-based operations
+into sets of independent block-wise computations and providing a high-level
+interface to keep the user out of the weeds such decomposition brings about.
+Instead of handling the complete raster in one operation, the *coon-way*
+divides itinto spatial blocks that can then be processed sequentially or in
+parallel, depending on the available hardware.
 
-The figures in this example read ASV results for the synthetic filter and
-regression benchmarks.  They show runtime and peak process-tree memory
-relative to the native, full-raster implementation.  The native result is the
-reference case and is shown as ``n_jobs = 1``.  Consequently, a value of 0.5
-means half the native runtime or memory, while 1.5 means 150 percent.
 
-The benchmark results are machine-dependent.  They should therefore be read
-as an illustration of the available trade-offs, rather than as universal
+There is no single, universal approach for the decomposition of raster-based
+operations.
+For each application the feasibility and benefits of a decomposition entirely
+depends on the internal logic and the underlying tools implementing it.
+In GeoRacoon we exploit ``GDAL``s capacity to read/write only blocks in a
+raster file and combine this with specific formulations of the logic in two
+particular applications:
+    
+1. Application of a filter in the form of a convolution with distrubution
+   (Gaussian in most cases) on a finite-sized kernel.
+2. Performing a multiple linear regression over each pixel in the raster.
+       
+
+Trading time for memory
+-----------------------
+
+The benefit from such decompositions falls onto two axes: 1. The amount of
+memory (RAM) required, and 2. The duration ("wall-time") needed to carry out
+such application.
+
+As we will see, the decompositions can be configured in a way to maximise the
+benefits along one axes by the expense of the other.
+In a way, the `coon-way` allows the user to trade RAM for runtime, and
+vice-versa.
+
+This makes it possible to adapt the computation to hardware restrictions:
+Smaller blocks and fewer workers reduce the amount of memory required at any
+one time, but generally increase the number of tasks and their scheduling
+overhead.
+Larger blocks and more workers can reduce runtime, at the cost of a larger peak
+memory footprint.
+
+
+Before we present the fragmented raster computations for a finite kernel
+convolution and the multiple linear regression, alowng with some benchmark
+results showcasing some real-world benefits of the coon-way, note that the
+benchmark results are taken from GeoRacoon's own benchmark suite (see
+[<link to benchmarks/README.md in the repository]).
+As such the benchmark results are machine-dependent and should therefore be
+read as an illustration of the available trade-offs, rather than as universal
 performance constants.
+
+
+The benchmark results shown here-below are based on a squared synthetic
+raster of siye ``RASTER_SIZE x RASTER_SIZE`` with:
 
 """
 
+# sphinx_gallery_start_ignore
 import json
 import os
 import subprocess
@@ -39,25 +78,8 @@ import numpy as np
 from matplotlib.patches import Patch, Rectangle
 from matplotlib.colors import TwoSlopeNorm
 from riogrande.prepare import create_views
-
-
-# %%
-# General approach: trading time for memory
-# ------------------------------------------
-#
-# Resource-heavy raster operations can often be split into a set of smaller,
-# independent tasks.  Applying a Gaussian filter to a TIFF and fitting a
-# multiple linear regression (MLR) model are two examples.  Instead of handling
-# the complete raster in one operation, the work is divided into spatial
-# blocks.  The blocks can then be processed sequentially or in parallel,
-# depending on the available hardware.
-#
-# This makes it possible to adapt the computation to hardware restrictions by
-# trading time for RAM, and vice versa.  Smaller blocks and fewer workers reduce
-# the amount of memory required at any one time, but generally increase the
-# number of tasks and their scheduling overhead.  Larger blocks and more
-# workers can reduce runtime, at the cost of a larger peak memory footprint.
-
+# sphinx_gallery_end_ignore
+RASTER_SIZE = 20000
 
 # %%
 # Applying a Gaussian filter block-wise
@@ -136,7 +158,14 @@ fig.tight_layout()
 # inner block: it is the part of the worker's result that contributes to the
 # final raster.  Because only the blue regions are written, these contributions
 # tile the output without overlap even though the orange worker views overlap.
-
+# 
+# Gaussian-filter benchmark results
+# ----------------------------------
+#
+# These heatmaps show the runtime and peak process-tree memory of the block-wise
+# filter relative to the native implementation.  The native value is repeated
+# as the ``n_jobs = 1`` reference column.
+#
 
 # sphinx_gallery_start_ignore
 RESULTS_DIR = Path(os.environ["GEORACOON_ASV_RESULTS_DIR"])
@@ -349,7 +378,7 @@ def _plot_relative_heatmap(ax, jobs, fractions, values, title, colorbar_label):
     ax.figure.colorbar(image, ax=ax, label=colorbar_label, shrink=0.8)
 
 
-def _plot_routine(time_name, memory_name, native_time_name,
+def plot_routine(time_name, memory_name, native_time_name,
                   native_memory_name, size, routine_title):
     """Load and plot one routine's runtime and memory benchmark results."""
     jobs, fractions, times = _parallel_grid(time_name, size=size)
@@ -377,28 +406,33 @@ def _plot_routine(time_name, memory_name, native_time_name,
     return fig
 # sphinx_gallery_end_ignore
 
-
-# %%
-# Gaussian-filter benchmark results
-# ----------------------------------
-#
-# These heatmaps show the runtime and peak process-tree memory of the block-wise
-# filter relative to the native implementation.  The native value is repeated
-# as the ``n_jobs = 1`` reference column.
-#
-_plot_routine(
+filter_fig = plot_routine(
     FILTER_TIME,
     FILTER_MEMORY,
     FILTER_NATIVE_TIME,
     FILTER_NATIVE_MEMORY,
-    10000,
+    RASTER_SIZE,
     "Gaussian filtering (apply_filter + bpgaussian)",
 )
 
-
 # %%
+# The figure shows benchmarks results for the synthetic filter benchmarks.
+# The two plots show runtime and peak process-tree memory relative to the
+# native, full-raster implementation
+# The native result is the
+# reference case and is shown as ``n_jobs = 1``
+# (see {link to script with actual implementation]).
+# Consequently, a value of 0.5 means half the native runtime or memory,
+# while 1.5 means 150%.
+# 
 # Multiple linear regression as additive block contributions
 # ------------------------------------------------------------
+#
+# In order to dcompose multiple linear regression  we usesthe normal equations.
+# It does not construct one design matrix for the complete raster.
+# Instead, it accumulates the two sufficient statistics needed by ordinary
+# least squares in two passes over the blocks:
+# 
 #
 # Let ``y`` be the response and let ``X`` be the design matrix.  With an
 # intercept, ``X`` has one column for every predictor plus a final column of
@@ -478,12 +512,12 @@ _plot_routine(
 # Relative runtime and memory
 # ---------------------------
 #
-_plot_routine(
+plot_routine(
     PARALLEL_TIME,
     PARALLEL_MEMORY,
     NATIVE_TIME,
     NATIVE_MEMORY,
-    10000,
+    RASTER_SIZE,
     "Multiple linear regression (compute_weights)",
 )
 
