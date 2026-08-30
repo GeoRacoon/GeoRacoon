@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-The *coon-way*:
-===============
-
-Fragmented raster computations
-------------------------------
+The *coon-way*: Fragmented raster computations
+==============================================
 
 This document showcases and explains how raster computaion are done
 the *coon-way*, provinding all the necessary informaiton to use GeoRacoon's
@@ -83,7 +80,7 @@ RASTER_SIZE = 20000
 
 # %%
 # Applying a Gaussian filter block-wise
-# -------------------------------------
+# =====================================
 #
 # A Gaussian filter requires neighboring pixels, so processing independent
 # blocks requires overlap or halo regions at their boundaries.  ``apply_filter``
@@ -123,10 +120,6 @@ ax.set_aspect("equal")
 ax.tick_params(which="both", bottom=False, left=False,
                labelbottom=False, labelleft=False)
 
-for position in range(1, 24):
-    ax.axvline(position, color="0.75", linewidth=0.6, zorder=0)
-    ax.axhline(position, color="0.75", linewidth=0.6, zorder=0)
-
 for view, _ in selected:
     x, y, width, height = view
     ax.add_patch(Rectangle(
@@ -140,6 +133,10 @@ for _, inner_view in selected:
         (x, y), width, height, facecolor="#8ecae6",
         edgecolor="black", linewidth=1.5,
     ))
+
+for position in range(1, 24):
+    ax.axvline(position, color="0.75", linewidth=0.6, zorder=10)
+    ax.axhline(position, color="0.75", linewidth=0.6, zorder=10)
 
 ax.text(12, -1.0, f"border: {filter_border[0]} pixel",
         ha="center", va="bottom")
@@ -159,7 +156,7 @@ fig.tight_layout()
 # final raster.  Because only the blue regions are written, these contributions
 # tile the output without overlap even though the orange worker views overlap.
 # 
-# Gaussian-filter benchmark results
+# Benchmark results
 # ----------------------------------
 #
 # These heatmaps show the runtime and peak process-tree memory of the block-wise
@@ -426,7 +423,7 @@ filter_fig = plot_routine(
 # while 1.5 means 150%.
 # 
 # Multiple linear regression as additive block contributions
-# ------------------------------------------------------------
+# ==========================================================
 #
 # In order to dcompose multiple linear regression  we usesthe normal equations.
 # It does not construct one design matrix for the complete raster.
