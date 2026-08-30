@@ -2,6 +2,7 @@
   "default": {
     "block_fraction_denominators": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
     "sizes": [1000, 5000, 10000, 20000],
+    "scaling_out_sizes": [1000, 5000, 10000, 20000, 50000, 100000],
     "ndvi": "data/test/switzerland_lc-8-reclass_2012_CLC_epsg3035.tif",
     "landcover": "data/test/switzerland_lc-8-reclass_2012_CLC_epsg3035.tif",
     "gaussian_sigma": 10.0,

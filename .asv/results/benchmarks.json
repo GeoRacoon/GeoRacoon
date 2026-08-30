@@ -247,5 +247,47 @@
         "version": "ab9662129667b20376bff45ee043df6d5fa7c770fcd937352ab15e1e70c0ac2e",
         "warmup_time": -1
     },
+    "bench_scaling_out.PeakMemFilterScalingOut.track_peak_memory": {
+        "code": "class PeakMemFilterScalingOut:\n    def track_peak_memory(self, size):\n        return peak_rss_while(self._run)\n\n    def setup(self, size):\n        if any(block <= border for block, border in zip(BLOCK_SIZE, FILTER_BORDER)):\n            raise NotImplementedError(\n                f\"block size {BLOCK_SIZE} is not larger than filter border \"\n                f\"{FILTER_BORDER}\"\n            )\n        self.source_path = synthetic_filter_tif(size, seed=0)\n        self.output_file = make_temp_output(\n            prefix=\"georacoon_filter_scaling_out_\"\n        )",
+        "name": "bench_scaling_out.PeakMemFilterScalingOut.track_peak_memory",
+        "param_names": [
+            "size"
+        ],
+        "params": [
+            [
+                "1000",
+                "5000",
+                "10000",
+                "20000",
+                "50000",
+                "100000"
+            ]
+        ],
+        "timeout": 1200,
+        "type": "track",
+        "unit": "bytes",
+        "version": "714c32dddf54a28a299e600bb6bdb189acd87d8a77e0e1ad630ea54d30c18dd6"
+    },
+    "bench_scaling_out.PeakMemMLRScalingOut.track_peak_memory": {
+        "code": "class PeakMemMLRScalingOut:\n    def track_peak_memory(self, size):\n        return peak_rss_while(self._run)\n\n    def setup(self, size):\n        self.response = _make_band(synthetic_tif(size, seed=1))\n        self.predictors = [\n            _make_band(synthetic_tif(size, seed=2), category=\"predictor\")\n        ]",
+        "name": "bench_scaling_out.PeakMemMLRScalingOut.track_peak_memory",
+        "param_names": [
+            "size"
+        ],
+        "params": [
+            [
+                "1000",
+                "5000",
+                "10000",
+                "20000",
+                "50000",
+                "100000"
+            ]
+        ],
+        "timeout": 1800,
+        "type": "track",
+        "unit": "bytes",
+        "version": "339fcb47c70ee716e2fc4ee917e2e17efcee577945962ecb12654c5242c8125a"
+    },
     "version": 2
 }

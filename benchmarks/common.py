@@ -16,9 +16,11 @@ from pathlib import Path
 import numpy as np
 import psutil
 import rasterio as rio
+from rasterio.windows import Window
 from rasterio.transform import from_origin
 
 from riogrande.io import coregister_raster
+from riogrande.prepare import create_views
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = Path(__file__).with_name("machine_configs.json")
@@ -186,11 +188,37 @@ def ensure_bench_dir():
     return _BENCH_TMP
 
 
-def synthetic_tif(size, seed=0, dtype="float32"):
+def _synthetic_blocks(size, block_size):
+    """Yield non-overlapping Rasterio windows covering a square raster."""
+    block_width = min(size, block_size[0])
+    block_height = min(size, block_size[1])
+    _, inner_views = create_views(
+        view_size=(block_width, block_height),
+        border=(0, 0),
+        size=(size, size),
+    )
+    for x, y, width, height in inner_views:
+        yield (x, y, width, height), Window(x, y, width, height)
+
+
+def _block_rng(seed, x, y):
+    """Return a deterministic RNG independent of block iteration order."""
+    return np.random.default_rng(np.random.SeedSequence([seed, x, y]))
+
+
+def _synthetic_directory(directory):
+    directory = _BENCH_TMP if directory is None else os.fspath(directory)
+    os.makedirs(directory, exist_ok=True)
+    return directory
+
+
+def synthetic_tif(size, seed=0, dtype="float32", directory=None,
+                  block_size=(1000, 1000)):
     """Return the path to a deterministic ``size x size`` single-band GeoTIFF.
 
-    The raster is generated once per ``(size, seed)`` and reused on later
-    calls. Data is float32 random-normal with ``nodata=NaN``.
+    The raster is generated once per input configuration and reused on later
+    calls. Data is generated and written one block at a time, so the complete
+    raster is never held in memory. Data is random-normal with ``nodata=NaN``.
 
     Parameters
     ----------
@@ -200,19 +228,25 @@ def synthetic_tif(size, seed=0, dtype="float32"):
         RNG seed; different seeds produce independent rasters.
     dtype : str
         Raster data type.
+    directory : path-like or None
+        Directory in which to cache the raster. Defaults to the benchmark
+        temporary directory.
+    block_size : tuple[int, int]
+        Width and height of the generation blocks.
 
     Returns
     -------
     str
         Path to the generated (or cached) GeoTIFF.
     """
-    ensure_bench_dir()
-    path = os.path.join(_BENCH_TMP, f"synth_{size}_{seed}_{dtype}.tif")
+    directory = _synthetic_directory(directory)
+    path = os.path.join(
+        directory, f"synth_{size}_{seed}_{dtype}_{block_size[0]}x{block_size[1]}.tif"
+    )
     if os.path.exists(path):
         return path
 
-    rng = np.random.default_rng(seed)
-    data = rng.normal(size=(size, size)).astype(dtype)
+    dtype = np.dtype(dtype)
     transform = from_origin(0.0, float(size), 1.0, 1.0)
     with rio.open(
         path,
@@ -225,16 +259,26 @@ def synthetic_tif(size, seed=0, dtype="float32"):
         transform=transform,
         crs="EPSG:32632",
         nodata=np.nan,
+        BIGTIFF="YES",
+        tiled=True,
+        blockxsize=256,
+        blockysize=256,
     ) as dst:
-        dst.write(data, 1)
+        for (x, y, width, height), window in _synthetic_blocks(size, block_size):
+            rng = _block_rng(seed, x, y)
+            data = rng.normal(size=(height, width)).astype(dtype)
+            dst.write(data, 1, window=window)
     return path
 
 
-def synthetic_filter_tif(size, seed=0, frame_width=31):
+def synthetic_filter_tif(size, seed=0, frame_width=31, directory=None,
+                         block_size=(1000, 1000)):
     """Return a binary float32 raster with a NaN frame for filter benchmarks.
 
     The interior contains deterministic zero/one values. The outer frame is
     filled with NaNs so ``bpgaussian`` exercises its border-preserving behavior.
+    Data is generated and written one block at a time, so the complete raster
+    is never held in memory.
 
     Parameters
     ----------
@@ -244,26 +288,25 @@ def synthetic_filter_tif(size, seed=0, frame_width=31):
         RNG seed for the binary interior.
     frame_width : int
         Width of the NaN frame in pixels.
+    directory : path-like or None
+        Directory in which to cache the raster. Defaults to the benchmark
+        temporary directory.
+    block_size : tuple[int, int]
+        Width and height of the generation blocks.
 
     Returns
     -------
     str
         Path to the generated (or cached) GeoTIFF.
     """
-    ensure_bench_dir()
+    directory = _synthetic_directory(directory)
     path = os.path.join(
-        _BENCH_TMP, f"filter_synth_{size}_{seed}_{frame_width}.tif"
+        directory,
+        f"filter_synth_{size}_{seed}_{frame_width}_"
+        f"{block_size[0]}x{block_size[1]}.tif",
     )
     if os.path.exists(path):
         return path
-
-    rng = np.random.default_rng(seed)
-    data = rng.integers(0, 2, size=(size, size), dtype=np.uint8)
-    data = data.astype(np.float32)
-    data[:frame_width, :] = np.nan
-    data[-frame_width:, :] = np.nan
-    data[:, :frame_width] = np.nan
-    data[:, -frame_width:] = np.nan
 
     transform = from_origin(0.0, float(size), 1.0, 1.0)
     with rio.open(
@@ -277,8 +320,25 @@ def synthetic_filter_tif(size, seed=0, frame_width=31):
         transform=transform,
         crs="EPSG:32632",
         nodata=np.nan,
+        BIGTIFF="YES",
+        tiled=True,
+        blockxsize=256,
+        blockysize=256,
     ) as dst:
-        dst.write(data, 1)
+        for (x, y, width, height), window in _synthetic_blocks(size, block_size):
+            rng = _block_rng(seed, x, y)
+            data = rng.integers(0, 2, size=(height, width), dtype=np.uint8)
+            data = data.astype(np.float32)
+            local_x = np.arange(x, x + width)[None, :]
+            local_y = np.arange(y, y + height)[:, None]
+            frame = (
+                (local_x < frame_width)
+                | (local_x >= size - frame_width)
+                | (local_y < frame_width)
+                | (local_y >= size - frame_width)
+            )
+            data[frame] = np.nan
+            dst.write(data, 1, window=window)
     return path
 
 
