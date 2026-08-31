@@ -263,7 +263,7 @@
                 "100000"
             ]
         ],
-        "timeout": 1200,
+        "timeout": 3600,
         "type": "track",
         "unit": "bytes",
         "version": "714c32dddf54a28a299e600bb6bdb189acd87d8a77e0e1ad630ea54d30c18dd6"
@@ -284,7 +284,7 @@
                 "100000"
             ]
         ],
-        "timeout": 1800,
+        "timeout": 7200,
         "type": "track",
         "unit": "bytes",
         "version": "339fcb47c70ee716e2fc4ee917e2e17efcee577945962ecb12654c5242c8125a"

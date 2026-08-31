@@ -6,8 +6,6 @@ in ASV's ``setup`` phase and is therefore excluded from the measurement.
 """
 
 import os
-import sys
-import tempfile
 
 import numpy as np
 from convster.filters import bpgaussian
@@ -28,12 +26,6 @@ machine = Machine()
 SIZES = machine.get_scaling_out_sizes()
 N_JOBS = 4
 BLOCK_SIZE = (1000, 1000)
-
-print(
-    f"scaling-out benchmark temporary directory: {tempfile.gettempdir()}",
-    file=sys.stderr,
-    flush=True,
-)
 
 FILTER_PARAMS = dict(
     sigma=machine.get_gaussian_sigma(),
@@ -59,7 +51,7 @@ class PeakMemFilterScalingOut:
     params = (SIZES,)
     param_names = ["size"]
     unit = "bytes"
-    timeout = 1200
+    timeout = 3600
 
     def setup(self, size):
         if any(block <= border for block, border in zip(BLOCK_SIZE, FILTER_BORDER)):
@@ -89,6 +81,7 @@ class PeakMemFilterScalingOut:
             output_range=(0.0, 1.0),
             selector_band=None,
             n_jobs=N_JOBS,
+            maxsize_queue=2*N_JOBS,
         )
 
     def teardown(self, *args):
@@ -104,7 +97,7 @@ class PeakMemMLRScalingOut:
     params = (SIZES,)
     param_names = ["size"]
     unit = "bytes"
-    timeout = 1800
+    timeout = 7200
 
     def setup(self, size):
         self.response = _make_band(synthetic_tif(size, seed=1))
@@ -128,4 +121,5 @@ class PeakMemMLRScalingOut:
             return_linear_dependent_predictors=True,
             verbose=False,
             n_jobs=N_JOBS,
+            maxsize_queue=2*N_JOBS,
         )
