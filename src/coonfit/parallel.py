@@ -301,6 +301,7 @@ def get_XT_X(response: str | Band,
         - start_method : str, optional
             Starting method for multiprocessing ('fork', 'spawn', or
             'forkserver').
+        - ``maxsize_queue`` : int, introduces a maximal queue size.
 
     Returns
     -------
@@ -349,6 +350,7 @@ def get_XT_X(response: str | Band,
         _nworkers = None
 
     nbr_workers = get_nbr_workers(number=mpc_params.get('n_jobs', _nworkers))
+    maxsize_queue = mpc_params.pop('maxsize_queue', 0)
     src_profile = response.source.import_profile()
     src_width = int(src_profile.get('width'))
     src_height = int(src_profile.get('height'))
@@ -369,7 +371,7 @@ def get_XT_X(response: str | Band,
     # create the arguments for the aggregation script
     # start the processes 
     manager = Manager()
-    output_q = manager.Queue()
+    output_q = manager.Queue(maxsize=maxsize_queue)
     if verbose:
         print(f"using {nbr_workers=}")
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
@@ -462,9 +464,10 @@ def get_optimal_betas(*predictors: Band | str,
         - ``n_jobs`` : int
           Number of jobs to run in parallel, passed to
           :func:`~riogrande.helper.get_nbr_workers`.
-        - start_method : str, optional
+        - ``start_method`` : str, optional
             Starting method for multiprocessing ('fork', 'spawn', or
             'forkserver').
+        - ``maxsize_queue`` : int, introduces a maximal queue size.
 
     Returns
     -------
@@ -544,6 +547,7 @@ def get_optimal_betas(*predictors: Band | str,
         _nworkers = None
 
     nbr_workers = get_nbr_workers(number=mpc_params.get('n_jobs', _nworkers))
+    maxsize_queue = mpc_params.pop('maxsize_queue', 0)
     src_profile = response.source.import_profile()
     src_width = int(src_profile.get('width'))
     src_height = int(src_profile.get('height'))
@@ -568,7 +572,7 @@ def get_optimal_betas(*predictors: Band | str,
     # create the arguments for the aggregation script
     # start the processes 
     manager = Manager()
-    output_q = manager.Queue()
+    output_q = manager.Queue(maxsize=maxsize_queue)
     if verbose:
         print(f"using {nbr_workers=}")
 
