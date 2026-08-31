@@ -501,6 +501,8 @@ def prepare_selector(*bands: Band, block_size: tuple[int, int], extra_masking_ba
           Starting method for multiprocessing jobs, passed to
           :func:`~riogrande.helper.get_or_set_context`.
 
+        - ``maxsize_queue`` : int, introduces a maximal queue size.
+
     Returns
     -------
     NDArray
@@ -542,8 +544,6 @@ def prepare_selector(*bands: Band, block_size: tuple[int, int], extra_masking_ba
         block_params.append(bparams)
 
     # prepare multiprocessing
-    manager = Manager()
-    aggr_q = manager.Queue()
     start_method = params.get('start_method', None)
 
     # TODO: remove support for nbrcpu for version 2.0.0
@@ -557,8 +557,12 @@ def prepare_selector(*bands: Band, block_size: tuple[int, int], extra_masking_ba
         _nworkers = None
 
     nbr_workers = get_nbr_workers(number=params.pop('n_jobs', _nworkers))
+    maxsize_queue = params.pop('maxsize_queue', 0)
     if verbose:
         print(f"using {nbr_workers=}")
+
+    manager = Manager()
+    aggr_q = manager.Queue(maxsize=maxsize_queue)
 
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
         # start the aggregator job

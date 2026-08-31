@@ -23,6 +23,9 @@ file = ["tests/requirements.txt"]
 [tool.setuptools.dynamic.optional-dependencies.docs]
 file = ["docs/requirements.txt"]
 
+[tool.setuptools.dynamic.optional-dependencies.benchmarks]
+file = ["benchmarks/requirements.txt"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = [
