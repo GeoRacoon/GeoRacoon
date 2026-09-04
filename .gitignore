@@ -147,7 +147,6 @@ dmypy.json
 locals.py
 
 # generally exclude results and input data
-data/
 results/
 *.png
 *.pdf
