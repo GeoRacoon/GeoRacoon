@@ -21,7 +21,6 @@
 import os
 import shutil
 import sys
-from unicodedata import category
 
 import numpy as np
 import rasterio as rio
@@ -42,8 +41,6 @@ from data.fetch import fetch
 base_dir = os.path.dirname(__file__)
 lst_file_org = fetch("examples/alps_lst-day-mean_summer_2015_MOD11A2_sinusoidal.tif")
 topo_file_org = fetch("examples/alps_elevation-mean_GLO90DEM_sinusoidal.tif")
-# lct_file = os.path.join(base_dir, "../data/examples/lc_frac_plots_cgls2015_alps.tif")
-# count_file = os.path.join(base_dir, "../data/examples/countries_alps.tif")
 
 params = dict(n_jobs=6)
 block_size = (200, 200)
@@ -221,23 +218,6 @@ def main():
     print(" - "*20, end="\n")
     print(f"Model results: {band_weight=}", end="\n")
 
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    # TODO: for now leave the lc computation out
-    # lct_source = Source(path=lct_file)
-    # lct_profile = lct_source.import_profile()
-    # lc_categories = list(range(1, lct_profile['count'] + 1))
-    # lct_band_list = [lct_source.get_band(bidx=band_id) for band_id in lc_categories]
-    # # Mask and Predictors
-    # ldpara.compute_mask(lct_source,
-    #                     bands=lct_band_list,
-    #                     logic='all',
-    #                     nodata=0.0,
-    #                     block_size=block_size,
-    #                     **params)
-    # for band in lct_band_list:
-    #     band.set_mask_reader(use='source')
-    # predictors.extend(lct_band_list)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # 4. (Reverse) Compute Model
