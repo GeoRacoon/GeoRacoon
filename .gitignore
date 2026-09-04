@@ -148,6 +148,7 @@ locals.py
 
 # generally exclude results and input data
 results/
+data/*.zip
 *.png
 *.pdf
 *.tif
