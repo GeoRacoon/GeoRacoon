@@ -6,18 +6,11 @@ import numpy as np
 from rasterio.transform import Affine
 
 from riogrande.helper import get_or_set_context
+from data.fetch import fetch
 
-FIXTURE_DIR = os.path.abspath(os.path.join(
-    os.path.dirname(os.path.realpath(__file__)),
-    '../../',
-    'data'
-))
-lct_map = os.path.join(FIXTURE_DIR, 'test',
-                 'switzerland_lc-8-reclass_2012_CLC_epsg3035.tif')
-lct_float_map = os.path.join(FIXTURE_DIR, 'test',
-                 'switzerland_lc-area-fraction_2015_CGLS-LC100_epsg2056.tif')
-ndvi_map = os.path.join(FIXTURE_DIR, 'test',
-                 'switzerland_ndvi-binned-mean_2015_LANDSAT-8_epsg3035.tif')
+lct_map = fetch('test/switzerland_lc-8-reclass_2012_CLC_epsg3035.tif')
+lct_float_map = fetch('test/switzerland_lc-area-fraction_2015_CGLS-LC100_epsg2056.tif')
+ndvi_map = fetch('test/switzerland_ndvi-binned-mean_2015_LANDSAT-8_epsg3035.tif')
 
 ALL_MAPS = pytest.mark.datafiles(lct_map, lct_float_map, ndvi_map)
 
