@@ -20,6 +20,7 @@
 
 import os
 import shutil
+import sys
 from unicodedata import category
 
 import numpy as np
@@ -33,10 +34,14 @@ from convster import parallel as cvpara
 from convster.filters import bpgaussian
 from coonfit import parallel as lfpara
 
+# Fetches the example rasters from Zenodo on first use, then reuses the cache
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from data.fetch import fetch
+
 # Parameters
 base_dir = os.path.dirname(__file__)
-lst_file_org = os.path.join(base_dir, "../data/examples/alps_lst-day-mean_summer_2015_MOD11A2_sinusoidal.tif")
-topo_file_org = os.path.join(base_dir, "../data/examples/alps_elevation-mean_GLO90DEM_sinusoidal.tif")
+lst_file_org = fetch("examples/alps_lst-day-mean_summer_2015_MOD11A2_sinusoidal.tif")
+topo_file_org = fetch("examples/alps_elevation-mean_GLO90DEM_sinusoidal.tif")
 # lct_file = os.path.join(base_dir, "../data/examples/lc_frac_plots_cgls2015_alps.tif")
 # count_file = os.path.join(base_dir, "../data/examples/countries_alps.tif")
 

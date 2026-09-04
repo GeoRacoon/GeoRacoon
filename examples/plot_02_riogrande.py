@@ -22,10 +22,15 @@ the full stack at a glance.
 # -----
 import os
 import shutil
+import sys
 import numpy as np
 from matplotlib import pyplot as plt
 
 from riogrande.io import Source, Band
+
+# Fetches the example rasters from Zenodo on first use, then reuses the cache
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from data.fetch import fetch
 
 # %%
 # Open the file and inspect the profile
@@ -36,9 +41,7 @@ from riogrande.io import Source, Band
 # ``rasterio`` profile dict - CRS, transform, dtype, nodata, and band count.
 
 base_dir     = os.getcwd()
-lct_file_org = os.path.join(base_dir,
-                            "../data/examples/"
-                            "switzerland_lc-area-fraction_2015_CGLS-LC100_sinusoidal.tif")
+lct_file_org = fetch("examples/switzerland_lc-area-fraction_2015_CGLS-LC100_sinusoidal.tif")
 
 lct_source_org = Source(path=lct_file_org)
 lct_profile    = lct_source_org.import_profile()
