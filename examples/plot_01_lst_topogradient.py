@@ -25,6 +25,7 @@ pixel-wise linear model to recover the lapse rate.
 # Packages we need for this process, including our GeoRacoon.
 import os
 import shutil
+import sys
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -32,6 +33,10 @@ from matplotlib import pyplot as plt
 # Modules from GeoRacoon we use here
 from riogrande.io import Source, Band
 from riogrande import parallel as rgpara
+
+# Fetches the example rasters from Zenodo on first use, then reuses the cache
+sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "..")))
+from data.fetch import fetch
 
 from convster import parallel as cvpara
 from convster.filters import bpgaussian
@@ -46,8 +51,8 @@ from coonfit import parallel as lfpara
 
 base_dir =  os.getcwd()
 
-lst_file_org  = os.path.join(base_dir, "../data/examples/alps_lst-day-mean_summer_2015_MOD11A2_sinusoidal.tif")
-topo_file_org = os.path.join(base_dir, "../data/examples/alps_elevation-mean_GLO90DEM_sinusoidal.tif")
+lst_file_org  = fetch("examples/alps_lst-day-mean_summer_2015_MOD11A2_sinusoidal.tif")
+topo_file_org = fetch("examples/alps_elevation-mean_GLO90DEM_sinusoidal.tif")
 
 # Work on copies so the originals are never altered
 lst_file  = os.path.join(base_dir, "../data/examples/_tmp_lst_diff_alps.tif")
