@@ -10,7 +10,6 @@ existing relative paths keep working once a file has been fetched once.
 """
 
 import os
-
 import pooch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -18,7 +17,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # Concept DOI (always resolves to the latest version)
 DOI = "10.5281/zenodo.22307203"
 
-# sha256 of the zip archives themselves, as uploaded to Zenodo.
+# sha256 of each archive, computed locally after download. Zenodo's own page
+# only displays a md5 checksum, but pooch just needs a hash to verify
+# -- the algorithm doesn't need to match Zenodo's.
 REGISTRY = {
     "examples.zip":
         "sha256:cf5590c944132821d9c534c13b81a859e460cadeff286697f854217788306aad",
