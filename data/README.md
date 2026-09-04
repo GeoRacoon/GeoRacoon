@@ -4,8 +4,15 @@ This folder holds raster fixtures (GeoTIFF) used by this repository's `examples/
 `tests/` suite. 
 
 > [!NOTE]
-> None of this data is shipped with the `georacoon` package** `data/`. 
+> None of this data is shipped with the `georacoon` package.
 > It exists only for contributors working from a git clone.
+> 
+> The files are hosted on Zenodo at [doi:10.5281/zenodo.22307203](https://doi.org/10.5281/zenodo.22307203) (a concept DOI that
+> always resolves to the latest version) as two zip archives, `examples.zip` and `test.zip`.
+> `data/fetch.py` downloads and hash-checks the relevant archive on first use, extracting only
+> the requested file into the matching `data/examples/` or `data/test/` path. Both the
+> `examples/` scripts and the `tests/` suite call this automatically, so no manual download step
+> is needed.
 
 All datasets below are third-party data, redistributed here under their own upstream
 licenses (**not** GeoRacoon's MIT license — see [`../LICENSE`](../LICENSE) for the code).
