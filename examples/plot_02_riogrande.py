@@ -29,7 +29,7 @@ from matplotlib import pyplot as plt
 from riogrande.io import Source, Band
 
 # Fetches the example rasters from Zenodo on first use, then reuses the cache
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "..")))
 from data.fetch import fetch
 
 # %%
