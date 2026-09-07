@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it as below.
+title: 'GeoRacoon: A Python package for scalable, parallelized geospatial raster analysis'
+type: software
+authors:
+- given-names: Simon
+  family-names: Landauer
+  orcid: https://orcid.org/0009-0002-5031-8378
+- given-names: Pascal A.
+  family-names: Niklaus
+  orcid: https://orcid.org/0000-0002-2360-1357
+- given-names: Jonas I.
+  family-names: Liechti
+  orcid: https://orcid.org/0000-0003-3447-3060
+repository-code: https://github.com/GeoRacoon/GeoRacoon
+license: MIT
