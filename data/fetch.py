@@ -33,10 +33,12 @@ REGISTRY = {
 }
 
 # The Pooch object we can use to fetch later
+# retry against transient errors (e.g. Zenodo 502s)
 FETCHER = pooch.create(
     path=HERE,
     base_url=f"doi:{DOI}/",
     registry=REGISTRY,
+    retry_if_failed=3,
 )
 
 
