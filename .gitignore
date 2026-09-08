@@ -157,3 +157,6 @@ data/*.zip
 shell.nix
 
 *.revision
+
+# macOS
+.DS_Store
