@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 """
 This module contains various helper functions to parallelize the application
 of filters on a tif
