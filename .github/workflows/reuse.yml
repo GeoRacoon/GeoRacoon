@@ -32,11 +32,9 @@ jobs:
         run: |
           set +e
           reuse lint --json > reuse-report.json
-          reuse_status=$?
 
-          REUSE_STATUS="$reuse_status" python - <<'PY'
+          python - <<'PY'
           import json
-          import os
           from pathlib import Path
           import sys
 
@@ -44,42 +42,36 @@ jobs:
           non_compliant = report["non_compliant"]
 
           ignored_extensions = {".json"}
-          missing_metadata = set(
-              non_compliant["missing_copyright_info"]
-              + non_compliant["missing_licensing_info"]
-          )
-          unexpected_missing_metadata = sorted(
-              path
-              for path in missing_metadata
-              if Path(path).suffix.lower() not in ignored_extensions
-          )
+          ignored_keys = {
+              "missing_copyright_info",
+              "missing_licensing_info",
+          }
+          expected_missing_metadata = set()
+          unexpected_missing_metadata = set()
+
+          for key, values in non_compliant.items():
+              if isinstance(values, dict):
+                  values = values.keys()
+              if not isinstance(values, (list, set, tuple)):
+                  continue
+              for value in values:
+                  path = Path(value)
+                  if (
+                      path.suffix.lower() in ignored_extensions
+                      and key in ignored_keys
+                  ):
+                      expected_missing_metadata.add((key, value))
+                  else:
+                      unexpected_missing_metadata.add((key, value))
+
+          if expected_missing_metadata:
+              print("Ignoring expected REUSE metadata findings:")
+              for key, path in sorted(expected_missing_metadata):
+                  print(f" - {key}: {path}")
 
           if unexpected_missing_metadata:
-              print("REUSE metadata is missing from non-ignored files:")
-              for path in unexpected_missing_metadata:
-                  print(f" - {path}")
-
-          if missing_metadata and not unexpected_missing_metadata:
-              print("Only ignored file types lack REUSE metadata:")
-              for path in sorted(missing_metadata):
-                  print(f" - {path}")
-
-          other_errors = any(
-              non_compliant[key]
-              for key in (
-                  "bad_licenses",
-                  "deprecated_licenses",
-                  "licenses_without_extension",
-                  "missing_licenses",
-                  "unused_licenses",
-                  "read_errors",
-                  "invalid_spdx_expressions",
-              )
-          )
-
-          if unexpected_missing_metadata or other_errors:
+              print("REUSE findings require attention:")
+              for key, path in sorted(unexpected_missing_metadata):
+                  print(f" - {key}: {path}")
               sys.exit(1)
-
-          if int(os.environ["REUSE_STATUS"]) != 0:
-              print("REUSE reported only ignored file-type metadata findings.")
           PY
