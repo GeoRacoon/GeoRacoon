@@ -7,63 +7,63 @@
 The *coon-way*: Fragmented raster computations
 ==============================================
 
-This document showcases and explains how raster computaion are done
-the *coon-way*, provinding all the necessary informaiton to use GeoRacoon's
-parallelization tools in an efficient manner.
+This document showcases and explains how raster computations are performed
+the *coon-way*, providing all the information necessary to use GeoRacoon's
+parallelization tools efficiently.
 
 Loosely put, the *coon-way* consists in decomposing raster-based operations
 into sets of independent block-wise computations and providing a high-level
-interface to keep the user out of the weeds such decomposition brings about.
+interface to keep the user out of the weeds that such a decomposition brings about.
 Instead of handling the complete raster in one operation, the *coon-way*
-divides itinto spatial blocks that can then be processed sequentially or in
+divides it into spatial blocks that can then be processed sequentially or in
 parallel, depending on the available hardware.
 
 
 There is no single, universal approach for the decomposition of raster-based
 operations.
-For each application the feasibility and benefits of a decomposition entirely
-depends on the internal logic and the underlying tools implementing it.
-In GeoRacoon we exploit ``GDAL``s capacity to read/write only blocks in a
+For each application, the feasibility and benefits of a decomposition depend
+entirely on the internal logic and the underlying tools implementing it.
+In GeoRacoon, we exploit GDAL's capacity to read and write only blocks in a
 raster file and combine this with specific formulations of the logic in two
 particular applications:
-    
-1. Application of a filter in the form of a convolution with distrubution
+
+1. Applying a filter in the form of a convolution with a distribution
    (Gaussian in most cases) on a finite-sized kernel.
-2. Performing a multiple linear regression over each pixel in the raster.
-       
+2. Performing multiple linear regression over the pixels in a raster.
+
 
 Trading time for memory
 -----------------------
 
-The benefit from such decompositions falls onto two axes: 1. The amount of
-memory (RAM) required, and 2. The duration ("wall-time") needed to carry out
-such application.
+The benefits of such decompositions fall along two axes: 1. the amount of
+memory (RAM) required, and 2. the duration ("wall time") needed to carry out
+the computation.
 
 As we will see, the decompositions can be configured in a way to maximise the
-benefits along one axes by the expense of the other.
-In a way, the `coon-way` allows the user to trade RAM for runtime, and
+benefits along one axis at the expense of the other.
+In a way, the `coon-way` allows the user to trade RAM for runtime and
 vice-versa.
 
 This makes it possible to adapt the computation to hardware restrictions:
 Smaller blocks and fewer workers reduce the amount of memory required at any
-one time, but generally increase the number of tasks and their scheduling
+one time but generally increase the number of tasks and their scheduling
 overhead.
-Larger blocks and more workers can reduce runtime, at the cost of a larger peak
+Larger blocks and more workers can reduce runtime at the cost of a larger peak
 memory footprint.
 
 
-Before we present the fragmented raster computations for a finite kernel
-convolution and the multiple linear regression, alowng with some benchmark
-results showcasing some real-world benefits of the coon-way, note that the
-benchmark results are taken from GeoRacoon's own benchmark suite (see
-[<link to benchmarks/README.md in the repository]).
-As such the benchmark results are machine-dependent and should therefore be
+Before we present the fragmented raster computations for a finite-kernel
+convolution and multiple linear regression, along with benchmark results
+showcasing some real-world benefits of the coon-way, note that the benchmark
+results are taken from GeoRacoon's own
+`benchmark suite <https://github.com/GeoRacoon/GeoRacoon/blob/main/benchmarks/README.md>`_.
+The benchmark results are machine-dependent and should therefore be
 read as an illustration of the available trade-offs, rather than as universal
 performance constants.
 
 
-The benchmark results shown here-below are based on a squared synthetic
-raster of siye ``RASTER_SIZE x RASTER_SIZE`` with:
+The benchmark results shown below are based on a square synthetic raster of
+size ``RASTER_SIZE x RASTER_SIZE`` with:
 
 """
 
@@ -87,8 +87,9 @@ RASTER_SIZE = 20000
 # =====================================
 #
 # A Gaussian filter requires neighboring pixels, so processing independent
-# blocks requires overlap or halo regions at their boundaries.  ``apply_filter``
-# computes a halo from the filter parameters and calls ``create_views`` to
+# blocks requires overlap or halo regions at their boundaries.
+# :func:`convster.parallel.apply_filter` computes a halo from the filter
+# parameters and calls :func:`riogrande.prepare.create_views` to
 # construct two corresponding view lists.  Each worker reads an expanded view
 # including the halo, applies the filter, and returns only its inner view for
 # writing.  The expanded views overlap, but the inner views tile the output
@@ -153,9 +154,9 @@ ax.set_title("Block-wise Gaussian filtering")
 fig.tight_layout()
 
 # %%
-# The illustration shows exemplary blocks that can be processed independently.
+# The illustration shows example blocks that can be processed independently.
 # An orange region represents the complete view sent to a worker, including the
-# border pixels needed by the filter.  The blue region is the corresponding
+# border pixels needed by the filter.  The inner blue region is the corresponding
 # inner block: it is the part of the worker's result that contributes to the
 # final raster.  Because only the blue regions are written, these contributions
 # tile the output without overlap even though the orange worker views overlap.
@@ -417,19 +418,20 @@ filter_fig = plot_routine(
 )
 
 # %%
-# The figure shows benchmarks results for the synthetic filter benchmarks.
+# The figure shows benchmark results for the synthetic filter benchmarks.
 # The two plots show runtime and peak process-tree memory relative to the
 # native, full-raster implementation
-# The native result is the
-# reference case and is shown as ``n_jobs = 1``
-# (see {link to script with actual implementation]).
+# The native result is the reference case and is shown as ``n_jobs = 1``
+# (see the
+# `apply_filter API documentation
+# <https://georacoon.readthedocs.io/en/latest/autoapi/convster/parallel/index.html#convster.parallel.apply_filter>`_).
 # Consequently, a value of 0.5 means half the native runtime or memory,
 # while 1.5 means 150%.
 # 
 # Multiple linear regression as additive block contributions
 # ==========================================================
 #
-# In order to dcompose multiple linear regression  we usesthe normal equations.
+# To decompose multiple linear regression, we use the normal equations.
 # It does not construct one design matrix for the complete raster.
 # Instead, it accumulates the two sufficient statistics needed by ordinary
 # least squares in two passes over the blocks:
@@ -462,10 +464,11 @@ filter_fig = plot_routine(
 #
 # The current implementation makes this decomposition explicit in two passes:
 #
-# 1. ``get_XT_X`` computes ``X_b.T @ X_b`` for every block and adds the
+# 1. :func:`coonfit.parallel.get_XT_X` computes ``X_b.T @ X_b`` for every block and adds the
 #    results.  The result is the global ``X.T @ X`` matrix.
-# 2. ``compute_weights`` inverts this accumulated matrix, then
-#    ``get_optimal_betas`` computes and adds ``X_b.T @ y_b`` for every block.
+# 2. :func:`coonfit.parallel.compute_weights` inverts this accumulated matrix,
+#    then :func:`coonfit.parallel.get_optimal_betas` computes and adds
+#    ``X_b.T @ y_b`` for every block.
 # 3. The coefficient vector is calculated as ``inv(X.T @ X) @ (X.T @ y)``.
 #
 # The regression state that must be retained between blocks is thus only the
