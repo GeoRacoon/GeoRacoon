@@ -13,6 +13,8 @@ on:
 jobs:
   unit-tests:
     runs-on: ubuntu-24.04
+    env:
+      GEORACOON_DATA_DIR: data
     strategy:
       matrix:
         pythonV: ["3.10", "3.11", "3.12", "3.13", "3.14"]
@@ -28,13 +30,11 @@ jobs:
       with:
         python-version: ${{ matrix.pythonV }}
 
-    - name: Cache Zenodo data archives
+    - name: Cache Zenodo test archive
       uses: actions/cache@v5
       with:
-        path: |
-          data/examples.zip
-          data/test.zip
-        key: zenodo-data-${{ hashFiles('data/fetch.py') }}
+        path: data/test.zip
+        key: zenodo-test-${{ hashFiles('src/riogrande/_data.py') }}
 
     - name: Install dependencies
       run: |
