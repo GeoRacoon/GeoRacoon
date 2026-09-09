@@ -40,8 +40,7 @@ from riogrande.io import Source, Band
 from riogrande import parallel as rgpara
 
 # Fetches the example rasters from Zenodo on first use, then reuses the cache
-sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "..")))
-from data.fetch import fetch
+from riogrande._data import fetch
 
 from convster import parallel as cvpara
 from convster.filters import bpgaussian

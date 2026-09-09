@@ -39,8 +39,7 @@ from riogrande import parallel as rgpara
 from coonfit import parallel as lfpara
 
 # Fetches the example rasters from Zenodo on first use, then reuses the cache
-sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "..")))
-from data.fetch import fetch
+from riogrande._data import fetch
 
 # %%
 # Load the predictor bands
