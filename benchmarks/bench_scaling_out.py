@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
 """Peak-memory scaling with fixed block size and worker count.
 
 These benchmarks vary the side length of deterministic synthetic rasters while

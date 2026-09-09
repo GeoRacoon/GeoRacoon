@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
 """Benchmarks for the parallel Gaussian filter (``apply_filter`` + ``bpgaussian``).
 
 The sweep axes are:
