@@ -1,3 +1,10 @@
+<!--
+SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+
+SPDX-License-Identifier: MIT
+-->
+
 # Contributing to GeoRacoon
 
 First off, thanks so much for considering a contribution, we really appreciate it! :raccoon:
@@ -131,6 +138,14 @@ To run the tests locally before pushing:
 pip install -e ".[testing]"
 pytest
 ```
+
+> [!NOTE]
+> The raster fixtures used by the test suite are not shipped in this
+> repository. They are hosted on Zenodo at
+> [doi:10.5281/zenodo.22307203](https://doi.org/10.5281/zenodo.22307203)
+> (a concept DOI that always resolves to the latest version) and are
+> downloaded automatically the first time you run `pytest`, then cached
+> locally for later runs.
 
 ---
 

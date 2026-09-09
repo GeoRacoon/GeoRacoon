@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 """
 Coonfit: Pixel-wise Regression of NDVI on Land-Cover Fractions
 ===============================================================
@@ -24,6 +29,7 @@ do not sum to one, so there is no multicollinearity issue.
 # -----
 import os
 import shutil
+import sys
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -31,6 +37,10 @@ from riogrande.io import Source, Band, coregister_raster
 from riogrande import parallel as rgpara
 
 from coonfit import parallel as lfpara
+
+# Fetches the example rasters from Zenodo on first use, then reuses the cache
+sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "..")))
+from data.fetch import fetch
 
 # %%
 # Load the predictor bands
@@ -43,9 +53,7 @@ from coonfit import parallel as lfpara
 
 base_dir = os.getcwd()
 
-lct_file_org = os.path.join(base_dir,
-                             "../data/examples/"
-                             "switzerland_lc-area-fraction_2015_CGLS-LC100_sinusoidal.tif")
+lct_file_org = fetch("examples/switzerland_lc-area-fraction_2015_CGLS-LC100_sinusoidal.tif")
 lct_file     = os.path.join(base_dir,
                              "../data/examples/_tmp_lct_frac_tagged_coonfit.tif")
 shutil.copy(src=lct_file_org, dst=lct_file)
@@ -73,9 +81,7 @@ predictors = [forest, grassland, agriculture, urban]
 # 1 km pixel grid of the predictor source exactly.
 # Again we write to a temporary file for the coregistration so the original is never modified.
 
-ndvi_file_org = os.path.join(base_dir,
-                             "../data/examples/"
-                             "switzerland_ndvi-binned-mean_2015_LANDSAT-8_sinusoidal.tif")
+ndvi_file_org = fetch("examples/switzerland_ndvi-binned-mean_2015_LANDSAT-8_sinusoidal.tif")
 ndvi_file = os.path.join(base_dir,
                          "../data/examples/_tmp_ndvi_coreged_1km.tif")
 shutil.copy(src=ndvi_file_org, dst=ndvi_file)

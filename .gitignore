@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 # ignore api folder for docs
 docs/api/
 public/
@@ -153,8 +158,8 @@ dmypy.json
 locals.py
 
 # generally exclude results and input data
-data/
 /results/
+data/
 *.png
 *.pdf
 *.tif
@@ -163,3 +168,6 @@ data/
 shell.nix
 
 *.revision
+
+# macOS
+.DS_Store

@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 """
 Convster: Smoothing a Multi-Band Raster
 ============================================
@@ -19,6 +24,7 @@ downstream analyses.
 # Setup
 # -----
 import os
+import sys
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -26,6 +32,10 @@ from riogrande.io import Source, Band
 
 from convster import parallel as cvpara
 from convster.filters import bpgaussian
+
+# Fetches the example rasters from Zenodo on first use, then reuses the cache
+sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "..")))
+from data.fetch import fetch
 
 # %%
 # Load the source raster
@@ -36,9 +46,7 @@ from convster.filters import bpgaussian
 # to write the filtered output with identical CRS, transform, and nodata.
 
 base_dir = os.getcwd()
-lct_file = os.path.join(base_dir,
-                        "../data/examples/"
-                        "switzerland_lc-area-fraction_2015_CGLS-LC100_sinusoidal.tif")
+lct_file = fetch("examples/switzerland_lc-area-fraction_2015_CGLS-LC100_sinusoidal.tif")
 
 lct_source  = Source(path=lct_file)
 lct_profile = lct_source.import_profile()
