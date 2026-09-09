@@ -29,7 +29,7 @@ jobs:
         python-version: ${{ matrix.pythonV }}
 
     - name: Cache Zenodo data archives
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           data/examples.zip

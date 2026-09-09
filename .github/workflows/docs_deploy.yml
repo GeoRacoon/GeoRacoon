@@ -23,7 +23,7 @@ jobs:
         python-version: '3.10'
     
     - name: Cache Zenodo data archives
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           data/examples.zip
