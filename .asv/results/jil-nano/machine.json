@@ -1,0 +1,9 @@
+{
+    "arch": "x86_64",
+    "cpu": "11th Gen Intel(R) Core(TM) i5-1130G7 @ 1.10GHz",
+    "machine": "jil-nano",
+    "num_cpu": "8",
+    "os": "Linux 7.2.0",
+    "ram": "16475549696",
+    "version": 1
+}

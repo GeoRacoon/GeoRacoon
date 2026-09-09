@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "project": "georacoon",
+    "project_url": "https://github.com/GeoRacoon/georacoon",
+    "repo": ".",
+    "branches": ["main"],
+    "environment_type": "virtualenv",
+    "build_command": [
+        "python -m pip install build",
+        "python -m build --wheel -o {build_cache_dir} {build_dir}"
+    ],
+    "benchmark_dir": "benchmarks",
+    "matrix": {
+        "req": {
+            "psutil": [""]
+        }
+    },
+    "env_dir": ".asv/env",
+    "results_dir": ".asv/results",
+    "html_dir": ".asv/html"
+}
