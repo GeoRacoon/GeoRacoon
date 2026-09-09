@@ -29,7 +29,7 @@ file = ["tests/requirements.txt"]
 file = ["docs/requirements.txt"]
 
 [tool.setuptools.dynamic.optional-dependencies.data]
-file = ["requirements-data.txt"]
+file = ["data/requirements.txt"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
