@@ -39,8 +39,7 @@ from convster.filters import bpgaussian
 from coonfit import parallel as lfpara
 
 # Fetches the example rasters from Zenodo on first use, then reuses the cache
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from data.fetch import fetch
+from riogrande._data import fetch
 
 # Parameters
 base_dir = os.path.dirname(__file__)

@@ -12,6 +12,8 @@ on:
 jobs:
   build-and-deploy-docs:
     runs-on: ubuntu-24.04
+    env:
+      GEORACOON_DATA_DIR: data
     steps:
     - uses: actions/checkout@v3
       with:
@@ -22,13 +24,11 @@ jobs:
       with:
         python-version: '3.10'
     
-    - name: Cache Zenodo data archives
-      uses: actions/cache@v4
+    - name: Cache Zenodo example archive
+      uses: actions/cache@v5
       with:
-        path: |
-          data/examples.zip
-          data/test.zip
-        key: zenodo-data-${{ hashFiles('data/fetch.py') }}
+        path: data/examples.zip
+        key: zenodo-examples-${{ hashFiles('src/riogrande/_data.py') }}
 
     - name: Install documentation dependencies
       run: |

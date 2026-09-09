@@ -15,7 +15,7 @@ from riogrande.helper import get_or_set_context
 from riogrande.io import Source
 from riogrande.parallel import (
     compute_mask,)
-from data.fetch import fetch
+from riogrande._data import fetch
 
 lct_map = fetch('test/switzerland_lc-8-reclass_2012_CLC_epsg3035.tif')
 lct_float_map = fetch('test/switzerland_lc-area-fraction_2015_CGLS-LC100_epsg2056.tif')
