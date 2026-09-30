@@ -25,16 +25,17 @@ the full stack at a glance.
 # %%
 # Setup
 # -----
-import os
 import shutil
-import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 import numpy as np
 from matplotlib import pyplot as plt
 
 from riogrande.io import Source, Band
 
 # Fetches the example rasters from Zenodo on first use, then reuses the cache
-from riogrande._data import fetch
+from riogrande.data import fetch
 
 # %%
 # Open the file and inspect the profile
@@ -43,8 +44,10 @@ from riogrande._data import fetch
 # A :class:`~riogrande.io.models.Source` wraps a raster file.
 # :meth:`~riogrande.io.models.Source.import_profile` returns the standard
 # ``rasterio`` profile dict - CRS, transform, dtype, nodata, and band count.
+#
+# The raster is obtained with :func:`~riogrande.data.fetch`, which downloads
+# it from Zenodo on first use and returns the path to the cached file.
 
-base_dir     = os.getcwd()
 lct_file_org = fetch("examples/switzerland_lc-area-fraction_2015_CGLS-LC100_sinusoidal.tif")
 
 lct_source_org = Source(path=lct_file_org)
@@ -56,19 +59,29 @@ print(f"Dtype : {lct_profile['dtype']}")
 print(f"Nodata: {lct_profile['nodata']}")
 
 # %%
+# Working directory for intermediate data
+# ---------------------------------------
+#
+# The fetched raster is never modified. Every file this example derives
+# from it is written to a temporary directory, which is removed again at the
+# end of this example.
+
+work_dir_handle = TemporaryDirectory(prefix="georacoon_plot_02_")
+work_dir = Path(work_dir_handle.name)
+
+# %%
 # Tag each band and retrieve bands by tag
 # ----------------------------------------
 #
 # :meth:`~riogrande.io.models.Source.set_tags` writes metadata to the file (inplace),
-# so we work on a copy to leave the original untouched.
+# so we work on a copy in the temporary working directory to leave the
+# fetched file untouched.
 # :meth:`~riogrande.io.models.Source.get_band` can then look up the band by
 # any of the tag keys. This is useful when a source holds many bands with different
 # roles, for instance raw multisepcral images or land-cover categories.
 
-# Work on a copy so the original file is never altered
-lct_file = os.path.join(base_dir,
-                        "../data/examples/"
-                        "_tmp_lct_frac_tagged.tif")
+# Work on a copy so the fetched file is never altered
+lct_file = work_dir / "lct_frac_tagged.tif"
 shutil.copy(src=lct_file_org, dst=lct_file)
 lct_source = Source(path=lct_file)
 
@@ -124,3 +137,12 @@ fig.colorbar(img, ax=axes.ravel().tolist(), label="Fraction (0–1)",
 fig.suptitle("Land-cover fraction per class - Switzerland 1 km (CGLS 2015)",
              fontweight="bold", fontsize=12)
 plt.show()
+
+# %%
+# Clean up
+# --------
+#
+# Remove the temporary working directory together with all intermediate
+# files created in this example.
+
+work_dir_handle.cleanup()

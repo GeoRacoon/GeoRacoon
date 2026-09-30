@@ -23,8 +23,9 @@ downstream analyses.
 # %%
 # Setup
 # -----
-import os
-import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -34,7 +35,7 @@ from convster import parallel as cvpara
 from convster.filters import bpgaussian
 
 # Fetches the example rasters from Zenodo on first use, then reuses the cache
-from riogrande._data import fetch
+from riogrande.data import fetch
 
 # %%
 # Load the source raster
@@ -43,8 +44,10 @@ from riogrande._data import fetch
 # We use :class:`~riogrande.io.models.Source` from :mod:`riogrande` to open
 # the 10-band input file and import its profile. Convster needs the profile
 # to write the filtered output with identical CRS, transform, and nodata.
+#
+# The raster is obtained with :func:`~riogrande.data.fetch`, which downloads
+# it from Zenodo on first use and returns the path to the cached file.
 
-base_dir = os.getcwd()
 lct_file = fetch("examples/switzerland_lc-area-fraction_2015_CGLS-LC100_sinusoidal.tif")
 
 lct_source  = Source(path=lct_file)
@@ -61,6 +64,16 @@ print(f"Input: {lct_profile['count']} bands, "
 #    no copy of the source file is needed here.
 #    :func:`~convster.parallel.apply_filter` only reads from the input and
 #    writes to a separate output file, so the original is never modified.
+
+# %%
+# Working directory for intermediate data
+# ---------------------------------------
+#
+# The filtered output is written to a temporary directory, which is removed
+# again at the end of this example.
+
+work_dir_handle = TemporaryDirectory(prefix="georacoon_plot_03_")
+work_dir = Path(work_dir_handle.name)
 
 # %%
 # Configure the filter
@@ -97,15 +110,13 @@ filter_params = dict(
 #   kernel weights by valid (non-NaN) neighbours, so masked raster edges are not
 #   pulled towards zero as they would be with a standard Gaussian.
 
-output_file   = os.path.join(base_dir,
-                             "../data/examples/"
-                             "_tmp_lct_conv_sigma5.tif")
+output_file   = work_dir / "lct_conv_sigma5.tif"
 output_source = Source(path=output_file, profile=lct_profile)
 output_source.init_source(overwrite=True)
 
 cvpara.apply_filter(
     source=lct_source,
-    output_file=output_file,
+    output_file=str(output_file),
     block_size=(100, 100),
     data_in_range=None,
     data_as_dtype=np.float32,
@@ -151,3 +162,11 @@ fig.colorbar(img, ax=axes.ravel().tolist(), label="Fraction (0–1)",
 fig.suptitle("Land-cover fractions before and after Gaussian smoothing",
              fontweight="bold", fontsize=12)
 plt.show()
+
+# %%
+# Clean up
+# --------
+#
+# Remove the temporary working directory together with the filtered output.
+
+work_dir_handle.cleanup()

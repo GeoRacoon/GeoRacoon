@@ -28,7 +28,7 @@ jobs:
       uses: actions/cache@v5
       with:
         path: data/examples.zip
-        key: zenodo-examples-${{ hashFiles('src/riogrande/_data.py') }}
+        key: zenodo-examples-${{ hashFiles('src/riogrande/data.py') }}
 
     - name: Install documentation dependencies
       run: |

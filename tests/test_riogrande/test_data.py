@@ -8,7 +8,7 @@
 from pathlib import Path
 import tempfile
 
-from riogrande._data import _cache_dir
+from riogrande.data import _cache_dir
 
 
 def test_cache_dir_uses_explicit_destination(monkeypatch):
