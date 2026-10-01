@@ -27,9 +27,9 @@ do not sum to one, so there is no multicollinearity issue.
 # %%
 # Setup
 # -----
-import os
-import shutil
-import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -39,35 +39,38 @@ from riogrande import parallel as rgpara
 from coonfit import parallel as lfpara
 
 # Fetches the example rasters from Zenodo on first use, then reuses the cache
-sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "..")))
-from data.fetch import fetch
+from riogrande.data import fetch
+
+# %%
+# Working directory for intermediate data
+# ---------------------------------------
+#
+# The input rasters are obtained with :func:`~riogrande.data.fetch`, which
+# downloads them from Zenodo on first use and returns the path to the cached
+# file. Their pixel values are never modified. Every raster this example
+# derives from them (coregistered NDVI, model) is written to a temporary
+# directory, which is removed again at the end of this example.
+
+work_dir_handle = TemporaryDirectory(prefix="georacoon_plot_04_")
+work_dir = Path(work_dir_handle.name)
 
 # %%
 # Load the predictor bands
 # -------------------------
 #
 # We open the 10-band CGLS fraction grid and tag only the four bands we need.
-# Using :meth:`~riogrande.io.models.Source.get_band` by tag keeps the code
-# readable and the weight dictionary self-documenting.
-# We work on a copy so the original file is never altered.
-
-base_dir = os.getcwd()
+# The tags are attached to the :class:`~riogrande.io.models.Band` objects
+# only, so the fetched file is not modified. Tagging the bands keeps the
+# weight dictionary self-documenting.
 
 lct_file_org = fetch("examples/switzerland_lc-area-fraction_2015_CGLS-LC100_sinusoidal.tif")
-lct_file     = os.path.join(base_dir,
-                             "../data/examples/_tmp_lct_frac_tagged_coonfit.tif")
-shutil.copy(src=lct_file_org, dst=lct_file)
-lct_source = Source(path=lct_file)
+lct_source = Source(path=lct_file_org)
 
-lct_source.set_tags(bidx=1,  tags=dict(category="forest"))
-lct_source.set_tags(bidx=3,  tags=dict(category="grassland"))
-lct_source.set_tags(bidx=4,  tags=dict(category="agriculture"))
-lct_source.set_tags(bidx=5,  tags=dict(category="urban"))
-
-forest      = lct_source.get_band(category="forest")
-grassland   = lct_source.get_band(category="grassland")
-agriculture = lct_source.get_band(category="agriculture")
-urban       = lct_source.get_band(category="urban")
+forest      = Band(source=lct_source, bidx=1, tags=dict(category="forest"))
+grassland   = Band(source=lct_source, bidx=3, tags=dict(category="grassland"))
+agriculture = Band(source=lct_source, bidx=4,
+                   tags=dict(category="agriculture"))
+urban       = Band(source=lct_source, bidx=5, tags=dict(category="urban"))
 
 predictors = [forest, grassland, agriculture, urban]
 
@@ -78,14 +81,13 @@ predictors = [forest, grassland, agriculture, urban]
 # The NDVI composite has been pre-reprojected to the CRS of the
 # CGLS fraction grid, but retains a finer pixel spacing.
 # :func:`~riogrande.io.core.coregister_raster` resamples it to match the
-# 1 km pixel grid of the predictor source exactly.
-# Again we write to a temporary file for the coregistration so the original is never modified.
+# 1 km pixel grid of the predictor source exactly. It only reads the fetched
+# NDVI file and writes the result to a new file in the working directory.
 
 ndvi_file_org = fetch("examples/switzerland_ndvi-binned-mean_2015_LANDSAT-8_sinusoidal.tif")
-ndvi_file = os.path.join(base_dir,
-                         "../data/examples/_tmp_ndvi_coreged_1km.tif")
-shutil.copy(src=ndvi_file_org, dst=ndvi_file)
-coregister_raster(source=ndvi_file, reference=lct_file, output=ndvi_file)
+ndvi_file = coregister_raster(source=ndvi_file_org,
+                              reference=lct_file_org,
+                              output=str(work_dir / "ndvi_coreg_1km.tif"))
 
 ndvi_source = Source(path=ndvi_file)
 ndvi_band   = Band(source=ndvi_source, bidx=1)
@@ -100,6 +102,13 @@ ndvi_band   = Band(source=ndvi_source, bidx=1)
 # file and attached to each band via
 # :meth:`~riogrande.io.models.Band.set_mask_reader`, so the fitting step
 # skips nodata pixels (border artefacts) automatically.
+#
+# .. note::
+#
+#    :func:`~riogrande.parallel.compute_mask` writes the computed dataset
+#    mask into the fetched land-cover file itself (via
+#    :meth:`~riogrande.io.models.Source.mask_writer`). Only the mask is
+#    added; the pixel values remain unchanged.
 
 block_size = (200, 200)
 params     = dict(n_jobs=6)  # follows the scikit-learn n_jobs convention
@@ -147,12 +156,11 @@ for band, beta in band_weight.items():
 # to produce a predicted NDVI map.  RMSE and R² are then computed against the
 # observed NDVI using a shared valid-pixel selector.
 
-model_file = os.path.join(base_dir,
-                          "../data/examples/_tmp_coonfit_ndvi_lct_model.tif")
+model_file = work_dir / "coonfit_ndvi_lct_model.tif"
 lfpara.compute_model(
     predictors=predictors,
     optimal_weights=band_weight,
-    output_file=model_file,
+    output_file=str(model_file),
     block_size=block_size,
     profile=ndvi_source.import_profile(),
     verbose=False,
@@ -194,3 +202,12 @@ fig.suptitle("NDVI predicted from forest, grassland, agriculture and urban fract
              " - Switzerland 1 km (CGLS 2015)",
              fontweight="bold", fontsize=12)
 plt.show()
+
+# %%
+# Clean up
+# --------
+#
+# Remove the temporary working directory together with all intermediate
+# rasters created in this example.
+
+work_dir_handle.cleanup()

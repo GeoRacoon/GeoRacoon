@@ -28,9 +28,8 @@ pixel-wise linear model to recover the lapse rate.
 # Setup
 # -----
 # Packages we need for this process, including our GeoRacoon.
-import os
-import shutil
-import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -40,8 +39,7 @@ from riogrande.io import Source, Band
 from riogrande import parallel as rgpara
 
 # Fetches the example rasters from Zenodo on first use, then reuses the cache
-sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "..")))
-from data.fetch import fetch
+from riogrande.data import fetch
 
 from convster import parallel as cvpara
 from convster.filters import bpgaussian
@@ -53,34 +51,43 @@ from coonfit import parallel as lfpara
 #
 # * **LST** - MODIS mean summer land surface temperature (°C)
 # * **Elevation** - Copernicus DEM 90 m (aggregated to 1 km)
-
-base_dir =  os.getcwd()
+#
+# Both are obtained with :func:`~riogrande.data.fetch`, which downloads them
+# from Zenodo on first use and returns the path to the cached file.
 
 lst_file_org  = fetch("examples/alps_lst-day-mean_summer_2015_MOD11A2_sinusoidal.tif")
 topo_file_org = fetch("examples/alps_elevation-mean_GLO90DEM_sinusoidal.tif")
 
-# Work on copies so the originals are never altered
-lst_file  = os.path.join(base_dir, "../data/examples/_tmp_lst_diff_alps.tif")
-topo_file = os.path.join(base_dir, "../data/examples/_tmp_elevation_diff_alps.tif")
-shutil.copy(src=lst_file_org,  dst=lst_file)
-shutil.copy(src=topo_file_org, dst=topo_file)
+# %%
+# Working directory for intermediate data
+# ---------------------------------------
+#
+# The pixel values of the fetched rasters are never modified. Every raster
+# this example derives from them (convolutions, anomalies, model, residuals)
+# is written to a temporary directory, which is removed again at the end of
+# this example.
+
+work_dir_handle = TemporaryDirectory(prefix="georacoon_plot_01_")
+work_dir = Path(work_dir_handle.name)
 
 # %%
 # Get working with the :class:`~riogrande.io.models.Source` and
-# :class:`~riogrande.io.models.Band` objects from ``riogrande``, and set a tag for the elevation band we want to use
+# :class:`~riogrande.io.models.Band` objects from ``riogrande``, and tag the
+# elevation band we want to use. The tag is attached to the
+# :class:`~riogrande.io.models.Band` object only, so the fetched file is not
+# modified.
 
 # Land Surface Temperature
-lst_source  = Source(path=lst_file)
+lst_source  = Source(path=lst_file_org)
 lst_profile = lst_source.import_profile()
 lst_band    = Band(source=lst_source, bidx=1)
 
 # Elevation
-topo_source  = Source(path=topo_file)
+topo_source  = Source(path=topo_file_org)
 topo_profile = topo_source.import_profile()
 
 elev_cat = "elevation_mean"
-topo_source.set_tags(bidx=1, tags=dict(category=elev_cat))      # set a tag
-elev_band = topo_source.get_band(category=elev_cat)
+elev_band = Band(source=topo_source, bidx=1, tags=dict(category=elev_cat))
 
 
 # %%
@@ -145,8 +152,7 @@ params_filter = dict(
 # %%
 # Prepare the dataset objects for the filter ...
 
-lst_conv_file   = os.path.join(base_dir,
-                               f"../data/examples/_tmp_lst_conv_{kernel_m_sigma}m_alps.tif")
+lst_conv_file   = work_dir / f"lst_conv_{kernel_m_sigma}m_alps.tif"
 lst_conv_source = Source(path=lst_conv_file, profile=lst_profile)
 lst_conv_source.init_source(overwrite=True)
 lst_conv_band   = Band(lst_conv_source, bidx=1)
@@ -157,7 +163,7 @@ lst_conv_band   = Band(lst_conv_source, bidx=1)
 
 cvpara.apply_filter(
     source=lst_source,
-    output_file=lst_conv_file,
+    output_file=str(lst_conv_file),
     block_size=block_size,
     data_in_range=None,
     data_as_dtype=data_type,
@@ -172,10 +178,16 @@ cvpara.apply_filter(
 )
 
 # %%
-# Subtract the filtered band from the LST band using :meth:`~riogrande.io.models.Band.subtract`
-# (inplace). The LST band now holds the local anomaly.
+# Subtract the filtered band from the LST band using
+# :meth:`~riogrande.io.models.Band.subtract`. The result, the local anomaly,
+# is written to a new band in the working directory via ``out_band``.
 
-lst_band.subtract(band=lst_conv_band)
+lst_diff_file   = work_dir / "lst_diff_alps.tif"
+lst_diff_source = Source(path=lst_diff_file, profile=lst_profile)
+lst_diff_source.init_source(overwrite=True)
+lst_diff_band   = Band(lst_diff_source, bidx=1)
+
+lst_band.subtract(band=lst_conv_band, out_band=lst_diff_band)
 
 # %%
 # The thw panels below show original LST and the regional signal captured by
@@ -196,7 +208,7 @@ plt.show()
 
 # Figure 2: LST anomaly
 fig2, ax2 = plt.subplots(figsize=(12, 8))
-show_map(ax2, lst_file, "LST anomaly - deviation (°C)", limits=(-10, 10))
+show_map(ax2, lst_diff_file, "LST anomaly - deviation (°C)", limits=(-10, 10))
 fig2.tight_layout()
 plt.show()
 
@@ -210,8 +222,7 @@ plt.show()
 
 # Again we prepare the data ...
 
-elev_conv_file   = os.path.join(base_dir,
-                                f"../data/examples/_tmp_elev_conv_{kernel_m_sigma}m_alps.tif")
+elev_conv_file   = work_dir / f"elev_conv_{kernel_m_sigma}m_alps.tif"
 elev_conv_source = Source(path=elev_conv_file, profile=topo_profile)
 elev_conv_source.init_source(overwrite=True)
 elev_conv_band   = Band(elev_conv_source, bidx=1)
@@ -221,7 +232,7 @@ elev_conv_band   = Band(elev_conv_source, bidx=1)
 
 cvpara.apply_filter(
     source=topo_source,
-    output_file=elev_conv_file,
+    output_file=str(elev_conv_file),
     bands=[elev_band],
     block_size=block_size,
     data_in_range=None,
@@ -254,11 +265,18 @@ plt.show()
 # %%
 # Now we subtract the convolution from the elevation band to obtain the
 # elevation anomaly - local height above (positive) and below (negative) the 
-# regional mean surface:
-elev_band.subtract(band=elev_conv_band)
+# regional mean surface. Again, the result is written to a new band that
+# carries the elevation tag:
+elev_diff_file   = work_dir / "elevation_diff_alps.tif"
+elev_diff_source = Source(path=elev_diff_file, profile=topo_profile)
+elev_diff_source.init_source(overwrite=True)
+elev_diff_band   = Band(elev_diff_source, bidx=1,
+                        tags=dict(category=elev_cat))
+
+elev_band.subtract(band=elev_conv_band, out_band=elev_diff_band)
 # Figure 2: Elevation anomaly
 fig2, ax2 = plt.subplots(1, 1, figsize=(12, 8), constrained_layout=True)
-show_map(ax2, topo_file, "Elevation anomaly - deviation (m)",
+show_map(ax2, elev_diff_file, "Elevation anomaly - deviation (m)",
          limits=(-1500, 1500), cmap="RdBu_r", label="Δm")
 plt.show()
 
@@ -277,23 +295,23 @@ plt.show()
 # (not a band specific mask - which is also possible).
 
 rgpara.compute_mask(
-    topo_source,
-    bands=[elev_band],
+    elev_diff_source,
+    bands=[elev_diff_band],
     logic="all",
     nodata=np.nan,
     block_size=block_size,
     **params,
 )
-elev_band.set_mask_reader(use="source")
+elev_diff_band.set_mask_reader(use="source")
 
 # %%
 # Collect the predictors for the model fitting (here only 1), and fit the model with
 # :func:`~coonfit.parallel.compute_weights` to compute the weights for the predictors.
 
-predictors = [elev_band]
+predictors = [elev_diff_band]
 
 band_weight = lfpara.compute_weights(
-    response=lst_band,
+    response=lst_diff_band,
     predictors=predictors,
     block_size=block_size,
     include_intercept=False,
@@ -309,7 +327,7 @@ band_weight = lfpara.compute_weights(
 # %%
 # Get the specific results from the returned *β* values.
 # (Remember no intercept was fitted, which would be in position 0 here the list)
-beta_elev  = band_weight[elev_band]
+beta_elev  = band_weight[elev_diff_band]
 lapse_rate = beta_elev * 1000   # °C m⁻¹ → °C km⁻¹
 
 # %%
@@ -356,12 +374,11 @@ plt.show()
 # the fitted weights.  We then add the regional climate signal back via
 # :meth:`~riogrande.io.models.Band.add`.  The result should approximate the original LST.
 
-model_file     = os.path.join(base_dir,
-                              f"../data/examples/_tmp_model_conv_{kernel_m_sigma}_m.tif")
+model_file     = work_dir / f"model_conv_{kernel_m_sigma}m.tif"
 model_data_tif = lfpara.compute_model(
     predictors=predictors,
     optimal_weights=band_weight,
-    output_file=model_file,
+    output_file=str(model_file),
     block_size=block_size,
     profile=lst_profile,
     verbose=False,
@@ -400,6 +417,13 @@ plt.show()
 #   climate convolution).
 # * **Full model** - how well the complete reconstruction (lapse-rate fit plus the
 #   regional climate convolution added back) explains the original LST.
+#
+# .. note::
+#
+#    Unlike the previous steps, :func:`~riogrande.parallel.compute_mask`
+#    writes the computed dataset mask into the fetched LST file itself (via
+#    :meth:`~riogrande.io.models.Source.mask_writer`). Only the mask is
+#    added; the pixel values remain unchanged.
 
 lst_org_source = Source(path=lst_file_org)
 lst_org_band   = Band(lst_org_source, bidx=1)
@@ -420,10 +444,10 @@ _selector_all = rgpara.prepare_selector(lst_org_band, *predictors,
 # Here we temporarily subtract the convolution so it holds the lapse-rate component only.
 
 model_band.subtract(band=lst_conv_band)
-rmse_resid = lfpara.calculate_rmse(response=lst_band, model=model_data_tif,
+rmse_resid = lfpara.calculate_rmse(response=lst_diff_band, model=model_data_tif,
                                    selector=_selector_all, block_size=block_size,
                                    **params)
-r2_resid = lfpara.calculate_r2(response=lst_band, model=model_data_tif,
+r2_resid = lfpara.calculate_r2(response=lst_diff_band, model=model_data_tif,
                                selector=_selector_all, block_size=block_size,
                                **params)
 print(f"Residual model - RMSE: {rmse_resid:.2f} °C  |  R²: {r2_resid:.2f}")
@@ -458,8 +482,7 @@ print(f"Full model     - RMSE: {rmse_full:.2f}  °C  |  R²: {r2_full:.2f}")
 # spatially where the model over- or under-predicts.
 # For example, urban heat islands or cold air pooling around water bodies.
 
-resid_file   = os.path.join(base_dir,
-                            f"../data/examples/_tmp_resid_model_conv_{kernel_m_sigma}_m.tif")
+resid_file   = work_dir / f"resid_model_conv_{kernel_m_sigma}m.tif"
 resid_source = Source(path=resid_file, profile=lst_profile)
 resid_source.init_source(overwrite=True)
 resid_band   = Band(source=resid_source, bidx=1)
@@ -479,3 +502,12 @@ cbar = plt.colorbar(img, ax=ax, label="°C", shrink=0.6, aspect=25, pad=0.02,
 fig.suptitle("Step 5 - Residuals", fontweight="bold", fontsize=14)
 fig.tight_layout()
 plt.show()
+
+# %%
+# Clean up
+# --------
+#
+# Remove the temporary working directory together with all intermediate
+# rasters created in this example.
+
+work_dir_handle.cleanup()
