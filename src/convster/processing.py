@@ -709,6 +709,74 @@ def _apply_filter(data: NDArray, img_filter: Callable, **params) -> NDArray:
     return img_filter(data, **params)
 
 
+def _is_lossy_cast(src_dtype: type | str | np.dtype,
+                   dst_dtype: type | str | np.dtype | None) -> bool:
+    """
+    Determine whether casting from one data type to another can destroy data.
+
+    The decision is based on the data types only (not on actual values), so
+    it is identical for every block of a raster.
+
+    A cast is considered lossy if:
+
+    - floating point is cast to an integer type (fractions are truncated),
+    - floating point is cast to ``float16`` from a wider float type
+      (overflow above 65504 and only ~3 significant digits),
+    - an integer is cast to an integer type that cannot hold all its values
+      (overflow or wrap-around of negative values),
+    - an integer is cast to a float type whose mantissa cannot represent all
+      its values exactly (e.g. ``int32`` to ``float32``).
+
+    Casting ``float64`` to ``float32`` is *not* considered lossy: only
+    precision is reduced.
+
+    Parameters
+    ----------
+    src_dtype : type or str or numpy.dtype
+        Data type of the data before the cast.
+    dst_dtype : type or str or numpy.dtype or None
+        Target data type. ``None`` is interpreted as ``float64``, matching
+        :meth:`numpy.ndarray.astype` with ``None``.
+
+    Returns
+    -------
+    bool
+        ``True`` if the cast can destroy data, ``False`` otherwise.
+
+    Examples
+    --------
+    >>> _is_lossy_cast(np.float64, np.uint8)
+    True
+    >>> _is_lossy_cast(np.float64, np.float32)
+    False
+    >>> _is_lossy_cast(np.float32, np.float16)
+    True
+    >>> _is_lossy_cast(np.int8, np.int16)
+    False
+    >>> _is_lossy_cast(np.int32, np.float32)
+    True
+    """
+    src = np.dtype(src_dtype)
+    dst = np.dtype(dst_dtype) if dst_dtype is not None else np.dtype(np.float64)
+    if src == dst:
+        return False
+    if np.issubdtype(src, np.floating):
+        if not np.issubdtype(dst, np.floating):
+            return True
+        return dst == np.float16
+    if np.issubdtype(src, np.integer):
+        if np.issubdtype(dst, np.integer):
+            return not np.can_cast(src, dst, casting='safe')
+        if np.issubdtype(dst, np.floating):
+            info = np.iinfo(src)
+            value_bits = info.bits - (1 if info.min < 0 else 0)
+            # the significand holds `nmant` stored bits plus the implicit one
+            return value_bits > np.finfo(dst).nmant + 1
+        return True
+    # any other source type (e.g. bool, complex) is not handled explicitly
+    return not np.can_cast(src, dst, casting='safe')
+
+
 def _filter_data(data: NDArray,
                  replace_nan_with: int | float | None = None,
                  img_filter=None,
@@ -748,8 +816,10 @@ def _filter_data(data: NDArray,
     -----
     - NaNs in the original array are restored after filtering if the output dtype supports
       floating-point NaNs.
-    - `filter_output_range` should be set when `as_dtype` or `output_range` is used to
-      avoid unexpected scaling.
+    - `filter_output_range` should be set when `output_range` is used to
+      avoid unexpected scaling. If neither range is set, the filter output is
+      only cast to `as_dtype` (no rescaling). A warning is issued if this cast
+      can destroy the data (see :func:`_is_lossy_cast`).
     - Uses :func:`~riogrande.helper.convert_to_dtype` for dtype conversion and rescaling.
 
     See Also
@@ -784,18 +854,6 @@ def _filter_data(data: NDArray,
         data = np.nan_to_num(data, nan=replace_nan_with)
     # apply the filter if one is chosen
     if img_filter is not None:
-        if filter_output_range is None and as_dtype is not None:
-            warnings.warn(
-                f"We are applying the filter {img_filter} and convert the "
-                f"resulting output to {as_dtype} without knowing the range of "
-                "the data produced by the filter. Rescaling to another data "
-                "type is likely to produce unexpected results if the input "
-                "range is unknown (e.g. if the filter outputs floats then the "
-                "entire range of float is used as input range, which is not "
-                "what you want if the filter produces values only in the range "
-                "[0, 1], for example. Please set the filter output range with "
-                "`filter_output_range` to avoid unpleasant surprises."
-            )
         filter_params = filter_params or dict()
         if img_filter in (gaussian, bpgaussian):
             if np.issubdtype(data.dtype, np.integer) and \
@@ -809,6 +867,35 @@ def _filter_data(data: NDArray,
                     "To avoid this set `filter_params['preserve_range']=True`"
                 )
         _data = _apply_filter(data, img_filter, **filter_params)
+        # Without `filter_output_range` the conversion below can destroy the
+        # filtered data:
+        # - with `output_range`, the full range of the filter output's data
+        #   type is used as input range for the rescaling
+        #   (see `riogrande.helper.convert_to_dtype`)
+        # - without any range, the data is only cast, which is destructive if
+        #   the target type cannot hold the values (see `_is_lossy_cast`)
+        if filter_output_range is None:
+            if output_range is not None:
+                warnings.warn(
+                    f"We are applying the filter {img_filter} and rescale "
+                    f"the resulting output to {output_range=} without "
+                    "knowing the range of the data produced by the filter. "
+                    "The full range of the filter output's data type is then "
+                    "used as input range, which is not what you want if the "
+                    "filter produces values only in the range [0, 1], for "
+                    "example. Please set the filter output range with "
+                    "`filter_output_range` to avoid unpleasant surprises."
+                )
+            elif _is_lossy_cast(_data.dtype, as_dtype):
+                warnings.warn(
+                    f"We are applying the filter {img_filter} and cast the "
+                    f"resulting output of type {_data.dtype} to "
+                    f"{np.dtype(as_dtype)} without rescaling. This cast can "
+                    "destroy the data (e.g. fractions are truncated, values "
+                    "overflow or lose precision). Please set the filter "
+                    "output range with `filter_output_range` to rescale the "
+                    "data to the target type instead."
+                )
     else:
         _data = data
     # now we convert and optionally rescale

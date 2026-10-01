@@ -5,6 +5,7 @@
 
 import pytest
 
+import warnings
 import itertools
 import random
 
@@ -217,103 +218,164 @@ def test_filter_data_float(datafiles):
     assert np.isnan(filtered_data).sum() == np.isnan(ch_f_data).sum()
 
 
-@ALL_MAPS
-def test_entropy_normalization_conversion(datafiles):
-    """Test the normalization of the entropy along with casting to unsigned int
+def test_filter_data_dtype_cast_without_ranges_does_not_rescale():
+    """Converting the filter output without any range is a plain dtype cast.
+
+    With ``as_dtype`` set but both ``filter_output_range`` and
+    ``output_range`` left as ``None``, :func:`convster.processing._filter_data`
+    must not rescale the filtered values: the result has to equal the raw
+    filter output cast to ``as_dtype``, with NaNs restored at their original
+    positions. The data deliberately spans a range far outside ``[0, 1]``
+    (temperature-/elevation-like values), so any rescaling would be visible.
     """
-    # TODO: these tests become a bit unnecessary as get_entropy should be removed
-    map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
-    map_data = rgio.load_block(map_tif)
-    data = map_data['data']
-    blur_output_dtype = "uint8"  # convert the blurred data to uint8 before
-    categories = csproc.get_categories(data)
+    rng = np.random.default_rng(42)
+    data = rng.uniform(-20.0, 3000.0, size=(40, 50))
+    data[5:9, 10:14] = np.nan
+    filter_params = dict(sigma=2.0, truncate=3, preserve_range=True)
 
-    filter_output_range = (0, 1)
-    filter_params = dict(
-        preserve_range=False
-    )
+    filtered_data = csproc._filter_data(data=data,
+                                        img_filter=lbgauss.bpgaussian,
+                                        filter_params=filter_params,
+                                        filter_output_range=None,
+                                        as_dtype=np.float32,
+                                        output_range=None)
 
-    max_entropy = csproc.get_max_entropy(len(categories))
-    print(f'{max_entropy=}')
+    expected = lbgauss.bpgaussian(data, **filter_params).astype(np.float32)
+    expected[np.isnan(data)] = np.nan
 
-    with pytest.warns(expected_warning=UserWarning, match='bounded'):
-        # without a normalization we cannot set the output_range (as we have not
-        # fixed input range > unbounded).
-        entropy_data = csproc.get_entropy(data=data,
-                                          categories=categories,
-                                          normed=False,
-                                          # this should lead to a warning
-                                          output_range=(0, 1),
-                                          img_filter=gaussian,
-                                          filter_params=filter_params,
-                                          blur_output_dtype=blur_output_dtype,
-                                          filter_output_range=filter_output_range,
-                                          )
+    assert filtered_data.dtype == np.float32
+    np.testing.assert_array_equal(filtered_data, expected)
+    # values keep their original scale (no mapping onto [0, 1])
+    assert np.nanmax(filtered_data) > 1.0
 
-    assert np.nanmax(entropy_data) <= max_entropy, \
-        'Maximal entropy is exceeded'
 
-    with pytest.warns(expected_warning=UserWarning, match='without rescaling'):
-        # we convert but do not normalize > no rescaling possible, only type
-        # conversion
-        _ = csproc.get_entropy(data=data,
-                               categories=categories,
-                               normed=False,
-                               as_dtype="uint8",  # this should lead to a warning
-                               img_filter=gaussian,
-                               filter_params=filter_params,
-                               blur_output_dtype=blur_output_dtype,
-                               filter_output_range=filter_output_range,)
+def _identity_filter(data, **filter_params):
+    """Filter returning its input unchanged (keeps the input data type)."""
+    return data
 
-    entropy_data = csproc.get_entropy(data=data,
-                                      categories=categories,
-                                      normed=False,
-                                      as_dtype="float64",
-                                      img_filter=gaussian,
-                                      filter_params=filter_params,
-                                      blur_output_dtype=blur_output_dtype,
-                                      filter_output_range=filter_output_range,
-                                      )
-    print(f"{np.nanmax(entropy_data)=}")
-    print(f"{np.nanmin(entropy_data)=}")
-    normed_entropy_data = csproc.get_entropy(data=data, categories=categories,
-                                             normed=True,
-                                             img_filter=gaussian,
-                                             filter_params=filter_params,
-                                             filter_output_range=filter_output_range,
-                                             blur_output_dtype=blur_output_dtype,
-                                             )
 
-    print(f"{np.nanmax(normed_entropy_data)=}")
-    print(f"{np.nanmin(normed_entropy_data)=}")
-    assert np.nanmax(normed_entropy_data) == \
-        np.nanmax(entropy_data)/max_entropy, 'Normalization is faulty'
+def _filter_input(src_dtype):
+    """Create input data that exposes any destructive cast from `src_dtype`.
 
-    normed_set_maximum_entropy_data = csproc.get_entropy(
-        data=data,
-        categories=categories,
-        normed=True,
-        max_entropy_categories=(len(categories) * 2),
-        img_filter=gaussian,
-        filter_params=filter_params,
-        filter_output_range=filter_output_range,
-        blur_output_dtype=blur_output_dtype,
-    )
-    assert np.nanmax(normed_set_maximum_entropy_data) <= \
-        np.nanmax(entropy_data) / csproc.get_max_entropy(len(categories)*2)
+    Parameters
+    ----------
+    src_dtype : str
+        Data type of the returned array.
 
-    rescaled_entropy_data = csproc.get_entropy(data, categories=categories,
-                                               normed=True,
-                                               as_dtype="uint8",
-                                               img_filter=gaussian,
-                                               filter_params=filter_params,
-                                               filter_output_range=filter_output_range,
-                                               blur_output_dtype=blur_output_dtype,
-                                               )
-    print(f"{np.nanmax(rescaled_entropy_data)=}")
-    print(f"{np.nanmin(rescaled_entropy_data)=}")
-    assert np.nanmax(rescaled_entropy_data) <= 255
-    assert rescaled_entropy_data.dtype == np.uint8
+    Returns
+    -------
+    numpy.ndarray
+        2D array of type `src_dtype`. Floating arrays hold fractional values
+        between -20.25 and 3000.75 and a block of NaNs. Integer arrays hold
+        the minimum, -1 (signed types only), 0, 1 and the maximum of the type.
+    """
+    dtype = np.dtype(src_dtype)
+    if np.issubdtype(dtype, np.floating):
+        rng = np.random.default_rng(0)
+        data = rng.uniform(-20.25, 3000.75, size=(20, 20)).astype(dtype)
+        data[3:6, 4:8] = np.nan
+        return data
+    info = np.iinfo(dtype)
+    values = [info.min, 0, 1, info.max]
+    if info.min < 0:
+        values.insert(1, -1)
+    return np.array([values], dtype=dtype)
+
+
+def _cast_is_lossless(source, cast):
+    """Check (value based) whether `cast` holds exactly the values of `source`.
+
+    Floating values are compared with a relative tolerance of ``1e-6``, which
+    accepts the reduced precision of ``float32`` but not of ``float16``.
+    Integers are compared exactly as Python objects to avoid any implicit
+    conversion during the comparison.
+    """
+    if np.issubdtype(source.dtype, np.floating):
+        with np.errstate(invalid="ignore", over="ignore"):
+            return bool(np.allclose(cast.astype(np.float64),
+                                    source.astype(np.float64),
+                                    rtol=1e-6, atol=0, equal_nan=True))
+    return all(a == b for a, b in zip(cast.astype(object).ravel(),
+                                      source.astype(object).ravel()))
+
+
+FILTER_SOURCES = [("float64", lbgauss.bpgaussian),
+                  ("float32", _identity_filter)] + \
+    [(dtype, _identity_filter) for dtype in
+     ("int8", "int16", "int32", "int64",
+      "uint8", "uint16", "uint32", "uint64")]
+TARGET_DTYPES = [None, "float16", "float32", "float64",
+                 "int8", "int16", "int32", "int64",
+                 "uint8", "uint16", "uint32", "uint64"]
+RANGE_SETTINGS = ["none", "filter_output_range", "output_range", "both"]
+
+
+@pytest.mark.parametrize("range_setting", RANGE_SETTINGS)
+@pytest.mark.parametrize("as_dtype", TARGET_DTYPES)
+@pytest.mark.parametrize("src_dtype, img_filter", FILTER_SOURCES)
+def test_filter_data_warns_if_conversion_destroys_data(src_dtype, img_filter,
+                                                       as_dtype,
+                                                       range_setting):
+    """A warning is raised exactly when the conversion would destroy data.
+
+    For every combination of filter output type, target type (``as_dtype``)
+    and range setting, :func:`convster.processing._filter_data` must warn
+    about a missing ``filter_output_range`` if, and only if, the conversion
+    of the filter output would destroy the data:
+
+    - ``filter_output_range`` set (alone or with ``output_range``): the
+      rescaling is well defined, no warning.
+    - only ``output_range`` set: the full range of the filter output's data
+      type is used as input range, which destroys the data, so a warning.
+    - no range set: the data is only cast. The expected outcome is determined
+      independently of the implementation, by checking the values: a warning
+      is expected if the cast changes the data. If no warning is raised the
+      result must equal the unscaled cast of the filter output.
+
+    ``as_dtype=None`` casts to ``float64`` (as :meth:`numpy.ndarray.astype`).
+    """
+    if as_dtype is None and range_setting == "filter_output_range":
+        pytest.skip("Rescaling without target type and output range is not "
+                    "supported by `riogrande.helper.convert_to_dtype`.")
+    data = _filter_input(src_dtype)
+    filter_params = dict(sigma=1.0, preserve_range=True) \
+        if img_filter is lbgauss.bpgaussian else dict()
+    filter_output = img_filter(data, **filter_params)
+
+    filter_output_range = None
+    output_range = None
+    if range_setting in ("filter_output_range", "both"):
+        filter_output_range = (np.nanmin(filter_output),
+                               np.nanmax(filter_output))
+    if range_setting in ("output_range", "both"):
+        output_range = (0, 1)
+
+    unscaled_cast = None
+    if range_setting == "none":
+        with np.errstate(invalid="ignore", over="ignore"):
+            unscaled_cast = filter_output.astype(as_dtype)
+        expect_warning = not _cast_is_lossless(filter_output, unscaled_cast)
+    else:
+        expect_warning = range_setting == "output_range"
+
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        with np.errstate(invalid="ignore", over="ignore"):
+            result = csproc._filter_data(data=data,
+                                         img_filter=img_filter,
+                                         filter_params=filter_params,
+                                         filter_output_range=filter_output_range,
+                                         as_dtype=as_dtype,
+                                         output_range=output_range)
+    warned = any(issubclass(w.category, UserWarning)
+                 and "filter_output_range" in str(w.message)
+                 for w in record)
+
+    assert warned == expect_warning, (
+        f"{src_dtype=} -> {as_dtype=} with {range_setting=}: "
+        f"{warned=}, but {expect_warning=}")
+    if range_setting == "none" and not expect_warning:
+        np.testing.assert_array_equal(result, unscaled_cast)
 
 
 @ALL_MAPS
