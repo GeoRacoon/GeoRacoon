@@ -260,7 +260,7 @@ def process_masks(task: Callable, bands: Collection[Band], view: tuple[int, int,
     return timer
 
 
-def runner_call(queue: Queue[Any], callback: Callable, params: dict, wrapper: Callable | None = None) -> dict:
+def runner_call(queue: Queue[Any], callback: Callable, params: dict, wrapper: Callable | None = None) -> TimedTask:
     """Put the results of callback using parameter into the queue
 
     The function calls ``callback(**params)``, and optionally passes the result
@@ -281,20 +281,23 @@ def runner_call(queue: Queue[Any], callback: Callable, params: dict, wrapper: Ca
 
     Returns
     -------
-    dict
-        The unwrapped output.
+    :class:`~riogrande.timing.TimedTask`
+        Timing information for the callback call. The callback result itself is
+        only placed into ``queue`` and not returned, so the caller does not
+        retain the (potentially large) output.
 
     See Also
     --------
     :func:`~riogrande.parallel.process_block` : Uses this function to enqueue block results.
     :func:`~riogrande.parallel.process_masks` : Uses this function to enqueue mask results.
     """
-    output = callback(**params)
-    if wrapper is not None:
-        queue.put(wrapper(output))
-    else:
-        queue.put(output)
-    return output
+    with TimedTask() as timer:
+        output = callback(**params)
+        if wrapper is not None:
+            queue.put(wrapper(output))
+        else:
+            queue.put(output)
+    return timer
 
 
 def compute_mask(source: str | Source, block_size: tuple[int, int], nodata=0, logic: str = 'all',
