@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 """
 Estimating the Lapse Rate from MODIS LST
 ==============================================================
@@ -25,6 +30,7 @@ pixel-wise linear model to recover the lapse rate.
 # Packages we need for this process, including our GeoRacoon.
 import os
 import shutil
+import sys
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -32,6 +38,10 @@ from matplotlib import pyplot as plt
 # Modules from GeoRacoon we use here
 from riogrande.io import Source, Band
 from riogrande import parallel as rgpara
+
+# Fetches the example rasters from Zenodo on first use, then reuses the cache
+sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "..")))
+from data.fetch import fetch
 
 from convster import parallel as cvpara
 from convster.filters import bpgaussian
@@ -46,12 +56,12 @@ from coonfit import parallel as lfpara
 
 base_dir =  os.getcwd()
 
-lst_file_org  = os.path.join(base_dir, "../data/example/lst_day_mean_summer_2015_MODISLST8D_alps.tif")
-topo_file_org = os.path.join(base_dir, "../data/example/elevation_mean_COP90_alps.tif")
+lst_file_org  = fetch("examples/alps_lst-day-mean_summer_2015_MOD11A2_sinusoidal.tif")
+topo_file_org = fetch("examples/alps_elevation-mean_GLO90DEM_sinusoidal.tif")
 
 # Work on copies so the originals are never altered
-lst_file  = os.path.join(base_dir, "../data/example/_tmp_lst_diff_alps.tif")
-topo_file = os.path.join(base_dir, "../data/example/_tmp_elevation_diff_alps.tif")
+lst_file  = os.path.join(base_dir, "../data/examples/_tmp_lst_diff_alps.tif")
+topo_file = os.path.join(base_dir, "../data/examples/_tmp_elevation_diff_alps.tif")
 shutil.copy(src=lst_file_org,  dst=lst_file)
 shutil.copy(src=topo_file_org, dst=topo_file)
 
@@ -75,7 +85,7 @@ elev_band = topo_source.get_band(category=elev_cat)
 
 # %%
 # Set some general paremeters (for parallelization etc. for later use)
-params     = dict(nbrcpu=6)
+params     = dict(n_jobs=6)
 block_size = (200, 200)
 data_type  = np.float32
 
@@ -136,7 +146,7 @@ params_filter = dict(
 # Prepare the dataset objects for the filter ...
 
 lst_conv_file   = os.path.join(base_dir,
-                               f"../data/example/_tmp_lst_conv_{kernel_m_sigma}m_alps.tif")
+                               f"../data/examples/_tmp_lst_conv_{kernel_m_sigma}m_alps.tif")
 lst_conv_source = Source(path=lst_conv_file, profile=lst_profile)
 lst_conv_source.init_source(overwrite=True)
 lst_conv_band   = Band(lst_conv_source, bidx=1)
@@ -201,7 +211,7 @@ plt.show()
 # Again we prepare the data ...
 
 elev_conv_file   = os.path.join(base_dir,
-                                f"../data/example/_tmp_elev_conv_{kernel_m_sigma}m_alps.tif")
+                                f"../data/examples/_tmp_elev_conv_{kernel_m_sigma}m_alps.tif")
 elev_conv_source = Source(path=elev_conv_file, profile=topo_profile)
 elev_conv_source.init_source(overwrite=True)
 elev_conv_band   = Band(elev_conv_source, bidx=1)
@@ -347,7 +357,7 @@ plt.show()
 # :meth:`~riogrande.io.models.Band.add`.  The result should approximate the original LST.
 
 model_file     = os.path.join(base_dir,
-                              f"../data/example/_tmp_model_conv_{kernel_m_sigma}_m.tif")
+                              f"../data/examples/_tmp_model_conv_{kernel_m_sigma}_m.tif")
 model_data_tif = lfpara.compute_model(
     predictors=predictors,
     optimal_weights=band_weight,
@@ -385,10 +395,11 @@ plt.show()
 # :func:`~riogrande.parallel.prepare_selector` builds a shared valid-pixel mask across
 # response and predictors.  Two variants are reported:
 #
-# * **Residual** - how well the lapse-rate component alone explains the
-#   LST anomaly (what was directly fit).
-# * **Overall** - how well the complete model (convolution + lapse rate)
-#   explains the original LST.
+# * **Residual model** - how well the lapse-rate fit alone explains the LST anomaly
+#   (i.e. the quantity that was directly modelled: original LST minus the regional
+#   climate convolution).
+# * **Full model** - how well the complete reconstruction (lapse-rate fit plus the
+#   regional climate convolution added back) explains the original LST.
 
 lst_org_source = Source(path=lst_file_org)
 lst_org_band   = Band(lst_org_source, bidx=1)
@@ -404,30 +415,55 @@ lst_org_band.set_mask_reader(use="source")
 _selector_all = rgpara.prepare_selector(lst_org_band, *predictors,
                                         block_size=block_size)
 
-rmse = lfpara.calculate_rmse(response=lst_band, model=model_data_tif,
-                             selector=_selector_all, block_size=block_size,
-                             **params)
+# %%
+# Residual model: Both metrics use the same file (``model_data_tif``) but at different states.
+# Here we temporarily subtract the convolution so it holds the lapse-rate component only.
+
+model_band.subtract(band=lst_conv_band)
+rmse_resid = lfpara.calculate_rmse(response=lst_band, model=model_data_tif,
+                                   selector=_selector_all, block_size=block_size,
+                                   **params)
 r2_resid = lfpara.calculate_r2(response=lst_band, model=model_data_tif,
                                selector=_selector_all, block_size=block_size,
                                **params)
+print(f"Residual model - RMSE: {rmse_resid:.2f} °C  |  R²: {r2_resid:.2f}")
+
+# %%
+# Full model: We restore the convolution to ``model_data_tif`` before computing the full model metrics.
+
+model_band.add(band=lst_conv_band)
+rmse_full = lfpara.calculate_rmse(response=lst_org_band, model=model_data_tif,
+                                  selector=_selector_all, block_size=block_size,
+                                  **params)
 r2_full = lfpara.calculate_r2(response=lst_org_band, model=model_data_tif,
                                selector=_selector_all, block_size=block_size,
                                **params)
+print(f"Full model     - RMSE: {rmse_full:.2f}  °C  |  R²: {r2_full:.2f}")
 
-print(f"Residual model - RMSE: {rmse:.2f} °C  |  R²: {r2_resid:.2f}")
-print(f"Full model     - RMSE: {rmse:.2f} °C  |  R²: {r2_full:.2f}")
+# %%
+# .. note::
+#
+#    The RMSE values for the residual and full model will always be identical.
+#    The convolution is an additive term that cancels out pixel-by-pixel when
+#    computing the error, subtracting it from both the model and the response
+#    leaves the difference unchanged:
+#    ``(lapse_rate + conv) - lst_org  =  lapse_rate - (lst_org - conv)``.
+#    The R² values do differ, because R² normalises by the total variance of the
+#    response: ``lst_org`` includes the large regional climate gradient and
+#    therefore has much higher total variance than the local anomaly, pushing
+#    R² up for the full model.
 
-# Residual map
+# %%
+# Finally we compute the residual map (original LST minus full model) to see
+# spatially where the model over- or under-predicts.
+# For example, urban heat islands or cold air pooling around water bodies.
+
 resid_file   = os.path.join(base_dir,
-                            f"../data/example/_tmp_resid_model_conv_{kernel_m_sigma}_m.tif")
+                            f"../data/examples/_tmp_resid_model_conv_{kernel_m_sigma}_m.tif")
 resid_source = Source(path=resid_file, profile=lst_profile)
 resid_source.init_source(overwrite=True)
 resid_band   = Band(source=resid_source, bidx=1)
 lst_org_band.subtract(band=model_band, out_band=resid_band)
-
-# %%
-# Residuals reveal where the model over- or under-predicts - for example,
-# urban heat islands or cold air pooling around water bodies:
 
 fig, ax = plt.subplots(1, 1, figsize=(10, 8))
 src = Source(path=resid_file)

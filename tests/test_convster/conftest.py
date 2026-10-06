@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 import os
 import pytest
 import glob
@@ -8,18 +13,11 @@ from riogrande.io import Source
 
 from convster.filters.gaussian import gaussian, get_blur_params
 from convster import parallel as cspara
+from data.fetch import fetch
 
-FIXTURE_DIR = os.path.abspath(os.path.join(
-    os.path.dirname(os.path.realpath(__file__)),
-    '../../',
-    'data'
-))
-lct_map = os.path.join(FIXTURE_DIR, 'testing', 'landcover',
-                       'Switzerland_CLC_2012_reclass8.tif')
-lct_float_map = os.path.join(FIXTURE_DIR, 'testing', 'landcover',
-                             'Switzerland_area_frac_grid_1km_CGLS_2015.tif')
-ndvi_map = os.path.join(FIXTURE_DIR, 'testing', 'ndvi',
-                          'Switzerland_NDVI_binning_2015.tif')
+lct_map = fetch('test/switzerland_lc-8-reclass_2012_CLC_epsg3035.tif')
+lct_float_map = fetch('test/switzerland_lc-area-fraction_2015_CGLS-LC100_epsg2056.tif')
+ndvi_map = fetch('test/switzerland_ndvi-binned-mean_2015_LANDSAT-8_epsg3035.tif')
 
 ALL_MAPS = pytest.mark.datafiles(lct_map, lct_float_map, ndvi_map)
 
@@ -43,8 +41,8 @@ def create_blurred_tif(datafiles):
     """
     as_dtype = 'uint8'
     landcover_map = get_file(
-        pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+        pattern="*_CLC_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     lct_source = Source(path=landcover_map)
     # ###
     # compute blurred layers
@@ -84,8 +82,8 @@ def create_blurred_tif_float(datafiles):
     """Create blurred single land-cover type layers as float rescaled to [0, 1]
     """
     landcover_map = get_file(
-        pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
-    ndvi_map = get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles)
+        pattern="*_CLC_*.tif", datafiles=datafiles)
+    ndvi_map = get_file(pattern="*ndvi*.tif", datafiles=datafiles)
     lct_source = Source(path=landcover_map)
     # ###
     # compute blurred layers

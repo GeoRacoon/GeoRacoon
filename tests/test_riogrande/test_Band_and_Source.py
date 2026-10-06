@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 import pytest
 
 import rasterio
@@ -147,7 +152,7 @@ def test_Band_tagging(datafiles):
 def test_rasterio_band_mask(datafiles):
     """Check if there is a difference between rastreio's band and dataset mask
     """
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     test_file = datafiles / 'test.tif'
     with rio.open(ch_map_tif, 'r+') as src:
         mask_ds0 = src.dataset_mask()
@@ -186,7 +191,7 @@ def test_rasterio_band_mask(datafiles):
 
 @ALL_MAPS
 def test_masking(datafiles):
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     test_file = datafiles / 'test.tif'
     source = Source(path=ch_map_tif)
     source.import_profile()  # load profile from file
@@ -230,7 +235,7 @@ def test_masking(datafiles):
 def test_masking_all_none(datafiles):
     """make sure the not masking and the masking all works as expected"""
     from riogrande.helper import aggregated_selector
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     test_file = datafiles / 'test.tif'
     source = Source(path=ch_map_tif)
     source.import_profile()  # load profile from file

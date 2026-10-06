@@ -1,6 +1,21 @@
 ---
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 title: GeoRacoon
 ---
+
+<style>
+/* 1. Hide the Sphinx-generated Markdown title */
+h1:first-of-type { display: none !important; }
+
+/* 2. Rescue and display the HTML title that lives inside your README's center div */
+div[align="center"] h1 { display: block !important; }
+</style>
+
+# GeoRacoon
 
 
 ```{image} _static/georacoonPin.svg 

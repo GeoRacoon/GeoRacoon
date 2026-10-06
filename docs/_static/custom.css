@@ -1,3 +1,10 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+ * SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 /* GitHub-pre-like surface that adapt to PST dark/light mode */
 .gh-pre {
   background-color: #f6f8fa;   /* GitHub light pre bg */

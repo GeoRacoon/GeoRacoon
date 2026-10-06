@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 name: Status
 
 on:
@@ -22,6 +27,14 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.pythonV }}
+
+    - name: Cache Zenodo data archives
+      uses: actions/cache@v4
+      with:
+        path: |
+          data/examples.zip
+          data/test.zip
+        key: zenodo-data-${{ hashFiles('data/fetch.py') }}
 
     - name: Install dependencies
       run: |
