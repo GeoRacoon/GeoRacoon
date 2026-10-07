@@ -155,6 +155,13 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
       interpreter process. Once the global start method is set, it cannot be
       changed without restarting the interpreter. This function therefore
       avoids forcibly overwriting an existing different global start method.
+    - When ``method`` is ``None`` the function mirrors the *already-active*
+      global start method. Note that simply instantiating a default-context
+      object -- e.g. :class:`multiprocessing.Manager` -- resolves the global to
+      the platform default (``fork`` on POSIX, ``spawn`` on Windows). A later
+      ``get_or_set_context(None)`` therefore returns that method rather than the
+      ``spawn`` fallback; the fallback applies only when the global start method
+      is still unset at call time.
     - The returned context is safe to use even when the global start method
       differs, because context objects encapsulate start semantics for the
       created processes independently of global state.

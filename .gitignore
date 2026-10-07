@@ -80,7 +80,13 @@ instance/
 # Sphinx documentation
 docs/_build/
 docs/auto_examples/
+docs/auto_benchmarks/
 docs/sg_execution_times.rst
+
+# ASV benchmarks (environments and generated HTML are ignored;
+# raw results are committed to build up a benchmark history)
+.asv/env/
+.asv/html/
 
 # PyBuilder
 target/
@@ -152,8 +158,8 @@ dmypy.json
 locals.py
 
 # generally exclude results and input data
-results/
-data/*.zip
+/results/
+data/
 *.png
 *.pdf
 *.tif

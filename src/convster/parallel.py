@@ -1369,6 +1369,7 @@ def apply_filter(source: str | Source,
         - **n_jobs** : int, number of jobs to run in parallel.
         - **start_method** : str, multiprocessing start method.
         - **compress** : bool, whether to compress the final output with LZW.
+        - **maxsize_queue** : int, introduces a maximal queue size.
 
     Returns
     -------
@@ -1467,9 +1468,6 @@ def apply_filter(source: str | Source,
     # ###
     # prepare multiprocessing
     # ###
-    manager = Manager()
-    blur_q = manager.Queue()
-
     # TODO: remove support for nbrcpu for version 2.0.0
     if 'nbrcpu' in params:
         warnings.warn(
@@ -1482,8 +1480,12 @@ def apply_filter(source: str | Source,
 
     # get number of cpu's
     nbr_workers = get_nbr_workers(number=params.pop('n_jobs', None))
+    maxsize_queue = params.pop('maxsize_queue', 0)
     if verbose:
         print(f"using {nbr_workers=}")
+
+    manager = Manager()
+    blur_q = manager.Queue(maxsize=maxsize_queue)
 
     start_method = params.get('start_method', None)
 
@@ -1504,11 +1506,11 @@ def apply_filter(source: str | Source,
                           params=bparams)
             ))
         # collect results
-        job_outputs = []
+        job_timers = []
         for job in all_jobs:
             # await for the jobs to return (i.e. complete) by calling .get()
             # get the duration from the timer object that is returned by .get()
-            job_outputs.append(job.get())
+            job_timers.append(job.get().get_duration())
 
         # once we have all the blocks, add a last element to the queue to stop
         # the combination process

@@ -11,7 +11,7 @@ import numpy as np
 from rasterio.transform import Affine
 
 from riogrande.helper import get_or_set_context
-from data.fetch import fetch
+from riogrande.data import fetch
 
 lct_map = fetch('test/switzerland_lc-8-reclass_2012_CLC_epsg3035.tif')
 lct_float_map = fetch('test/switzerland_lc-area-fraction_2015_CGLS-LC100_epsg2056.tif')
@@ -51,7 +51,7 @@ def get_example_data(bands=1, size=(240, 180)):
     res = (x[-1] - x[0]) / 240.0
     transform = Affine.translation(x[0] - res /
                                    2, y[0] - res /
-                                   2) * Affine.scale(res, res)
+                                   2) @ Affine.scale(res, res)
     # create some data for the bands
     Zs = list()
     for band in range(bands):
