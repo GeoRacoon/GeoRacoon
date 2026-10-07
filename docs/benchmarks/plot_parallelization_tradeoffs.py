@@ -541,12 +541,12 @@ plot_routine(
 # memory limit is preferable to a faster cell that cannot run.  Conversely,
 # when sufficient RAM and CPU capacity are available, larger blocks and more
 # workers may reduce runtime at the cost of a larger peak working set.
-
+#
 # .. note::
 #
 #    The top row (``block_fraction = 1``) is not a meaningful parallel
 #    configuration: a block as large as the raster leaves a single task, yet
-#    GeoRacoon's parallel routines screate and tear down a pool of ``n_jobs``
+#    GeoRacoon's parallel routines create and tear down a pool of ``n_jobs``
 #    workers, leading to fixed costs independent of the actual work carried
 #    out. When the block spans the full raster, the native single-process
 #    implementation is the one to choose.
