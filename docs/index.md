@@ -71,4 +71,5 @@ content/georacoon/index
 # content/convster/index
 # content/coonfit/index
 auto_examples/index
+auto_benchmarks/index
 ```

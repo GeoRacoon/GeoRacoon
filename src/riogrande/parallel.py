@@ -260,7 +260,7 @@ def process_masks(task: Callable, bands: Collection[Band], view: tuple[int, int,
     return timer
 
 
-def runner_call(queue: Queue[Any], callback: Callable, params: dict, wrapper: Callable | None = None) -> dict:
+def runner_call(queue: Queue[Any], callback: Callable, params: dict, wrapper: Callable | None = None) -> TimedTask:
     """Put the results of callback using parameter into the queue
 
     The function calls ``callback(**params)``, and optionally passes the result
@@ -281,20 +281,23 @@ def runner_call(queue: Queue[Any], callback: Callable, params: dict, wrapper: Ca
 
     Returns
     -------
-    dict
-        The unwrapped output.
+    :class:`~riogrande.timing.TimedTask`
+        Timing information for the callback call. The callback result itself is
+        only placed into ``queue`` and not returned, so the caller does not
+        retain the (potentially large) output.
 
     See Also
     --------
     :func:`~riogrande.parallel.process_block` : Uses this function to enqueue block results.
     :func:`~riogrande.parallel.process_masks` : Uses this function to enqueue mask results.
     """
-    output = callback(**params)
-    if wrapper is not None:
-        queue.put(wrapper(output))
-    else:
-        queue.put(output)
-    return output
+    with TimedTask() as timer:
+        output = callback(**params)
+        if wrapper is not None:
+            queue.put(wrapper(output))
+        else:
+            queue.put(output)
+    return timer
 
 
 def compute_mask(source: str | Source, block_size: tuple[int, int], nodata=0, logic: str = 'all',
@@ -506,6 +509,8 @@ def prepare_selector(*bands: Band, block_size: tuple[int, int], extra_masking_ba
           Starting method for multiprocessing jobs, passed to
           :func:`~riogrande.helper.get_or_set_context`.
 
+        - ``maxsize_queue`` : int, introduces a maximal queue size.
+
     Returns
     -------
     NDArray
@@ -547,8 +552,6 @@ def prepare_selector(*bands: Band, block_size: tuple[int, int], extra_masking_ba
         block_params.append(bparams)
 
     # prepare multiprocessing
-    manager = Manager()
-    aggr_q = manager.Queue()
     start_method = params.get('start_method', None)
 
     # TODO: remove support for nbrcpu for version 2.0.0
@@ -562,8 +565,12 @@ def prepare_selector(*bands: Band, block_size: tuple[int, int], extra_masking_ba
         _nworkers = None
 
     nbr_workers = get_nbr_workers(number=params.pop('n_jobs', _nworkers))
+    maxsize_queue = params.pop('maxsize_queue', 0)
     if verbose:
         print(f"using {nbr_workers=}")
+
+    manager = Manager()
+    aggr_q = manager.Queue(maxsize=maxsize_queue)
 
     with get_or_set_context(start_method).Pool(nbr_workers) as pool:
         # start the aggregator job
