@@ -352,19 +352,17 @@ class TestEnsureOrContext:
     def test_manager_pins_global_default_so_get_or_set_context_none_follows_it(self):
         """Mirrors ``apply_filter``: ``Manager()`` runs before
         ``get_or_set_context(None)``. ``Manager()`` resolves the global to the
-        platform default (``fork`` on POSIX), so ``get_or_set_context(None)``
-        returns that instead of the ``spawn`` default.
+        platform default (``fork``/``forkserver`` on POSIX, ``spawn`` on
+        Windows), so ``get_or_set_context(None)`` mirrors that instead of the
+        ``spawn`` fallback.
         """
         test_body = '''
-    import sys
     from multiprocessing import Manager
     from riogrande.helper import MPC_STARTER_METHODS
-    platform_default = "spawn" if sys.platform == "win32" else "fork"
     result["before"] = multiprocessing.get_start_method(allow_none=True)
     Manager().Queue()
     result["after_manager"] = multiprocessing.get_start_method(allow_none=True)
     result["context"] = get_or_set_context(None).get_start_method()
-    result["platform_default"] = platform_default
     result["default"] = MPC_STARTER_METHODS[0]
     '''
         code = make_worker_script(test_body)
@@ -373,7 +371,7 @@ class TestEnsureOrContext:
         j = json.loads(out)
         assert j.get("error") is None, j["error"]
         assert j["before"] is None
-        assert j["after_manager"] == j["platform_default"]
-        assert j["context"] == j["platform_default"]
-        if j["platform_default"] != "spawn":
+        assert j["after_manager"] is not None
+        assert j["context"] == j["after_manager"]
+        if j["after_manager"] != "spawn":
             assert j["context"] != j["default"]
