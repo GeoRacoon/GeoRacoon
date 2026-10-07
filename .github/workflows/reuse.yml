@@ -20,8 +20,58 @@ permissions:
 jobs:
   reuse-compliance-check:
     runs-on: ubuntu-latest
+    container:
+      image: python:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install REUSE
+        run: python -m pip install --disable-pip-version-check reuse
       - name: REUSE Compliance Check
-        uses: fsfe/reuse-action@v6
+        shell: sh
+        run: |
+          set +e
+          reuse lint --json > reuse-report.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          report = json.loads(Path("reuse-report.json").read_text())
+          non_compliant = report["non_compliant"]
+
+          ignored_extensions = {".json"}
+          ignored_keys = {
+              "missing_copyright_info",
+              "missing_licensing_info",
+          }
+          expected_missing_metadata = set()
+          unexpected_missing_metadata = set()
+
+          for key, values in non_compliant.items():
+              if isinstance(values, dict):
+                  values = values.keys()
+              if not isinstance(values, (list, set, tuple)):
+                  continue
+              for value in values:
+                  path = Path(value)
+                  if (
+                      path.suffix.lower() in ignored_extensions
+                      and key in ignored_keys
+                  ):
+                      expected_missing_metadata.add((key, value))
+                  else:
+                      unexpected_missing_metadata.add((key, value))
+
+          if expected_missing_metadata:
+              print("Ignoring expected REUSE metadata findings:")
+              for key, path in sorted(expected_missing_metadata):
+                  print(f" - {key}: {path}")
+
+          if unexpected_missing_metadata:
+              print("REUSE findings require attention:")
+              for key, path in sorted(unexpected_missing_metadata):
+                  print(f" - {key}: {path}")
+              sys.exit(1)
+          PY

@@ -282,4 +282,4 @@ def test_band_count_contrib(datafiles):
         valid = band.count_valid_pixels(selector=None, no_data=0,
                                          limit_count=limit_count)
         assert isinstance(valid, bool)
-        assert ~valid
+        assert not valid
