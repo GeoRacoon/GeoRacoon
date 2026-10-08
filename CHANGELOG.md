@@ -10,13 +10,11 @@ SPDX-License-Identifier: MIT
 All notable changes to GeoRacoon follow [Conventional Commits](https://www.conventionalcommits.org/)
 and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2026-10-08
 
-### ⚠ BREAKING CHANGES
+### BREAKING CHANGES
 
-* None — this release is fully backward compatible. The removal of the
-  deprecated `nbrcpu` argument will constitute the next breaking release
-  (2.0.0).
+* None
 
 ### Features
 
@@ -67,5 +65,6 @@ First stable release of the GeoRacoon umbrella packages `riogrande`
 (raster I/O and parallel processing), `convster` (filtering and entropy
 computations), and `coonfit` (zonal statistics and fitting).
 
-[Unreleased]: https://github.com/GeoRacoon/landiv/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/GeoRacoon/landiv/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/GeoRacoon/landiv/releases/tag/1.1.0
 [1.0.0]: https://github.com/GeoRacoon/landiv/releases/tag/1.0.0
