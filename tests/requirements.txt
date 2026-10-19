@@ -1,7 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 pytest>=7.4.3
 pytest-datafiles>=3.0.0
 pytest-timeout>=2.4.0
 pydataset>=0.2.0
+pooch>=1.8.0
 # NOTE: We calculate the coverage in a pinned configuration:
 coverage==7.3.3
 pytest-cov==4.1.0

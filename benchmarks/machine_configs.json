@@ -1,0 +1,29 @@
+{
+  "default": {
+    "block_fraction_denominators": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+    "sizes": [1000, 5000, 10000, 20000],
+    "scaling_out_sizes": [1000, 5000, 10000, 20000, 50000, 100000],
+    "ndvi": "data/test/switzerland_lc-8-reclass_2012_CLC_epsg3035.tif",
+    "landcover": "data/test/switzerland_lc-8-reclass_2012_CLC_epsg3035.tif",
+    "gaussian_sigma": 10.0,
+    "gaussian_truncate": 3.0
+  },
+  "jil-thinkBrick": {
+    "block_fraction_denominators": [1, 2, 3, 4, 6, 10, 16, 20],
+    "sizes": [1000, 20000],
+    "gaussian_sigma": 10.0,
+    "gaussian_truncate": 3.0
+  },
+  "jil_iMac_fedora": {
+    "block_fraction_denominators": [1, 2, 4, 8, 16, 20],
+    "sizes": [1000, 20000],
+    "gaussian_sigma": 10.0,
+    "gaussian_truncate": 3.0
+  },
+  "jil-nano": {
+    "block_fraction_denominators": [1, 2, 4, 8, 16, 20],
+    "sizes": [20000],
+    "gaussian_sigma": 10.0,
+    "gaussian_truncate": 3.0
+  }
+}

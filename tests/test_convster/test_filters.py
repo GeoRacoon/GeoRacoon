@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 import pytest
 
 from itertools import product
@@ -38,7 +43,7 @@ def test_kernel_scaling():
 def test_filter_signal_preservation(datafiles):
     """Filtering shouldn't lose more than 0.1% of the initial signal in the map
     """
-    ch_map_tif = get_file(pattern="Switzerland_CLC_*.tif", datafiles=datafiles)
+    ch_map_tif = get_file(pattern="*_CLC_*.tif", datafiles=datafiles)
     ch_data = rgio.load_block(ch_map_tif)['data']
     lctypes = convproc.get_categories(ch_data)
     sigma = 10

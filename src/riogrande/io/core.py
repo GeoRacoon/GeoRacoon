@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 """
 Low-level I/O functions for reading and writing GeoTIFF raster data.
 
@@ -379,7 +384,7 @@ def load_block(source: str, view: None | tuple[int, int, int, int] = None, scali
                         resampling=resampling)
         if scaling_params:
             # scale image transform
-            transform = transform * transform.scale(
+            transform = transform @ transform.scale(
                 (width / data.shape[-1]),
                 (height / data.shape[-2])
             )

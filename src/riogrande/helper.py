@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 """
 General-purpose helper functions for the riogrande package.
 
@@ -53,6 +58,7 @@ def get_nbr_workers(number: Optional[int] = None) -> int:
         Desired number of workers. If ``None``, the function will use the
         number of CPUs available via :func:`multiprocessing.cpu_count`,
         but never less than 2.
+        For values below -1, `n_cpus + 1 + n_jobs` will be used.
 
     Returns
     -------
@@ -66,11 +72,15 @@ def get_nbr_workers(number: Optional[int] = None) -> int:
 
     See Also
     --------
-    :func:`~riogrande.helper.get_or_set_context` : Return a multiprocessing context.
+    :func:`~riogrande.helper.get_or_set_context` : Return a multiprocessing
+    context.
     """
     _min_count = 2  # Hardcoded: some parallelization routines fail when < 2
+    _nbr_cpu = mpc.cpu_count()
     if number is None:
         _use = max(_min_count, mpc.cpu_count())
+    elif number < 0:
+        _use = max(2, _nbr_cpu + 1 + number)
     elif number <= _min_count:
         warnings.warn(
             message=f"For this routine to work properly at least {_min_count} "
@@ -145,6 +155,13 @@ def get_or_set_context(method: Optional[str] = None) -> _context_module.BaseCont
       interpreter process. Once the global start method is set, it cannot be
       changed without restarting the interpreter. This function therefore
       avoids forcibly overwriting an existing different global start method.
+    - When ``method`` is ``None`` the function mirrors the *already-active*
+      global start method. Note that simply instantiating a default-context
+      object -- e.g. :class:`multiprocessing.Manager` -- resolves the global to
+      the platform default (``fork`` on POSIX, ``spawn`` on Windows). A later
+      ``get_or_set_context(None)`` therefore returns that method rather than the
+      ``spawn`` fallback; the fallback applies only when the global start method
+      is still unset at call time.
     - The returned context is safe to use even when the global start method
       differs, because context objects encapsulate start semantics for the
       created processes independently of global state.

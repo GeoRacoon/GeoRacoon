@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 
 from riogrande.io import Source
@@ -13,7 +18,7 @@ from .conftest import (
 @ALL_MAPS
 def test_block_ssr_and_sst(datafiles, create_blurred_tif):
     """Test the parallel helpers _block_ssr and _block_sst using a raster band."""
-    ndvi_map = Source(path=get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles))
+    ndvi_map = Source(path=get_file(pattern="*ndvi*.tif", datafiles=datafiles))
     response_band = ndvi_map.get_bands()[0]
 
     # Use the same band as model for simplicity
@@ -51,7 +56,7 @@ def test_block_ssr_and_sst(datafiles, create_blurred_tif):
 @ALL_MAPS
 def test_process_band_count_valid(datafiles):
     """Test _process_band_count_valid using a raster band."""
-    ndvi_map = Source(path=get_file(pattern="Switzerland_NDVI_*.tif", datafiles=datafiles))
+    ndvi_map = Source(path=get_file(pattern="*ndvi*.tif", datafiles=datafiles))
     band = ndvi_map.get_band(bidx=1)
     data = band.get_data()
     selector = ~np.isnan(data)
