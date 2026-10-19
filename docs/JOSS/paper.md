@@ -37,8 +37,8 @@ bibliography: paper.bib
 
 # Summary
 The Python package `GeoRacoon` is aimed at supporting work and analyses with
-large spatial raster data. It consists of 3 sub-packages: `riogrande`, a class based extension of Rasterio
-[@Gillies_2013] with extended functionalities for tag based raster object
+large spatial raster data. It consists of 3 sub-packages: `riogrande`, a class-based extension of Rasterio
+[@Gillies_2013] with extended functionalities for tag-based raster object
 management; `convster`, a fully parallelized module for convolution of spatial
 raster data (e.g., satellite imagery); `coonfit`, a multiple linear regression
 module using fully parallelized analytical solutions to enable large data analysis.
@@ -68,7 +68,7 @@ extension of Rasterio [@Gillies_2013] to manage large volumes of imagery in an o
 manner, improving easy usability of remote sensing imagery for broader applications beyond the original research context.
 The other two sub-packages, `convster` and `coonfit` build upon `riogrande` to implement convolution methods and multiple linear regression in a fully parallelized approach.
 
-The package can be directly installed via `pip install git+https://github.com/GeoRacoon/georacoon.git`, with a 
+The package can be directly installed via pip install git+https://github.com/GeoRacoon/georacoon with 
 comprehensive documentation including examples of usage available at https://georacoon.readthedocs.io/en/latest/.
 
 # State of the field
@@ -77,11 +77,11 @@ Several well-established tools address different parts of the geospatial raster 
 First, Rasterio [@Gillies_2013] provides the baseline Python interface for geospatial raster input/output (I/O),
 built on top of GDAL [@GDAL_2025], but offers no high-level analytical operations such as convolution or regression.
 Next, `xarray` [@Hoyer_2017] and its geospatial extension `rioxarray` enable lazy, chunked computation via Dask, facilitating the basic handling of large multidimensional arrays. 
-However, they lack analytical capabilityies for spatial filtering or pixel-wise MLR.
+However, they lack analytical capabilities for spatial filtering or pixel-wise MLR.
 While `scipy.ndimage` [@Virtanen_2020] and `scikit-image` [@van_der_Walt_2014] provide spatial filters,
 including Gaussian, both operate in-memory and do not handle geospatial metadata or nodata boundaries,
 also lacking block-parallel decomposition.
-Cloud-based platforms, such as Google Earth Engine [@Gorelick_2017] can also be accessible via Python API but are tied to proprietary infrastructure and do not support full custom filter implementations and often even 
+Cloud-based platforms, such as Google Earth Engine [@Gorelick_2017] are also accessible via a Python API but are tied to proprietary infrastructure and do not support full custom filter implementations and often even 
 limit the incorporation of personal datasets that are not part of the provided catalogue.
 
 `GeoRacoon` stands out by combining block-parallel processing with correct nodata handling, tag-based metadata management, and an object-oriented approach to raster data.
@@ -136,8 +136,8 @@ are provided as part of the pipeline.
 The `GeoRacoon` package was central to carrying out a research project on the effects of landscape diversity on vegetation 
 productivity at a global scale [@Landauer_2025_preprint]. The analyses required Gaussian convolution and heterogeneity 
 metric computation of land-cover data, as well as per-pixel MLR with numerous predictors in billion-pixel 
-multi-band remote sensing imagery. Given the non-availability of cloud based solutions for the datasets as well as the 
-methods, this research would have not been computationally feasible without the provided parallelization in this package.
+multi-band remote sensing imagery. Given the non-availability of cloud-based solutions for the datasets as well as the 
+methods, this research would not have been computationally feasible without the provided parallelization in this package.
 
 Beyond this initial application, the package is highly usable in any research involving large geospatial rasters. 
 While `riogrande` can generally assist with the simplified management of multi-band remote sensing raster objects,
@@ -158,7 +158,7 @@ subsequently reviewed and edited by the authors.
 # Acknowledgements
 
 The initial stages of development for this package were financially supported by the European Union’s Horizon 2020
-research and innovation programme under the Marie Sklodowska-Curie (MSC) grant agreement No 847585 
+research and innovation programme under the Marie Skłodowska-Curie (MSC) grant agreement No 847585 
 as well as a grant of the University of Zurich Research Priority Program Global Change and Biodiversity (URPP GCB).
 
 
