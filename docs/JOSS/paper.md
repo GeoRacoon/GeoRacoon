@@ -68,8 +68,8 @@ extension of Rasterio [@Gillies_2013] to manage large volumes of imagery in an o
 manner, improving easy usability of remote sensing imagery for broader applications beyond the original research context.
 The other two sub-packages, `convster` and `coonfit` build upon `riogrande` to implement convolution methods and multiple linear regression in a fully parallelized approach.
 
-The package can be directly installed via pip install git+https://github.com/GeoRacoon/georacoon with 
-comprehensive documentation including examples of usage available at https://georacoon.readthedocs.io/en/latest/.
+The package can be directly installed via `pip install GeoRacoon` with comprehensive documentation including examples of
+usage available at https://georacoon.rtfd.org.
 
 # State of the field
 
