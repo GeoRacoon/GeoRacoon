@@ -4,17 +4,17 @@
 #
 # SPDX-License-Identifier: MIT
 """
-The *coon-way*: Fragmented raster computations
-==============================================
+The block-wise approach: Fragmented raster computations
+=========================================================
 
 This document showcases and explains how raster computations are performed
-the *coon-way*, providing all the information necessary to use GeoRacoon's
+in a block-wise fashion, providing all the information necessary to use GeoRacoon's
 parallelization tools efficiently.
 
-Loosely put, the *coon-way* consists in decomposing raster-based operations
+Loosely put, the block-wise approach consists in decomposing raster-based operations
 into sets of independent block-wise computations and providing a high-level
 interface to keep the user out of the weeds that such a decomposition brings about.
-Instead of handling the complete raster in one operation, the *coon-way*
+Instead of handling the complete raster in one operation, the block-wise approach
 divides it into spatial blocks that can then be processed sequentially or in
 parallel, depending on the available hardware.
 
@@ -41,7 +41,7 @@ the computation.
 
 As we will see, the decompositions can be configured in a way to maximise the
 benefits along one axis at the expense of the other.
-In a way, the `coon-way` allows the user to trade RAM for runtime and
+In a way, the block-wise approach allows the user to trade RAM for runtime and
 vice-versa.
 
 This makes it possible to adapt the computation to hardware restrictions:
@@ -54,7 +54,7 @@ memory footprint.
 
 Before we present the fragmented raster computations for a finite-kernel
 convolution and multiple linear regression, along with benchmark results
-showcasing some real-world benefits of the coon-way, note that the benchmark
+showcasing some real-world benefits of the block-wise approach, note that the benchmark
 results are taken from GeoRacoon's own
 `benchmark suite <https://github.com/GeoRacoon/GeoRacoon/blob/main/benchmarks/README.md>`_.
 The benchmark results are machine-dependent and should therefore be

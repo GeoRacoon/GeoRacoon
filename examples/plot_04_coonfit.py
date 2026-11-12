@@ -7,8 +7,8 @@
 Coonfit: Pixel-wise Regression of NDVI on Land-Cover Fractions
 ===============================================================
 
-:mod:`coonfit` implements pixel-wise ordinary least squares regression for
-raster data, parallelised over spatial blocks.  The core workflow is:
+:mod:`coonfit` (short for Racoon Fitting) implements pixel-wise ordinary least squares
+regression for raster data, parallelised over spatial blocks.  The core workflow is:
 
 1. :func:`~coonfit.parallel.compute_weights`: solve the OLS normal equations
    and return per-predictor β coefficients keyed by predictor

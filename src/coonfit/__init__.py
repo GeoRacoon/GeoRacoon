@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT
 
 """
-coonfit — Parallel multiple linear regression for spatial raster data.
+coonfit (short for Racoon Fitting) — Parallel multiple linear regression for spatial raster data.
 
 This package implements a block-parallel multiple linear regression workflow
 where both predictors and the response variable are provided as raster bands
