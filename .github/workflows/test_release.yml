@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 # Manual TestPyPI dry-run. Trigger via the Actions tab; the branch picker
 # in the workflow_dispatch UI selects which ref to build from. Useful for
 # validating the build and publish pipeline before cutting a real release tag.
