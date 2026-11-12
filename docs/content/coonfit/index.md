@@ -6,6 +6,9 @@ SPDX-License-Identifier: MIT
 -->
 
 # Coonfit
+
+_Short for "Racoon Fitting"._
+
 ```{toctree}
 
 about
