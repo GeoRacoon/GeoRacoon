@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 name: Status
 
 on:
@@ -8,6 +13,8 @@ on:
 jobs:
   unit-tests:
     runs-on: ubuntu-24.04
+    env:
+      GEORACOON_DATA_DIR: data
     strategy:
       matrix:
         pythonV: ["3.10", "3.11", "3.12", "3.13", "3.14"]
@@ -22,6 +29,12 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.pythonV }}
+
+    - name: Cache Zenodo test archive
+      uses: actions/cache@v5
+      with:
+        path: data/test.zip
+        key: zenodo-test-${{ hashFiles('src/riogrande/data.py') }}
 
     - name: Install dependencies
       run: |

@@ -1,5 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 import os
 import sys
+from pathlib import Path
 from importlib.metadata import version as get_version
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -7,6 +13,12 @@ from importlib.metadata import version as get_version
 project = 'GeoRacoon'
 copyright = '2025, Simon Landauer, Jonas I. Liechti'
 author = 'Simon Landauer, Jonas I. Liechti'
+
+# Sphinx-Gallery executes examples in a namespace where ``__file__`` is not
+# guaranteed to exist.  Export paths derived here for benchmark examples.
+DOCS_DIR = Path(__file__).resolve().parent
+REPO_ROOT = DOCS_DIR.parent
+os.environ["GEORACOON_ASV_RESULTS_DIR"] = str(REPO_ROOT / ".asv" / "results")
 
 
 
@@ -132,8 +144,8 @@ autoapi_ignore = [
 
 # -- Sphinx-Gallery configuration ---------------------------------------------
 sphinx_gallery_conf = {
-    "examples_dirs": "../examples",     # path to your example scripts
-    "gallery_dirs": "auto_examples",    # path to where to save gallery generated output
+    "examples_dirs": ["../examples", "benchmarks"],     # path to your example scripts
+    "gallery_dirs": ["auto_examples", "auto_benchmarks"],    # path to where to save gallery generated output
     "filename_pattern": "plot_",       # only execute files prefixed with plot_
     "ignore_pattern": "exmpl_",
     "plot_gallery": True,

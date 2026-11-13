@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 [project]
 name = "GeoRacoon"
 authors = [
@@ -22,6 +27,12 @@ file = ["tests/requirements.txt"]
 
 [tool.setuptools.dynamic.optional-dependencies.docs]
 file = ["docs/requirements.txt"]
+
+[tool.setuptools.dynamic.optional-dependencies.benchmarks]
+file = ["benchmarks/requirements.txt"]
+
+[tool.setuptools.dynamic.optional-dependencies.data]
+file = ["data/requirements.txt"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

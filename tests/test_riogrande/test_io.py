@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 import pytest
 import os
 import rasterio as rio
@@ -277,4 +282,4 @@ def test_band_count_contrib(datafiles):
         valid = band.count_valid_pixels(selector=None, no_data=0,
                                          limit_count=limit_count)
         assert isinstance(valid, bool)
-        assert ~valid
+        assert not valid

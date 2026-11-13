@@ -1,3 +1,10 @@
+<!--
+SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+
+SPDX-License-Identifier: MIT
+-->
+
 <div align="center">
 <img src="https://raw.githubusercontent.com/GeoRacoon/GeoRacoon/main/docs/_static/georacoonPin.svg" alt="GeoRacoon Logo" width="400">
 </div>
@@ -62,9 +69,9 @@ It also facilitates GeoTIFF handling with an object oriented abstraction layer t
 _GeoRacoon_ provides 3 packages, `riogrande`, `convster` and `coonfit`, which facilitate (in our opinion) working with TIFF files.
 
 - **RioGrande** is the great heart of the GeoRacoon and adds functionality for parallel processing using block-based I/O, dataset compatibility checks, data type conversion, mask and selector creation as well as simple file compression.  
-- **Convster** allows for (Gaussian) convolution of raster files using parallelized processing, _coon-style_. 
+- **Convster** allows for (Gaussian) convolution of raster files using parallelized, block-wise processing.
 While Gaussian and border-preserving Gaussian filters are default parameters, other filters can be used.
-- **CoonFit** allows to fit linear models the _coon-way_, meaning parallelized and fast, while understandable due to the
+- **CoonFit** (short for Racoon Fitting) allows to fit linear models in a block-wise fashion, meaning parallelized and fast, while understandable due to the
 reliance on matrix operations
 
 <!-- overview-end -->
