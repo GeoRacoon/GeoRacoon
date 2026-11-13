@@ -91,3 +91,32 @@ jobs:
         with:
           name: python-coverage-comment-action
           path: python-coverage-comment-action.txt
+
+  tests-badge:
+    name: tests-status-badge
+    runs-on: ubuntu-24.04
+    needs: [unit-tests, coverage]
+    if: needs.unit-tests.result == 'success' || needs.unit-tests.result == 'failure'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: python-coverage-comment-action-data
+
+      - name: Write tests badge endpoint
+        run: |
+          if [ "${{ needs.unit-tests.result }}" = "success" ]; then
+            message="passing"
+            color="brightgreen"
+          else
+            message="failing"
+            color="red"
+          fi
+          echo "{\"schemaVersion\": 1, \"label\": \"Tests\", \"message\": \"$message\", \"color\": \"$color\"}" > tests-badge.json
+
+      - name: Commit and push badge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests-badge.json
+          git diff --cached --quiet || git commit -m "Update tests badge"
+          git push
