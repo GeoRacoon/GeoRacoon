@@ -37,7 +37,7 @@ SPDX-License-Identifier: MIT
 </p>
 <p>
   <a href="https://github.com/GeoRacoon/GeoRacoon/actions/workflows/develop.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/GeoRacoon/GeoRacoon/develop.yml?branch=main&label=Tests" alt="Tests">
+    <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/GeoRacoon/GeoRacoon/python-coverage-comment-action-data/tests-badge.json" alt="Tests">
   </a>
   <a href="https://github.com/GeoRacoon/georacoon/tree/python-coverage-comment-action-data">
     <img src="https://github.com/GeoRacoon/georacoon/raw/python-coverage-comment-action-data/badge.svg" alt="Coverage">
