@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Jonas I. Liechti <j-i-l@t4d.ch>
+# SPDX-FileCopyrightText: 2026 Simon Landauer <georacccoon@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
 cff-version: 1.2.0
 message: If you use this software, please cite the JOSS article below.
 title: 'GeoRacoon: A Python package for scalable, parallelized geospatial raster analysis'
